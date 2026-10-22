@@ -1383,6 +1383,49 @@ does not. That returns the problem to needing `FORMAT.EXP`, which needs the CD
 mounted from a Towns OS shell, which the FreeTOWNSOS shell does not provide
 cleanly.
 
+### 6.26 FORMAT.EXE running, and the keyboard fix
+
+**Injected `FORMAT.EXP` into the FreeTOWNSOS boot floppy.** The OS shell has no
+builtin formatter, but the game CD ships `FORMAT.EXP`, and the boot floppy has
+`RUN386.EXE`. Built `tools/addfile-fat12.js` to add a file to an FM Towns 2HD
+FAT12 image directly:
+
+- geometry read from the BPB: 1024 B sectors, 1 sector/cluster, 1 reserved,
+  2 FATs of 2 sectors, 192 root entries, 1232 sectors
+- root dir at `0x1400`, data at `0x2c00`, clusters from 2
+- allocates from the first free cluster and links the FAT12 chain
+- writes the 32-byte directory entry
+
+Result: `FDIMG_FMT.BIN`, verified as `FORMAT EXE`, cluster 245, 208930 bytes,
+chain 245-449 with no overlap (original image data ends at 244). `dir` lists it
+after a fresh boot, and typing `format` starts the Towns OS formatter, whose own
+strings confirm it is the real thing:
+
+```
+0x7d2c ディスクの初期化              "disk initialisation"
+0x7d40 初期化するドライブを選んでください  "select the drive to initialise"
+0x7ee4 ディスクの初期化をしています      "initialising disk"
+0x7e3c 正常に終了しました              "completed successfully"
+```
+
+**Keyboard fix, and a general gotcha.** Typing `b:` produced `b+`. The cause is
+Tsugaru's default `KEYBOARD DIRECT` mode, which sends raw keycodes based on
+physical layout, so a UK keyboard's Shift+`;` does not become a colon. Fix:
+
+```
+KEYBOARD TRANSLATE
+```
+
+which converts typed characters to FM Towns keycodes regardless of layout,
+confirmed by the console reply `Keyboard TRANSLATION Mode 1`. After that `b:`
+types correctly. **Anyone driving this emulator from a non-Japanese keyboard
+should set TRANSLATE before typing anything.**
+
+**Status:** FORMAT.EXE is running and interactive. The remaining step is
+selecting drive B: and confirming, which needs a human at the VNC session since
+the utility is mouse-driven and `xdotool` pointer events do not reach the VM.
+The target image is still all zeros pending that.
+
 ---
 
 ## 7. Sound
