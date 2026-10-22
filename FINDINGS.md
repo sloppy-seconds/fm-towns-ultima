@@ -1969,6 +1969,30 @@ differ.
 **Other confirmed letters:** `RACE` is `H` human, `E` elf, `D` dwarf, `B`
 bobbit. `SHAPE` was 0 for all four characters and is not yet understood.
 
+**`FOOD` is a fixed-point countdown, not a quantity.** The stored value is one
+hundred times the number displayed, and each turn consumes a fraction of a unit,
+so the visible integer falls every fourth or fifth turn. A character created in
+game stores `FOOD=40000` and displays `400`.
+
+This was found the hard way. Setting `FOOD=9999` expected 9999 and displayed
+`99`, because 9999 is 99.99 units, roughly ten turns of food. Three data points
+agree on the divisor:
+
+| stored | displayed | stored / 100 |
+|---|---|---|
+| 40000 (written by the game) | 400 | 400 |
+| 12345 (written by the editor) | 123 | 123 |
+| 9999 (written by the editor) | 99 | 99 |
+
+So a nominally "maxed" character needs `FOOD=999900` to display `9999`, and
+`FOOD=9999` starves in about ten turns. Confirmed in game: 999900 displays 9999
+and holds.
+
+Every other counter is a plain integer. `HP`, `MHP`, `GOLD`, `EXPERIENCE` and
+the six stats all display exactly what is written, verified at 9999 and 99.
+The DOS release does the same thing differently, storing food as 6-digit BCD and
+printing a 4-digit band.
+
 **World files pair with slots by index.** Slots are 0-based in the roster and
 the world files are 1-based, so slot 0 uses `WORLD1.UT2` through slot 3 using
 `WORLD4.UT2`. A hand-built slot-1 character with a copied `WORLD2.UT2` loaded
@@ -1978,6 +2002,40 @@ and played, which confirms the pairing.
 can list files, extract the roster, clone a slot, set a field, and copy world
 files. Every write is to a new file unless `--inplace`, and both FAT copies are
 kept in sync.
+
+**What the editor does not model: creation-time stat modifiers.**
+
+Race, sex and profession modify the six stats once, when the character is
+created, and the modified values are what get written to the file. There is no
+separate base-stat field, so the roster holds final values only.
+
+This means the editor sets absolute stats and the game does not re-apply any
+modifier when loading. What you write is what the character has. Editing is
+therefore straightforward, but it also means the editor cannot reproduce the
+creation rules, and a character created in game will not match what was typed at
+character creation.
+
+One measured example. A human female fighter was created with base values
+20/15/20/15/10/10 and stored:
+
+| stat | entered | stored | delta |
+|---|---|---|---|
+| STRENGTH | 20 | 30 | +10 |
+| AGILITY | 15 | 25 | +10 |
+| STAMINA | 20 | 20 | 0 |
+| CHARISMA | 15 | 25 | +10 |
+| WISDOM | 10 | 10 | 0 |
+| INTELLIGENCE | 10 | 15 | +5 |
+
+That is one sample for one race, sex and profession combination. It does not
+separate the three factors, and the modifier table itself is not recoverable from
+the disc by cheap means: `ENCHANT.EXP` has no symbol table and no English race or
+class strings, so the arithmetic is in code that cannot be read reliably without
+a proper loader.
+
+Measuring it would take ten characters all entered at 10 across the board,
+varying one factor at a time, at which point stored minus ten is the modifier
+vector. Until then this is recorded as known-unknown rather than modelled.
 
 Three bugs were hit building it, all of which produced silently wrong output and
 are worth knowing:
