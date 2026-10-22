@@ -4,38 +4,37 @@ Guidance for anyone (agent or human) working in this repository.
 
 ## Goal
 
-Extract as much useful data and artwork as possible from the FM Towns release
-of **Ultima Trilogy I-II-III** (1990), with the longer-term hope of reverse
-engineering and reimplementing the games.
+The goal is **Ultima II extraction**.
 
-**Current focus is strictly Ultima II** (`ENCHANT.EXP`). U2 is the target for
-all active work.
+Extract as much useful data and artwork out of the FM Towns release of Ultima
+II (`ENCHANT.EXP`) as the disc will give up. That means every image, every
+sound effect, every map, every string, every monster, and eventually the
+palette so the art is not condemned to greyscale.
 
-Two rules follow from that and shape everything else:
+Everything else is subordinate to that. Reimplementation is not the goal. It
+is a possible later use for good extracted data, and it is not a reason to
+extract anything, nor a reason to defer extraction.
+
+Two rules shape how the work is done:
 
 - Validate against the others. `DARKNESS`, `EXODUS`, `TMENU` and the three
-demos are free corroboration. A format claim that works on U2 and also holds on
-`EXODUS` is worth far more than one that only fits U2. Use them to confirm, not
-to distract.
-- Generalise where it is free. Anything built for U2 should be written so it
-would work for U1 and U3 without rewriting: same Fujitsu libraries, same High C
-toolchain, same `MP` container, same `.SND` and `.EUP` and TIFF conventions,
-likely the same FM Towns graphics paths. Where a U2 assumption is actually a
-platform assumption, say so and make the code platform-shaped rather than
-U2-shaped.
-
-The larger prize is that the same extraction machinery should apply to **other
-FM Towns titles from the same era** (`fmtownscdcollection` holds dozens, mostly
-Origin and Fujitsu and other Japanese publishers). Treat the disc as one sample
-of a shared platform, not a unique snowflake.
+  demos are free corroboration. A format claim that works on U2 and also holds
+  on `EXODUS` is worth far more than one that only fits U2. Use them to
+  confirm, not to distract.
+- Generalise the tooling where it costs nothing. Extraction code written for
+  U2 should not be hardcoded in ways that would break on another title. That
+  is good engineering hygiene, not a second project. The payoff is that when
+  the U2 work is done, the same machinery can be pointed at other FM Towns
+  discs in `fmtownscdcollection` without a rewrite. That is a side benefit,
+  never the reason for a decision.
 
 Working order from here:
 
-1. Data and artwork extraction for U2. Cheap, verifiable, useful even if the RE
-   stalls.
-2. Format documentation. Every format gets a record in `FINDINGS.md`.
-3. Code understanding. Only where it unlocks something extraction cannot reach.
-4. Reimplementation. A separate concern, not started.
+1. Data and artwork extraction for U2. This is the job.
+2. Format documentation. Every format gets a record in `FINDINGS.md`, because
+   an undocumented extraction is not repeatable.
+3. Code understanding, but only where it unlocks something extraction cannot
+   reach. The palette is the standing example.
 
 ## Read these first
 
@@ -202,8 +201,13 @@ Do not re-derive these. Everything here is backed by a measurement in
 
 ## Platform versus U2-specific
 
-Before generalising anything, decide which of these it is. Getting this wrong
-in the optimistic direction wastes effort on portability that is not needed.
+Before writing a decoder, decide which of these it is. Marking something
+platform-wide when it is U2-only produces over-general code that breaks on the
+next title. Marking something U2-only when it is platform-wide means solving
+the same problem repeatedly.
+
+This list exists to keep the tooling honest, not to justify extra work. Nothing
+here is a reason to defer a U2 extraction.
 
 Almost certainly the platform, so write it generically and expect it everywhere:
 
@@ -230,32 +234,34 @@ U2-specific. Do not try to generalise these, but do document them:
 - The 65-tile `ENEMY2` bank size.
 
 Unknown either way, so do not assume: whether the palette is per-game data or a
-shared Fujitsu table. This matters a lot. If `EGB_palette` is a library routine
-reading a per-game table, every title needs its own table found. If it is one
-shared table, it gets solved once and applies to the whole collection.
-Resolving `SYM1` answers this.
+shared Fujitsu table. This matters directly for U2. If `EGB_palette` is a
+library routine reading a per-game table, then U2 has its own palette to find
+and the search is on U2's data. If it is one shared table, U2 gets its colours
+for free from a table that is not U2's. Either way U2 ends up in colour, but
+the search is different, so resolve this before hunting.
 
 ## Open problems, cheapest first
 
-U2 is the target. Items marked *(validates)* are cross-checks using the other
-binaries rather than U2 work in their own right.
+All of these are U2 extraction work. Some are marked *(validates)*, meaning
+they use the other binaries as a cross-check rather than as separate work.
 
-1. **Parse `SYM1` in `TMENU.EXP`.** Largest payoff, and it is the key to
-   deciding whether the palette is platform-level or per-game. Derive the
-   framing, validate the walk consumes the blob exactly.
-2. **Locate the palette for U2 specifically.** Whether or not `SYM1` resolves,
-   U2 needs its own colours. Then *(validates)* check whether the same routine
-   and the same table shape appear in `DARKNESS` and `EXODUS`.
-3. **Monster and animation table for U2.** `ENEMY2` holds 65 tiles in pairs.
-   Find the table indexing `SPID`. *(validates)* compare the corresponding
-   table shape in `EXODUS`.
-4. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
+1. **Locate the palette.** The single blocker on U2 art. Every image currently
+   comes out greyscale. The `SYM1` symbols `EGB_palette`, `EGB_color` and
+   `Palette_data1` in `TMENU.EXP` are the lead. Resolve those first, because
+   they also answer whether U2 has its own table or inherits a shared one, and
+   that decides where to search.
+2. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
+   table indexing `SPID` so each creature can be named and its frames grouped.
+   *(validates)* compare the corresponding table shape in `EXODUS`.
+3. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
    geometry and how `\UT2\MAP.MP2` relates to it.
-5. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
+4. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
    string in `ENCHANT.EXP` lists every field, so the schema is already known,
    the byte layout is not.
+5. **Strings.** `ENCHANT.EXP` holds the game text including the Japanese and
+   English dialogue tables. Not yet extracted in usable form.
 6. **`MP`/`P3` loader.** Only worth building when something needs correct
-   disassembly. `SYM1` may make it unnecessary.
+   disassembly. Items 1 and 2 may make it unnecessary.
 
 ## What not to do
 
