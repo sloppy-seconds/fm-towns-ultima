@@ -131,6 +131,16 @@ attempting static analysis of a value that only exists at runtime, check whether
 `PRI PALETTE`, `PRI CRTC`, `BRKON MEMW` or a breakpoint answers it faster. The
 palette cost five failed static probes and would have been one console command.
 
+### Interactive access
+
+`tools/container-run.sh` runs Tsugaru inside podman with Xvfb, x11vnc and
+noVNC, so the game is playable from any browser at `http://<host>:6080/vnc.html`.
+This is how to reach the running game when there is no local display, which is
+the normal case over SSH. Two host specifics the script encodes because both
+failed silently first time: podman requires sudo here, and SELinux is enforcing
+so bind mounts need `:z` or the container gets `Permission denied` on every host
+directory.
+
 - Host `ai.lan`, Bazzite. Check `hostname` before sysadmin work.
 - `node` for all tooling. No npm dependencies. `ndisasm` present via brew.
 - Java 25 present (Ghidra would run). No Ghidra, Reko, or radare2 installed.

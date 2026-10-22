@@ -750,8 +750,21 @@ agree, which is the cross-check that both are right.
 **Caveat:** these are the *initial* BIOS palette values, captured about 15
 seconds into boot. Whether U2 replaces them later is untested. The values look
 like a default 16-colour set (classic VGA-ish EGA ordering), so this may be the
-pre-game palette rather than U2's own. Re-running after the game reaches a
-coloured screen would settle it.
+pre-game palette rather than U2's own.
+
+**Re-tested after the boot menu was on screen:** the palette is **unchanged**.
+Running 25 seconds in, past the point where the game draws its menu, `PRI
+PALETTE` returns exactly the same two rows. So this is not a transient boot
+default that gets replaced, it is the palette the game runs with at that stage.
+Whether a later screen (title art, in-game map) installs a different one is
+still untested, and would need `PRI PALETTE` capturing at several points.
+
+**Browser access:** `tools/container-run.sh` runs the whole stack in a podman
+container with Xvfb, x11vnc and noVNC, so the game is playable from any browser
+at `http://<host>:6080/vnc.html`. Verified working: noVNC returns HTTP 200,
+VNC negotiates `RFB 003.008`, and a screen capture inside the container shows the
+U2 boot screen at 640x480. This is now the recommended way to interact with the
+running game, and it makes the runtime route available without a local monitor.
 
 The full dump including CRTC registers is in `analysis/palette-dump.txt`.
 

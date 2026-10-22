@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# entrypoint.sh - start Xvfb, VNC, noVNC, then Tsugaru.
+#
+# Environment:
+#   RESOLUTION   Xvfb geometry, default 640x480x24
+#   VNC_PASSWORD if set, x11vnc requires it
+#   TSUGARU_ARGS extra arguments for Tsugaru_CUI
+#   MODE         "game" (default) or "shell"
+set -euo pipefail
+
+RESOLUTION="${RESOLUTION:-640x480x24}"
+MODE="${MODE:-game}"
+
+log() { printf '[entrypoint] %s\n' "$*"; }
+
+# --- virtual display ---------------------------------------------------------
+
+log "starting Xvfb on ${DISPLAY} at ${RESOLUTION}"
+Xvfb "${DISPLAY}" -screen 0 "${RESOLUTION}" -nolisten tcp -ac +extension GLX +render -noreset &
+XVFB_PID=$!
+
+# Wait for the X socket rather than sleeping a fixed time.
+for _ in $(seq 1 50); do
+	if xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1; then break; fi
+	sleep 0.2
+done
+if ! xdpyinfo -display "${DISPLAY}" >/dev/null 2>&1; then
+	log "Xvfb did not come up"
+	exit 1
+fi
+log "X display ready"
+
+# Tsugaru wants a window manager for focus and for the window to be mapped
+# sensibly. A minimal one saves a lot of grief; fall back gracefully.
+if command -v openbox >/dev/null 2>&1; then
+	openbox --sm-disable &
+elif command -v fluxbox >/dev/null 2>&1; then
+	fluxbox &
+else
+	log "no window manager, continuing without one"
+fi
+
+# --- VNC ---------------------------------------------------------------------
+
+VNC_ARGS=(-display "${DISPLAY}" -forever -shared -rfbport 5900 -noxdamage -repeat)
+if [ -n "${VNC_PASSWORD:-}" ]; then
+	mkdir -p /root/.vnc
+	x11vnc -storepasswd "${VNC_PASSWORD}" /root/.vnc/passwd >/dev/null
+	VNC_ARGS+=(-rfbauth /root/.vnc/passwd)
+else
+	VNC_ARGS+=(-nopw)
+fi
+
+log "starting x11vnc on 5900"
+x11vnc "${VNC_ARGS[@]}" >/tmp/x11vnc.log 2>&1 &
+sleep 0.5
+
+# --- noVNC -------------------------------------------------------------------
+
+NOVNC_WEB=/usr/share/novnc
+if [ -d "${NOVNC_WEB}" ]; then
+	log "starting noVNC on 6080"
+	websockify --web "${NOVNC_WEB}" 6080 localhost:5900 >/tmp/novnc.log 2>&1 &
+else
+	log "noVNC web root missing, VNC still available on 5900"
+fi
+
+log "browse to http://<host>:6080/vnc.html"
+
+# --- Tsugaru -----------------------------------------------------------------
+
+if [ "${MODE}" = "shell" ]; then
+	log "shell mode"
+	exec /bin/bash
+fi
+
+ROM_DIR="${ROM_DIR:-/roms}"
+CD_IMAGE="${CD_IMAGE:-}"
+CMOS="${CMOS:-/data/CMOS.BIN}"
+
+mkdir -p /data
+
+if [ ! -x /emulator/Tsugaru_CUI ]; then
+	log "ERROR: /emulator/Tsugaru_CUI not mounted. Run tools/container-run.sh"
+	exit 1
+fi
+if [ ! -d "${ROM_DIR}" ]; then
+	log "ERROR: ROM directory ${ROM_DIR} not mounted"
+	exit 1
+fi
+
+ARGS=("${ROM_DIR}")
+[ -n "${CD_IMAGE}" ] && ARGS+=(-CD "${CD_IMAGE}")
+ARGS+=(-CMOS "${CMOS}")
+
+# UserDisk save floppy, if present alongside the CD.
+if [ -n "${FD0_IMAGE:-}" ] && [ -f "${FD0_IMAGE}" ]; then
+	ARGS+=(-FD0 "${FD0_IMAGE}")
+fi
+
+# shellcheck disable=SC2206
+[ -n "${TSUGARU_ARGS:-}" ] && ARGS+=(${TSUGARU_ARGS})
+
+log "launching: Tsugaru_CUI ${ARGS[*]}"
+exec /emulator/Tsugaru_CUI "${ARGS[@]}"

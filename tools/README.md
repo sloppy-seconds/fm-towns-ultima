@@ -14,6 +14,7 @@ directory, so run them from the repo root.
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
 | `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
+| `container-run.sh` | Runs the whole stack in podman with Xvfb, VNC and noVNC. Playable from any browser. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
@@ -85,6 +86,32 @@ Q              quit
 ```
 
 Output goes to `analysis/`. Nothing produced by the emulator is committed.
+
+## Playing in a browser
+
+If you do not have the desktop's display, run the emulator in a container:
+
+```bash
+./tools/container-run.sh          # build if needed, start, print the URL
+```
+
+Then open `http://<host>:6080/vnc.html` and click Connect. Raw VNC is on 5900 if
+you prefer a native client.
+
+```bash
+./tools/container-run.sh --shell  # container with bash instead of the game
+./tools/container-run.sh --stop   # tear down
+```
+
+Under the hood: Xvfb at 640x480x24, x11vnc, noVNC. Tsugaru and the ROMs are
+bind-mounted from `vendor/` read only, so nothing copyrighted is in the image.
+
+Two host quirks are handled in the script because both caused a silent failure:
+
+- podman needs sudo on this host.
+- SELinux is enforcing, so every bind mount carries `:z`. Without it the
+  container sees `Permission denied` on the host directories and the emulator
+  never starts.
 
 ## Copyright guard
 

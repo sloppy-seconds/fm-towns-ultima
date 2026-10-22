@@ -177,6 +177,15 @@ To read hardware state while the game runs, including the palette and CRTC
 registers, see `tools/debug-session.sh` and `tools/README.md`. It works over SSH
 with no monitor.
 
+To actually play it from another machine, including over the web:
+
+```bash
+./tools/container-run.sh     # Xvfb + VNC + noVNC in podman
+```
+
+Then open `http://<host>:6080/vnc.html` in a browser. No monitor on the host
+required.
+
 ## 4. Run it
 
 ```

@@ -1,0 +1,55 @@
+# FM Towns emulator in a browser-accessible container.
+#
+# Runs Tsugaru under Xvfb, serves the display over VNC, and exposes VNC as a
+# web page so it can be used from any browser. Built so U2 can be played and
+# inspected from a remote machine.
+#
+#   build:  sudo podman build -t fmtowns -f container/Containerfile .
+#   run:    ./tools/container-run.sh
+#   browse: http://<host>:6080/vnc.html
+#
+# Everything the container needs that is copyrighted (ROMs) or large (the
+# emulator) is bind-mounted at run time from vendor/, never baked in.
+
+FROM docker.io/library/ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DISPLAY=:99
+ENV RESOLUTION=640x480x24
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xvfb \
+        x11vnc \
+        novnc \
+        websockify \
+        libsdl2-2.0-0 \
+        libsdl2-mixer-2.0-0 \
+        libgtk-3-0 \
+        libgl1 \
+        libglu1-mesa \
+        libasound2t64 \
+        pulseaudio-utils \
+        x11-utils \
+        openbox \
+        xdg-utils \
+        xauth \
+        xdotool \
+        imagemagick \
+        procps \
+        ca-certificates \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# novnc ships its web root here on Ubuntu.
+RUN test -d /usr/share/novnc && ln -sfn /usr/share/novnc /opt/novnc
+
+COPY container/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Xvfb + VNC + noVNC. 6080 is the browser port, 5900 raw VNC.
+EXPOSE 6080 5900
+
+# The emulator writes its CMOS and logs here. Mount a host dir over it.
+VOLUME ["/data"]
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
