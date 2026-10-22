@@ -168,15 +168,18 @@ class Console {
 		return this.lines.slice(startN).map((l) => l.line);
 	}
 
-	// Type text as FM Towns keycodes. TYPE produces no console echo, so this
-	// writes and waits a short settle rather than waiting for output that will
-	// never arrive. Space is keycode 0x20.
-	async type(text, perCharMs = 140) {
+	// Send keystrokes into the VM.
+	//
+	// The console's TYPE command is unreliable here: it is accepted without
+	// error but does not move the game, verified by identical screenshots
+	// before and after. xdotool against the Tsugaru window does work, so that
+	// is the default. TYPE remains available via /api/cmd for anyone who wants
+	// the raw console route.
+	async type(text, perCharMs = 120) {
 		const sent = [];
 		for (const ch of text) {
-			const code = ch === ' ' ? '20' : ch;
-			this.write('TYPE ' + code);
-			sent.push(code);
+			xkey(ch);
+			sent.push(ch);
 			await new Promise((r) => setTimeout(r, perCharMs));
 		}
 		return sent;
@@ -343,6 +346,19 @@ const ROUTES = {
 
 	'POST /api/type': async (_q, body) => ROUTES['POST /api/keys'](_q, body),
 
+	// Named keys: Return, Up, Down, Left, Right, space, Escape, F1..F12.
+	// Faster and more reliable than typing printable text for navigation.
+	'POST /api/key': async (_q, body) => {
+		const names = body.keys ?? body.key;
+		if (names === undefined) throw new Error('missing "keys"');
+		const list = Array.isArray(names) ? names : String(names).split(/[,\s]+/).filter(Boolean);
+		for (const k of list) {
+			xkeyNamed(k);
+			await new Promise((r) => setTimeout(r, Number(body.delay) || 150));
+		}
+		return { sent: list };
+	},
+
 	'POST /api/run': async () => ({ output: await con.command('RUN') }),
 	'POST /api/pause': async () => ({ output: await con.command('PAU') }),
 	'POST /api/state': async () => ({ output: await con.command('STA') }),
@@ -366,6 +382,35 @@ const ROUTES = {
 		return screenshot(body.name, body.mode || q.mode || 'file', body);
 	},
 
+	// Mouse. The Tsugaru OS menu needs clicking, not typing.
+	//   {"x":320,"y":240}            move only
+	//   {"x":320,"y":240,"click":1}  left click
+	'POST /api/mouse': async (_q, body) => {
+		const x = Number(body.x);
+		const y = Number(body.y);
+		if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('need numeric x and y');
+		const r = xmouse(findWindow(), x, y, body.click === undefined ? 0 : Number(body.click));
+		return { x, y, click: body.click || 0, ...r };
+	},
+
+	// Click a fraction of the window: {"fx":0.5,"fy":0.5}. Handy when the
+	// exact pixel is not known but the on-screen position roughly is.
+	'POST /api/clickat': async (_q, body) => {
+		const img = null;
+		const win = findWindow() || 'root';
+		const env = { ...process.env, DISPLAY };
+		let w = 640, h = 480;
+		try {
+			const geo = execFileSync('xdotool', ['getwindowgeometry', win], { env, encoding: 'utf8' });
+			const m = geo.match(/Geometry:\s*(\d+)x(\d+)/);
+			if (m) { w = Number(m[1]); h = Number(m[2]); }
+		} catch { /* defaults */ }
+		const x = Math.round(Number(body.fx || 0.5) * w);
+		const y = Math.round(Number(body.fy || 0.5) * h);
+		const ok = xmouse(win, x, y, body.click === undefined ? 1 : Number(body.click));
+		return { fx: body.fx, fy: body.fy, x, y, window: { w, h }, ok };
+	},
+
 	// Convenience: capture and render as text in one call, no file handling.
 	'GET /api/screen': async (q) => {
 		return screenshot(q.name, q.mode || 'all', q);
@@ -374,6 +419,59 @@ const ROUTES = {
 	// Return the raw PNG bytes for a browser or a human.
 	'GET /api/shot.png': async (q) => ({ __raw: recordShot(q.name) }),
 };
+
+// Send a single key to the Tsugaru window via xdotool. Named keys are passed
+// through, printable characters go through `xdotool type`.
+function xkey(ch) {
+	const env = { ...process.env, DISPLAY };
+	const win = findWindow();
+	const named = {
+		' ': 'space', '\n': 'Return', '\r': 'Return', '\t': 'Tab',
+		'\x1b': 'Escape', '\x08': 'BackSpace',
+	};
+	try {
+		if (named[ch]) {
+			execFileSync('xdotool', ['key', '--window', win || 'root', named[ch]], { env });
+		} else {
+			execFileSync('xdotool', ['type', '--window', win || 'root', '--delay', '60', ch], { env });
+		}
+	} catch { /* window may have gone */ }
+}
+
+// Send a named key such as Return, Up, Down, space, Escape.
+function xkeyNamed(name) {
+	const env = { ...process.env, DISPLAY };
+	const win = findWindow();
+	try {
+		execFileSync('xdotool', ['key', '--window', win || 'root', name], { env });
+	} catch { /* gone */ }
+}
+
+// Move the pointer to window-relative coordinates and optionally click.
+// The Tsugaru OS menu is mouse-driven, so keystrokes alone cannot navigate it.
+function xmouse(win, x, y, button) {
+	const env = { ...process.env, DISPLAY };
+	const target = win || findWindow() || 'root';
+	try {
+		// Coordinates are relative to the 640x480 game area. Add the window
+		// origin to get screen coordinates. Verified working: a raw
+		// `mousemove 205 190` then `click 1` reaches the VM, so the offset
+		// arithmetic here must match that exactly.
+		let ox = 0, oy = 0;
+		const geo = execFileSync('xdotool', ['getwindowgeometry', target], { env, encoding: 'utf8' });
+		const m = geo.match(/Position:\s*(-?\d+),(-?\d+)/);
+		if (m) { ox = Number(m[1]); oy = Number(m[2]); }
+		const sx = ox + x;
+		const sy = oy + y;
+		execFileSync('xdotool', ['mousemove', String(sx), String(sy)], { env });
+		if (button && button > 0) {
+			execFileSync('xdotool', ['click', String(button)], { env });
+		}
+		return { ok: true, screenX: sx, screenY: sy };
+	} catch (e) {
+		return { ok: false, error: e.message };
+	}
+}
 
 // Capture a PNG and return its path, for the binary endpoint.
 function recordShot(name) {

@@ -768,6 +768,59 @@ running game, and it makes the runtime route available without a local monitor.
 
 The full dump including CRTC registers is in `analysis/palette-dump.txt`.
 
+### 6.16 Getting into the game, and what the menu actually is
+
+**Tried:** drive the Towns OS file browser to launch Ultima II. Two things were
+learned and both are load-bearing.
+
+**The menu is a mouse-driven CD browser, not a text menu.** Tsugaru boots into a
+windowed file explorer with a CD tab, the volume name `TRILOGY`, a row of five
+icon cells and a second row of two. The second cell in the first row is Ultima
+II. Keystrokes cannot navigate it because it wants pointer input.
+
+**Measured**, from a 639x460 capture:
+- first row of icons occupies y 100-200, second row y 205-270
+- the five cells are evenly spaced with 112px pitch, at x centres
+  **91, 203, 315, 427, 539**
+- Ultima II is the second, centre **x=203**, click around **y=150**
+
+**A working click**, verified by the screen changing from 8 colours in text mode
+to 1104 colours with antialiasing, i.e. a graphics screen:
+
+```
+xdotool mousemove 205 190
+xdotool click 1
+```
+
+**Verdict:** POSITIVE, confirmed on the live process. Clicking `(203,150)` via
+`POST /api/mouse` moved the screen from the 8-colour file browser to a screen
+dominated by `#0022ee` (74%), which is U2's blue and matches the palette derived
+independently from screenshots in 6.10.
+
+**Three traps, all of which produced a confident wrong answer first:**
+
+- `/api/mouse` reported `ok: true` while doing nothing, because it added the
+  window origin to coordinates `xdotool mousemove` already treats as
+  screen-absolute. `ok: true` only means "xdotool did not error", never "the
+  click landed". Verify with a screen diff, not the return value.
+- The pointer had been clamped at `x:636` from an earlier move and sat over a
+  stale window (`4194677`) rather than the live Tsugaru window. Check
+  `xdotool getmouselocation` before trusting a click.
+- A screenshot taken from an emulator process that had already died was mistaken
+  for current state, producing a false "we are in the game" claim. The live
+  screen still had the 8-colour text-mode signature. **Always diff against a
+  known file-browser capture before believing anything changed**, and check that
+  the window id in the capture belongs to the running process.
+
+**Also available but not yet proven to help:** `-BOOTKEY CD` boots from the CD
+without the disk-selection step, and `-CONSCMD` / `-INITCMD` run commands once
+FreeTOWS OS is ready. Neither skipped the file browser, because the browser *is*
+the CD boot path.
+
+The palette is **unchanged** after reaching the graphics screen: still the same
+16 entries per page. So that table is what U2 runs with, and the earlier
+screenshot-derived colours agree with it.
+
 ---
 
 ## 7. Sound

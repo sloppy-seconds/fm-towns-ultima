@@ -98,8 +98,12 @@ if [ -n "${FD0_IMAGE:-}" ] && [ -f "${FD0_IMAGE}" ]; then
 	ARGS+=(-FD0 "${FD0_IMAGE}")
 fi
 
+# Some options must come before the ROM directory to take effect, and the
+# supervisor passes everything through verbatim, so splice them in here.
 # shellcheck disable=SC2206
 [ -n "${TSUGARU_ARGS:-}" ] && ARGS+=(${TSUGARU_ARGS})
+# shellcheck disable=SC2206
+[ -n "${TSUGARU_EXTRA:-}" ] && ARGS+=(${TSUGARU_EXTRA})
 
 # The supervisor owns the emulator's stdin/stdout and exposes an HTTP API for
 # keystrokes, debugger commands and screenshot-as-text. Running Tsugaru directly

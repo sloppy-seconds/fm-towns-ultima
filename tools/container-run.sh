@@ -75,6 +75,10 @@ cmd_start() {
 		-e "ROM_DIR=/roms"
 		-e "CMOS=/data/CMOS.BIN"
 		-e "API_PORT=8080"
+		# Boot straight from the CD instead of the Towns OS disk-selection
+		# menu. Without this the game sits in a mouse-driven file browser
+		# that keystrokes cannot navigate.
+		-e "TSUGARU_EXTRA=-BOOTKEY CD"
 	)
 	[ -f "$DISC_CCD" ] && args+=(-v "$DISC_CCD:/disc/game.ccd:ro,z" -e "CD_IMAGE=/disc/game.ccd")
 	[ -f "$DISC_IMG" ] && args+=(-v "$DISC_IMG:/disc/game.img:ro,z")
