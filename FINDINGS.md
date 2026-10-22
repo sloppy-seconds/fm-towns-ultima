@@ -1346,7 +1346,42 @@ then writable but with the wrong drive write-protect flag, and in each case we
 were reading the *fallback* message rather than reaching the accept prompt. The
 disk being pre-formatted was never the requirement.
 
-**Status:** procedure identified, not yet completed end to end.
+**Status:** procedure identified, not completed end to end.
+
+**Tested with a correctly configured blank writable disk:**
+
+```
+-FD0 /data/savedisk.hdm -FD0UP -BOOTKEY CD
+```
+
+all-zeros image, writable mount, correct drive's write-protect flag cleared.
+Result: **`A WRONG DISK`**, and the image was still byte-identical all-zeros
+afterwards. U2 inspected the disk, rejected it, and wrote nothing.
+
+So U2 refuses a zero-filled image before offering to initialise it. Whatever it
+checks for is not "is this writable" and not "is this empty". It is looking for
+something in the existing content.
+
+**What "A WRONG DISK" is not:** it is not a stored string. Searching
+`ENCHANT.EXP` and `BRITISH.EXP` for `WRONG`, `DISK`, `Wrong` and the Japanese
+`間違`, `違うディスク`, `正しくな` finds nothing relevant. `EXODUS.EXP` has
+`間違` once, for dungeon codes. The message is either assembled at runtime or
+comes from Towns OS rather than U2.
+
+**Two roster messages that are distinct and matter:**
+
+| offset | text | meaning |
+|---|---|---|
+| `0x2f2a` | まず、キャラクタを作成してください | "First, please create a character" (disk OK, just empty) |
+| `0x2f9a` | 名簿データが読めません | "Cannot read roster data" (disk unreadable) |
+
+Reaching `0x2f2a` would mean the disk passed. We have never seen it.
+
+**Remaining hypothesis:** U2 wants a disk with an existing FAT and directory
+structure, which is what a Towns OS `FORMAT` produces and a zero-filled file
+does not. That returns the problem to needing `FORMAT.EXP`, which needs the CD
+mounted from a Towns OS shell, which the FreeTOWNSOS shell does not provide
+cleanly.
 
 ---
 
