@@ -101,5 +101,12 @@ fi
 # shellcheck disable=SC2206
 [ -n "${TSUGARU_ARGS:-}" ] && ARGS+=(${TSUGARU_ARGS})
 
-log "launching: Tsugaru_CUI ${ARGS[*]}"
-exec /emulator/Tsugaru_CUI "${ARGS[@]}"
+# The supervisor owns the emulator's stdin/stdout and exposes an HTTP API for
+# keystrokes, debugger commands and screenshot-as-text. Running Tsugaru directly
+# here would leave no way to type into it once detached.
+log "launching supervisor: Tsugaru_CUI ${ARGS[*]}"
+export API_PORT="${API_PORT:-8080}"
+export OUT_DIR="${OUT_DIR:-/data/analysis}"
+export EMU_BIN=/emulator/Tsugaru_CUI
+export DISPLAY
+exec node /usr/local/bin/supervisor.js "${ARGS[@]}"

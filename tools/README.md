@@ -14,7 +14,7 @@ directory, so run them from the repo root.
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
 | `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
-| `container-run.sh` | Runs the whole stack in podman with Xvfb, VNC and noVNC. Playable from any browser. |
+| `container-run.sh` | Start/stop the podman container: Xvfb, VNC, noVNC, and the supervisor API. Playable from a browser. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
@@ -87,7 +87,76 @@ Q              quit
 
 Output goes to `analysis/`. Nothing produced by the emulator is committed.
 
-## Playing in a browser
+## Playing in a browser, and driving it over HTTP
+
+The container runs four things: Xvfb, x11vnc, noVNC, and a supervisor that owns
+the emulator's tty and serves an HTTP API.
+
+```bash
+./tools/container-run.sh start      # build if needed, start, print URLs
+./tools/container-run.sh status     # running? which ports?
+./tools/container-run.sh stop       # tear down
+./tools/container-run.sh logs       # follow logs
+./tools/container-run.sh shell      # bash inside
+./tools/container-run.sh build      # force image rebuild
+```
+
+Then open `http://<host>:6080/vnc.html`.
+
+### Why a supervisor exists
+
+`Tsugaru_CUI` reads console commands from stdin. A detached container has no
+stdin, so binding the emulator directly means nothing can ever type into it.
+`container/supervisor.js` holds both ends: it spawns Tsugaru with piped
+stdin/stdout and exposes them over HTTP. Keystrokes, debugger commands and
+palette dumps all work while the game runs.
+
+### API
+
+All under `/api`, JSON in and out. Port 8080.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/status` | running, pid, uptime, commands sent |
+| GET | `/api/log?since=N` | console output |
+| WS | `/api/stream` | live console |
+| POST | `/api/run` `/api/pause` `/api/state` | run, pause, CPU state |
+| POST | `/api/keys` `{text}` | type into the VM, returns keycodes sent |
+| POST | `/api/cmd` `{line}` | any console command |
+| POST | `/api/palette` | parsed 16-colour palette per page |
+| POST | `/api/crtc` | CRTC registers |
+| GET | `/api/screen?mode=` | capture and render as text |
+| POST | `/api/shot` `{name,mode}` | capture, optionally rendered |
+| GET | `/api/shot.png` | raw PNG bytes |
+
+### Reading the screen without vision
+
+`/api/screen` returns the screen as text, so a model with no image support can
+still interpret it. `mode` is `ascii`, `text`, `stats` or `all`.
+
+```bash
+curl -s 'http://<host>:8080/api/screen?mode=stats'
+```
+
+```json
+{ "distinctColours": 1108, "allGrey": false,
+  "top": [ {"hex":"#0022ee","percent":74.36}, {"hex":"#000000","percent":7.42},
+           {"hex":"#ff0000","percent":5.56}, {"hex":"#ffff55","percent":4.96} ] }
+```
+
+That answers "is this screen in colour yet" in one call. `mode=ascii` gives a
+luminance ramp for layout, `mode=text` a character grid at 8x16 cells for
+reading dialogue and menus. The renderer is `container/screen.js`, zero
+dependencies, with its own PNG decoder.
+
+### Console quirks worth knowing
+
+- `TYPE 2` needs the space. `TYPE2` returns "Do what?".
+- Print targets need the `PRI` prefix: `PRI PALETTE`, not `PALETTE`.
+- The VM starts paused only with `-PAUSE`. Without it the game is already
+  running when the API becomes available.
+
+## Copyright guard
 
 If you do not have the desktop's display, run the emulator in a container:
 

@@ -38,16 +38,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         procps \
         ca-certificates \
         tini \
+        nodejs \
+        npm \
     && rm -rf /var/lib/apt/lists/*
 
 # novnc ships its web root here on Ubuntu.
 RUN test -d /usr/share/novnc && ln -sfn /usr/share/novnc /opt/novnc
 
 COPY container/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY container/supervisor.js /usr/local/bin/supervisor.js
+COPY container/screen.js /usr/local/bin/screen.js
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Xvfb + VNC + noVNC. 6080 is the browser port, 5900 raw VNC.
-EXPOSE 6080 5900
+EXPOSE 6080 5900 8080
 
 # The emulator writes its CMOS and logs here. Mount a host dir over it.
 VOLUME ["/data"]

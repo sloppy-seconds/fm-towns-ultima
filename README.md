@@ -180,11 +180,24 @@ with no monitor.
 To actually play it from another machine, including over the web:
 
 ```bash
-./tools/container-run.sh     # Xvfb + VNC + noVNC in podman
+./tools/container-run.sh start    # Xvfb + VNC + noVNC + supervisor API
 ```
 
 Then open `http://<host>:6080/vnc.html` in a browser. No monitor on the host
-required.
+required. `./tools/container-run.sh stop` tears it down, `status` reports ports,
+`logs` follows output.
+
+The container also exposes an HTTP API on port 8080 for driving the game and
+reading the screen as text, so it can be inspected without a display:
+
+```bash
+curl -s http://<host>:8080/api/status
+curl -s http://<host>:8080/api/screen?mode=stats     # colours on screen now
+curl -s -X POST -H 'content-type: application/json' \
+     -d '{"text":"2"}' http://<host>:8080/api/keys   # press 2
+```
+
+See `tools/README.md` for the full API.
 
 ## 4. Run it
 

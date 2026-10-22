@@ -133,13 +133,27 @@ palette cost five failed static probes and would have been one console command.
 
 ### Interactive access
 
-`tools/container-run.sh` runs Tsugaru inside podman with Xvfb, x11vnc and
-noVNC, so the game is playable from any browser at `http://<host>:6080/vnc.html`.
+`tools/container-run.sh` runs Tsugaru inside podman with Xvfb, x11vnc, noVNC
+and a supervisor, so the game is playable from any browser at
+`http://<host>:6080/vnc.html` and drivable over HTTP at `http://<host>:8080/api`.
 This is how to reach the running game when there is no local display, which is
-the normal case over SSH. Two host specifics the script encodes because both
-failed silently first time: podman requires sudo here, and SELinux is enforcing
-so bind mounts need `:z` or the container gets `Permission denied` on every host
-directory.
+the normal case over SSH.
+
+Three host specifics the script encodes because each failed silently first time:
+podman requires sudo here, SELinux is enforcing so bind mounts need `:z` or the
+container gets `Permission denied` on every host directory, and the Tsugaru
+window is titled `FM Towns Emulator - TSUGARU` with a 640x496 geometry rather
+than 640x480, so matching on 640x480 finds nothing.
+
+### Reading the screen without vision
+
+`GET /api/screen?mode=stats` returns a colour census, which answers "is this
+screen in colour yet" without any image interpretation. `mode=ascii` gives a
+luminance ramp for layout and `mode=text` a character grid for reading menus and
+dialogue. Use these rather than asking for a screenshot and hoping.
+
+The palette command needs the `PRI` prefix: `PRI PALETTE`. Bare `PALETTE`
+returns "Do what?".
 
 - Host `ai.lan`, Bazzite. Check `hostname` before sysadmin work.
 - `node` for all tooling. No npm dependencies. `ndisasm` present via brew.
