@@ -1922,6 +1922,75 @@ happens next before building a theory.** A file that parses perfectly, written
 by the same engine, being rejected by its sibling should have prompted "what
 does the screen say after the error", not a week of emulator archaeology.
 
+### 8.7 The FM Towns roster is plain text, and it can be edited
+
+This is the most useful thing in this section, because it means the character
+data is readable and writable without any binary understanding at all.
+
+**`ROSTER1.UT2` is ASCII.** It opens with `Roster data:ULTIMA II for FM-TOWNS`
+followed by four slot blocks of `KEY=value` lines separated by CRLF. Slot 0
+begins with `(0)NAME=`, and each subsequent slot begins at its own `(N)NAME=`
+line. An empty slot is the same template with NUL names and zeroed stats, so the
+block sizes are nearly equal but not identical, which matters when rewriting.
+
+This is nothing like the DOS release. There, `player` is a 384-byte binary file
+holding a packed copy of the DS segment, with several counters in BCD. None of
+that applies here. See `FINDINGS` 8.7 notes and the `decompile-u2-v2` project for
+the DOS layout, which is a different format under the same game name.
+
+**Measured: every field round-trips.** A character was built entirely in the
+file with distinctive values and loaded in-game. The character sheet displayed
+STR 11, AGI 22, STA 33, CHA 44, WIS 55, INT 66, HP 1111, EXP 77, GOLD 888 and
+race and sex as written. Field order and encoding are therefore confirmed by
+display, not assumed.
+
+**Profession drives the sprite, and the letters differ from the DOS release.**
+`PROFESSION` is a single character and `SPID` is a sprite index into
+`GRAPH/PLAYER.TIF`, derived from it. Four characters, one per profession, all
+created and displayed correctly:
+
+| profession | letter | SPID |
+|---|---|---|
+| Fighter | `F` | 2 |
+| Cleric | `C` | 6 |
+| Wizard | `W` | 10 |
+| Thief | `T` | 14 |
+
+So `SPID = profession_index * 4 + 2`, with the stride of 4 consistent with
+three further sprite variants per profession selected by race at draw time.
+Race and sex do not affect it: two wizards of different race and sex both store
+`SPID=10`.
+
+**The bug this solved:** writing `PROFESSION=M` for mage, carried over from the
+DOS convention, produced a garbage TYPE on the character sheet. FM Towns uses
+`W` for wizard. Note `SEX=M` is valid, for male, so only the profession letters
+differ.
+
+**Other confirmed letters:** `RACE` is `H` human, `E` elf, `D` dwarf, `B`
+bobbit. `SHAPE` was 0 for all four characters and is not yet understood.
+
+**World files pair with slots by index.** Slots are 0-based in the roster and
+the world files are 1-based, so slot 0 uses `WORLD1.UT2` through slot 3 using
+`WORLD4.UT2`. A hand-built slot-1 character with a copied `WORLD2.UT2` loaded
+and played, which confirms the pairing.
+
+**Tooling:** `tools/savedisk.js` reads and writes the FAT12 image directly. It
+can list files, extract the roster, clone a slot, set a field, and copy world
+files. Every write is to a new file unless `--inplace`, and both FAT copies are
+kept in sync.
+
+Three bugs were hit building it, all of which produced silently wrong output and
+are worth knowing:
+
+- Stopping a FAT chain walk at `cluster < 0xFF8` drops the final cluster of every
+  file, because `0xFF8` to `0xFFF` are end-of-chain markers. This truncated the
+  roster to all zeros and looked like an empty disk.
+- Building a regex from the field name `(0)NAME` without escaping turns the
+  parentheses into a capture group, so it matches nothing and every slot reads
+  as empty.
+- Counting only `0x20` to `0x7E` as printable puts a normal DOS text file with
+  CRLF endings at 80 percent and misclassifies it as binary.
+
 ---
 
 ## 9. Open questions
