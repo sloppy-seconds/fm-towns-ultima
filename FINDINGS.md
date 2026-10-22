@@ -379,6 +379,66 @@ must do first. Recording this so the same three probes are not repeated.
 
 ---
 
+### 6.7 Probe 6 - Phar Lap MP/P3 header parse and SYM1 discovery
+
+**Tried:** stop treating the `.EXP` files as opaque blobs. Look for an existing
+format specification before writing one.
+
+**Found:** the Phar Lap executable formats are documented. Signatures per Open
+Watcom's `exesigns.h`: `MP` (0x504D, simple flat image), `P3` (0x3350, extended
+format), `DX` (run-time parameter block), `MQ` (REX), plus `P2`, `P6`, `PL`.
+The `MP` header is 30 bytes and the `P3` header is 128 bytes with offset/size
+pairs for run-time parameters, relocations, segment information, load image,
+symbols, GDT, LDT, IDT and TSS.
+
+**Measured:** applied the `MP` layout to all three games.
+
+| File | Signature | lastPage | blocks | computed size | actual size | Result |
+|---|---|---|---|---|---|---|
+| `DARKNESS.EXP` | `MP` | 354 | 1887 | 965,986 | 965,986 | exact |
+| `ENCHANT.EXP` | `MP` | 270 | 2095 | 1,072,398 | 1,072,398 | exact |
+| `EXODUS.EXP` | `MP` | 118 | 1767 | 904,310 | 904,310 | exact |
+| `TMENU.EXP` | `P3` | - | - | - | 243,212 | different format |
+
+`TMENU.EXP` is a `P3` extended-format file, not `MP`. Its header reports
+header size 384, and carries a run-time parameter block at 0x180 (size 128) and
+what appears to be a load image at 0x200. This is why the earlier cross-diff
+anchored on the wrong base address.
+
+Entry points from the `MP` header (`EIP` at offset 0x14): `DARKNESS` 0xE7A74,
+`ENCHANT` 0x101A20, `EXODUS` 0xD8AB0. Initial `ESP` at 0x0E.
+
+**Verdict:** POSITIVE. The `.EXP` headers are now understood and verified by
+exact size arithmetic for all three games.
+
+**Major finding:** at `TMENU.EXP` file offset `0x33a92` there is a `SYM1`
+symbol table. It decodes to thousands of named symbols with addresses,
+including a Fujitsu graphics layer: `EGB_palette`, `EGB_color`, `EGB_graph`,
+`EGB_para`, `Palette_data1`, `Common_screen_data1` through `Common_screen_data11`,
+`Common_screen_data2_5`, `Common_screen_data2_7`, `Color0`, `Color2`, `Color14`,
+`AL_VIDEO`, `BO_put_p`, `_put_ptn`.
+
+Header reads `SYM1`, then u16 fields `0x0e`, `0x14`, `0x0000`, then u32
+`0x00007b58`, then a length-prefixed `PROGRAM` record with value 0x7b58.
+
+**Open:** the record framing is not settled. Neither a fixed 16/19/20-byte
+stride nor `[u32 value][u8 len][name]` nor `[u8 len][name][u32 val]` walks more
+than one record. The hexdump shows
+`... 00 00 00 | 94 38 04 00 | 0c 00 00 00 | 0a | ACT_HANDLE | f3 d2 00 00 01 00 | 0a | ACT_RC_ADDR ...`
+which suggests `[u32 value][u8 len][name][pad to 4][u32 type]`, but a walk on
+that assumption terminates after the first record. Deriving the framing is the
+highest-value outstanding task in this project.
+
+**Also settled:** `DARKNESS.EXP`, `ENCHANT.EXP`, `EXODUS.EXP` and
+`UT3DEMO.EXP` do **not** contain `SYM1`. Only `TMENU.EXP` does, and `TMENU` is
+Fujitsu's launcher rather than Origins' game code. The symbol table therefore
+names the **Fujitsu library layer** the games link against, not the games' own
+functions. That is still the strongest lever available for the palette, because
+`EGB_palette` and the `Common_screen_data` blocks are library routines and data
+the games call, but it will not name U3's internals.
+
+---
+
 ## 7. Sound
 
 ### 7.1 `.SND` header
