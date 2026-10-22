@@ -1502,7 +1502,7 @@ your boot partition as that has TownsOS on it."
 
 **`FORMAT` located.** Scanning the used 2 GB for the string gives a hit at
 `0x1ABB59E`, and the nearest executable header before it is `MP` at
-`0x1AB5589` — a Phar Lap 386 executable, the same container as the Ultima games.
+`0x1AB5589`, a Phar Lap 386 executable, the same container as the Ultima games.
 The help text it contains is the real Towns OS formatter:
 
 ```
