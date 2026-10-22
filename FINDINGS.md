@@ -1780,6 +1780,47 @@ sets, and two unrelated floppy and input implementations all fail at the same
 place. Neither open-source FM Towns emulator fully implements pointer input for
 Fujitsu's CD launcher.
 
+**Tried:** create a properly formatted FM Towns disk with MAME's `floptool`,
+which ships in the `mame-tools` package and is not part of the `mame` package on
+Ubuntu, then carry that disk across to Tsugaru.
+
+**Measured:** `floptool` does have a dedicated FM Towns image format. Its own
+geometry table in `src/lib/formats/fmtowns_dsk.cpp` confirms ours independently:
+
+```
+{ /* 1.2MB 3 1/2 inch high density */
+  floppy_image::FF_35, DSHD, MFM, 1200, 8, 77, 2, 1024, {}, 1, {}, 50, 22, 84 }
+// Unverified gap sizes
+```
+
+8 sectors x 77 tracks x 2 heads x 1024 bytes is 1,261,568, the same size and
+geometry as the retail UserDisk and the `-GENFD 1232` output. Note the author's
+comment: the gap sizes are marked unverified.
+
+Creating images is where it stops. `floptool` prints per-filesystem capability
+flags, and only the `frw` filesystems can be written:
+
+```
+unformatted            F-- f--   Unformatted floppy image
+pc_fat                 F-- -r-   PC FAT
+hp9825, hp9831, hp9845 F-- frw
+isis, oric_jasmin,
+vtech                  F-- frw
+```
+
+`pc_fat` cannot create images on any geometry, reporting "Floppy creation format
+'pc_fat_dshd' does not support creating new images". The only writable
+filesystems are HP calculator formats, Intel ISIS-II and two 8-bit machines.
+None is FAT.
+
+The nearest success is `floptool flopcreate fmtowns u35dshd`, which produces a
+file of exactly 1,261,568 bytes that is **entirely zero**. Right shape, no
+filesystem.
+
+**Verdict:** NEGATIVE. MAME can describe an FM Towns disk but cannot put a FAT
+filesystem on one, so it cannot produce a save disk. `-GENFD 1232` remains the
+only tool in reach that makes a genuinely formatted FM Towns floppy.
+
 **Tried:** the HxC2001 forum thread, the Reddit threads, and the Tsugaru GUI's
 `File > New > Floppy disk` menu, in case a disk created by a different path would
 be accepted.

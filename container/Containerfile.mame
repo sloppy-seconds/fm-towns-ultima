@@ -23,6 +23,7 @@ ENV RESOLUTION=1024x800x24
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         mame \
+        mame-tools \
         xvfb \
         x11vnc \
         novnc \
