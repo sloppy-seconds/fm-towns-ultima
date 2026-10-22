@@ -1,0 +1,46 @@
+# Containerfile.mame - MAME FM Towns, browser accessible.
+#
+# A second emulator for the same disc, kept separate from the Tsugaru image so
+# the two can be compared side by side. The reason to want it: MAME implements
+# the floppy controller at the magnetic-surface level, modelling sector headers,
+# CRCs and inter-sector gaps. Tsugaru uses a simpler path. Ultima II is the one
+# game of the trilogy that refuses every disk, so a different FDC is worth
+# testing against.
+#
+# Everything copyrighted is bind-mounted at run time and is never baked in:
+#   /roms   fmtowns.zip, the Fujitsu ROM dump (CRC checked by the launcher)
+#   /disc   the Ultima Trilogy disc
+#   /data   floppy images in, and anything written out
+#
+# build: sudo podman build -t fmtowns-mame -f container/Containerfile.mame .
+# run:   ./tools/mame-run.sh
+
+FROM docker.io/library/ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DISPLAY=:99
+ENV RESOLUTION=1024x800x24
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        mame \
+        xvfb \
+        x11vnc \
+        novnc \
+        websockify \
+        openbox \
+        x11-utils \
+        xdotool \
+        imagemagick \
+        procps \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# novnc ships its web root here on Ubuntu.
+RUN test -d /usr/share/novnc && ln -sfn /usr/share/novnc /opt/novnc
+
+COPY container/mame-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+EXPOSE 6080 5900
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]

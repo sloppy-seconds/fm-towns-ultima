@@ -1727,6 +1727,67 @@ off-screen and the top 40 rows were empty.
 emulator's own menu area appeared to be missing. `RESOLUTION=1024x800x24` gives
 the whole window room. The 640x496 geometry is already noted in `AGENTS.md`.
 
+### 8.4 MAME was tried and fails the same way
+
+**Tried:** run the same disc under MAME instead of Tsugaru. The reason to bother
+is that MAME's floppy controller is a different implementation at a lower level:
+it models the magnetic surface of the disc, so sector headers, CRCs and
+inter-sector gaps are real, where Tsugaru uses a simpler path. If Ultima II's
+disk check depends on any of that, MAME would behave differently.
+
+**Measured:** MAME requires the real Fujitsu ROM dump, not the FreeTOWNS clean
+room set. The FreeTOWNS ROMs in `vendor/roms/` cannot be used, and two of them
+are byte-identical to each other (`FMT_DIC.ROM` and `FMT_F20.ROM`, both CRC32
+`524bf849`), which is the signature of a substitute build rather than dumped
+silicon. Against MAME's declared CRCs, all four FreeTOWNS files mismatch:
+
+| ROM | FreeTOWNS CRC32 | MAME `fmtowns` expects |
+|---|---|---|
+| `fmt_dos.rom` | `95ecc6e4` | `112872ee` |
+| `fmt_dic.rom` | `524bf849` | `b314c659` |
+| `fmt_fnt.rom` | `736d9cb1` | `955c6b75` |
+| `fmt_sys.rom` | `eab9c9dc` | `53319e23` |
+
+With a real dump supplied, `mame -verifyroms fmtowns` reports `romset fmtowns is
+good` and the machine boots. The container in `container/Containerfile.mame` and
+`tools/mame-run.sh` runs it at 1024x800 under Xvfb with noVNC.
+
+Four container faults had to be fixed before it would run, all recorded because
+none of them fail loudly:
+
+- MAME segfaults at startup with no sound card present. `SDL_AUDIODRIVER=dummy`.
+- Left to itself SDL renders to the root window and creates a 1x1 stub, so the
+  window manager has nothing to focus and all input is discarded.
+  `SDL_VIDEODRIVER=x11`.
+- OpenGL fails under Xvfb with `DRI3 error: Could not get DRI3 device` and
+  nothing is drawn. `-video soft`.
+- A `.cue` names its `.img` by the original long filename, so mounting the two
+  files separately under short names breaks the reference. Mount the directory.
+
+**Verdict:** NEGATIVE for the purpose it was tried. MAME boots the machine and
+displays the CD browser, but the pointer stops responding as soon as the grey
+launcher menu appears, exactly as under Tsugaru. The colour splash responds, the
+menu does not. MAME's own description of the driver is
+`status="preliminary" emulation="preliminary"`, and it reports the machine as
+`FM-Towns (Model 1 / 2)` while Tsugaru was being driven as a Marty-era machine.
+
+No floppy was written by MAME. The disk image was byte-identical before and
+after the session, which means Ultima II was never reached and the FDC was never
+exercised on a write path.
+
+This closes the emulator question. Two independent emulators, two different ROM
+sets, and two unrelated floppy and input implementations all fail at the same
+place. Neither open-source FM Towns emulator fully implements pointer input for
+Fujitsu's CD launcher.
+
+**Tried:** the HxC2001 forum thread, the Reddit threads, and the Tsugaru GUI's
+`File > New > Floppy disk` menu, in case a disk created by a different path would
+be accepted.
+
+**Verdict:** NEGATIVE for all three, documented in 8.2. No published fix exists
+for Ultima II saving on FM Towns, and no in-emulator route creates a disk that
+Tsugaru's `-GENFD 1232` does not already create.
+
 ---
 
 ## 9. Open questions

@@ -403,6 +403,15 @@ they use the other binaries as a cross-check rather than as separate work.
   `[UserDisk]` that ships with the game. Ultima I and III both write to a
   generated 1232 KB disk under the same setup, so the floppy path itself is
   sound. Ultima II's refusal is an emulation defect. See `FINDINGS.md` 8.1.
+- Do not try MAME as a way around the Ultima II save problem. It was tried. MAME
+  boots the machine and shows the CD browser, but the pointer dies at the grey
+  launcher menu exactly as it does under Tsugaru, so the game is never reached.
+  MAME also refuses the FreeTOWNS clean-room ROMs and needs a real Fujitsu dump.
+  The container exists and works (`tools/mame-run.sh`) if a different FDC ever
+  needs testing, but it is not a route to a save disk. See `FINDINGS.md` 8.4.
+- Do not use the FreeTOWNS ROMs with MAME. All four CRC32s mismatch, and
+  `FMT_DIC.ROM` is byte-identical to `FMT_F20.ROM`, which is what a substitute
+  build looks like rather than dumped silicon.
 - Do not use `-GENFD` with 640, 720 or 1440 and expect an FM Towns disk. Only
   1232 produces `IPL4` with 1024-byte sectors. The other three are IBM PC
   formats. The Tsugaru GUI offers the same four and produces identical bytes.

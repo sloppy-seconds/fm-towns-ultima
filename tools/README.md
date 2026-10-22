@@ -15,6 +15,7 @@ directory, so run them from the repo root.
 | `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
 | `container-run.sh` | Start/stop the podman container: Xvfb, VNC, noVNC, and the supervisor API. Playable from a browser. |
+| `mame-run.sh` | Same idea for MAME's FM Towns driver. Separate image, no supervisor. See the note below before using it. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
@@ -99,6 +100,36 @@ the emulator's tty and serves an HTTP API.
 ./tools/container-run.sh logs       # follow logs
 ./tools/container-run.sh shell      # bash inside
 ./tools/container-run.sh build      # force image rebuild
+```
+
+## MAME, and why it is not the answer
+
+`tools/mame-run.sh` runs the same disc under MAME instead of Tsugaru. It exists
+because MAME's floppy controller is a genuinely different implementation, and
+that was worth testing against the one game that will not save.
+
+It does not help. MAME boots the machine and shows Fujitsu's CD browser, but the
+pointer stops working at the grey launcher menu exactly as it does under
+Tsugaru, so Ultima II is never reached. MAME's own description of the driver is
+`status="preliminary" emulation="preliminary"`. Read FINDINGS.md 8.4 before
+spending time here.
+
+It also needs a different ROM set. MAME will not accept the FreeTOWNS clean-room
+ROMs in `vendor/roms/`. All four CRC32s mismatch. Put a real `fmtowns.zip` at
+`tmp/fmtowns.zip` (gitignored) and check it first:
+
+```bash
+unzip -l tmp/fmtowns.zip    # expect fmt_dos.rom, fmt_dic.rom, fmt_fnt.rom, fmt_sys.rom
+docker run --rm -it --entrypoint /bin/bash fmtowns-mame \
+  -v "$PWD/tmp/fmtowns.zip:/roms/fmtowns.zip:ro" \
+  -c 'export PATH=/usr/games:$PATH; mkdir -p /tmp/r; ln -s /roms/fmtowns.zip /tmp/r/; mame -rompath /tmp/r -verifyroms fmtowns'
+```
+
+Then:
+
+```bash
+./tools/mame-run.sh start saves/u2_gui_1232.img
+./tools/mame-run.sh stop
 ```
 
 Then open `http://<host>:6080/vnc.html`.
