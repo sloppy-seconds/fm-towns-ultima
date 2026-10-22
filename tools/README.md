@@ -16,6 +16,9 @@ directory, so run them from the repo root.
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
 | `container-run.sh` | Start/stop the podman container: Xvfb, VNC, noVNC, and the supervisor API. Playable from a browser. |
 | `mame-run.sh` | Same idea for MAME's FM Towns driver. Separate image, no supervisor. See the note below before using it. |
+| `savedisk.js` | Read and edit an FM Towns save disk from the shell: list, cat, slots, clone, set, world-copy, newdisk. Tested by `test-savedisk.js`. |
+| `makesave.js` | Build a save disk with characters from the command line. Imports the same modules the browser editor uses, so it is the headless test for the page. |
+| `test-savedisk.js` | Assertions for the FAT12 and roster logic, against a synthetic disk. Needs no game data. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
@@ -101,6 +104,37 @@ the emulator's tty and serves an HTTP API.
 ./tools/container-run.sh shell      # bash inside
 ./tools/container-run.sh build      # force image rebuild
 ```
+
+## Building a save disk from the command line
+
+`makesave.js` writes characters into a disk without the editor or the game. It
+imports `web/fat12.js` and `web/roster.js`, the same modules the GitHub Pages
+page loads, so it exercises shipped code rather than a parallel implementation.
+
+```bash
+# one character, the optimal build
+node tools/makesave.js --out hero.hdm \
+  --party --name HERO --race H --sex F --prof W --stats 25,25,10,10,10,10
+
+# a full party of four
+node tools/makesave.js --out party.hdm \
+  --party --name ANA --race H --sex F --prof W --stats 25,25,10,10,10,10 \
+  --party --name BOB --race D --sex M --prof F --stats 20,20,20,10,10,10 \
+  --party --name CY  --race E --sex F --prof T --stats 20,20,10,10,10,20 \
+  --party --name DEE --race B --sex M --prof C --stats 10,10,20,10,30,10
+```
+
+`--stats` is the base allocation, six numbers totalling 90 with none below 10.
+The measured race, sex and profession modifiers are applied on top, and the
+result is clamped to the game's cap of 99. Food is given in rations and stored
+at a hundred times that.
+
+The same rules as the page are enforced, so an over-spend is refused with the
+exact amount over, as is a stat below the minimum. `--cheat` turns both off.
+
+Every character is read back and re-parsed before the tool reports success, so a
+silent write failure cannot pass. Verified end to end: a four-character disk
+built this way loads in Ultima II and each character plays.
 
 ## MAME, and why it is not the answer
 
