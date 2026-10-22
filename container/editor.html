@@ -147,6 +147,7 @@
       <div class="row">
         <button class="act primary" type="submit" id="savebtn">Save character</button>
         <button class="act" type="button" id="maxbtn">Set everything to maximum</button>
+        <button class="act" type="button" id="clonebtn">Copy to another slot</button>
         <button class="act danger" type="button" id="delbtn">Clear this slot</button>
       </div>
     </form>
@@ -219,6 +220,29 @@ $('maxbtn').onclick = () => {
   $('HP').value = 9999; $('MHP').value = 9999;
   $('FOOD').value = 999900; $('GOLD').value = 9999; $('EXPERIENCE').value = 9999;
   msg('Maximum values filled in. Press Save to write them.', 'ok');
+};
+
+$('clonebtn').onclick = async () => {
+  const from = Number($('slot').value);
+  const src = state.slots.find((s) => s.slot === from);
+  if (!src || !src.name) return msg('Slot ' + (from + 1) + ' is empty. Fill it in and save first.', 'err');
+  const answer = prompt('Copy ' + src.name + ' into which slot? 1 to 4', String(from === 0 ? 2 : 1));
+  if (!answer) return;
+  const to = Number(answer) - 1;
+  if (!Number.isInteger(to) || to < 0 || to > 3 || to === from) return msg('Pick a different slot, 1 to 4.', 'err');
+  const target = state.slots.find((s) => s.slot === to);
+  if (target && target.name && !confirm('Slot ' + (to + 1) + ' holds ' + target.name + '. Overwrite it?')) return;
+  const newName = prompt('Name for the copy', src.name);
+  if (newName === null) return;
+
+  const r = await fetch('/api/save/clone', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ from, to, name: newName || src.name }),
+  });
+  const j = await r.json();
+  if (j.error) return msg(j.error, 'err');
+  msg('Copied ' + src.name + ' into slot ' + (to + 1) + ' as ' + j.name + '.', 'ok');
+  await refresh();
 };
 
 $('delbtn').onclick = async () => {

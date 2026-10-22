@@ -354,6 +354,23 @@ function editor() {
 	if (!savedisk) throw new Error('save editor not available: ' + EDITOR + ' did not load');
 }
 
+// Writes a new file into the image, allocating a fresh cluster chain. Returns
+// the entry created. Used for world files and for cloning, so both go through
+// one allocation path and both FAT copies stay in sync.
+function putFile(img, name, data) {
+	const free = savedisk.freeClusters(img);
+	const need = Math.max(1, Math.ceil(data.length / savedisk.SS));
+	if (free.length < need) throw new Error('not enough free clusters: need ' + need + ', have ' + free.length);
+	const chain = free.slice(0, need);
+	for (let i = 0; i < chain.length; i++) {
+		const next = i + 1 < chain.length ? chain[i + 1] : 0xfff;
+		savedisk.fatSet(img, 1024, chain[i], next);
+		savedisk.fatSet(img, 1024 + savedisk.FATSZ * savedisk.SS, chain[i], next);
+		data.copy(img, savedisk.DATA_OFF + (chain[i] - 2) * savedisk.SS, i * savedisk.SS, Math.min((i + 1) * savedisk.SS, data.length));
+	}
+	return savedisk.addEntry(img, name, chain[0], data.length);
+}
+
 const ROUTES = {
 	'GET /api/status': async () => con.status(),
 
@@ -521,22 +538,32 @@ const ROUTES = {
 		const name = String(body.name || 'HERO').toUpperCase().slice(0, 15);
 		// Start from the donor block so fields this template does not know about
 		// survive, then override everything we do know.
+		//
+		// The name line is matched separately and by name, not by the field regex:
+		// "(0)NAME" starts with a bracket and would be dropped by a pattern that
+		// expects a field name to begin with a letter, which silently deleted the
+		// slot marker and made the whole slot disappear.
 		const lines = [];
 		const seen = new Set();
 		const donorText = donor ? parsed.find((s) => s.slot === donor.slot).text : '';
+		let nameLineDone = false;
 		for (const line of donorText.split(/\r?\n/)) {
-			const m = line.match(/^([A-Z_(][A-Z_0-9()]*)=(.*)$/);
+			if (/^\(\d\)NAME=/.test(line)) {
+				if (!nameLineDone) { lines.push('(' + slot + ')NAME=' + name); nameLineDone = true; }
+				continue;
+			}
+			const m = line.match(/^([A-Za-z_][A-Za-z_0-9]*)=(.*)$/);
 			if (!m) continue;
 			const key = m[1];
-			if (key === '(' + donor.slot + ')NAME') { lines.push('(' + slot + ')NAME=' + name); seen.add('NAME'); continue; }
 			if (seen.has(key)) continue;
 			seen.add(key);
 			const v = overrides[key] !== undefined ? overrides[key] : defaults[key] !== undefined ? defaults[key] : m[2];
 			lines.push(key + '=' + v);
 		}
+		if (!nameLineDone) lines.unshift('(' + slot + ')NAME=' + name);
 		// Append any default field the donor did not carry.
 		for (const [key, v] of Object.entries(defaults)) {
-			if (key === 'NAME' || seen.has(key)) continue;
+			if (seen.has(key)) continue;
 			lines.push(key + '=' + (overrides[key] !== undefined ? overrides[key] : v));
 		}
 		const block = lines.join('\r\n') + '\r\n';
@@ -544,24 +571,14 @@ const ROUTES = {
 
 		savedisk.writeFile(img, roster.entry, Buffer.from(text, 'latin1'));
 
-		// World file so the slot can load. Slots are 0-based, world files 1-based.
-		// Generated rather than copied: the bytes are zeros plus an 0xE5 fill, so
-		// no game content is involved.
+		// World file. Creating into an empty slot generates a fresh world, because
+		// the slot has none. Editing an existing character leaves its world alone:
+		// that file holds their explored map and progress, and replacing it would
+		// undo their game.
+		const wasEmpty = !(slots.find((s) => s.slot === slot) || {}).name;
 		const worldName = 'WORLD' + (slot + 1) + '.UT2';
-		if (!savedisk.findEntry(img, worldName)) {
-			const data = savedisk.newWorld();
-			const free = savedisk.freeClusters(img);
-			const need = Math.ceil(data.length / savedisk.SS);
-			if (free.length >= need) {
-				const chain = free.slice(0, need);
-				for (let i = 0; i < chain.length; i++) {
-					const next = i + 1 < chain.length ? chain[i + 1] : 0xfff;
-					savedisk.fatSet(img, 1024, chain[i], next);
-					savedisk.fatSet(img, 1024 + savedisk.FATSZ * savedisk.SS, chain[i], next);
-					data.copy(img, savedisk.DATA_OFF + (chain[i] - 2) * savedisk.SS, i * savedisk.SS, Math.min((i + 1) * savedisk.SS, data.length));
-				}
-				savedisk.addEntry(img, worldName, chain[0], data.length);
-			}
+		if (wasEmpty && !savedisk.findEntry(img, worldName)) {
+			putFile(img, worldName, savedisk.newWorld());
 		}
 
 		fs.writeFileSync(SAVE_DISK, img);
@@ -573,6 +590,47 @@ const ROUTES = {
 	},
 
 	// Delete a slot by blanking its name and stats back to the empty template.
+	// Copy one character into another slot, so a template can be reused. The
+	// roster block is duplicated verbatim apart from the slot number and name.
+	// The destination gets a fresh world unless it already had one, because the
+	// source's world belongs to the source character.
+	'POST /api/save/clone': async (_q, body) => {
+		editor();
+		const from = Number(body.from);
+		const to = Number(body.to);
+		if (!Number.isInteger(from) || from < 0 || from > 3) throw new Error('from must be 0..3');
+		if (!Number.isInteger(to) || to < 0 || to > 3) throw new Error('to must be 0..3');
+		if (from === to) throw new Error('from and to must differ');
+		if (!fs.existsSync(SAVE_DISK)) throw new Error('no save disk at ' + SAVE_DISK);
+
+		const img = fs.readFileSync(SAVE_DISK);
+		const roster = savedisk.readRoster(img);
+		if (!roster) throw new Error('ROSTER1.UT2 not present on the disk');
+
+		const slots = savedisk.slotsOf(img);
+		const src = slots.find((s) => s.slot === from);
+		if (!src || !src.name) throw new Error('slot ' + (from + 1) + ' is empty, nothing to copy');
+
+		const parsed = savedisk.parseSlots(roster.text);
+		const srcBlock = parsed.find((s) => s.slot === from);
+		const dstBlock = parsed.find((s) => s.slot === to);
+		if (!srcBlock || !dstBlock) throw new Error('slot blocks missing from the roster');
+
+		const name = String(body.name || src.name).toUpperCase().slice(0, 15);
+		const block = srcBlock.text.replace(/\(\d\)NAME=[^\r\n]*/, '(' + to + ')NAME=' + name);
+		const text = roster.text.slice(0, dstBlock.start) + block + roster.text.slice(dstBlock.end);
+		savedisk.writeFile(img, roster.entry, Buffer.from(text, 'latin1'));
+
+		const dstHadWorld = !!savedisk.findEntry(img, 'WORLD' + (to + 1) + '.UT2');
+		if (!dstHadWorld) putFile(img, 'WORLD' + (to + 1) + '.UT2', savedisk.newWorld());
+
+		fs.writeFileSync(SAVE_DISK, img);
+		const verify = savedisk.slotsOf(fs.readFileSync(SAVE_DISK));
+		const wrote = verify.find((s) => s.slot === to);
+		if (!wrote || wrote.name !== name) throw new Error('clone did not land');
+		return { ok: true, from, to, name, fields: wrote.fields, slots: verify };
+	},
+
 	'POST /api/save/delete': async (_q, body) => {
 		editor();
 		const slot = Number(body.slot);
