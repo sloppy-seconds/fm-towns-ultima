@@ -241,6 +241,16 @@ Tsugaru_CUI <ROM_DIR> -CD <disc>.ccd -CMOS saves/CMOS.BIN -FD0 <UserDisk>.hdm
 
 ## 5. Playing
 
+**"A WRONG DISK" is harmless.** It appears twice during Ultima II's startup,
+before the splash screen. Press space through both. The game then runs normally.
+No disk preparation is needed, and the `[UserDisk]` from the zip works as
+shipped. See `FINDINGS.md` 8.5.
+
+**Slot numbering catches everyone.** The character list you pick from is
+1-indexed but the roster file stores slots from 0, so in-game slot 1 is
+`(0)NAME`. Ultima I also returns to character creation after a successful save,
+which looks like a failure and is not.
+
 **Quit properly.** Type `Q` then Enter in `Tsugaru_CUI`. Closing the window
 skips the CMOS write, so BIOS settings and your save disk state are not flushed.
 

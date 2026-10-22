@@ -322,8 +322,11 @@ Do not re-derive these. Everything here is backed by a measurement in
 | The four game binaries carry no `SYM1` | High |
 | Every file `ENCHANT.EXP` opens is extracted (23 graphics, 14 sounds) | High |
 | A 1232 KB `-GENFD` disk is a real FM Towns disk. The other sizes are IBM PC | High |
-| Ultima I and III write save files to floppy in Tsugaru. Ultima II refuses | High |
-| Ultima II rejects the disk it ships with, so saves are not fixable by disk prep | High |
+| Ultima I and III write save files to floppy in Tsugaru | High |
+| Ultima II saves to a formatted disk. Saves work end to end | High |
+| U1 save survives shutdown and reloads, confirmed by playing the character | High |
+| U2 writes `ROSTER1.UT2` (3,657 B) and `WORLD1.UT2` (68,096 B) | High |
+| A blank generated 1232 KB disk is a valid save disk. It was never the problem | High |
 
 ## Platform versus U2-specific
 
@@ -398,17 +401,20 @@ they use the other binaries as a cross-check rather than as separate work.
   reporting exactly this failure on FM Towns `.EXP` files.
 - Do not convert the disc to ISO or bincue. Audio track alignment is lost.
 - Do not treat greyscale output as a bug. Its cause is documented.
-- Do not try to make Ultima II save by preparing the disk differently. Four disk
-  states were tested and all four fail, including the byte-for-byte retail
-  `[UserDisk]` that ships with the game. Ultima I and III both write to a
-  generated 1232 KB disk under the same setup, so the floppy path itself is
-  sound. Ultima II's refusal is an emulation defect. See `FINDINGS.md` 8.1.
-- Do not try MAME as a way around the Ultima II save problem. It was tried. MAME
-  boots the machine and shows the CD browser, but the pointer dies at the grey
-  launcher menu exactly as it does under Tsugaru, so the game is never reached.
-  MAME also refuses the FreeTOWNS clean-room ROMs and needs a real Fujitsu dump.
-  The container exists and works (`tools/mame-run.sh`) if a different FDC ever
-  needs testing, but it is not a route to a save disk. See `FINDINGS.md` 8.4.
+- Ultima II saves work. A formatted FM Towns floppy is fine and was never the
+  problem. See `FINDINGS.md` 8.5. What went wrong for most of one session was
+  that tests were run against disks whose contents had not been checked, and
+  negative results were built on top of each other without re-verifying the
+  input.
+- Never trust a disk-state test without first dumping the disk. Confirm what is
+  actually on it with the root directory and FAT before drawing any conclusion
+  from what a game said. A stale copy, a partial save or the wrong slot will
+  look exactly like an emulator bug.
+- Do not try MAME as a way around Ultima II problems. It works as an emulator
+  (`tools/mame-run.sh`) but its `fmtowns` driver is `status="preliminary"` and
+  the pointer dies at the CD launcher, so the games cannot be reached. It also
+  needs a real Fujitsu ROM dump, since the FreeTOWNS clean-room ROMs all fail
+  CRC verification. See `FINDINGS.md` 8.4.
 - Do not use the FreeTOWNS ROMs with MAME. All four CRC32s mismatch, and
   `FMT_DIC.ROM` is byte-identical to `FMT_F20.ROM`, which is what a substitute
   build looks like rather than dumped silicon.

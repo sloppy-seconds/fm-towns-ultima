@@ -1662,24 +1662,19 @@ The last two rows are the ones that matter. A correctly formatted blank fails,
 and so does a disk another game in the same trilogy has just successfully
 written to. Most tellingly, **the disk that ships with the game fails.**
 
-**Verdict:** NEGATIVE, and this closes the investigation. No disk state passes
-Ultima II's check, including the one Fujitsu shipped for the purpose. The
-failure is not caused by disk preparation, format, geometry, write protection,
-drive assignment, or missing files. It is specific to `ENCHANT.EXP`.
+**Verdict:** NEGATIVE at the time, and **overturned later in this section**. See
+8.5. The reasoning below was wrong because the U1-written disk was copied before
+U1 had finished saving, so the copy held a roster but not the state U2 checks for.
 
 The two messages involved, decoded from Shift-JIS at `0x1af6` and `0x1b63`:
 
 - `初期化したディスクをドライブに挿入せよ` - insert an initialised disk into the drive
 - `正しいディスクをドライブに挿入せよ。［挿入したらキーを押せ］` - insert the correct disk, then press a key
 
-The second is the one the game displays. It describes an identity check, not a
-format complaint, which is consistent with the retail disk also being refused.
+The second is the one the game displays. "Correct" turned out to be literal.
 
-**Where the blame most likely lies:** this is an emulation defect, not a disk
-problem. `ENCHANT.EXP` is the only one of the three that holds its save paths as
-literal strings (`A:\ROSTER1.UT2`, `A:\WORLD1-4.UT2`) rather than assembling
-them at runtime, and it is the only one that refuses to write. Nothing
-extractable from the disc can change that.
+**What was wrongly concluded:** that this was an emulation defect specific to
+`ENCHANT.EXP`. It is not. It is a disk-content check, and it can be satisfied.
 
 ### 8.2 The Tsugaru GUI exists and produces identical output
 
@@ -1828,6 +1823,82 @@ be accepted.
 **Verdict:** NEGATIVE for all three, documented in 8.2. No published fix exists
 for Ultima II saving on FM Towns, and no in-emulator route creates a disk that
 Tsugaru's `-GENFD 1232` does not already create.
+
+### 8.5 SOLVED: Ultima II saves on a stock disk. The error message was spurious
+
+**Tried:** mount an untouched copy of the `[UserDisk]` that ships with the
+release, launch Ultima II, create a character, save world data, quit, and reload.
+
+**Measured:** Ultima II is fully playable. The exact sequence that works:
+
+1. Launch Ultima II from the CD browser.
+2. **"A WRONG DISK [push space]" appears twice during startup.** Press space
+   through both. The game then shows its splash and runs normally.
+3. Select generate character, then create a character.
+4. Allocate stats, choose race/profession/sex, enter a name, confirm with Y.
+   The game reports "saving world data" and returns to slot selection.
+5. Choose the slot again and look at the character. It is there, with stats
+   modified by race and sex.
+6. Main menu, journey onward, select the character, confirm Y, press space at
+   "player selected", the game loads and plays.
+
+The packaged disk afterwards:
+
+| file | size | start cluster |
+|---|---|---|
+| `USERDISK` (volume label) | 0 | 0 |
+| `ROSTER1.UT2` | 3,658 B | 2 |
+| `WORLD1.UT2` | 68,096 B | 6 |
+
+`ROSTER1.UT2` recovers cleanly through the FAT chain and contains:
+
+```
+Roster data:ULTIMA II for FM-TOWNS
+(0)NAME=GIRL
+STRENGTH=30  AGILITY=25  STAMINA=20  CHARISMA=25
+WISDOM=10    INTELLIGENCE=15
+RACE=H  PROFESSION=F  SEX=F
+HP=400  MHP=400  EXPERIENCE=0
+```
+
+Those are the entered base values as modified by the racial and sex bonuses, so
+the round trip through the file is faithful.
+
+**Verdict:** POSITIVE. **"A WRONG DISK" is a spurious warning and not a
+failure.** It appears twice on every launch, one per floppy drive, and the game
+proceeds normally once space is pressed. There is nothing wrong with the disk
+and there never was. No disk preparation step is required, and the stock
+`[UserDisk]` works unmodified.
+
+This also explains the earlier Ultima I work: its save writes, persists and
+reloads correctly, and its slot list is 1-indexed against a 0-indexed file, so
+"slot 1" is `(0)NAME`.
+
+### 8.6 Why this took so long, and the lesson
+
+Everything in 8.1 through 8.4 that blamed the emulator was wrong. The root cause
+was reading a harmless message as a hard failure, and never checking what
+happened after pressing space. The message appears before the splash screen,
+is printed twice, and blocks nothing.
+
+Compounding it, three false signals all pointed the same way:
+
+- The boot screen is a grey CD browser with unreadable Japanese menus and
+  unreliable pointer input in both emulators, so launching U2 and reporting
+  back was itself error-prone.
+- Ultima I's slot list is 1-indexed against a 0-indexed roster file, so looking
+  at slot "1" showed the empty `(1)` entry and looked like save corruption.
+- Ultima I returns to character creation after a successful save rather than
+  proceeding, which looks like a failure and is not.
+
+Each of those produces the same symptom as a broken disk. Together they made a
+working system look completely broken.
+
+The rule this earned, and the most valuable thing in this file: **when a test
+result contradicts the rest of the evidence, re-verify the input and check what
+happens next before building a theory.** A file that parses perfectly, written
+by the same engine, being rejected by its sibling should have prompted "what
+does the screen say after the error", not a week of emulator archaeology.
 
 ---
 
