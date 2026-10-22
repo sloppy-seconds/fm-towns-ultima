@@ -1426,6 +1426,65 @@ selecting drive B: and confirming, which needs a human at the VNC session since
 the utility is mouse-driven and `xdotool` pointer events do not reach the VM.
 The target image is still all zeros pending that.
 
+### 6.27 The utility hard drive: Towns OS 2.1 L40 booting, and FORMAT located
+
+**`disk/TownsHDD_V1.HDM`, 15,931,539,456 bytes.** From
+`nfggames.com/forum2/index.php?topic=6954.0`, where the author describes it as a
+pre-installed FM Towns hard drive for real hardware and Tsugaru.
+
+**Measured:** only the first 2 GB has content (1,069 of 15,194 one-MB blocks,
+7%). Expected, because the author used a 16 GB SD card and said "only SCSI
+Device 0 with 10 partitions which equal 2GB roughly are being utilized".
+
+`disk/HDD V1.rar` contains exactly the same two files already extracted. No new
+content.
+
+**The partition table is at offset 0x200**, entries of 16 bytes plus a 16-byte
+name. Decoded names:
+
+| # | start | size | name |
+|---|---|---|---|
+| 1 | 0x000003 | 0x04cbc4 | `MS-DOS` `TownsOS` |
+| 2 | 0x000488 | 0x0003f8 | `MS-DOS` `V2.1L40 SYSTEM` |
+| 3 | 0x000880 | 0x0003f8 | `MS-DOS` `Doujinshoft1` |
+| 4 | 0x000c78 | 0x0003f8 | `MS-DOS` `Doujinshoft2` |
+
+**The boot failure was the CMOS.** Tsugaru does not scan for partitions; it reads
+the drive assignment from CMOS. Booting with a fresh CMOS found no bootable
+partition and stopped at the IPL. Using the supplied `disk/CMOS.DAT` instead:
+
+```
+-CMOS /data/CMOS_HDD.bin -HD0 /disk/TownsHDD_V1.HDM -BOOTKEY H0
+```
+
+boots to a **Towns OS V2.1 L40 windowed desktop** (48% #cccccc, 37% #ffffff, blue
+UI chrome). The forum post states this directly: "G Partition must be selected as
+your boot partition as that has TownsOS on it."
+
+**`FORMAT` located.** Scanning the used 2 GB for the string gives a hit at
+`0x1ABB59E`, and the nearest executable header before it is `MP` at
+`0x1AB5589` — a Phar Lap 386 executable, the same container as the Ultima games.
+The help text it contains is the real Towns OS formatter:
+
+```
+FORMAT <ドライブ名> を実行すると, RECOVER <ドライブ名> が実行できなくなります
+UNFORMAT [/J]
+UNFORMAT [/U] [/L] [/TEST] [/P]
+UNFORMAT /PARTN [/L] [/P]
+  /J     MIRROR ファイルを作り直す...
+```
+
+So `FORMAT` takes a drive letter, exactly as expected, and it exists on this
+disk. It has not yet been run.
+
+**Also on the disk per the author:** partition N has a High C compiler, Basic 386
+and assembler with C libraries; J/K/L have pre-installed games including Ultima
+Underworld II as `UW2TOWNS`.
+
+**Status:** Towns OS 2.1 boots. The formatter is present and identified. Running
+it requires driving the desktop GUI, which `xdotool` pointer events do not
+reliably reach, so it needs a human at the VNC session.
+
 ---
 
 ## 7. Sound
