@@ -1245,6 +1245,60 @@ U2 is keyboard and mouse driven so it does not apply here.
 amount of external file creation substitutes for running the machine's own
 formatter.
 
+### 6.24 The save-disk problem, solved by outside research
+
+**Independent confirmation of the diagnosis.** Searching for the exact symptom
+found two sources describing the same thing.
+
+From r/fmtowns, someone with the identical failure:
+
+> ultima 1-3 have an error when creating character that tells you **disk not
+> ready**. Open the menu using the small button on the right side bottom, then
+> select FD0, then choose select image.
+
+That matches the `NO_FD` test in 6.19, where removing the floppy gave "drive not
+ready". So the disk must be present. It also shows this is a known obstacle, not
+something specific to our setup.
+
+**Why the disk must be blank.** The Exodus Project, writing about U2's original
+floppy release:
+
+> if you try to create a new character when one already exists, the game gives
+> you a not-so-user-friendly "Not a blank player disk" message... U2 was run
+> entirely on floppies and included separate program master, player master, and
+> galactic disk.
+
+So U2 expects a specifically blank player disk, and checks for it. That is
+consistent with the Shift-JIS message at `0x1af6` requiring an **initialised**
+disk: initialised but empty.
+
+**The missing piece, identified.** From gekk.info's FM Towns emulation guide:
+
+> DOS and **TownsOS 1.1** are available as floppy images... The BIOS pack I made
+> contains DOS, **TownsOS 1.1 which boots to a GUI**, and a boot disk for
+> TownsOS 2.1 that just boots to DOS.
+
+Towns floppy images are `.HDM`. The pack is at
+`https://gekk.info/files/FMT%20ROMs.7z`.
+
+This is precisely what every attempt in 20-23 lacked: a **bootable** Towns OS
+medium. Every disk in the archive.org download is a data disk, which is why
+booting any of them halts in ROM.
+
+The same guide also notes that TownsOS 2.1 needs a CD and can be booted like a
+game.
+
+**The complete chain, now known:**
+
+1. Boot TownsOS 1.1 from gekk's `.HDM` floppy image as FD0.
+2. From its command line, format a second floppy. This writes the boot sector,
+   BPB and FAT that every blank image lacks.
+3. Launch U2 with the formatted disk in FD0 and the CD mounted.
+4. Character creation should then write `A:\ROSTER1.UT2` successfully.
+
+**Status:** the chain is fully identified but not yet executed. The BIOS pack is
+a third-party download not yet fetched.
+
 ---
 
 ## 7. Sound
