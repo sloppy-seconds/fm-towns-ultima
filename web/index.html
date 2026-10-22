@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ultima II save disk editor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314161a'/%3E%3Ctext x='16' y='23' font-family='monospace' font-size='18' font-weight='bold' fill='%236ea8fe' text-anchor='middle'%3EII%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #14161a; --panel: #1e2228; --line: #2f3640; --text: #e6e8ec;
+    --dim: #939aa6; --accent: #6ea8fe; --good: #4ade80; --bad: #f87171; --warn: #fbbf24;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--line); display: flex;
+           align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--dim); font-size: 13px; }
+  main { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 66px); }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  nav { border-right: 1px solid var(--line); padding: 16px; }
+  nav h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+           color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+  .slot { display: block; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 8px;
+          background: var(--panel); color: var(--text); border: 1px solid var(--line);
+          border-radius: 8px; cursor: pointer; font: inherit; }
+  .slot:hover { border-color: var(--accent); }
+  .slot.active { border-color: var(--accent); background: #232a35; }
+  .slot .num { color: var(--dim); font-size: 12px; }
+  .slot .nm { font-weight: 600; }
+  .slot .empty { color: var(--dim); font-style: italic; }
+  section { padding: 20px 24px; max-width: 800px; }
+  h2.t { font-size: 16px; margin: 0 0 4px; }
+  p.hint { color: var(--dim); font-size: 13px; margin: 0 0 18px; }
+  /* Modifier badges. Shown next to the choice that grants them, and again
+     next to the attribute they affect, so the arithmetic is visible rather
+     than only its result. */
+  .mod { font-size: 12px; font-weight: 600; margin-left: 6px; white-space: nowrap; }
+  .mod.up { color: var(--good); }
+  .mod.down { color: var(--bad); }
+  .mod.none { color: var(--dim); font-weight: 400; }
+  .idrow { display: grid; grid-template-columns: 130px 1fr; gap: 10px 14px; align-items: center; }
+  .idrow > label { margin: 0; }
+  .idrow > .ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .idrow select, .idrow input { flex: 1 1 160px; }
+  .attrow { display: grid; grid-template-columns: 130px 90px 1fr; gap: 10px 14px; align-items: center; }
+  .attrow > label { margin: 0; }
+  .attrow .final { font-family: ui-monospace, monospace; font-size: 13px; color: var(--dim); }
+  .attrow .final b { color: var(--text); font-weight: 600; }
+  .attrow .final.boosted b { color: var(--good); }
+  .attrow .mines { font-size: 12px; color: var(--dim); }
+  @media (max-width: 620px) {
+    .idrow, .attrow { grid-template-columns: 1fr; gap: 4px; }
+  }
+  #discount { font-size: 13px; margin: 10px 0 0; color: var(--dim); }
+  #discount.on { color: var(--good); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 13px; color: var(--dim); margin-bottom: 4px; }
+  input, select { width: 100%; padding: 9px 11px; background: var(--panel); color: var(--text);
+                  border: 1px solid var(--line); border-radius: 7px; font: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 0 0 18px; }
+  legend { padding: 0 8px; color: var(--dim); font-size: 12px;
+           text-transform: uppercase; letter-spacing: .08em; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  button.act { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line);
+               background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
+  button.act.primary { background: var(--accent); color: #0b1220; border-color: var(--accent); font-weight: 600; }
+  button.act:hover { filter: brightness(1.12); }
+  button.act:disabled { opacity: .45; cursor: not-allowed; }
+  button.act.danger { color: var(--bad); border-color: #4a2a2a; }
+  button.act.cheat { color: #ff9f43; border-color: #6b3f13; }
+  button.act.cheat.on { background: #ff9f43; color: #1a1206; border-color: #ff9f43; font-weight: 600; }
+  #poolLabel { color: var(--accent); text-transform: none; letter-spacing: 0; }
+  #poolLabel.over { color: var(--bad); }
+  #poolLabel.done { color: var(--good); }
+  input.over { border-color: var(--bad); }
+  body.cheat fieldset.attrs { border-color: #6b3f13; }
+  #msg { margin-top: 16px; padding: 12px 14px; border-radius: 8px; display: none;
+         font-size: 14px; white-space: pre-wrap; }
+  #msg.ok { display: block; background: #14301f; color: var(--good); border: 1px solid #22543a; }
+  #msg.err { display: block; background: #2e1618; color: var(--bad); border: 1px solid #5a2a2e; }
+  #msg.warn { display: block; background: #2d2410; color: var(--warn); border: 1px solid #5a4a1a; }
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 32px 20px;
+          text-align: center; cursor: pointer; color: var(--dim); }
+  .drop:hover, .drop.over { border-color: var(--accent); color: var(--text); }
+  .files { font-family: ui-monospace, monospace; font-size: 12.5px; color: var(--dim); }
+  .files div { padding: 2px 0; }
+  .hide { display: none !important; }
+  code { font-family: ui-monospace, monospace; font-size: 13px; color: var(--text); }
+  .note { font-size: 13px; color: var(--dim); margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ultima II save disk editor</h1>
+  <span class="sub" id="status">no disk loaded</span>
+</header>
+
+<main>
+  <nav>
+    <h2>Disk</h2>
+    <button class="act" id="pickbtn" style="width:100%;margin-bottom:8px">Open save disk</button>
+    <button class="act" id="newbtn" style="width:100%;margin-bottom:8px">New blank disk</button>
+    <button class="act primary" id="dlbtn" style="width:100%" disabled>Download disk</button>
+    <div class="files" id="filelist" style="margin-top:12px"></div>
+
+    <h2 style="margin-top:22px">Character slots</h2>
+    <div id="slots"></div>
+
+    <h2 style="margin-top:22px">About</h2>
+    <p class="hint" style="margin:0">
+      Nothing is uploaded. The disk is read, edited and written entirely in this
+      page, then you download the result. Your original file is never modified.
+    </p>
+  </nav>
+
+  <section>
+    <div id="landing">
+      <h2 class="t">Open your save disk</h2>
+      <p class="hint">
+        Drop the <code>.hdm</code> or <code>.img</code> floppy image here, or use
+        Open save disk. The one that ships with the game is called
+        <code>[UserDisk].hdm</code>.
+      </p>
+      <div class="drop" id="drop">Drop a save disk here</div>
+      <p class="note">
+        No disk to hand? <strong>New blank disk</strong> builds a valid FM Towns
+        save disk from scratch. It needs no boot sector: Ultima II only ever opens
+        the floppy as a data volume, and was confirmed to accept a disk containing
+        nothing but geometry and an empty filesystem.
+      </p>
+    </div>
+
+    <div id="editor" class="hide">
+      <h2 class="t" id="formtitle">Create a character</h2>
+      <p class="hint">
+        Stats are final values. Race, sex and profession bonuses were applied by
+        the game when the character was created and are not re-applied here.
+        FOOD is stored at a hundred times the displayed figure, so 40000 shows as
+        400, and it counts down as you travel.
+      </p>
+
+      <form id="form">
+        <fieldset>
+          <legend>Identity</legend>
+          <div class="idrow"><label for="slot">Slot</label>
+            <div class="ctl"><select id="slot" name="slot">
+              <option value="0">1</option><option value="1">2</option>
+              <option value="2">3</option><option value="3">4</option>
+            </select></div></div>
+          <div class="idrow"><label for="name">Name</label>
+            <div class="ctl"><input id="name" name="name" maxlength="15" autocomplete="off"
+              placeholder="HERO" inputmode="text" spellcheck="false"
+              pattern="[A-Za-z0-9 ]*" title="Letters, digits and spaces only">
+              <span class="mod none" id="nameHint"></span></div></div>
+          <div class="idrow"><label for="race">Race</label>
+            <div class="ctl"><select id="race" name="race">
+              <option value="H">Human</option><option value="E">Elf</option>
+              <option value="D">Dwarf</option><option value="B">Bobbit</option>
+            </select><span class="mod" id="raceMod"></span></div></div>
+          <div class="idrow"><label for="sex">Sex</label>
+            <div class="ctl"><select id="sex" name="sex">
+              <option value="M">Male</option><option value="F">Female</option>
+            </select><span class="mod" id="sexMod"></span></div></div>
+          <div class="idrow"><label for="profession">Profession</label>
+            <div class="ctl"><select id="profession" name="profession">
+              <option value="F">Fighter</option><option value="C">Cleric</option>
+              <option value="W">Wizard</option><option value="T">Thief</option>
+            </select><span class="mod" id="profMod"></span></div></div>
+          <p class="hint" style="margin:12px 0 0">
+            Names are limited to 15 characters of letters, digits and spaces. The
+            file format itself allows more, and any character could be written, but
+            how the game renders a long or unusual name is unknown, so this page
+            stays inside what is certain to work.
+          </p>
+        </fieldset>
+
+        <fieldset class="attrs">
+          <legend>Attributes <span id="poolLabel">- 30 of 90 points left to spend</span></legend>
+          <div id="attrRows"></div>
+          <p class="hint" id="poolHint" style="margin:12px 0 0">
+            The game gives 90 points, with at least 10 in each attribute. Bonuses
+            from the identity above are added after you spend them, and are shown
+            next to each attribute as they apply.
+          </p>
+          <p id="discount"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Resources</legend>
+          <div class="grid">
+            <div><label for="HP">Hit points, 1 to 9999</label><input id="HP" name="HP" type="number" min="1" max="9999" value="400"></div>
+            <div><label for="MHP">Max hit points</label><input id="MHP" name="MHP" type="number" min="1" max="9999" value="400"></div>
+            <div><label for="FOOD">Food, in rations. 400 is typical</label><input id="FOOD" name="FOOD" type="number" min="1" max="9999" value="400"></div>
+            <div><label for="GOLD">Gold, 0 to 9999</label><input id="GOLD" name="GOLD" type="number" min="0" max="9999" value="400"></div>
+            <div><label for="EXPERIENCE">Experience, 0 to 9999</label><input id="EXPERIENCE" name="EXPERIENCE" type="number" min="0" max="9999" value="0"></div>
+          </div>
+          <p class="hint" style="margin:10px 0 0" id="foodHint">
+            Enter food as the number of rations you want. It is stored internally
+            at one hundred times this figure, because the game counts down in
+            fractions of a ration each turn. This page does that conversion.
+          </p>
+        </fieldset>
+
+        <div class="row">
+          <button class="act primary" type="submit">Save character</button>
+          <button class="act" type="button" id="clonebtn">Copy to another slot</button>
+          <button class="act danger" type="button" id="delbtn">Clear this slot</button>
+          <button class="act cheat" type="button" id="cheatbtn">Cheat mode</button>
+        </div>
+        <div class="row" id="cheatrow" style="display:none">
+          <button class="act" type="button" id="maxbtn">Set everything to maximum</button>
+          <span class="note" style="align-self:center">
+            Removes the point cap and the 10 minimum. The game does not check, so
+            this works, but it is not how the game plays.
+          </span>
+        </div>
+      </form>
+      <div id="msg"></div>
+    </div>
+  </section>
+</main>
+
+<input type="file" id="fileinput" class="hide" accept=".hdm,.img,.bin,.dsk">
+
+<script type="module">
+import * as fat from './fat12.js';
+import * as roster from './roster.js';
+
+const $ = (id) => document.getElementById(id);
+let img = null;          // Uint8Array of the whole disk
+let sourceName = 'save.hdm';
+let slots = [];
+let cheat = false;       // point cap disabled, maximum buttons revealed
+
+// --- character creation rules ----------------------------------------------
+// Measured from a character created in game: a human female fighter was given
+// 20/15/20/15/10/10, which is 90 points and 10 in every attribute, and the game
+// stored 30/25/20/25/10/15 after applying race, sex and profession bonuses.
+// So the pool is 90 with a floor of 10 in each attribute.
+const STATS = ['STRENGTH', 'AGILITY', 'STAMINA', 'CHARISMA', 'WISDOM', 'INTELLIGENCE'];
+const STAT_MIN = 10;
+const STAT_POINTS = 90;
+const STAT_MAX = 99;
+
+// FOOD is stored at one hundred times what the game displays, so the number a
+// player thinks in is divided by 100 on the way in and multiplied on the way out.
+const FOOD_SCALE = 100;
+
+function statsSpent() {
+  return STATS.reduce((sum, k) => sum + (Number($(k).value) || 0), 0);
+}
+
+// Reflects the remaining points, and flags over-spend as soon as it happens
+// rather than waiting for submit.
+function updatePool() {
+  const spent = statsSpent();
+  const left = STAT_POINTS - spent;
+  const el = $('poolLabel');
+  showFinal();
+  if (cheat) {
+    el.textContent = '- no cap in cheat mode';
+    el.className = '';
+    for (const k of STATS) $(k).classList.remove('over');
+    return;
+  }
+  el.textContent = left >= 0
+    ? '- ' + left + ' of ' + STAT_POINTS + ' points left to spend'
+    : '- ' + (-left) + ' points over the limit';
+  el.className = left < 0 ? 'over' : left === 0 ? 'done' : '';
+  for (const k of STATS) {
+    const v = Number($(k).value) || 0;
+    $(k).classList.toggle('over', v < STAT_MIN || spent > STAT_POINTS);
+  }
+}
+
+// --- modifier display ------------------------------------------------------
+const SHORT = { STRENGTH: 'STR', AGILITY: 'AGI', STAMINA: 'STA', CHARISMA: 'CHA', WISDOM: 'WIS', INTELLIGENCE: 'INT' };
+
+// "+5 AGI", "-5 STR", "+10 WIS -5 STR", or nothing when a choice has no effect.
+function modText(table) {
+  if (!table) return '';
+  const parts = [];
+  for (const k of STATS) {
+    const v = table[k];
+    if (!v) continue;
+    parts.push((v > 0 ? '+' : '') + v + ' ' + SHORT[k]);
+  }
+  return parts.join('  ');
+}
+
+function setBadge(id, table) {
+  const el = $(id);
+  const text = modText(table);
+  if (!text) { el.textContent = 'no change'; el.className = 'mod none'; return; }
+  el.textContent = text;
+  // Colour by the strongest effect, so a mixed bonus-and-penalty reads as
+  // neutral rather than pretending to be purely good.
+  const vals = Object.values(table || {});
+  el.className = 'mod ' + (vals.some((v) => v < 0) ? 'none' : 'up');
+}
+
+// Builds one row per attribute. Built in script rather than markup so the
+// bonus column can be filled from the modifier table without duplication.
+function buildAttrRows() {
+  const host = $('attrRows');
+  if (host.dataset.built) return;
+  host.innerHTML = STATS.map((k) =>
+    '<div class="attrow">' +
+      '<label for="' + k + '">' + k.charAt(0) + k.slice(1).toLowerCase() + '</label>' +
+      '<input id="' + k + '" name="' + k + '" type="number" min="10" max="99" value="10">' +
+      '<span class="final" id="fin-' + k + '"></span>' +
+    '</div>').join('');
+  host.dataset.built = '1';
+  for (const k of STATS) $(k).addEventListener('input', updatePool);
+}
+
+// Shows what the game will store, which is the allocation plus the modifiers
+// for the chosen race, sex and profession. Kept live so the effect of each
+// choice is visible before saving.
+// Renders the whole picture: the badge next to each identity choice, the bonus
+// and resulting total next to each attribute, and the shop discount line.
+function showFinal() {
+  const race = $('race').value;
+  const sex = $('sex').value;
+  const prof = $('profession').value;
+
+  setBadge('raceMod', roster.MODIFIERS.race[race]);
+  setBadge('sexMod', roster.MODIFIERS.sex[sex]);
+  setBadge('profMod', roster.MODIFIERS.profession[prof]);
+
+  // Per-attribute contribution, so it is clear which choices are stacking on
+  // each stat rather than only seeing a single combined number.
+  const perStat = {};
+  for (const k of STATS) perStat[k] = [];
+  const sources = [
+    ['race', roster.MODIFIERS.race[race]],
+    ['sex', roster.MODIFIERS.sex[sex]],
+    ['prof', roster.MODIFIERS.profession[prof]],
+  ];
+  for (const [name, table] of sources) {
+    if (!table) continue;
+    for (const [k, v] of Object.entries(table)) if (v) perStat[k].push({ name, v });
+  }
+
+  let cha = 0, int = 0;
+  for (const k of STATS) {
+    const baseVal = Number($(k).value) || 0;
+    const total = perStat[k].reduce((a, x) => a + x.v, 0);
+    const fin = Math.min(99, baseVal + total);
+    if (k === 'CHARISMA') cha = fin;
+    if (k === 'INTELLIGENCE') int = fin;
+    const el = $('fin-' + k);
+    if (!el) continue;
+    if (!total) {
+      el.textContent = '= ' + fin;
+      el.className = 'final';
+    } else {
+      const bits = perStat[k].map((x) => (x.v > 0 ? '+' : '') + x.v).join(' ');
+      el.innerHTML = '<span class="mines">' + bits + '</span> = <b>' + fin + '</b>';
+      el.className = 'final' + (fin > baseVal ? ' boosted' : '');
+    }
+  }
+
+  const d = $('discount');
+  const sum = cha + int;
+  if (sum >= 40) {
+    d.textContent = 'Shop discount unlocked: CHA ' + cha + ' + INT ' + int + ' = ' + sum + ', which meets the threshold of 40.';
+    d.className = 'on';
+  } else {
+    d.textContent = 'Shop discount needs CHA + INT of 40. Currently ' + cha + ' + ' + int + ' = ' + sum + ', ' + (40 - sum) + ' short.';
+    d.className = '';
+  }
+}
+
+// --- messages --------------------------------------------------------------
+function msg(text, kind) {
+  const el = $('msg');
+  el.textContent = text;
+  el.className = kind || '';
+}
+
+// --- loading ---------------------------------------------------------------
+function loadInto(bytes, name) {
+  if (bytes.length !== fat.SIZE) {
+    msg('That file is ' + bytes.length + ' bytes. An FM Towns 2HD save disk is exactly '
+        + fat.SIZE + ' bytes (1,232 KB).', 'err');
+    $('editor').classList.remove('hide');
+    return;
+  }
+  img = bytes;
+  sourceName = name || 'save.hdm';
+  msg('');
+  $('landing').classList.add('hide');
+  $('editor').classList.remove('hide');
+  refresh();
+}
+
+function refresh() {
+  const files = fat.listRoot(img);
+  $('status').textContent = sourceName + '  -  ' + files.length + ' entries';
+  $('filelist').innerHTML = files.map((f) =>
+    '<div>' + f.name + (f.size ? '  ' + f.size : '') + '</div>').join('');
+
+  const entry = fat.findEntry(img, 'ROSTER1.UT2');
+  if (!entry) {
+    slots = [];
+  } else {
+    slots = roster.slotsOf(new TextDecoder('latin1').decode(fat.readFile(img, entry)));
+  }
+  $('dlbtn').disabled = false;
+  renderSlots();
+  loadSlot(Number($('slot').value));
+}
+
+function renderSlots() {
+  const nav = $('slots');
+  nav.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const s = slots.find((x) => x.slot === i);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'slot' + (Number($('slot').value) === i ? ' active' : '');
+    b.innerHTML = '<div class="num">Slot ' + (i + 1) + '</div>' +
+      (s && s.name ? '<div class="nm">' + s.name + '</div>' : '<div class="empty">empty</div>');
+    b.onclick = () => { $('slot').value = String(i); renderSlots(); loadSlot(i); };
+    nav.appendChild(b);
+  }
+}
+
+function loadSlot(i) {
+  const s = slots.find((x) => x.slot === i);
+  $('formtitle').textContent = s && s.name ? 'Editing ' + s.name : 'Create a character in slot ' + (i + 1);
+  if (!s || !s.name) {
+    $('name').value = '';
+    return;
+  }
+  $('name').value = s.name;
+  for (const k of ['RACE', 'SEX', 'PROFESSION', 'STRENGTH', 'AGILITY', 'STAMINA',
+                   'CHARISMA', 'WISDOM', 'INTELLIGENCE', 'HP', 'MHP', 'GOLD', 'EXPERIENCE']) {
+    const el = $(k);
+    if (el && s.fields[k] !== undefined && s.fields[k] !== '') el.value = s.fields[k];
+  }
+  // Show food in the units the player thinks in, not the stored value.
+  const stored = Number(s.fields.FOOD);
+  if (Number.isFinite(stored)) $('FOOD').value = Math.floor(stored / FOOD_SCALE);
+  updatePool();
+}
+
+// --- writing ---------------------------------------------------------------
+// Every write follows the same shape: build the new roster text, put it back,
+// then re-read and re-parse to confirm it landed. A write that silently failed
+// is indistinguishable from success otherwise.
+function commitSlot(slot, values, { generateWorld }) {
+  const entry = fat.findEntry(img, 'ROSTER1.UT2');
+  const decoder = new TextDecoder('latin1');
+
+  if (!entry) {
+    // No roster yet: this is a blank disk, so make one with a single slot.
+    const header = 'Roster data:ULTIMA II for FM-TOWNS\r\nLINGUAL=0\r\n';
+    let text = header;
+    for (let i = 0; i < 4; i++) text += roster.buildSlot(i, i === slot ? values : { NAME: '\u0000' }, null);
+    fat.putFile(img, 'ROSTER1.UT2', new TextEncoder().encode(text));
+  } else {
+    const text = decoder.decode(fat.readFile(img, entry));
+    const existing = roster.slotsOf(text);
+    const donor = existing.find((s) => s.name) || null;
+    const donorText = donor ? donor.text : null;
+    const block = roster.buildSlot(slot, values, donorText);
+    fat.writeFile(img, entry, new TextEncoder().encode(roster.replaceSlot(text, slot, block)));
+  }
+
+  const worldName = 'WORLD' + (slot + 1) + '.UT2';
+  if (generateWorld && !fat.findEntry(img, worldName)) fat.putFile(img, worldName, fat.newWorld());
+
+  // Verify by reading back.
+  const check = fat.findEntry(img, 'ROSTER1.UT2');
+  const after = roster.slotsOf(decoder.decode(fat.readFile(img, check)));
+  const wrote = after.find((s) => s.slot === slot);
+  if (!wrote || wrote.name !== values.NAME) {
+    throw new Error('write did not land: expected ' + values.NAME + ', read ' + (wrote && wrote.name));
+  }
+  slots = after;
+  return wrote;
+}
+
+// Base allocation plus the modifiers for the chosen race, sex and profession,
+// clamped to the 99 the game allows.
+function finalStats(v) {
+  const base = {};
+  for (const k of STATS) base[k] = Number(v[k]) || 0;
+  const fin = roster.applyModifiers(base, v.race, v.sex, v.profession);
+  const out = {};
+  for (const k of STATS) out[k] = String(Math.min(99, fin[k]));
+  return out;
+}
+
+// --- name handling ---------------------------------------------------------
+// The file format has no name limit: a 26-character name was written and stored
+// intact. What is NOT known is how the game renders a long name, since the
+// character sheet and party list draw into fixed-width fields and only one %s
+// exists in the whole binary, for the roster writer. Rather than guess, this
+// stays well inside what is certainly safe: 15 characters, letters, digits and
+// spaces, upper-cased.
+const NAME_MAX = 15;
+const NAME_ALLOWED = /[^A-Za-z0-9 ]/g;
+
+function sanitiseName(raw) {
+  const cleaned = String(raw || '').replace(NAME_ALLOWED, '').toUpperCase().slice(0, NAME_MAX);
+  return cleaned.trim() || 'HERO';
+}
+
+// Keeps the field itself honest while typing, so what is on screen is what will
+// be written. Without this the value is silently altered only at save time,
+// which looks like the edit was ignored.
+function wireNameField() {
+  const el = $('name');
+  el.addEventListener('input', () => {
+    const before = el.value;
+    const after = before.replace(NAME_ALLOWED, '').toUpperCase().slice(0, NAME_MAX);
+    if (after !== before) {
+      const pos = el.selectionStart - (before.length - after.length);
+      el.value = after;
+      try { el.setSelectionRange(pos, pos); } catch { /* not focusable yet */ }
+    }
+    const left = NAME_MAX - el.value.length;
+    const hint = $('nameHint');
+    if (!el.value) { hint.textContent = ''; }
+    else if (left <= 3) { hint.textContent = left + ' left'; }
+    else { hint.textContent = ''; }
+  });
+}
+
+function formValues() {
+  const v = {};
+  for (const id of ['name', 'race', 'sex', 'profession', 'STRENGTH', 'AGILITY', 'STAMINA',
+                    'CHARISMA', 'WISDOM', 'INTELLIGENCE', 'HP', 'MHP', 'FOOD', 'GOLD', 'EXPERIENCE']) {
+    v[id] = $(id).value;
+  }
+  return {
+    NAME: sanitiseName(v.name),
+    RACE: v.race, SEX: v.sex, PROFESSION: v.profession,
+    // The inputs are the base allocation, as the player would type it in game.
+    // Race, sex and profession bonuses are applied here so the stored file
+    // matches what the game would have written for the same choices.
+    ...finalStats(v),
+    HP: v.HP, MHP: v.MHP,
+    // The player entered rations. The file wants hundredths.
+    FOOD: String(Math.round(Number(v.FOOD || 0) * FOOD_SCALE)),
+    GOLD: v.GOLD, EXPERIENCE: v.EXPERIENCE,
+  };
+}
+
+// Returns null when the values are acceptable, or a reason they are not.
+// In cheat mode nothing is checked, which is the point of the button.
+function validate(values) {
+  if (cheat) return null;
+  const nums = STATS.map((k) => Number(values[k]));
+  for (let i = 0; i < STATS.length; i++) {
+    if (!Number.isFinite(nums[i])) return STATS[i].toLowerCase() + ' must be a number';
+    if (nums[i] < STAT_MIN) return 'each attribute needs at least ' + STAT_MIN + ' points';
+  }
+  const total = nums.reduce((a, b) => a + b, 0);
+  if (total > STAT_POINTS) {
+    return 'attributes add up to ' + total + ' but the game gives ' + STAT_POINTS
+      + '. Reduce by ' + (total - STAT_POINTS) + ', or use cheat mode.';
+  }
+  return null;
+}
+
+// --- events ----------------------------------------------------------------
+$('slot').onchange = () => { renderSlots(); loadSlot(Number($('slot').value)); };
+
+$('pickbtn').onclick = () => $('fileinput').click();
+$('fileinput').onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  loadInto(new Uint8Array(await f.arrayBuffer()), f.name);
+};
+
+const drop = $('drop');
+drop.onclick = () => $('fileinput').click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = async (e) => {
+  e.preventDefault();
+  drop.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) loadInto(new Uint8Array(await f.arrayBuffer()), f.name);
+};
+
+$('newbtn').onclick = () => {
+  img = fat.newBlankDisk();
+  sourceName = 'new-savedisk.hdm';
+  msg('Built a blank save disk with no boot sector. Create a character in any slot, then download.', 'ok');
+  $('landing').classList.add('hide');
+  $('editor').classList.remove('hide');
+  slots = [];
+  $('dlbtn').disabled = false;
+  renderSlots();
+  $('formtitle').textContent = 'Create a character in slot 1';
+};
+
+$('dlbtn').onclick = () => {
+  const blob = new Blob([img], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = sourceName.replace(/\.(hdm|img|bin|dsk)$/i, '') + '-edited.hdm';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  msg('Downloaded ' + a.download + '. Put it back where the emulator expects your save disk.', 'ok');
+};
+
+$('maxbtn').onclick = () => {
+  for (const k of STATS) $(k).value = STAT_MAX;
+  $('HP').value = 9999; $('MHP').value = 9999;
+  $('FOOD').value = 9999; $('GOLD').value = 9999; $('EXPERIENCE').value = 9999;
+  updatePool();
+  msg('Maximum values filled in. Press Save character to write them.', 'ok');
+};
+
+$('cheatbtn').onclick = () => {
+  cheat = !cheat;
+  document.body.classList.toggle('cheat', cheat);
+  $('cheatbtn').classList.toggle('on', cheat);
+  $('cheatbtn').textContent = cheat ? 'Cheat mode on' : 'Cheat mode';
+  $('cheatrow').style.display = cheat ? 'flex' : 'none';
+  // Removing the floor would otherwise reject existing high values on the way in.
+  for (const k of STATS) $(k).min = cheat ? '1' : String(STAT_MIN);
+  $('poolHint').textContent = cheat
+    ? 'Cheat mode. The point cap and the 10 minimum are off, so any value up to 99 can be set.'
+    : 'The game gives 90 points, with at least 10 in each attribute. Race, sex and profession also add bonuses at creation, but this port\'s bonus table is unconfirmed, so it is not applied here.';
+  updatePool();
+};
+
+$('clonebtn').onclick = () => {
+  const from = Number($('slot').value);
+  const src = slots.find((s) => s.slot === from);
+  if (!src || !src.name) return msg('Slot ' + (from + 1) + ' is empty. Save a character into it first.', 'err');
+  const answer = prompt('Copy ' + src.name + ' into which slot?  1 to 4', String(from === 0 ? 2 : 1));
+  if (!answer) return;
+  const to = Number(answer) - 1;
+  if (!Number.isInteger(to) || to < 0 || to > 3 || to === from) return msg('Pick a different slot, 1 to 4.', 'err');
+  const target = slots.find((s) => s.slot === to);
+  if (target && target.name && !confirm('Slot ' + (to + 1) + ' holds ' + target.name + '. Overwrite it?')) return;
+  const newName = prompt('Name for the copy', src.name);
+  if (newName === null) return;
+
+  const values = {};
+  for (const [k, v] of Object.entries(src.fields)) values[k] = v;
+  values.NAME = (newName || src.name).toUpperCase().slice(0, 15);
+  // The copy gets its own world, since the source world belongs to the source.
+  const hadWorld = !!fat.findEntry(img, 'WORLD' + (to + 1) + '.UT2');
+  try {
+    commitSlot(to, values, { generateWorld: true });
+    if (!hadWorld) { /* commitSlot already generated one */ }
+    msg('Copied ' + src.name + ' into slot ' + (to + 1) + ' as ' + values.NAME + '.', 'ok');
+    renderSlots();
+    loadSlot(to);
+  } catch (e) { msg(String(e.message || e), 'err'); }
+};
+
+$('delbtn').onclick = () => {
+  const slot = Number($('slot').value);
+  const s = slots.find((x) => x.slot === slot);
+  if (!s || !s.name) return msg('Slot ' + (slot + 1) + ' is already empty.', 'warn');
+  if (!confirm('Clear slot ' + (slot + 1) + ', ' + s.name + '?')) return;
+  const entry = fat.findEntry(img, 'ROSTER1.UT2');
+  const text = new TextDecoder('latin1').decode(fat.readFile(img, entry));
+  const block = roster.buildSlot(slot, { NAME: '\u0000' }, roster.parseSlots(text).find((x) => x.slot === slot).text);
+  fat.writeFile(img, entry, new TextEncoder().encode(roster.replaceSlot(text, slot, block)));
+  slots = roster.slotsOf(new TextDecoder('latin1').decode(fat.readFile(img, fat.findEntry(img, 'ROSTER1.UT2'))));
+  msg('Slot ' + (slot + 1) + ' cleared.', 'ok');
+  renderSlots();
+  loadSlot(slot);
+};
+
+$('form').onsubmit = (e) => {
+  e.preventDefault();
+  const slot = Number($('slot').value);
+  const values = formValues();
+  const reject = validate(values);
+  if (reject) { msg(reject, 'err'); updatePool(); return; }
+  const wasEmpty = !(slots.find((s) => s.slot === slot) || {}).name;
+  try {
+    commitSlot(slot, values, { generateWorld: wasEmpty });
+    const food = Math.round(Number(values.FOOD) / FOOD_SCALE);
+    msg('Saved ' + values.NAME + ' into slot ' + (slot + 1) + ' as a '
+        + roster.PROFESSIONS[values.PROFESSION].label.toLowerCase()
+        + ', with ' + food + ' rations.', 'ok');
+    renderSlots();
+    loadSlot(slot);
+  } catch (err) {
+    msg(String(err.message || err), 'err');
+  }
+};
+
+// Build the attribute rows before anything reads their inputs. The per-input
+// listeners are attached inside buildAttrRows, since the elements do not exist
+// until it runs.
+buildAttrRows();
+wireNameField();
+
+// Race, sex and profession change the modifiers, so the preview must follow them.
+for (const id of ['race', 'sex', 'profession']) $(id).addEventListener('change', updatePool);
+updatePool();
+</script>
+</body>
+</html>

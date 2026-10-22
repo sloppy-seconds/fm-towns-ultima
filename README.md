@@ -201,11 +201,20 @@ See `tools/README.md` for the full API.
 
 ### Character editor
 
-With the container running, open `http://<host>:8080/editor` for a web page that
-reads and writes the mounted save disk. It can create, edit and clear all four
-character slots, with the field list, defaults and value caps already filled in.
+Two ways to edit a save disk.
 
-The same thing is available headlessly through the API:
+**In the browser, with no install:** https://sloppy-seconds.github.io/fm-towns-ultima/
+
+The page in `web/` reads and writes a save disk entirely in the browser. Open an
+`.hdm`, edit the four character slots, download the result. Nothing is uploaded
+and the original file is never modified. It also applies the race, sex and
+profession modifiers, which are measured rather than assumed, and shows the shop
+discount threshold live.
+
+**Inside the container:** `http://<host>:8080/editor` serves the same UI against
+the disk the emulator has mounted.
+
+The same work is available headlessly through the API:
 
 ```bash
 curl -s http://<host>:8080/api/save/info
@@ -214,17 +223,18 @@ curl -s -X POST -H 'content-type: application/json' \
   http://<host>:8080/api/save/slot
 ```
 
-Pause the emulator first. Tsugaru holds the mounted image open and flushes its
-own view over any edit made while it is running.
+Pause the emulator before using the in-container editor. Tsugaru holds the
+mounted image open and flushes its own view over any edit made while it runs.
 
 From the shell, `node tools/savedisk.js` does the same jobs against a file:
-list, cat, slots, clone, set, world-copy. That version is tested and does not
-need a container.
+list, cat, slots, clone, set, world-copy, newdisk. That version is tested and
+does not need a container.
 
-Two things the editor does not model. Race, sex and profession bonuses are
-applied by the game at creation and stored in the final values, so the editor
-sets absolute stats and no modifier is re-applied on load. And `FOOD` is stored
-at one hundred times the displayed figure, so 40000 shows as `400`.
+Two encodings worth knowing. Race, sex and profession bonuses are applied by the
+game at creation and stored in the final values, so the editor adds them when
+writing and the game does not re-apply anything on load. And `FOOD` is stored at
+one hundred times the displayed figure, because the game counts down in
+fractions of a ration each turn, so the editor converts both ways.
 
 ## 4. Run it
 
