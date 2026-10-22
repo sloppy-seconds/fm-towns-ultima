@@ -2,12 +2,20 @@
 
 Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 
-This is the investigation record. Every claim is backed by a measurement on the
-page, and most of what is established is also asserted in `tools/verify.js`,
-which reads the disc and fails loudly if something stops being true.
+**[Quickstart](quickstart.md)** &nbsp;·&nbsp;
+**[Save game editor](https://sloppy-seconds.github.io/fm-towns-ultima/)** &nbsp;·&nbsp;
+**[Repository](https://github.com/sloppy-seconds/fm-towns-ultima)**
+
+The editor runs in a browser, needs nothing installed, and edits a save disk
+entirely on your machine.
+
+This page and the pages under it are the investigation record. Every claim is
+backed by a measurement on the page, and most of what is established is also
+asserted in `tools/verify.js`, which reads the disc and fails loudly if something
+stops being true.
 
 If you just want to play, you do not need any of this. Start with the
-[README](https://github.com/sloppy-seconds/fm-towns-ultima) instead.
+[quickstart](quickstart.md) instead.
 
 ## Scope: this is Ultima II work
 

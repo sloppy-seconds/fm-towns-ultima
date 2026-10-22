@@ -2,6 +2,14 @@
 
 Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 
+**[Quickstart](docs/quickstart.md)** &nbsp;·&nbsp;
+**[All documentation](https://sloppy-seconds.github.io/fm-towns-ultima/docs/)** &nbsp;·&nbsp;
+**[Save game editor](https://sloppy-seconds.github.io/fm-towns-ultima/)** and its
+**[source](web/)**
+
+The editor runs in a browser, needs nothing installed, and edits a save disk
+entirely on your machine. If that is all you want, you can stop reading here.
+
 **Almost all of this is Ultima II work.** Ultima I and III sit on the same disc and
 were used throughout as cross-validation, never as subjects. The save-editing
 machinery generalises to them, because all three write plain ASCII rosters, but

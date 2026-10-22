@@ -30,7 +30,18 @@ CACHE="$VENDOR/downloads"
 # Pinned so the build is reproducible. Bump deliberately, and note it in
 # FINDINGS.md, because a different emulator build is a different instrument.
 TSUGARU_TAG="${TSUGARU_TAG:-v20260522}"
-TSUGARU_URL="https://github.com/captainys/TOWNSEMU/releases/download/${TSUGARU_TAG}/ubuntu_binary_latest.zip"
+
+# Tsugaru publishes builds for all three desktop platforms, so this script works
+# anywhere the host can unzip a binary. Only the download differs. Detection is
+# by uname, overridable with TSUGARU_PLATFORM if it guesses wrong.
+case "$(uname -s 2>/dev/null)" in
+	Darwin) DETECTED="macos" ;;
+	MINGW*|MSYS*|CYGWIN*|Windows_NT) DETECTED="windows" ;;
+	*) DETECTED="ubuntu" ;;
+esac
+TSUGARU_PLATFORM="${TSUGARU_PLATFORM:-$DETECTED}"
+
+TSUGARU_URL="https://github.com/captainys/TOWNSEMU/releases/download/${TSUGARU_TAG}/${TSUGARU_PLATFORM}_binary_latest.zip"
 ROMS_URL="${ROMS_URL:-https://ysflight.in.coocan.jp/FM/towns/FreeTOWNS/ROMS.zip}"
 
 WANT_EMU=0
@@ -51,6 +62,11 @@ done
 
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*"; }
+
+case "$TSUGARU_PLATFORM" in
+	ubuntu|macos|windows) ;;
+	*) die "TSUGARU_PLATFORM must be ubuntu, macos or windows, got: $TSUGARU_PLATFORM" ;;
+esac
 
 for t in curl unzip; do
 	command -v "$t" >/dev/null || die "$t is required"
@@ -89,12 +105,19 @@ if [ "$WANT_EMU" -eq 1 ]; then
 	else
 		note '  already unpacked'
 	fi
-	if [ ! -x "$EMU/Tsugaru_CUI" ]; then
+	note "  platform: $TSUGARU_PLATFORM"
+	# Executable names differ per platform (Tsugaru_CUI, Tsugaru_CUI.exe, and
+	# the app bundle on macOS), so check for any Tsugaru binary rather than one.
+	EMU_BIN=""
+	for cand in "$EMU/Tsugaru_CUI" "$EMU/Tsugaru_CUI.exe" "$EMU/Tsugaru_GUI" "$EMU/Tsugaru_GUI.exe"; do
+		[ -f "$cand" ] && { EMU_BIN="$cand"; break; }
+	done
+	if [ -z "$EMU_BIN" ]; then
 		note '  contents of vendor/emulator:'
 		ls -la "$EMU" | sed 's/^/    /'
-		die 'Tsugaru_CUI not found after unpacking'
+		die "no Tsugaru binary found after unpacking (platform $TSUGARU_PLATFORM)"
 	fi
-	note "  Tsugaru_CUI: $(stat -c%s "$EMU/Tsugaru_CUI") bytes"
+	note "  found: $(basename "$EMU_BIN") ($(stat -c%s "$EMU_BIN" 2>/dev/null || stat -f%z "$EMU_BIN") bytes)"
 fi
 
 # --- ROMs ------------------------------------------------------------------

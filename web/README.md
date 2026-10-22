@@ -6,6 +6,10 @@ modified: you open a disk, edit it, and download a new copy.
 
 **Editor:** https://sloppy-seconds.github.io/fm-towns-ultima/
 
+**Quickstart:** https://sloppy-seconds.github.io/fm-towns-ultima/docs/quickstart/
+**Documentation:** https://sloppy-seconds.github.io/fm-towns-ultima/docs/
+**Repository:** https://github.com/sloppy-seconds/fm-towns-ultima
+
 **This edits Ultima II only.** Ultima I and III are on the same disc and use the
 same class of format, a plain ASCII `KEY=value` roster, so extending this to them
 should be close to trivial. It has not been attempted. The work would be a roster

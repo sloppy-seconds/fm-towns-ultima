@@ -41,6 +41,7 @@ markdown_extensions:
 # findings, then the investigations, then what is still open.
 nav:
   - Home: index.md
+  - Quickstart: quickstart.md
   - Getting set up: setup.md
   - Playing:
       - Running the game and reading the machine: playing-and-environment.md

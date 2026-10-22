@@ -12,8 +12,22 @@
 set -euo pipefail
 
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-EMU_DIR="${EMU_DIR:-$HERE/emulator}"
-ROM_DIR="${ROM_DIR:-$EMU_DIR/ROMS}"
+
+# vendor.sh puts things in vendor/emulator and vendor/roms. Older checkouts and
+# the upstream Tsugaru zip layout use emulator/ and emulator/ROMS. Accept both
+# rather than making the user read the script to find out which.
+if [ -d "$HERE/vendor/emulator" ]; then
+	EMU_DIR="${EMU_DIR:-$HERE/vendor/emulator}"
+else
+	EMU_DIR="${EMU_DIR:-$HERE/emulator}"
+fi
+if [ -d "$HERE/vendor/roms" ]; then
+	ROM_DIR="${ROM_DIR:-$HERE/vendor/roms}"
+elif [ -d "$EMU_DIR/ROMS" ]; then
+	ROM_DIR="${ROM_DIR:-$EMU_DIR/ROMS}"
+else
+	ROM_DIR="${ROM_DIR:-$HERE/vendor/roms}"
+fi
 SAVE_DIR="${SAVE_DIR:-$HERE/saves}"
 
 DISC_CCD="$HERE/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd"
@@ -31,12 +45,15 @@ fi
 
 # --- locate the emulator -----------------------------------------------------
 
+# The executable name differs per platform: no suffix on Linux and macOS,
+# .exe on Windows. Check all of them rather than assuming Unix.
 TSG=""
-for cand in "$EMU_DIR/Tsugaru_CUI" "$EMU_DIR/Tsugaru_GUI" \
+for cand in "$EMU_DIR/Tsugaru_CUI" "$EMU_DIR/Tsugaru_CUI.exe" \
+            "$EMU_DIR/Tsugaru_GUI" "$EMU_DIR/Tsugaru_GUI.exe" \
             "$(command -v Tsugaru_CUI 2>/dev/null || true)"; do
-	[[ -n "$cand" && -x "$cand" ]] && { TSG="$cand"; break; }
+	[[ -n "$cand" && -f "$cand" ]] && { TSG="$cand"; break; }
 done
-[[ -n "$TSG" ]] || die "Tsugaru not found. Expected $EMU_DIR/Tsugaru_CUI. See README.md section 2."
+[[ -n "$TSG" ]] || die "Tsugaru not found in $EMU_DIR. Run ./tools/vendor.sh first. See docs/quickstart.md."
 
 # Tsugaru_CUI and Tsugaru_GUI must sit in the same directory (the GUI shells out
 # to the CUI), so honour the GUI if that is what was found.
