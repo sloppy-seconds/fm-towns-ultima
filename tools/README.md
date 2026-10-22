@@ -193,6 +193,29 @@ All under `/api`, JSON in and out. Port 8080.
 | GET | `/api/screen?mode=` | capture and render as text |
 | POST | `/api/shot` `{name,mode}` | capture, optionally rendered |
 | GET | `/api/shot.png` | raw PNG bytes |
+| GET | `/editor` | the character editor page |
+| GET | `/api/type` `{text}` | alias for `/api/keys` |
+| POST | `/api/key` `{keys}` | press named keys. Accepts an array or a comma-separated string, plus an optional `delay` in ms |
+| POST | `/api/mouse` `{x,y,click}` | move the pointer, optionally click |
+| POST | `/api/clickat` `{fx,fy,click}` | click by fraction of the window, which is easier than finding exact pixels |
+
+Save disk routes. These read and write the floppy image mounted in drive 0.
+Pause the emulator first: Tsugaru holds the image open and flushes its own view
+over any edit made while it runs.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/save/info` | disk path, file list, and all four slots with their fields |
+| POST | `/api/save/slot` `{slot,name,profession,race,sex,...}` | create or overwrite a slot |
+| POST | `/api/save/clone` `{from,to,name}` | copy one slot into another |
+| POST | `/api/save/delete` `{slot}` | blank a slot |
+
+Creating into an empty slot also generates that slot's `WORLD<n>.UT2`, since a
+new character needs a world. Editing an existing character leaves its world
+alone, because that file holds their explored map and progress.
+
+Every write is read back and re-parsed before the route reports success, so a
+silent failure cannot pass.
 
 ### Reading the screen without vision
 
@@ -219,9 +242,7 @@ dependencies, with its own PNG decoder.
 - `TYPE 2` needs the space. `TYPE2` returns "Do what?".
 - Print targets need the `PRI` prefix: `PRI PALETTE`, not `PALETTE`.
 - The VM starts paused only with `-PAUSE`. Without it the game is already
-  running when the API becomes available.
-
-## Copyright guard
+### Running without a display
 
 If you do not have the desktop's display, run the emulator in a container:
 
@@ -233,19 +254,24 @@ Then open `http://<host>:6080/vnc.html` and click Connect. Raw VNC is on 5900 if
 you prefer a native client.
 
 ```bash
-./tools/container-run.sh --shell  # container with bash instead of the game
-./tools/container-run.sh --stop   # tear down
+./tools/container-run.sh shell    # bash inside the container
+./tools/container-run.sh stop     # tear down
 ```
 
 Under the hood: Xvfb at 640x480x24, x11vnc, noVNC. Tsugaru and the ROMs are
 bind-mounted from `vendor/` read only, so nothing copyrighted is in the image.
 
-Two host quirks are handled in the script because both caused a silent failure:
+Two host quirks broke this silently while building it, and the script now
+detects both rather than assuming:
 
-- podman needs sudo on this host.
-- SELinux is enforcing, so every bind mount carries `:z`. Without it the
-  container sees `Permission denied` on the host directories and the emulator
-  never starts.
+- podman may need sudo. The script uses it only when plain `podman info` fails,
+  so it works whether or not the user is in the podman group.
+- On a host with SELinux enforcing, every bind mount needs the `:z` suffix or the
+  container gets `Permission denied` on the host directories and the emulator
+  never starts. Docker Desktop on macOS and Windows rejects `:z`, so the suffix
+  is added only when `/sys/fs/selinux/enforce` says SELinux is on.
+
+It has only been tested on Linux. See the note in `README.md` section 3.
 
 ## Copyright guard
 

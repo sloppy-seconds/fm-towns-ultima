@@ -45,14 +45,36 @@ DISC_CCD="$ROOT/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd"
 DISC_IMG="$ROOT/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img"
 USERDISK="$ROOT/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm"
 
-PODMAN() { sudo podman "$@"; }
+# Portability.
+#
+# Linux with SELinux enforcing (Fedora, Bazzite, Silverblue and friends) needs
+# every bind mount labelled :z, or the container gets Permission denied on the
+# host directory. Docker Desktop on macOS and Windows has no SELinux and rejects
+# the suffix, so it is added only when SELinux is actually enforcing.
+#
+# podman on this host needs sudo because the user is not in the podman group.
+# That is not universal, so the prefix is only used when plain podman fails.
+if [ -f /sys/fs/selinux/enforce ] && [ "$(cat /sys/fs/selinux/enforce 2>/dev/null)" = "1" ]; then
+	VOLOPT=":z"
+else
+	VOLOPT=""
+fi
+
+if podman info >/dev/null 2>&1; then
+	PODMAN() { podman "$@"; }
+	NEEDS_SUDO=0
+else
+	PODMAN() { sudo podman "$@"; }
+	NEEDS_SUDO=1
+fi
+
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*"; }
 
 hostip() { hostname -I 2>/dev/null | awk '{print $1}' || echo localhost; }
 
 cmd_start() {
-	sudo -n true 2>/dev/null || die "sudo required for podman. Run 'sudo -v' first."
+	if [ "$NEEDS_SUDO" = "1" ]; then sudo -n true 2>/dev/null || die "sudo required for podman. Run 'sudo -v' first."; fi
 	[ -x "$ROOT/vendor/emulator/Tsugaru_CUI" ] || die "run ./tools/vendor.sh first"
 	[ -d "$ROOT/vendor/roms" ] || die "run ./tools/vendor.sh --roms first"
 	[ -f "$DISC_CCD" ] || die "disc image missing: $DISC_CCD"
@@ -70,7 +92,7 @@ cmd_start() {
 		-p "${PORT_WEB}:6080" -p "${PORT_VNC}:5900" -p "${PORT_API}:8080"
 		-v "$ROOT/vendor/emulator:/emulator:ro,z"
 		-v "$ROOT/vendor/roms:/roms:ro,z"
-		-v "$ROOT/saves:/data:z"
+		-v "$ROOT/saves:/data$VOLOPT"
 		-e "RESOLUTION=$RESOLUTION"
 		-e "ROM_DIR=/roms"
 		-e "CMOS=/data/CMOS.BIN"
@@ -92,7 +114,7 @@ cmd_start() {
 	if [ "${NO_FD:-0}" != "1" ] && [ -f "$USERDISK" ]; then
 		SAVEDISK="$ROOT/saves/userdisk.hdm"
 		[ -f "$SAVEDISK" ] || cp "$USERDISK" "$SAVEDISK"
-		args+=(-v "$SAVEDISK:/disc/userdisk.hdm:z" -e "FD0_IMAGE=/disc/userdisk.hdm")
+		args+=(-v "$SAVEDISK:/disc/userdisk.hdm$VOLOPT" -e "FD0_IMAGE=/disc/userdisk.hdm")
 	fi
 
 	note "starting $NAME ..."
@@ -150,11 +172,11 @@ case "${1:-start}" in
 	status) cmd_status ;;
 	logs) PODMAN logs -f "$NAME" ;;
 	build)
-		sudo -n true 2>/dev/null || die "sudo required"
+		if [ "$NEEDS_SUDO" = "1" ]; then sudo -n true 2>/dev/null || die "sudo required"; fi
 		PODMAN build -t "$IMAGE" -f "$ROOT/container/Containerfile" "$ROOT"
 		;;
 	shell)
-		sudo -n true 2>/dev/null || die "sudo required"
+		if [ "$NEEDS_SUDO" = "1" ]; then sudo -n true 2>/dev/null || die "sudo required"; fi
 		PODMAN exec -it "$NAME" /bin/bash
 		;;
 	-h|--help|help) sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;

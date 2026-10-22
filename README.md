@@ -1,31 +1,56 @@
 # Ultima Trilogy I-II-III (FM Towns, 1990)
 
-Playing the Fujitsu FM Towns release of *Ultima Trilogy 1-3* on Linux.
+Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 
-Source of this copy: `archive.org/details/fmtownscdcollection`, file
-`FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`.
+## Where the game comes from
+
+The game is commercial software still in copyright, so it is not in this
+repository and never will be. You supply it. The copy this work was built
+against is:
+
+> **https://archive.org/details/fmtownscdcollection**
+> file: `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`
+
+The zip contains the CD image as four files (`.img`, `.ccd`, `.cue`, `.sub`) and
+the save floppy (`[UserDisk].hdm`). Unpack it into this directory. Section 0
+gives checksums so you can confirm you have the same rip.
+
+You also need the FM Towns ROMs, which the emulator requires. Section 2 covers
+that, including a free set with no copyright problem.
+
+## What this repository contains
+
+Nothing copyrighted. Scripts, tests and documentation only. Everything the game
+needs is supplied by you, and everything derived from the disc stays gitignored.
+
+## Four things you might want to do
+
+| you want | start here |
+|---|---|
+| Play Ultima II in a browser, nothing installed locally | [Section 3](#3-play-in-a-browser) |
+| Play it locally with the emulator | [Section 4](#4-play-locally-with-the-emulator) |
+| Make a character without fighting the menus | [Section 5](#5-making-a-character) |
+| Take the game apart | [Section 0](#0-reproducing-this-work), then `FINDINGS.md` |
 
 ## 0. Reproducing this work
 
-Everything here can be reproduced from the archive.org zip alone.
+Everything about the disc can be reproduced from the archive.org zip alone.
 
-1. Download
-   `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip` from
-   <https://archive.org/details/fmtownscdcollection>.
+1. Download the zip linked above.
 2. Unpack it into this directory. You should end up with the five files in
    section 1.
 3. Run:
 
 ```bash
-node tools/verify.js     # 89 assertions against the disc, exits 0 if all pass
+node tools/verify.js     # every assertion about the disc, exits 0 if all pass
 node extract-u2.js       # writes extracted/u2/
 ```
 
-`tools/verify.js` is the authority for what is established. It checks the rip
-identity (sizes and MD5s), the disc structure, the executable headers, the
-toolchain, the U2 asset inventory, every graphics claim, every sound claim, and
-the negative results. A claim in `FINDINGS.md` that is not asserted there should
-be treated as unverified.
+`tools/verify.js` is the authority for what is established, currently 107
+assertions. It checks the rip identity (sizes and MD5s), the disc structure, the
+executable headers, the toolchain, the U2 asset inventory, every graphics claim,
+every sound claim, and the negative results. A claim in `FINDINGS.md` not
+asserted there should be treated as unverified.
 
 Expected source file checksums, so you can confirm you have the same rip:
 
@@ -141,7 +166,7 @@ software that depends on the Fujitsu font ROM may render text badly with the
 free set. The Ultima games do not need Japanese input, so this is not a
 blocker.
 
-## 3. Use the CCD, not the CUE
+## 2b. Use the CCD, not the CUE
 
 This disc has `PREGAP 00:02:00` before track 2, and that is a trap.
 
@@ -161,82 +186,100 @@ track 2 starts at 9000, with 450 real zero sectors in the image itself. So:
 - Do **not** convert to `.bin`/`.cue` or extract an ISO. Both lose or mangling
   the audio track alignment.
 
-## 3b. Vendor the emulator and ROMs
+## 3. Play in a browser
 
-Rather than following section 2 by hand:
+The quickest path, and the only one that needs nothing installed on your machine
+beyond a browser and a container runtime.
+
+### Vendor the emulator and ROMs
 
 ```bash
-./tools/vendor.sh              # fetches Tsugaru + FreeTowns ROMs into vendor/
+./tools/vendor.sh              # Tsugaru + the free FreeTOWNS ROMs, into vendor/
 ```
 
-Both land in `vendor/`, which is gitignored. Re-running is safe, `--force`
+Both land in `vendor/`, which is gitignored. Re-running is safe. `--force`
 re-downloads, `--emulator` or `--roms` fetch one. The Tsugaru release is pinned
 so the setup is reproducible.
 
-To read hardware state while the game runs, including the palette and CRTC
-registers, see `tools/debug-session.sh` and `tools/README.md`. It works over SSH
-with no monitor.
-
-To actually play it from another machine, including over the web:
+### Start the container
 
 ```bash
-./tools/container-run.sh start    # Xvfb + VNC + noVNC + supervisor API
+./tools/container-run.sh start
 ```
 
-Then open `http://<host>:6080/vnc.html` in a browser. No monitor on the host
-required. `./tools/container-run.sh stop` tears it down, `status` reports ports,
-`logs` follows output.
+This builds the image on first run, then starts Tsugaru under Xvfb, with x11vnc
+and noVNC in front of it, plus a supervisor that owns the emulator's terminal. It
+prints the URLs when ready.
 
-The container also exposes an HTTP API on port 8080 for driving the game and
-reading the screen as text, so it can be inspected without a display:
+| port | what |
+|---|---|
+| 6080 | noVNC, the browser view of the game. `http://<host>:6080/vnc.html` |
+| 6080 | the character editor, at `http://<host>:6080/editor` |
+| 5900 | raw VNC, if you prefer a native client |
+| 8080 | the HTTP API |
 
 ```bash
-curl -s http://<host>:8080/api/status
-curl -s http://<host>:8080/api/screen?mode=stats     # colours on screen now
+./tools/container-run.sh status     # running? on which ports
+./tools/container-run.sh logs       # follow the container output
+./tools/container-run.sh stop       # tear down
+```
+
+Override ports with `PORT_WEB`, `PORT_VNC`, `PORT_API`, and the screen size with
+`RESOLUTION` (use `1024x800x24`, the emulator window is 640x496 and a 640x480
+virtual screen clips it).
+
+### Does this work on macOS or Windows?
+
+Probably, with a caveat worth stating plainly rather than implying support that
+has not been tested.
+
+*Everything is ordinary Linux containers.* The image is Ubuntu, and the pieces
+inside it are Xvfb, x11vnc, noVNC and the emulator, none of which care about the
+host OS. `tools/container-run.sh` detects SELinux and only adds the `:z` mount
+suffix where it is enforcing, which is what breaks on Docker Desktop if applied
+blindly.
+
+The caveat is that **it has only been tested on Linux**, specifically Fedora
+Bazzite with rootful podman. On macOS and Windows the likely snags are performance
+under the virtual machine those runtimes use, and the emulator wanting a window
+(the container provides one via Xvfb, so this should be fine). If it does not
+work, the browser-based editor below needs no container at all.
+
+### The API
+
+The supervisor wraps the emulator in HTTP so the game can be driven and inspected
+without looking at a screen. Useful for automation, and for testing a change
+without watching it happen.
+
+```bash
+curl -s http://<host>:8080/api/status                     # is it running
+curl -s 'http://<host>:8080/api/screen?mode=stats'        # colour census
+curl -s 'http://<host>:8080/api/screen?mode=text'         # screen as a character grid
+curl -s 'http://<host>:8080/api/screen?mode=ascii'        # screen as luminance ramp
+
+# press keys. Named keys are more reliable than typed text for menus.
 curl -s -X POST -H 'content-type: application/json' \
-     -d '{"text":"2"}' http://<host>:8080/api/keys   # press 2
-```
+  -d '{"keys":["Escape","Down","Return"]}' http://<host>:8080/api/keys
 
-See `tools/README.md` for the full API.
-
-### Character editor
-
-Two ways to edit a save disk.
-
-**In the browser, with no install:** https://sloppy-seconds.github.io/fm-towns-ultima/
-
-The page in `web/` reads and writes a save disk entirely in the browser. Open an
-`.hdm`, edit the four character slots, download the result. Nothing is uploaded
-and the original file is never modified. It also applies the race, sex and
-profession modifiers, which are measured rather than assumed, and shows the shop
-discount threshold live.
-
-**Inside the container:** `http://<host>:8080/editor` serves the same UI against
-the disk the emulator has mounted.
-
-The same work is available headlessly through the API:
-
-```bash
-curl -s http://<host>:8080/api/save/info
 curl -s -X POST -H 'content-type: application/json' \
-  -d '{"slot":1,"name":"HERO","profession":"W","race":"E","sex":"F","STRENGTH":30}' \
-  http://<host>:8080/api/save/slot
+  -d '{"line":"PRI PALETTE"}' http://<host>:8080/api/cmd   # live palette
 ```
 
-Pause the emulator before using the in-container editor. Tsugaru holds the
-mounted image open and flushes its own view over any edit made while it runs.
+`mode=stats`, `ascii` and `text` exist because a screenshot is useless to a
+script. `stats` answers "is this screen in colour yet" with a colour census,
+`ascii` gives layout, and `text` gives a character grid for reading menus.
 
-From the shell, `node tools/savedisk.js` does the same jobs against a file:
-list, cat, slots, clone, set, world-copy, newdisk. That version is tested and
-does not need a container.
+Full route list in `tools/README.md`. The save-disk routes (`/api/save/info`,
+`/api/save/slot`, `/api/save/clone`, `/api/save/delete`) are covered in section 5.
 
-Two encodings worth knowing. Race, sex and profession bonuses are applied by the
-game at creation and stored in the final values, so the editor adds them when
-writing and the game does not re-apply anything on load. And `FOOD` is stored at
-one hundred times the displayed figure, because the game counts down in
-fractions of a ration each turn, so the editor converts both ways.
+### Reading hardware state
 
-## 4. Run it
+`tools/debug-session.sh` runs the same emulator with its debugger attached,
+headless over SSH. That is how the live palette was captured. See
+`tools/README.md`.
+
+## 4. Play locally with the emulator
+
 
 ```
 ./run.sh
@@ -276,7 +319,102 @@ The script runs:
 Tsugaru_CUI <ROM_DIR> -CD <disc>.ccd -CMOS saves/CMOS.BIN -FD0 <UserDisk>.hdm
 ```
 
-## 5. Playing
+## 5. Making a character
+
+Ultima II stores characters as plain ASCII, so there are three ways to make one
+and they all produce the same result. Pick whichever suits you.
+
+### 5a. In the browser, no install
+
+**https://sloppy-seconds.github.io/fm-towns-ultima/**
+
+Open your save disk (`.hdm` or `.img`, 1,232 KB), edit the four slots, download
+the result. Nothing is uploaded and your original file is never touched.
+
+It enforces the game's own rules, because they are known:
+
+- 90 points to spend, at least 10 in each attribute, with a live counter
+- race, sex and profession bonuses applied, measured from characters the game
+  created, and shown inline so you can see what each choice gives
+- the shop discount threshold tracked live, since CHA + INT of 40 is what makes
+  early game affordable
+- food entered as rations, converted to the stored hundredths
+
+A red **Cheat mode** button removes the cap and the minimum and reveals a set-to-
+maximum button. The game does not check, so it works, but it is not how the game
+plays.
+
+### 5b. From the command line
+
+```bash
+node tools/makesave.js --out hero.hdm \
+  --party --name HERO --race H --sex F --prof W --stats 25,25,10,10,10,10
+```
+
+`--stats` is the base allocation as you would type it in game. The measured
+modifiers are applied and the result clamped to 99. Repeat `--party` for up to
+four characters. Food is given in rations.
+
+This imports the same modules the web page uses, so it is also the headless test
+for the page. Every character is read back and re-parsed before it reports
+success.
+
+### 5c. In the game
+
+Start a character normally, but know three things that trip everyone up.
+
+**"A WRONG DISK" is harmless.** It appears twice during startup, before the
+splash screen, one per floppy drive. Press space through both. It does not mean
+your disk is bad and nothing needs fixing.
+
+**Choosing 0 breaks out of the character creation loop.** At the
+`create entry 1-4` prompt, picking 1 to 4 starts another character. Choosing
+**0** returns to the previous menu and is the only way out. Ultima I behaves the
+same way. If you create a second character after a successful save, it overwrites
+slot 0, which makes it look as though the save did not work.
+
+**The slot list is 1-indexed, the file is 0-indexed.** In-game slot 1 is
+`(0)NAME` in `ROSTER1.UT2`.
+
+The full sequence:
+
+1. Double-click the Ultima II icon.
+2. Press space through the two disk warnings.
+3. Press space at the splash.
+4. Generate character, then create a character.
+5. Allocate points, choose race, sex and profession, type a name, press Enter,
+   answer Y.
+6. "saving world data" appears, then you are back at `create entry 1-4`.
+   **Choose 0.**
+7. Look at a character, pick the slot, confirm it is there.
+8. Press space, choose **0** again at the slot prompt, then main menu.
+9. Journey onward, select the character, answer Y, press space at "player
+   selected", wait at "loading".
+
+### What the modifiers actually are
+
+Measured by creating characters with 10 in every attribute, one per combination,
+and reading what the game stored. This port differs from the published tables in
+three places.
+
+| choice | bonus |
+|---|---|
+| Male | **+10 Stamina** |
+| Female | **+10 Charisma** |
+| Human | +5 Intelligence |
+| Elf | +5 Agility |
+| Dwarf | +5 Strength |
+| Bobbit | **+10 Wisdom, -5 Strength** |
+| Fighter | **+10 Strength, +10 Agility** |
+| Cleric | +10 Wisdom |
+| Wizard | +10 Intelligence |
+| Thief | +10 Agility |
+
+Where most references say Stamina is never boosted, male gives it +10. Fighter
+splits its +15 into +10 STR and +10 AGI. Bobbit carries a penalty, which no
+published table has.
+
+## 6. Playing Ultima II for the first time
 
 **"A WRONG DISK" is harmless.** It appears twice during Ultima II's startup,
 before the splash screen. Press space through both. The game then runs normally.
@@ -336,7 +474,7 @@ the gameport settings.
 why `saves/CMOS.BIN` appears after the first clean exit. Delete that file to get
 back to a clean BIOS state.
 
-## 6. If it does not work
+## 7. If it does not work
 
 | Symptom | Cause |
 |---|---|
@@ -350,7 +488,7 @@ back to a clean BIOS state.
 Emulator compatibility list, including Origin titles confirmed working:
 <http://ysflight.com/FM/towns/FreeTOWNS/e.html>
 
-## 7. Extracting Ultima II assets
+## 8. Extracting Ultima II assets
 
 ```
 node extract-u2.js
@@ -431,3 +569,57 @@ that field is the thing to revisit.
   convert here.
 - **`.EUP` files**: EUPHONY driver preset tables, not audio. No waveform data.
 
+
+## 9. The tools, and what each is for
+
+Everything here exists because something needed it. Listed by what you would use
+them for rather than by filename.
+
+### Playing and running
+
+| tool | what it does |
+|---|---|
+| `tools/vendor.sh` | Downloads Tsugaru and the free FreeTOWNS ROMs into `vendor/`. Pinned version, so the setup is reproducible. |
+| `run.sh` | Runs the emulator directly on the host, for when you have a display. |
+| `tools/container-run.sh` | Builds and runs the browser-playable container. Ports, logs, shell. |
+| `tools/try.sh` | Starts the emulator on **fixed** ports with a chosen floppy, tearing down the previous container first. Use this rather than inventing new ports. |
+| `tools/mame-run.sh` | The same idea for MAME. Kept because MAME's floppy controller is a genuinely different implementation, but read `FINDINGS.md` 8.4 before spending time on it. |
+
+### Save disks and characters
+
+| tool | what it does |
+|---|---|
+| `tools/savedisk.js` | Reads and writes an FM Towns save disk from the shell: `ls`, `cat`, `slots`, `clone`, `set`, `world-copy`, `newdisk`. |
+| `tools/makesave.js` | Builds a disk with characters from the command line, applying the measured modifiers. Imports the browser editor's own modules. |
+| `tools/test-savedisk.js` | 25 assertions over the FAT12 and roster logic, against a synthetic disk. Needs no game data. |
+| `web/` | The browser editor, published at the GitHub Pages URL above. |
+
+### Extraction
+
+| tool | what it does |
+|---|---|
+| `extract-u2.js` | Everything Ultima II needs: 23 graphics, 14 sound effects, title and ending art. Writes `extracted/u2/`. |
+| `tools/cd.js` | Shared library. Disc reader, ISO9660 walk, PNG and WAV writers, decoders for 4bpp packed, planar and byte-per-pixel, and `.SND`. Import this rather than reimplementing a format. |
+| `tools/tilesheet.js` | Lays a tile bank out as a labelled PNG grid, so you can see what the 65 `ENEMY2` tiles actually are. |
+| `tools/recolour.js` | Renders the extracted greyscale art using the real palette. Run this on `extracted/u2`. |
+
+### Understanding the binaries
+
+| tool | what it does |
+|---|---|
+| `tools/pharlap.js` | Parses the Phar Lap `MP` and `P3` headers. The size arithmetic is exact, which is how the header layouts were proved. |
+| `tools/sym1.js` | Parses the `SYM1` symbol table out of `TMENU.EXP`, then validates that the walk consumes the blob exactly. |
+| `tools/crossdiff.js` | Rabin-Karp shared-substring search between executables. Used to find the Fujitsu graphics library inside the game binaries. |
+| `tools/findpal.js` | I/O port census and indirect-call correlation. Indicative, not authoritative: see the caveat in `tools/README.md` before trusting it. |
+
+### Verification
+
+| tool | what it does |
+|---|---|
+| `tools/verify.js` | 107 assertions covering every claim in this repository, read from the disc. The authority on what is established. |
+| `tools/precommit-guard.sh` | Blocks a commit containing copyrighted game data. Install as a git hook, see section 0. |
+| `tools/palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
+| `tools/debug-session.sh` | Runs the emulator with its debugger, headless over SSH. How the live palette was captured. |
+| `tools/addfile-fat12.js` | Injects a file into an FM Towns 2HD FAT12 image. Used to get `FORMAT.EXE` onto a boot floppy. |
+
+`tools/README.md` has the detailed usage for each, plus the command lines.
