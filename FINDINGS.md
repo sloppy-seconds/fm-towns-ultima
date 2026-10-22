@@ -1299,6 +1299,55 @@ game.
 **Status:** the chain is fully identified but not yet executed. The BIOS pack is
 a third-party download not yet fetched.
 
+### 6.25 MAME source, and the discovery that U2 formats the disk itself
+
+**Checked the MAME lead.** `src/lib/formats/fmtowns_dsk.cpp` in
+`mamedev/mame` defines the geometry:
+
+```cpp
+{ floppy_image::FF_35, floppy_image::DSHD, floppy_image::MFM,
+  1200, 8, 77, 2, 1024, {}, 1, {}, 50, 22, 84 }
+```
+
+3.5 inch, double-sided high density, **8 sectors x 77 tracks x 2 sides x 1024
+bytes = 1,261,568 bytes**, matching every image we have. The class derives from
+`wd177x_format`, and its only method beyond metadata is `save()`, which writes
+raw sector data. **MAME contains no filesystem formatter.**
+
+`fmtowns.addblankdisk` from the Batocera wiki is a Batocera wrapper option, not a
+MAME or Tsugaru feature. MAME's `fmtowns.cpp` only mounts images and registers
+the format. Nobody in that stack formats anything; a blank is mounted and the
+game is expected to deal with it.
+
+**Which led to the real answer.** Searching `ENCHANT.EXP` for `FORMAT`,
+`FORMAT.EXP` and `初期化` as ASCII finds **nothing**. U2 has no formatter of its
+own either. But decoding the Shift-JIS around `0x1d2b` gives:
+
+```
+承諾するならば［　］を押せ      "If you accept, press [ ]"
+〜ないならば［　］を押せ        "If you do not, press [ ]"
+```
+
+So U2 **offers to initialise an unformatted disk and asks you to accept**. The
+message at `0x1af6`, "insert an initialised disk", is the *fallback* path taken
+when you decline or when the disk cannot be initialised.
+
+**The correct procedure, therefore:**
+
+1. Mount a **blank** disk in a writable slot. It must be writable, which needs
+   both a non-`:ro` container mount and `-FD1UP` (not `-FD0UP`, since FD0 is the
+   boot disk).
+2. Launch U2 and reach character creation.
+3. When U2 asks, **accept** the initialisation prompt.
+4. U2 writes the filesystem itself, then writes `A:\ROSTER1.UT2`.
+
+**What was wrong with every earlier attempt:** the floppy was mounted read-only,
+then writable but with the wrong drive write-protect flag, and in each case we
+were reading the *fallback* message rather than reaching the accept prompt. The
+disk being pre-formatted was never the requirement.
+
+**Status:** procedure identified, not yet completed end to end.
+
 ---
 
 ## 7. Sound
