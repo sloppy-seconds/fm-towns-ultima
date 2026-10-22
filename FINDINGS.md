@@ -1874,6 +1874,13 @@ This also explains the earlier Ultima I work: its save writes, persists and
 reloads correctly, and its slot list is 1-indexed against a 0-indexed file, so
 "slot 1" is `(0)NAME`.
 
+**The create loop is not a loop.** At the `create entry 1-4` prompt, choosing 1
+to 4 enters character creation again. Choosing **0** returns to the previous menu
+and is the only way out. Ultima I and II both behave this way. Every earlier
+report of "stuck in the create loop" or "it saves but then errors" was this
+navigation quirk, not a fault. Creating another character after a successful
+save overwrites slot 0, which makes it look as though nothing was kept.
+
 ### 8.6 Why this took so long, and the lesson
 
 Everything in 8.1 through 8.4 that blamed the emulator was wrong. The root cause

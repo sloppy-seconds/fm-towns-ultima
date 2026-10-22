@@ -248,8 +248,18 @@ shipped. See `FINDINGS.md` 8.5.
 
 **Slot numbering catches everyone.** The character list you pick from is
 1-indexed but the roster file stores slots from 0, so in-game slot 1 is
-`(0)NAME`. Ultima I also returns to character creation after a successful save,
-which looks like a failure and is not.
+`(0)NAME`.
+
+**Choosing 0 breaks out of the character-creation loop.** This is the step that
+stumps people, and it looks like a bug. At the `create entry 1-4` prompt,
+picking **1 to 4** puts you back into character creation again. Picking **0** is
+the way out: it returns you to the menu you came from. Ultima I behaves the same
+way. So the sequence is create the character, confirm the save, and then choose
+**0** at the next slot prompt to leave.
+
+This is why Ultima I looks like it never saves. It does save, completely and
+correctly, then loops back to creation until you press 0. Repeatedly creating
+characters overwrites slot 0, so it can look like nothing is being kept.
 
 **Quit properly.** Type `Q` then Enter in `Tsugaru_CUI`. Closing the window
 skips the CMOS write, so BIOS settings and your save disk state are not flushed.
