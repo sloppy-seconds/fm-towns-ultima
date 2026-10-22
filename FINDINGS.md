@@ -1195,6 +1195,16 @@ selector, not a Towns OS shell.
 
    So a compatible ROM is not enough on its own. A real Towns OS CD image is
    required.
+
+   **Also tested and ruled out:** `TsugaruUtil.D77`, which ships with the
+   emulator. It is a valid D77 with an `IPL4` boot sector and contains
+   `TGDRV.COM` and `TGMOUSE.exe`, but booting it as FD0 with `-NOINTCD` produces
+   the same halt on the compatible-ROMs notice. It is a data/utility disk for
+   host file sharing, not a Towns OS system disk, exactly as the Tsugaru README
+   describes.
+
+   Every bootable medium present in this download has now been tested. None of
+   them reaches a shell.
 3. **Patch or bypass.** U2 could be patched to skip the save, or the disk
    initialisation performed by a small Towns OS program written for the purpose.
    Both are real projects, not quick fixes.
