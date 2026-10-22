@@ -205,9 +205,47 @@ function setField(slotText, field, value) {
 
 // --- CLI ------------------------------------------------------------------
 
-const argv = process.argv.slice(2);
+// Only run the command line when invoked directly. The supervisor imports this
+// file to serve the character editor, and it must not parse argv in that case.
+const isMain = require.main === module;
+const argv = isMain ? process.argv.slice(2) : [];
 const cmd = argv[0];
 const die = (s) => { console.error('error: ' + s); process.exit(1); };
+
+// --- exported API ---------------------------------------------------------
+// Everything the HTTP layer needs, so the editor and the CLI share one
+// implementation and cannot drift apart.
+module.exports = {
+	// geometry
+	SS, RESERVED, NFATS, FATSZ, ROOTS, TOTAL, DATA_OFF,
+	// fat
+	fatGet, fatSet, chainOf, freeClusters,
+	// files
+	listRoot, findEntry, readFile, writeFile, addEntry,
+	// roster
+	parseSlots, getField, setField,
+	// roster convenience
+	readRoster(img) {
+		const e = findEntry(img, 'ROSTER1.UT2');
+		if (!e) return null;
+		return { entry: e, text: readFile(img, e).toString('latin1') };
+	},
+	// Parses every slot into an object of field/value pairs.
+	slotsOf(img) {
+		const r = this.readRoster(img);
+		if (!r) return [];
+		return parseSlots(r.text).map((s) => {
+			const fields = {};
+			for (const line of s.text.split(/\r?\n/)) {
+				const m = line.match(/^([A-Z_(][A-Z_0-9()]*)=(.*)$/);
+				if (m) fields[m[1]] = m[2].replace(/\u0000/g, '');
+			}
+			return { slot: s.slot, name: fields['(' + s.slot + ')NAME'] || '', fields };
+		});
+	},
+};
+
+if (!isMain) return;
 
 function loadDisk(file) {
 	if (!fs.existsSync(file)) die('no such disk: ' + file);

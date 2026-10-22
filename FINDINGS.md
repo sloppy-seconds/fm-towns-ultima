@@ -2055,18 +2055,40 @@ are worth knowing:
 
 Ordered by cost to resolve.
 
-1. **Monster table.** Which `ENEMY2` tile is which creature, and frames per
+1. **Statistics modifiers from race, sex and profession.** Applied once at
+   character creation and baked into the roster, with no base-stat field to
+   recover them from. One sample exists (human female fighter, entered
+   20/15/20/15/10/10, stored 30/25/20/25/10/15) which does not separate the
+   three factors. Ten characters entered at 10 across the board, varying one
+   factor at a time, would give the whole table. See 8.7.
+2. **Monster table.** Which `ENEMY2` tile is which creature, and frames per
    creature. No name strings to anchor on.
-2. **`MAP2_1/2/3` layout.** Character-per-cell confirmed, geometry not.
-3. **`DUNMON` tile count meaning.** 1,664 / 416 / 104 tiles, and what indexes them.
-4. **`.SND` playback rate.** Whether 1960 Hz is real.
-5. **`UT3/*.MP3` and `*.DG3` format.**
+3. **`MAP2_1/2/3` layout.** Character-per-cell confirmed, geometry not.
+4. **`DUNMON` tile count meaning.** 1,664 / 416 / 104 tiles, and what indexes them.
+5. **`.SND` playback rate.** Whether 1960 Hz is real.
+6. **`UT3/*.MP3` and `*.DG3` format.**
+7. **`WORLD1-4.UT2` structure.** 68,096 bytes each, mostly zero on a fresh
+   character. Slot pairing is confirmed but the contents are unread. Diffing
+   saves taken at different positions would locate the coordinate and map-id
+   fields, which is what a teleport feature would need.
+8. **A standalone, server-free save editor.** The roster is plain ASCII inside
+   a FAT12 image, and FAT12 parsing is a few dozen lines of JavaScript. A single
+   static `.html` page could therefore open an `.hdm`, edit all four character
+   slots, and download the modified image, with no backend at all. That would
+   allow hosting on GitHub Pages so anyone could fix their own save disk in a
+   browser using only the file from the archive, which is a much better
+   distribution story than requiring the container. The container editor in
+   `container/editor.html` is the reference for the UI and works out the field
+   list, defaults and validation rules. Work needed: FAT12 read and write in
+   the browser (mirroring `tools/savedisk.js`), file input via the File API,
+   output via a Blob download, and care never to touch the original file in
+   place. Nothing here is blocked on game knowledge, only on porting code that
+   already exists and is tested.
 
 Resolved or closed since this list was first written: the palette is settled
 (the art uses indices 0-7 and those eight entries are confirmed against eight
 screenshots, see 6.24), the asset inventory is proved complete (section 4), and
-Ultima II saving is closed as an emulation defect rather than an extraction
-problem (section 8.1).
+Ultima II saving works, with the roster format documented in 8.7.
 
 ---
 

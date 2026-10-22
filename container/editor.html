@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ultima II - character editor</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1e2228; --line: #2f3640; --text: #e6e8ec;
+    --dim: #939aa6; --accent: #6ea8fe; --good: #4ade80; --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 20px 24px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  }
+  h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  header .disk { color: var(--dim); font-size: 13px; font-family: ui-monospace, monospace; }
+  main { display: grid; grid-template-columns: 260px 1fr; gap: 0; min-height: calc(100vh - 68px); }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
+
+  nav { border-right: 1px solid var(--line); padding: 16px; }
+  nav h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+           color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+  .slot {
+    display: block; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 8px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; cursor: pointer; font: inherit;
+  }
+  .slot:hover { border-color: var(--accent); }
+  .slot.active { border-color: var(--accent); background: #232a35; }
+  .slot .num { color: var(--dim); font-size: 12px; }
+  .slot .nm { font-weight: 600; }
+  .slot .empty { color: var(--dim); font-style: italic; }
+
+  section { padding: 20px 24px; max-width: 780px; }
+  h2.form-title { font-size: 16px; margin: 0 0 4px; }
+  p.hint { color: var(--dim); font-size: 13px; margin: 0 0 20px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 13px; color: var(--dim); margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 9px 11px; background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 7px; font: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 0 0 20px; }
+  legend { padding: 0 8px; color: var(--dim); font-size: 12px;
+           text-transform: uppercase; letter-spacing: .08em; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  button.act {
+    padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--text); font: inherit; cursor: pointer;
+  }
+  button.act.primary { background: var(--accent); color: #0b1220; border-color: var(--accent); font-weight: 600; }
+  button.act:hover { filter: brightness(1.12); }
+  button.act.danger { color: var(--bad); border-color: #4a2a2a; }
+
+  #msg { margin-top: 16px; padding: 12px 14px; border-radius: 8px; display: none;
+         font-size: 14px; white-space: pre-wrap; }
+  #msg.ok { display: block; background: #14301f; color: var(--good); border: 1px solid #22543a; }
+  #msg.err { display: block; background: #2e1618; color: var(--bad); border: 1px solid #5a2a2e; }
+  code { font-family: ui-monospace, monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ultima II character editor</h1>
+  <span class="disk" id="diskinfo">loading...</span>
+</header>
+
+<main>
+  <nav>
+    <h2>Character slots</h2>
+    <div id="slots"></div>
+    <h2 style="margin-top:22px">Notes</h2>
+    <p class="hint" style="margin:0">
+      Pause the emulator before saving, or the game will overwrite these edits.
+      Slot numbers here are 1 to 4, matching the in-game list.
+    </p>
+  </nav>
+
+  <section>
+    <h2 class="form-title" id="formtitle">Create a character</h2>
+    <p class="hint">
+      FOOD is stored at one hundred times the displayed value, so 40000 shows as 400.
+      Stats are final values: race, sex and profession bonuses were applied by the
+      game at creation and are not re-applied on load.
+    </p>
+
+    <form id="form">
+      <fieldset>
+        <legend>Identity</legend>
+        <div class="grid">
+          <div><label for="slot">Slot (1-4)</label>
+            <select id="slot" name="slot">
+              <option value="0">1</option><option value="1">2</option>
+              <option value="2">3</option><option value="3">4</option>
+            </select></div>
+          <div><label for="name">Name</label>
+            <input id="name" name="name" maxlength="15" value="HERO" autocomplete="off"></div>
+          <div><label for="race">Race</label>
+            <select id="race" name="race">
+              <option value="H">Human</option><option value="E">Elf</option>
+              <option value="D">Dwarf</option><option value="B">Bobbit</option>
+            </select></div>
+          <div><label for="sex">Sex</label>
+            <select id="sex" name="sex">
+              <option value="M">Male</option><option value="F">Female</option>
+            </select></div>
+          <div><label for="profession">Profession</label>
+            <select id="profession" name="profession">
+              <option value="F">Fighter</option><option value="C">Cleric</option>
+              <option value="W">Wizard</option><option value="T">Thief</option>
+            </select></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Attributes, 1 to 99</legend>
+        <div class="grid">
+          <div><label for="STRENGTH">Strength</label><input id="STRENGTH" name="STRENGTH" type="number" min="1" max="99" value="20"></div>
+          <div><label for="AGILITY">Agility</label><input id="AGILITY" name="AGILITY" type="number" min="1" max="99" value="20"></div>
+          <div><label for="STAMINA">Stamina</label><input id="STAMINA" name="STAMINA" type="number" min="1" max="99" value="20"></div>
+          <div><label for="CHARISMA">Charisma</label><input id="CHARISMA" name="CHARISMA" type="number" min="1" max="99" value="20"></div>
+          <div><label for="WISDOM">Wisdom</label><input id="WISDOM" name="WISDOM" type="number" min="1" max="99" value="20"></div>
+          <div><label for="INTELLIGENCE">Intelligence</label><input id="INTELLIGENCE" name="INTELLIGENCE" type="number" min="1" max="99" value="20"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Resources</legend>
+        <div class="grid">
+          <div><label for="HP">Hit points, 1 to 9999</label><input id="HP" name="HP" type="number" min="1" max="9999" value="400"></div>
+          <div><label for="MHP">Max hit points</label><input id="MHP" name="MHP" type="number" min="1" max="9999" value="400"></div>
+          <div><label for="FOOD">Food, stored value. 40000 shows as 400</label><input id="FOOD" name="FOOD" type="number" min="100" max="999900" step="100" value="40000"></div>
+          <div><label for="GOLD">Gold, 0 to 9999</label><input id="GOLD" name="GOLD" type="number" min="0" max="9999" value="400"></div>
+          <div><label for="EXPERIENCE">Experience, 0 to 9999</label><input id="EXPERIENCE" name="EXPERIENCE" type="number" min="0" max="9999" value="0"></div>
+        </div>
+      </fieldset>
+
+      <div class="row">
+        <button class="act primary" type="submit" id="savebtn">Save character</button>
+        <button class="act" type="button" id="maxbtn">Set everything to maximum</button>
+        <button class="act danger" type="button" id="delbtn">Clear this slot</button>
+      </div>
+    </form>
+
+    <div id="msg"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = { slots: [] };
+
+function msg(text, kind) {
+  const el = $('msg');
+  el.textContent = text;
+  el.className = kind || '';
+  if (!kind) el.style.display = 'none';
+}
+
+function slotLabel(s) {
+  return s.name ? s.name : null;
+}
+
+function renderSlots() {
+  const nav = $('slots');
+  nav.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const s = state.slots.find((x) => x.slot === i) || { slot: i, name: '' };
+    const b = document.createElement('button');
+    b.className = 'slot' + (Number($('slot').value) === i ? ' active' : '');
+    b.type = 'button';
+    b.innerHTML = '<div class="num">Slot ' + (i + 1) + '</div>' +
+      (s.name ? '<div class="nm">' + s.name + '</div>'
+              : '<div class="empty">empty</div>');
+    b.onclick = () => { $('slot').value = String(i); loadSlot(i); renderSlots(); };
+    nav.appendChild(b);
+  }
+}
+
+function loadSlot(i) {
+  const s = state.slots.find((x) => x.slot === i);
+  $('formtitle').textContent = s && s.name ? 'Editing ' + s.name : 'Create a character in slot ' + (i + 1);
+  if (!s || !s.name) {
+    $('name').value = '';
+    return;
+  }
+  $('name').value = s.name;
+  for (const k of ['RACE', 'SEX', 'PROFESSION', 'STRENGTH', 'AGILITY', 'STAMINA',
+                   'CHARISMA', 'WISDOM', 'INTELLIGENCE', 'HP', 'MHP', 'FOOD', 'GOLD', 'EXPERIENCE']) {
+    const el = $(k);
+    if (el && s.fields[k] !== undefined && s.fields[k] !== '') el.value = s.fields[k];
+  }
+}
+
+async function refresh() {
+  const r = await fetch('/api/save/info');
+  const j = await r.json();
+  state = j;
+  $('diskinfo').textContent = j.present
+    ? j.disk + '  (' + j.size + ' bytes, ' + j.files.length + ' entries)'
+    : 'no save disk at ' + j.disk;
+  renderSlots();
+  if (!j.present) msg('No save disk mounted. Start the emulator with a floppy in drive 0.', 'err');
+}
+
+$('slot').onchange = () => { loadSlot(Number($('slot').value)); renderSlots(); };
+
+$('maxbtn').onclick = () => {
+  for (const k of ['STRENGTH', 'AGILITY', 'STAMINA', 'CHARISMA', 'WISDOM', 'INTELLIGENCE']) $(k).value = 99;
+  $('HP').value = 9999; $('MHP').value = 9999;
+  $('FOOD').value = 999900; $('GOLD').value = 9999; $('EXPERIENCE').value = 9999;
+  msg('Maximum values filled in. Press Save to write them.', 'ok');
+};
+
+$('delbtn').onclick = async () => {
+  const slot = Number($('slot').value);
+  if (!confirm('Clear slot ' + (slot + 1) + '?')) return;
+  const r = await fetch('/api/save/delete', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ slot }),
+  });
+  const j = await r.json();
+  if (j.error) return msg(j.error, 'err');
+  msg('Slot ' + (slot + 1) + ' cleared.', 'ok');
+  await refresh();
+};
+
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const body = { slot: Number($('slot').value) };
+  const fd = new FormData(e.target);
+  for (const [k, v] of fd.entries()) body[k] = v;
+  body.name = (body.name || 'HERO').toUpperCase();
+
+  $('savebtn').disabled = true;
+  try {
+    const r = await fetch('/api/save/slot', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (j.error) { msg(j.error, 'err'); return; }
+    msg('Saved ' + j.name + ' into slot ' + (j.slot + 1) + ' as a ' +
+        ({F:'fighter',C:'cleric',W:'wizard',T:'thief'}[j.profession] || j.profession) + '.', 'ok');
+    await refresh();
+  } catch (err) {
+    msg(String(err), 'err');
+  } finally {
+    $('savebtn').disabled = false;
+  }
+};
+
+refresh().then(() => loadSlot(Number($('slot').value)));
+</script>
+</body>
+</html>

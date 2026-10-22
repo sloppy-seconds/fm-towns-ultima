@@ -122,12 +122,33 @@ if [ -n "${FD0_IMAGE:-}" ] && [ -f "${FD0_IMAGE}" ]; then
 	# files (ROSTER1.UT2, WORLD1-4.UT2) at character creation, and with the
 	# disk protected it reports "A WRONG DISK" instead of creating them.
 	ARGS+=(-FD0UP)
+	# The character editor reads and writes this same image directly.
+	export SAVE_DISK="${FD0_IMAGE}"
 fi
 
 # Some options must come before the ROM directory to take effect, and the
 # supervisor passes everything through verbatim, so splice them in here.
 # shellcheck disable=SC2206
 [ -n "${TSUGARU_ARGS:-}" ] && ARGS+=(${TSUGARU_ARGS})
+
+# The character editor needs to know which image is the save disk. Container
+# launches set FD0_IMAGE, but hand-rolled runs often pass -FD0 inside
+# TSUGARU_ARGS instead, so fall back to reading the last -FD0 out of ARGS.
+if [ -z "${SAVE_DISK:-}" ]; then
+	prev=""
+	for a in "${ARGS[@]}"; do
+		case "${prev}" in
+			-FD0|-FD0UP)
+				case "${a}" in
+					-*) ;;
+					*) [ -f "${a}" ] && export SAVE_DISK="${a}" ;;
+				esac
+				;;
+		esac
+		prev="${a}"
+	done
+fi
+[ -n "${SAVE_DISK:-}" ] && log "save editor will use ${SAVE_DISK}"
 # shellcheck disable=SC2206
 [ -n "${TSUGARU_EXTRA:-}" ] && ARGS+=(${TSUGARU_EXTRA})
 

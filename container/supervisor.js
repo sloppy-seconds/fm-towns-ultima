@@ -43,6 +43,24 @@ const OUT_DIR = process.env.OUT_DIR || '/data/analysis';
 const EMU = process.env.EMU_BIN || '/emulator/Tsugaru_CUI';
 const DISPLAY = process.env.DISPLAY || ':99';
 
+// Save disk editor. SAVE_DISK points at the floppy image currently mounted in
+// drive 0, and the editor reads and writes that file directly. It is safe to
+// edit while the VM is paused or stopped, but not while it is running, because
+// Tsugaru keeps the mounted image open and rewrites it on write-back.
+const SAVE_DISK = process.env.SAVE_DISK || '/data/save.hdm';
+const EDITOR = path.join(__dirname, 'savedisk.js');
+const EDITOR_HTML = (() => {
+	try { return fs.readFileSync(path.join(__dirname, 'editor.html'), 'utf8'); }
+	catch { return '<h1>editor.html missing</h1>'; }
+})();
+let savedisk = null;
+try {
+	savedisk = require(EDITOR);
+} catch (e) {
+	// The editor is optional. Everything else in the supervisor still works.
+	console.error('[supervisor] save editor unavailable: ' + e.message);
+}
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 // ---------------------------------------------------------------------------
@@ -330,6 +348,12 @@ function readBody(req) {
 	});
 }
 
+// Guard for the save-editor routes, so a missing module gives a clear message
+// rather than "is not a function".
+function editor() {
+	if (!savedisk) throw new Error('save editor not available: ' + EDITOR + ' did not load');
+}
+
 const ROUTES = {
 	'GET /api/status': async () => con.status(),
 
@@ -426,6 +450,151 @@ const ROUTES = {
 
 	// Return the raw PNG bytes for a browser or a human.
 	'GET /api/shot.png': async (q) => ({ __raw: recordShot(q.name) }),
+
+	// --- save disk editor ---------------------------------------------------
+	// Reads and writes the floppy image mounted in drive 0. The roster format is
+	// plain text, so the editor is a structured view over a text file inside a
+	// FAT12 image. See FINDINGS.md 8.7.
+	//
+	// Editing while the VM is running is unsafe: Tsugaru holds the image open and
+	// flushes its own view back over ours. Callers should pause first.
+
+	'GET /api/save/info': async () => {
+		editor();
+		if (!fs.existsSync(SAVE_DISK)) return { disk: SAVE_DISK, present: false, files: [], slots: [] };
+		const img = fs.readFileSync(SAVE_DISK);
+		const files = savedisk.listRoot(img).map((e) => ({
+			name: e.name, size: e.size, cluster: e.cluster, directory: e.attr & 0x10 ? true : false,
+		}));
+		return { disk: SAVE_DISK, present: true, size: img.length, files, slots: savedisk.slotsOf(img) };
+	},
+
+	// Create or overwrite one slot from a description. Everything is optional
+	// and falls back to a safe default, so a caller can send just { slot, name }.
+	'POST /api/save/slot': async (_q, body) => {
+		editor();
+		const slot = Number(body.slot);
+		if (!Number.isInteger(slot) || slot < 0 || slot > 3) throw new Error('slot must be 0..3');
+		if (!fs.existsSync(SAVE_DISK)) throw new Error('no save disk at ' + SAVE_DISK);
+
+		const img = fs.readFileSync(SAVE_DISK);
+		const roster = savedisk.readRoster(img);
+		if (!roster) throw new Error('ROSTER1.UT2 not present on the disk');
+
+		const slots = savedisk.slotsOf(img);
+		// Choose a template: an existing filled slot, else any slot block.
+		const donors = slots.filter((s) => s.name && s.slot !== slot);
+		const donor = (donors.find((s) => s.fields.PROFESSION === body.profession) || donors[0]) || null;
+
+		const PROF = { F: { spid: 2 }, C: { spid: 6 }, W: { spid: 10 }, T: { spid: 14 } };
+		const profession = String(body.profession || 'F').toUpperCase().slice(0, 1);
+		if (!PROF[profession]) throw new Error('profession must be one of F, C, W, T');
+
+		let text = roster.text;
+		const parsed = savedisk.parseSlots(text);
+		const target = parsed.find((s) => s.slot === slot);
+		if (!target) throw new Error('no slot ' + slot + ' block in the roster');
+
+		// Rebuild the slot block as a clean template rather than inheriting a
+		// donor's leftovers, so the result is predictable.
+		const defaults = {
+			MODE: '', LANGAGE: 'E', SHAPE: 0, SPID: PROF[profession].spid, TORCHES: 0,
+			STRENGTH: 10, AGILITY: 10, STAMINA: 10, CHARISMA: 10, WISDOM: 10, INTELLIGENCE: 10,
+			RACE: 'H', PROFESSION: profession, SEX: 'M', MAGIC: 65,
+			HP: 400, MHP: 400, EXPERIENCE: 0, FOOD: 40000, GOLD: 400, KEY: 0, ERA: 2, TOOLS: 0,
+			R_ARMOUR: 'A', R_WEAPON: 'A', SKIN: 1, CLOTH: 1, LEATHER: 0, CHAIN: 0, PLATE: 0,
+			REFLECT: 0, POWER: 0, HAND: 1, DAGGER: 1, MACE: 0, AXE: 0, BOW: 0, SWORD: 0,
+			GREAT_SWORD: 0, LIGHT_SWORD: 0, PHASER: 0, QUICK_SWORD: 0, RING: 0, WAND: 0,
+			STAFF: 0, BOOTS: 0, CLOAK: 0, HELM: 0, GEM: 0, ANKH: 0, RED_GEM: 0, SKULL_KEY: 0,
+			GREEN_GEM: 0, BRASS_BUTTON: 0, BLUE_TASSLE: 0, STRANGE_COIN: 0, GREEN_IDOL: 0,
+			TRI_LITHIUM: 0, NONE: 0, LIGHT: 0, DOWN: 0, UP: 0, PASSWALL: 0, SURFACE: 0,
+			PRAYER: 0, MISSILE: 0, BLINK: 0, KILL: 0, SCORE: 0, MAP: 0, MAP_X: 0, MAP_Y: 0,
+			DUNG_X: 0, DUNG_Y: 0, PLAYER_X: 20, PLAYER_Y: 20, TORCH: 0, SPELL: 0,
+			VEHICLE: 0, SEED: 80, FUEL: 0, FOUND: 0, WORLD: 0, ARM: 0, FOOT: 0, SLEEP: 0,
+			GATE_X: 0, GATE_Y: 0, GATE_TIME: 0,
+		};
+
+		const overrides = {};
+		for (const k of Object.keys(defaults)) if (body[k] !== undefined) overrides[k] = body[k];
+		for (const k of Object.keys(body)) if (k in defaults) overrides[k] = body[k];
+
+		const name = String(body.name || 'HERO').toUpperCase().slice(0, 15);
+		// Start from the donor block so fields this template does not know about
+		// survive, then override everything we do know.
+		const lines = [];
+		const seen = new Set();
+		const donorText = donor ? parsed.find((s) => s.slot === donor.slot).text : '';
+		for (const line of donorText.split(/\r?\n/)) {
+			const m = line.match(/^([A-Z_(][A-Z_0-9()]*)=(.*)$/);
+			if (!m) continue;
+			const key = m[1];
+			if (key === '(' + donor.slot + ')NAME') { lines.push('(' + slot + ')NAME=' + name); seen.add('NAME'); continue; }
+			if (seen.has(key)) continue;
+			seen.add(key);
+			const v = overrides[key] !== undefined ? overrides[key] : defaults[key] !== undefined ? defaults[key] : m[2];
+			lines.push(key + '=' + v);
+		}
+		// Append any default field the donor did not carry.
+		for (const [key, v] of Object.entries(defaults)) {
+			if (key === 'NAME' || seen.has(key)) continue;
+			lines.push(key + '=' + (overrides[key] !== undefined ? overrides[key] : v));
+		}
+		const block = lines.join('\r\n') + '\r\n';
+		text = text.slice(0, target.start) + block + text.slice(target.end);
+
+		savedisk.writeFile(img, roster.entry, Buffer.from(text, 'latin1'));
+
+		// World file so the slot can load. Slots are 0-based, world files 1-based.
+		const worldName = 'WORLD' + (slot + 1) + '.UT2';
+		if (!savedisk.findEntry(img, worldName)) {
+			const src = savedisk.findEntry(img, 'WORLD1.UT2');
+			if (src) {
+				const data = savedisk.readFile(img, src);
+				const free = savedisk.freeClusters(img);
+				const need = Math.ceil(data.length / savedisk.SS);
+				if (free.length >= need) {
+					const chain = free.slice(0, need);
+					for (let i = 0; i < chain.length; i++) {
+						const next = i + 1 < chain.length ? chain[i + 1] : 0xfff;
+						savedisk.fatSet(img, 1024, chain[i], next);
+						savedisk.fatSet(img, 1024 + savedisk.FATSZ * savedisk.SS, chain[i], next);
+						data.copy(img, savedisk.DATA_OFF + (chain[i] - 2) * savedisk.SS, i * savedisk.SS, Math.min((i + 1) * savedisk.SS, data.length));
+					}
+					savedisk.addEntry(img, worldName, chain[0], data.length);
+				}
+			}
+		}
+
+		fs.writeFileSync(SAVE_DISK, img);
+		// Read back and re-parse, so a write that silently failed is caught here.
+		const verify = savedisk.slotsOf(fs.readFileSync(SAVE_DISK));
+		const wrote = verify.find((s) => s.slot === slot);
+		if (!wrote || wrote.name !== name) throw new Error('write did not land: expected ' + name + ', read ' + (wrote && wrote.name));
+		return { ok: true, slot, name, profession, fields: wrote.fields, slots: verify };
+	},
+
+	// Delete a slot by blanking its name and stats back to the empty template.
+	'POST /api/save/delete': async (_q, body) => {
+		editor();
+		const slot = Number(body.slot);
+		if (!Number.isInteger(slot) || slot < 0 || slot > 3) throw new Error('slot must be 0..3');
+		const img = fs.readFileSync(SAVE_DISK);
+		const roster = savedisk.readRoster(img);
+		if (!roster) throw new Error('ROSTER1.UT2 not present');
+		const parsed = savedisk.parseSlots(roster.text);
+		const target = parsed.find((s) => s.slot === slot);
+		if (!target) throw new Error('no slot ' + slot);
+		const blank = target.text
+			.replace(/^\(\d\)NAME=[^\r\n]*/m, '(' + slot + ')NAME=\u0000')
+			.replace(/=([0-9]+)(?=\r?$)/gm, '=0');
+		savedisk.writeFile(img, roster.entry, Buffer.from(roster.text.slice(0, target.start) + blank + roster.text.slice(target.end), 'latin1'));
+		fs.writeFileSync(SAVE_DISK, img);
+		return { ok: true, slot, slots: savedisk.slotsOf(fs.readFileSync(SAVE_DISK)) };
+	},
+
+	// The editor page. Served from the same origin as the API so there is no
+	// CORS dance and no second port to remember.
+	'GET /editor': async () => ({ __html: EDITOR_HTML }),
 };
 
 // Send a single key to the Tsugaru window via xdotool. Named keys are passed
@@ -521,6 +690,14 @@ const server = http.createServer(async (req, res) => {
 		const q = Object.fromEntries(url.searchParams);
 		const body = req.method === 'POST' ? await readBody(req) : {};
 		const result = await handler(q, body);
+		if (result && result.__html) {
+			const data = Buffer.from(result.__html, 'utf8');
+			res.writeHead(200, {
+				'content-type': 'text/html; charset=utf-8',
+				'content-length': data.length,
+			});
+			return res.end(data);
+		}
 		if (result && result.__raw) {
 			const data = fs.readFileSync(result.__raw);
 			res.writeHead(200, {

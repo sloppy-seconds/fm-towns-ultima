@@ -48,6 +48,11 @@ RUN test -d /usr/share/novnc && ln -sfn /usr/share/novnc /opt/novnc
 COPY container/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY container/supervisor.js /usr/local/bin/supervisor.js
 COPY container/screen.js /usr/local/bin/screen.js
+COPY container/editor.html /usr/local/bin/editor.html
+# The save editor shares one implementation with the CLI. Copying it into the
+# image rather than duplicating the FAT and roster logic means the two cannot
+# drift apart.
+COPY tools/savedisk.js /usr/local/bin/savedisk.js
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Xvfb + VNC + noVNC. 6080 is the browser port, 5900 raw VNC.

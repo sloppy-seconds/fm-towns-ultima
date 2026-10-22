@@ -199,6 +199,33 @@ curl -s -X POST -H 'content-type: application/json' \
 
 See `tools/README.md` for the full API.
 
+### Character editor
+
+With the container running, open `http://<host>:8080/editor` for a web page that
+reads and writes the mounted save disk. It can create, edit and clear all four
+character slots, with the field list, defaults and value caps already filled in.
+
+The same thing is available headlessly through the API:
+
+```bash
+curl -s http://<host>:8080/api/save/info
+curl -s -X POST -H 'content-type: application/json' \
+  -d '{"slot":1,"name":"HERO","profession":"W","race":"E","sex":"F","STRENGTH":30}' \
+  http://<host>:8080/api/save/slot
+```
+
+Pause the emulator first. Tsugaru holds the mounted image open and flushes its
+own view over any edit made while it is running.
+
+From the shell, `node tools/savedisk.js` does the same jobs against a file:
+list, cat, slots, clone, set, world-copy. That version is tested and does not
+need a container.
+
+Two things the editor does not model. Race, sex and profession bonuses are
+applied by the game at creation and stored in the final values, so the editor
+sets absolute stats and no modifier is re-applied on load. And `FOOD` is stored
+at one hundred times the displayed figure, so 40000 shows as `400`.
+
 ## 4. Run it
 
 ```
