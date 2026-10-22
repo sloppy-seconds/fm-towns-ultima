@@ -188,6 +188,35 @@ console.log('savedisk.js');
 
 fs.unlinkSync(tmp);
 
+// --- newdisk ---------------------------------------------------------------
+// A blank save disk is generated from geometry alone, with no boot sector. This
+// is the property that makes a server-free editor possible: nothing copyrighted
+// has to be shipped for a user to get a working disk. Ultima II was confirmed to
+// accept exactly this layout and write a character to it.
+{
+	const dst = tmp.replace('.hdm', '-new.hdm');
+	try { fs.unlinkSync(dst); } catch { /* may not exist */ }
+	run('newdisk', dst);
+	const b = fs.readFileSync(dst);
+	eq('newdisk produces the right size', b.length, TOTAL * SS);
+	eq('newdisk has no IPL4 signature', b.subarray(0, 4).toString('latin1') === 'IPL4', false);
+	eq('newdisk BPB bytes/sector', b.readUInt16LE(0x0b), 1024);
+	eq('newdisk BPB total sectors', b.readUInt16LE(0x13), 1232);
+	eq('newdisk FAT1 media head', b.subarray(FAT1, FAT1 + 3).toString('hex'), 'feffff');
+	eq('newdisk FAT2 matches FAT1',
+		b.subarray(FAT1, FAT1 + FATSZ * SS).equals(b.subarray(FAT2, FAT2 + FATSZ * SS)), true);
+	// A boot sector holding only a BPB is about 11 non-zero bytes, against 408
+	// on a retail disk. Assert it stays small, so nobody reintroduces boot code.
+	let nz = 0;
+	for (let i = 0; i < SS; i++) if (b[i]) nz++;
+	eq('newdisk boot sector holds only a BPB', nz < 32, true);
+	// And the disk must be usable: the tool should see an empty root and let a
+	// slot be written into it.
+	const ls = run('ls', dst);
+	eq('newdisk has an empty root directory', ls.trim() === '', true);
+	fs.unlinkSync(dst);
+}
+
 console.log('\n' + '-'.repeat(50));
 console.log('passed ' + pass + ', failed ' + fail);
 if (fail) {

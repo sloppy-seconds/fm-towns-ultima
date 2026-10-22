@@ -19,6 +19,7 @@
 //   node tools/savedisk.js set <disk.hdm> <slot> <field> <value>
 //   node tools/savedisk.js world-copy <disk.hdm> <from> <to>
 //   node tools/savedisk.js world-new <disk.hdm> <n>
+//   node tools/savedisk.js newdisk <disk.hdm> [--force]
 //
 // Everything writes to a new file unless --inplace is given, and every write is
 // verified by reading the file back and re-parsing it. Never operate on an
@@ -204,6 +205,41 @@ function setField(slotText, field, value) {
 	return slotText.replace(re, (_, pre) => pre + value);
 }
 
+// A complete blank save disk, built from geometry alone.
+//
+// Measured: Ultima II accepts this and writes a character to it. The boot
+// sector holds only a BPB, 11 non-zero bytes against 408 on the retail disk,
+// with no IPL4 signature and no boot code. That is expected, because a save
+// disk is never booted from: the machine starts from CD and only opens A: as a
+// FAT volume. The game left those 11 bytes untouched.
+//
+// Nothing here is copyrighted. It is BPB values, an 0xE5 format fill, an empty
+// FAT and an empty root directory.
+function newBlankDisk() {
+	const b = Buffer.alloc(TOTAL * SS, 0xe5);
+	// First sector: zeros, then a BPB. No signature, no code.
+	b.fill(0x00, 0, SS);
+	b.writeUInt16LE(SS, 0x0b);
+	b[0x0d] = 1;
+	b.writeUInt16LE(RESERVED, 0x0e);
+	b[0x10] = NFATS;
+	b.writeUInt16LE(ROOTS, 0x11);
+	b.writeUInt16LE(TOTAL, 0x13);
+	b[0x15] = 0xfe;
+	b.writeUInt16LE(FATSZ, 0x16);
+	b.writeUInt16LE(8, 0x18);
+	b.writeUInt16LE(2, 0x1a);
+	b.writeUInt32LE(0, 0x1c);
+	for (const off of [FAT1, FAT2]) {
+		b.fill(0x00, off, off + FATSZ * SS);
+		b[off] = 0xfe;
+		b[off + 1] = 0xff;
+		b[off + 2] = 0xff;
+	}
+	b.fill(0x00, ROOT_OFF, ROOT_OFF + ROOTS * 32);
+	return b;
+}
+
 // A fresh WORLD<n>.UT2 as the game writes it has exactly one non-zero run:
 // 6,144 bytes of 0xE5 starting at offset 0xF200, with zeros either side.
 //
@@ -243,6 +279,8 @@ module.exports = {
 	fatGet, fatSet, chainOf, freeClusters,
 	// files
 	listRoot, findEntry, readFile, writeFile, addEntry,
+	// creating a disk from nothing
+	newBlankDisk,
 	// world files
 	newWorld, WORLD_SIZE, WORLD_FILL_FROM,
 	// roster
@@ -404,6 +442,13 @@ if (cmd === 'ls') {
 	const written = saveDisk(argv[1], img, inplace);
 	console.log('generated ' + dstName + ' (' + data.length + ' B, ' + WORLD_FILL_LEN + ' x 0xE5 at 0x' + WORLD_FILL_FROM.toString(16) + ')');
 	console.log('wrote ' + written);
+} else if (cmd === 'newdisk') {
+	// Build a blank save disk the game will accept. No boot sector required.
+	const out = argv[1] || 'savedisk.hdm';
+	if (fs.existsSync(out) && !argv.includes('--force')) die('refusing to overwrite ' + out + ' without --force');
+	const b = newBlankDisk();
+	fs.writeFileSync(out, b);
+	console.log('generated blank save disk ' + out + ' (' + b.length + ' bytes, no boot sector)');
 } else {
 	console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 24).join('\n').replace(/^\/\/ ?/gm, ''));
 }

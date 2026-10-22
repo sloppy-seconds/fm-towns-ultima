@@ -2071,19 +2071,37 @@ A generated disk differs from the retail one in **exactly one byte**: offset
 from `-GENFD`. Everything else is identical.
 
 **Consequence for tooling.** The `0xE5` fill and the FAT can be synthesised from
-a formula. The boot sector cannot: it is Fujitsu BIOS code, the same category as
-the ROMs, and it is not ours to redistribute.
+a formula. The boot sector cannot be copied, but it turns out not to matter.
 
-So a standalone browser editor can **edit** any disk and **add characters** to
-any disk, but it must not claim to **create** a blank one. Practical routes for
-a user who has no formatted disk:
+**A save disk does not need a boot sector at all, and this was tested.**
+
+A disk was built from nothing: 1,261,568 bytes of `0xE5`, a zeroed first sector
+carrying only a BPB at `0x0B`, two FATs starting `FE FF FF`, and a zeroed root
+directory. That is **11 non-zero bytes** in the whole boot sector, against 408 on
+the retail disk, with **no `IPL4` signature, no OEM name and no boot code**.
+
+Ultima II accepted it and wrote a full character to it:
+
+| file | size |
+|---|---|
+| `ROSTER1.UT2` | 3,659 B |
+| `WORLD1.UT2` | 68,096 B |
+
+The boot sector was then re-measured and was still 11 non-zero bytes, still
+without `IPL4`. The game never read it beyond the BPB, which is exactly what one
+would expect: a save disk is never booted from, the machine starts from CD, and
+A: is only ever opened as a FAT volume.
+
+So a blank save disk can be generated from geometry values alone. Nothing
+copyrighted is involved: 11 bytes of BPB, an `0xE5` fill, an empty FAT and an
+empty root directory. Any tool that needs to offer "create a new disk" can do so
+honestly.
+
+Practical routes for a user who wants a save disk:
 
 1. Use the `[UserDisk].hdm` that ships in the zip. It is already formatted.
-2. `Tsugaru_CUI -GENFD <file> 1232`, which is one command and produces a correct
-   disk, differing from retail in one byte.
-3. Drop any known-good blank into the page and edit that.
-
-None of these requires shipping game or BIOS data, which is the point.
+2. `Tsugaru_CUI -GENFD <file> 1232`, one command, produces a correct disk.
+3. Generate a bare one with the layout above, which needs no boot sector.
 
 ---
 
