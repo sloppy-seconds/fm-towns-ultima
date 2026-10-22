@@ -639,6 +639,60 @@ static RGB555 run was found in any executable.
 library defaulting. Next step is to grep `ENCHANT.EXP` for `EGB_palette` call
 sites and see what pointer is passed.
 
+### 6.14 Palette call sites found, but the table is built at runtime
+
+**Tried:** locate the `EGB_palette` call sites in `ENCHANT.EXP` now that the
+`P3` loader resolves addresses.
+
+**Measured:** `EGB_palette` in `ENCHANT.EXP` is at `0x103c84`. It is byte
+identical in structure to the `TMENU.EXP` copy at `0x1a1f0`:
+
+```
+push ebp / mov ebp,esp / push edi
+mov edi,[ebp+0x10]
+push dword [ebp+0xc]
+call 0x103504          (far-pointer builder, same role as TMENU 0x19fe0)
+mov [0xe00c4],edi
+movzx eax,byte [ebp+0x8]
+mov [0xe00c0],eax
+push dword 0x40
+call 0x103490
+```
+
+So the library is the same code, relocated. There are **12 direct call sites**:
+`0x10120d`, `0x101247`, `0x101279`, `0x1012ef`, `0x10133b`, `0x101454`,
+`0x1015d8`, `0x103cdc`, `0x10528d`, `0x1052a1`, `0x1053a1`, `0x1053bb`, plus a
+wrapper thunk at `0x103cd0`.
+
+Examined the argument setup at several sites. The pattern is consistently:
+
+```
+mov eax,0x200
+sub eax,[edi+0x4]
+push eax
+push dword [edi+0x8]
+mov al,[edi+0xe]
+push eax
+call EGB_palette
+```
+
+The table pointer is **`[edi+8]`**, a field of a runtime structure, not a static
+address. `0x200` (512 bytes) is the size being pushed, which is 256 RGB555
+entries.
+
+**Verdict:** the palette is assembled in memory during play and handed to the
+library. It is not a constant in the binary. That closes the question of why
+five static RGB555 scans (FINDINGS 6.2, 6.5) found nothing: there is nothing
+static to find.
+
+**Open:** the structure at `[edi+8]`. Populating it needs either a debugger break
+on `0x103c84` while the game runs, or tracing back through whoever writes
+`[edi+8]`. Both are a step up in effort from static analysis.
+
+**Practical consequence:** the fastest route to colour is no longer static. Run
+the game under a debugger, break at `EGB_palette` in `ENCHANT.EXP`, dump the 512
+bytes the pointer leads to. That gives the exact table with no inference.
+
 ---
 
 ## 7. Sound

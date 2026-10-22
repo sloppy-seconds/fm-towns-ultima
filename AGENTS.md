@@ -328,11 +328,13 @@ the search is different, so resolve this before hunting.
 All of these are U2 extraction work. Some are marked *(validates)*, meaning
 they use the other binaries as a cross-check rather than as separate work.
 
-1. **Find where the palette table is built.** `tools/pharlap.js` resolves
-   symbols now, and `EGB_palette` turns out to copy a far pointer to a caller
-   supplied table rather than writing CRTC ports (FINDINGS 6.13). The colours
-   are known from screenshots (6.10) but the index mapping is not. Grep
-   `ENCHANT.EXP` for calls to `EGB_palette` and see what pointer it passes.
+1. **Get the palette table at runtime.** Static analysis is exhausted on this
+   one (FINDINGS 6.14). `EGB_palette` in `ENCHANT.EXP` is at `0x103c84`, has 12
+   call sites, and every one passes `[edi+8]`, a runtime structure field, with
+   a size of `0x200` bytes. There is no static table to find. The remaining
+   routes are a debugger breakpoint at `0x103c84` while the game runs, or
+   tracing every writer of `[edi+8]`. A debugger is far cheaper and gives the
+   exact bytes with no inference.
 2. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
    table indexing `SPID` so each creature can be named and its frames grouped.
    *(validates)* compare the corresponding table shape in `EXODUS`.
