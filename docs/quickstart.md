@@ -9,7 +9,7 @@ Three routes. Pick the one that matches where you are.
 | I have a Linux or macOS desktop | [Native](#route-1-native-emulator) |
 | I have Windows | [Container](#route-2-container-browser-play), or native with a bash shell. Both untested. |
 | The machine is headless or remote, or I want to play in a browser | [Container](#route-2-container-browser-play) |
-| I only want to fix a save disk | [Editor alone](#route-3-the-editor-with-no-emulator) |
+| I want a save disk, or to fix one, with nothing installed | [Editor alone](#route-3-the-editor-with-no-emulator) |
 
 ## What you need either way
 
@@ -150,20 +150,58 @@ actually enforcing, which is the thing that breaks there.
 
 ## Route 3: the editor, with no emulator
 
-If you only want to change a save disk, skip everything above.
+Skip everything above. This makes a save disk, or changes one, with nothing
+installed: no emulator, no ROMs, no game, no container.
 
 **https://sloppy-seconds.github.io/fm-towns-ultima/**
 
-Open your `.hdm`, edit the four character slots, download the result. Nothing is
-uploaded, no install, and your original file is untouched. Verified to make three
-requests and no external ones.
+Press **New blank disk**, fill in a character, press Save, then Download. That
+is a complete save disk, and you started with nothing. No emulator, no game.
 
-You need a save disk to open. Any of these will do:
+If you already have a disk, open it instead: the `[UserDisk].hdm` from the zip,
+or one you made in game. Nothing is uploaded, no install, and your original file
+is never modified. Verified to make three requests and no external ones.
 
-- the `[UserDisk].hdm` from the zip, which is already formatted
-- a disk you made in game, via the routes below
-- a blank one from `node tools/savedisk.js newdisk mydisk.hdm`, which needs no
-  emulator and no game
+Making a disk from scratch works because a save disk is never booted from. The
+machine starts from CD and only opens the floppy as a data volume, so the boot
+sector is not needed and the page builds a valid filesystem without one. Ultima
+II was confirmed to accept such a disk and write a character to it.
+
+### Getting the disk into the emulator
+
+The download is named for what you opened, so a new disk arrives as
+`new-savedisk-edited.hdm`. The emulator does not care what the file is called,
+but **the command below does**: it names the file explicitly. Either rename it,
+or point the command at whatever filename you have.
+
+**Native emulator.** Put the file anywhere and change the `-FD0` path:
+
+```
+-FD0  "path/to/your-savedisk.hdm"
+```
+
+Or keep the default by overwriting the shipped disk, which is what most people
+do. Move the original aside first so you are not destroying it:
+
+```
+mv "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm" save-disk-original.hdm
+mv ~/Downloads/new-savedisk-edited.hdm "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm"
+```
+
+**Container.** The container only sees `saves/`, so copy the file there and
+restart it with that name:
+
+```bash
+cp ~/Downloads/new-savedisk-edited.hdm saves/mydisk.hdm
+./tools/try.sh saves/mydisk.hdm
+```
+
+`try.sh` mounts whatever you give it as drive A and starts on fixed ports, which
+is simpler than editing `container-run.sh`.
+
+If the game says **A WRONG DISK** twice on startup, that is normal and unrelated.
+Press space through both. It only becomes a real problem if character creation
+then fails.
 
 ## Actually playing
 

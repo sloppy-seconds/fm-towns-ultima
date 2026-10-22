@@ -611,7 +611,14 @@ $('dlbtn').onclick = () => {
   a.download = sourceName.replace(/\.(hdm|img|bin|dsk)$/i, '') + '-edited.hdm';
   a.click();
   URL.revokeObjectURL(a.href);
-  msg('Downloaded ' + a.download + '. Put it back where the emulator expects your save disk.', 'ok');
+  // Name the file AND say where it goes. "Put it back where the emulator expects
+  // it" was useless, because the -FD0 flag names the file explicitly, so a
+  // download called -edited.hdm does not just work by being nearby.
+  msg('Downloaded ' + a.download + '\n\n'
+    + 'To use it, either:\n'
+    + '  - point the emulator at it:  -FD0 "path/to/' + a.download + '"\n'
+    + '  - or rename it over your existing save disk, keeping a copy of the original\n'
+    + '  - with the container, copy it into saves/ and run ./tools/try.sh saves/' + a.download, 'ok');
 };
 
 $('maxbtn').onclick = () => {
