@@ -108,6 +108,11 @@
 *.[dD][iI][cC]
 *.[fF][nN][tT]
 
+# --- Vendored third-party binaries -----------------------------------------
+# tools/vendor.sh downloads Tsugaru and the FreeTowns ROMs here. Third-party
+# binaries, gitignored as a unit.
+/vendor/
+
 # --- Emulator and ROMs -----------------------------------------------------
 
 # Tsugaru binaries and ROM sets are downloaded per README, never committed.

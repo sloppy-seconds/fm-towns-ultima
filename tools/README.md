@@ -12,6 +12,8 @@ directory, so run them from the repo root.
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
 | `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. |
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
+| `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
+| `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
@@ -55,6 +57,34 @@ artefact does not.
 Reference screenshots used for U2 came from
 `pixsoriginadventures.co.uk/ultima-2-fm-towns-part-1` and `part-2`. They are
 copyrighted and are not committed, per `AGENTS.md`.
+
+## Running the game and reading hardware state
+
+```bash
+./tools/vendor.sh                  # Tsugaru + ROMs into vendor/ (gitignored)
+./tools/debug-session.sh           # boot to the debugger console
+./tools/debug-session.sh --auto    # boot, run 20s, dump palette, quit
+```
+
+`debug-session.sh` works over SSH with no monitor. It finds the desktop
+session's Xwayland display and auth file, because Tsugaru needs a window even
+when driven from the console.
+
+Console commands worth knowing. Print targets need the `PRI` prefix:
+
+```
+RUN            run the VM
+PAU            pause it
+PRI PALETTE    the CRTC palette, 16 entries per page
+PRI CRTC       CRTC registers, mode, page setup
+STA            CPU state
+RUN EIP        run to a temporary breakpoint
+T              single step
+BRKON MEMW a   break on memory write
+Q              quit
+```
+
+Output goes to `analysis/`. Nothing produced by the emulator is committed.
 
 ## Copyright guard
 

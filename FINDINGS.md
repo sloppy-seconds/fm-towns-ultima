@@ -693,6 +693,68 @@ on `0x103c84` while the game runs, or tracing back through whoever writes
 the game under a debugger, break at `EGB_palette` in `ENCHANT.EXP`, dump the 512
 bytes the pointer leads to. That gives the exact table with no inference.
 
+### 6.15 Palette read from the running machine
+
+**Tried:** stop analysing statically and read the palette out of the emulated
+hardware. Tsugaru has a debugger console with a `PALETTE` command.
+
+**Setup:** `tools/vendor.sh` fetches Tsugaru v20260522 and the FreeTowns ROM set
+into `vendor/`, both gitignored. `tools/debug-session.sh` boots U2 headless by
+reusing the desktop session's Xwayland display and auth file, so this works over
+SSH with no monitor.
+
+**Command sequence:**
+```
+RUN            run the VM
+PAU            pause it
+PRI PALETTE    print the CRTC palette
+PRI CRTC       print CRTC registers
+```
+
+Note `PALETTE` and `CRTC` are print-info targets, so they need the `PRI` prefix.
+Bare `PALETTE` returns "Do what?".
+
+**Measured:** the machine is running U2 in 4-bit colour, 640x480, 2-page mode,
+and reports a 16-colour palette:
+
+```
+Page0: 000000 000099 990000 990099 009900 009999 FF00FF BBBBBB
+       000000 0000FF FF0000 CCCCCC 555555 00FFFF FF8800 FFFFFF
+Page1: 000000 0000FF FF0000 999999 666666 00FFFF FF00FF FFFFFF
+       000000 0000FF FF0000 CCCCCC 555555 00FFFF FF8800 FFFFFF
+```
+
+These are full 8-bit-per-channel RGB values as the emulator presents them, so the
+sixteen entries are:
+
+| # | Page0 | Page1 | | # | Page0 | Page1 |
+|---|---|---|---|---|---|---|
+| 0 | `000000` | `000000` | | 8 | `000000` | `000000` |
+| 1 | `000099` | `0000FF` | | 9 | `0000FF` | `0000FF` |
+| 2 | `990000` | `FF0000` | | 10 | `FF0000` | `FF0000` |
+| 3 | `990099` | `999999` | | 11 | `CCCCCC` | `CCCCCC` |
+| 4 | `009900` | `666666` | | 12 | `555555` | `555555` |
+| 5 | `009999` | `00FFFF` | | 13 | `00FFFF` | `00FFFF` |
+| 6 | `FF00FF` | `FF00FF` | | 14 | `FF8800` | `FF8800` |
+| 7 | `BBBBBB` | `FFFFFF` | | 15 | `FFFFFF` | `FFFFFF` |
+
+**Verdict:** POSITIVE, and this is the index-to-colour mapping that all the
+static analysis could not produce. Entries 8-15 duplicate 0-7 in page 0, which
+suggests a 16-entry table where the high half mirrors the low, or a second bank.
+
+**Consistency with screenshots:** the screenshot consensus (FINDINGS 6.10) found
+black, white, red, blue, green, cyan and yellow as the dominant colours. Every
+one of those appears here. The screenshot work was independent of this and they
+agree, which is the cross-check that both are right.
+
+**Caveat:** these are the *initial* BIOS palette values, captured about 15
+seconds into boot. Whether U2 replaces them later is untested. The values look
+like a default 16-colour set (classic VGA-ish EGA ordering), so this may be the
+pre-game palette rather than U2's own. Re-running after the game reaches a
+coloured screen would settle it.
+
+The full dump including CRTC registers is in `analysis/palette-dump.txt`.
+
 ---
 
 ## 7. Sound

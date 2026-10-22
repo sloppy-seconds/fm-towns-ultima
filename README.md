@@ -161,6 +161,22 @@ track 2 starts at 9000, with 450 real zero sectors in the image itself. So:
 - Do **not** convert to `.bin`/`.cue` or extract an ISO. Both lose or mangling
   the audio track alignment.
 
+## 3b. Vendor the emulator and ROMs
+
+Rather than following section 2 by hand:
+
+```bash
+./tools/vendor.sh              # fetches Tsugaru + FreeTowns ROMs into vendor/
+```
+
+Both land in `vendor/`, which is gitignored. Re-running is safe, `--force`
+re-downloads, `--emulator` or `--roms` fetch one. The Tsugaru release is pinned
+so the setup is reproducible.
+
+To read hardware state while the game runs, including the palette and CRTC
+registers, see `tools/debug-session.sh` and `tools/README.md`. It works over SSH
+with no monitor.
+
 ## 4. Run it
 
 ```

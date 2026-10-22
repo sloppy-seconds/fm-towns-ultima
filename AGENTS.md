@@ -117,6 +117,20 @@ symbols above are the most promising route in.
 
 ## Environment
 
+### The emulator is available now
+
+`tools/vendor.sh` fetches Tsugaru and the FreeTowns ROMs into `vendor/`. Both are
+gitignored. `tools/debug-session.sh` drives the machine headless, which works over
+SSH and needs no monitor: Tsugaru requires a window, so the script reuses the
+desktop session's Xwayland display and auth file. If a future session finds
+`DISPLAY` unset, look at how that script finds it rather than concluding the
+emulator is unusable.
+
+This changes what is practical. Runtime inspection is now cheap, so before
+attempting static analysis of a value that only exists at runtime, check whether
+`PRI PALETTE`, `PRI CRTC`, `BRKON MEMW` or a breakpoint answers it faster. The
+palette cost five failed static probes and would have been one console command.
+
 - Host `ai.lan`, Bazzite. Check `hostname` before sysadmin work.
 - `node` for all tooling. No npm dependencies. `ndisasm` present via brew.
 - Java 25 present (Ghidra would run). No Ghidra, Reko, or radare2 installed.
@@ -328,13 +342,14 @@ the search is different, so resolve this before hunting.
 All of these are U2 extraction work. Some are marked *(validates)*, meaning
 they use the other binaries as a cross-check rather than as separate work.
 
-1. **Get the palette table at runtime.** Static analysis is exhausted on this
-   one (FINDINGS 6.14). `EGB_palette` in `ENCHANT.EXP` is at `0x103c84`, has 12
-   call sites, and every one passes `[edi+8]`, a runtime structure field, with
-   a size of `0x200` bytes. There is no static table to find. The remaining
-   routes are a debugger breakpoint at `0x103c84` while the game runs, or
-   tracing every writer of `[edi+8]`. A debugger is far cheaper and gives the
-   exact bytes with no inference.
+1. **Confirm the palette in-game.** `PRI PALETTE` now works headless
+   (FINDINGS 6.15) and gave a 16-colour table from the running machine. Those
+   values were captured about 15 seconds into boot and look like the BIOS
+   default set. Re-run `tools/debug-session.sh` once U2 is showing a coloured
+   screen and compare. If the palette changes, that is U2's real table and the
+   index mapping is solved. If it does not, use `BRKON MEMW` or a breakpoint at
+   `EGB_palette` (`0x103c84` in `ENCHANT.EXP`) to catch `[edi+8]` when the game
+   installs its own. Everything needed to do this is now vendored and scripted.
 2. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
    table indexing `SPID` so each creature can be named and its frames grouped.
    *(validates)* compare the corresponding table shape in `EXODUS`.
