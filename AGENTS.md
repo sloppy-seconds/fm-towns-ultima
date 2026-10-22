@@ -8,13 +8,31 @@ Extract as much useful data and artwork as possible from the FM Towns release
 of **Ultima Trilogy I-II-III** (1990), with the longer-term hope of reverse
 engineering and reimplementing the games.
 
-The target has moved to **Ultima III (Exodus)**, which is the first game with a
-real data model: a tile-based world, fixed-size map files, and a named symbol
-table. U2 work is complete enough to serve as a worked example of the method.
+**Current focus is strictly Ultima II** (`ENCHANT.EXP`). U2 is the target for
+all active work.
+
+Two rules follow from that and shape everything else:
+
+- Validate against the others. `DARKNESS`, `EXODUS`, `TMENU` and the three
+demos are free corroboration. A format claim that works on U2 and also holds on
+`EXODUS` is worth far more than one that only fits U2. Use them to confirm, not
+to distract.
+- Generalise where it is free. Anything built for U2 should be written so it
+would work for U1 and U3 without rewriting: same Fujitsu libraries, same High C
+toolchain, same `MP` container, same `.SND` and `.EUP` and TIFF conventions,
+likely the same FM Towns graphics paths. Where a U2 assumption is actually a
+platform assumption, say so and make the code platform-shaped rather than
+U2-shaped.
+
+The larger prize is that the same extraction machinery should apply to **other
+FM Towns titles from the same era** (`fmtownscdcollection` holds dozens, mostly
+Origin and Fujitsu and other Japanese publishers). Treat the disc as one sample
+of a shared platform, not a unique snowflake.
 
 Working order from here:
 
-1. Data and artwork extraction. Cheap, verifiable, useful even if the RE stalls.
+1. Data and artwork extraction for U2. Cheap, verifiable, useful even if the RE
+   stalls.
 2. Format documentation. Every format gets a record in `FINDINGS.md`.
 3. Code understanding. Only where it unlocks something extraction cannot reach.
 4. Reimplementation. A separate concern, not started.
@@ -169,6 +187,7 @@ Do not re-derive these. Everything here is backed by a measurement in
 | Use `.ccd` not `.cue` (PREGAP ambiguity, documented by Tsugaru's author) | High |
 | Written in C, MetaWare High C, Phar Lap extender | High |
 | `DARKNESS`/`ENCHANT`/`EXODUS` are `MP` flat images, header parses exactly | High |
+| `TMENU.EXP` is `P3` extended format, not `MP` | High |
 | `ENEMY2` = 65 tiles of 32x32 4bpp packed at 512 B | High |
 | `PLAYER` = 128 tiles of 16x16, 1 byte per pixel | High |
 | `DUNMON1/2/3` = 1,664 / 416 / 104 tiles of 16x16 packed | High |
@@ -178,22 +197,63 @@ Do not re-derive these. Everything here is backed by a measurement in
 | `.EUP` = EUPHONY voice tables, no colour or audio payload | High |
 | `UT3/*.MP3` and `*.DG3` are map data, not MPEG audio | High |
 | No palette in any asset, no `PAL` string in `ENCHANT.EXP` | High |
-| `TMENU.EXP` has a `SYM1` symbol table | High (framing open) |
+| `TMENU.EXP` has a `SYM1` symbol table naming the Fujitsu layer | High (framing open) |
+| The four game binaries carry no `SYM1` | High |
+
+## Platform versus U2-specific
+
+Before generalising anything, decide which of these it is. Getting this wrong
+in the optimistic direction wastes effort on portability that is not needed.
+
+Almost certainly the platform, so write it generically and expect it everywhere:
+
+- The `MP`/`P3` containers and the High C toolchain. Every Origins FM Towns
+  title of this era is likely built the same way.
+- TIFF-with-lying-headers as the artwork container. The pattern of a stale or
+  bogus geometry tag appears across all three games here.
+- 4bpp art in two layouts: packed (2 px per byte) for pictures, and the
+  sheet/TIFF-strip convention for sprites.
+- `.SND` and `.EUP` audio. `.EUP` is the Fujitsu EUPHONY driver layer, which is
+  a platform component rather than anything Origins wrote.
+- CD audio for music, and the `Q:\` / `A:\` drive conventions.
+- Assets named after their content (`MAP2_1`, `PLAYER`, `CHEST`) and referenced
+  by literal path strings embedded in the executable. That referencing habit is
+  what makes this tractable and it likely repeats across titles.
+
+U2-specific. Do not try to generalise these, but do document them:
+
+- The exact asset set, the roster format (`RACE=%c`, `SKIN=%d`, `SPID=%d`), the
+  U2 inventory list (`ANKH`, `RED_GEM`, `TRI_LITHIUM`), and the `WORLD1-4.UT2`
+  save layout.
+- `MAP2_1/2/3` as ASCII character maps. U3 uses fixed-size binary `.MP3`
+  instead, so the U2 map format is *not* the platform map format.
+- The 65-tile `ENEMY2` bank size.
+
+Unknown either way, so do not assume: whether the palette is per-game data or a
+shared Fujitsu table. This matters a lot. If `EGB_palette` is a library routine
+reading a per-game table, every title needs its own table found. If it is one
+shared table, it gets solved once and applies to the whole collection.
+Resolving `SYM1` answers this.
 
 ## Open problems, cheapest first
 
-1. **Parse `SYM1`.** Largest payoff. Derive the framing, validate the walk
-   consumes the blob exactly.
-2. **Identify `EGB_palette` / `Palette_data1`.** With symbols resolved, go
-   straight to the address rather than scanning. Verify by rendering art in
-   colour against the reference image.
-3. **Ultima III data formats.** `UT3/*.MP3` (4,096 B) and `*.DG3` (2,048 B) are
-   fixed-size and named after U3 towns. `UT3/AMBROSIA.MP3` etc. Look for the
-   `MAPTYPE` equivalents in `EXODUS.EXP` as was done for `ENCHANT.EXP`.
-4. **`LEVEL`/tile graphics for U3.** Which `GRAPH/*.TIF` files `EXODUS.EXP`
-   opens. Extract the path strings first.
-5. **Monster/animation table.** `ENEMY2` has 65 tiles in pairs. Find the table
-   that indexes `SPID`.
+U2 is the target. Items marked *(validates)* are cross-checks using the other
+binaries rather than U2 work in their own right.
+
+1. **Parse `SYM1` in `TMENU.EXP`.** Largest payoff, and it is the key to
+   deciding whether the palette is platform-level or per-game. Derive the
+   framing, validate the walk consumes the blob exactly.
+2. **Locate the palette for U2 specifically.** Whether or not `SYM1` resolves,
+   U2 needs its own colours. Then *(validates)* check whether the same routine
+   and the same table shape appear in `DARKNESS` and `EXODUS`.
+3. **Monster and animation table for U2.** `ENEMY2` holds 65 tiles in pairs.
+   Find the table indexing `SPID`. *(validates)* compare the corresponding
+   table shape in `EXODUS`.
+4. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
+   geometry and how `\UT2\MAP.MP2` relates to it.
+5. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
+   string in `ENCHANT.EXP` lists every field, so the schema is already known,
+   the byte layout is not.
 6. **`MP`/`P3` loader.** Only worth building when something needs correct
    disassembly. `SYM1` may make it unnecessary.
 
