@@ -1105,6 +1105,28 @@ carries `FORMAT.EXP` for exactly this. Run it against drive A from a Towns OS
 command prompt, then launch U2. That is the path the original release assumes,
 and it is the only remaining route.
 
+**Definitively not reachable from the launcher.** `TMENU.INF` is a plain-text
+menu definition listing every program TMENU can start:
+
+```
+\RUN386.EXE darkness.exp    ULTIMA I
+\RUN386.EXE enchant.exp     ULTIMA ][
+\RUN386.EXE exodus.exp      ULTIMA ]I[
+\RUN386.EXE british.exp     MESSAGE
+\RUN386.EXE UT1DEMO.EXP     UT1_INTRO
+\RUN386.EXE UT2DEMO.EXP     UT2_INTRO
+\RUN386.EXE UT3DEMO.EXP     UT3_INTRO
+```
+
+Eight entries, and `FORMAT.EXP` is not one of them. The launcher has no system
+menu, no disk tools, and the A/B/CD tabs are drive *browsers* that display
+contents, not disk utilities. Confirmed against the live UI: the A tab shows an
+empty window because the floppy genuinely has no files, and there is no menu
+anywhere offering a format.
+
+This release's launcher is a game selector only. It was never intended as a
+Towns OS shell.
+
 **Attempted and failed:** passing `-CONSCMD FORMAT.EXP` as a launch argument.
 The emulator accepted the option, the argument was correctly formed (verified in
 the container log), the VM booted normally, and the floppy image was
@@ -1123,6 +1145,47 @@ non-interactive launch cannot supply.
 character creation with no disk error, so the launcher and the game both work.
 What remains is formatting a disk through the Towns OS user interface, which
 needs a human at the browser session.
+
+### 6.22 Saves are blocked, and why
+
+**Symptom:** character creation completes, then U2 reports a save failure and
+returns to its prompt in a loop.
+
+**Measured:** the messages are Shift-JIS. Decoded:
+
+| offset | message | meaning |
+|---|---|---|
+| `0x1af6` | 初期化したディスクをドライブに挿入せよ | "insert an initialised disk" |
+| `0x1b63` | 正しいディスクをドライブに挿入せよ | "insert the correct disk" |
+| `0x26b3` | の保存に失敗しました | "failed to save" |
+| `0x28b9` | デ－タを正常にセ－ブできませんでした | "could not save data normally" |
+
+So the loop is: create character, attempt to write `A:\ROSTER1.UT2`, fail
+because the disk is not initialised, print `0x28b9`, return to the prompt.
+
+**There is no way to initialise the disk from this release.** `TMENU.INF` lists
+exactly eight launchable programs and `FORMAT.EXP` is not among them. The
+launcher has no system menu. Its A/B/CD tabs are drive browsers, confirmed
+against the live UI: the A tab shows an empty window because the floppy is
+genuinely empty, and no menu anywhere offers a format.
+
+FORMAT.EXP ships on the disc but is unreachable. This launcher is a game
+selector, not a Towns OS shell.
+
+**Consequence:** in-game saves are not achievable with this disc alone.
+
+**Workarounds, in order of practicality:**
+
+1. **Tsugaru machine state.** Works today. Scroll Lock or the GUI menu, then
+   States, then Save machine state. Captures the whole VM so play resumes
+   exactly. Console equivalents `SSTATE`/`LSTATE`, and `-QUICKSTATESAVE` at
+   launch. Tied to the emulator build, so debugger-grade rather than portable.
+2. **A Towns OS environment.** Towns OS 1.1 or 2.1, or the Tsugaru project's
+   Rescue Boot Loader CD, would give a command prompt where `FORMAT.EXP` can
+   actually be run. Not present in this download.
+3. **Patch or bypass.** U2 could be patched to skip the save, or the disk
+   initialisation performed by a small Towns OS program written for the purpose.
+   Both are real projects, not quick fixes.
 
 ---
 
