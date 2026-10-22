@@ -9,6 +9,48 @@ which reads the disc and fails loudly if something stops being true.
 If you just want to play, you do not need any of this. Start with the
 [README](https://github.com/sloppy-seconds/fm-towns-ultima) instead.
 
+## Scope: this is Ultima II work
+
+Almost everything here is about **Ultima II**, `ENCHANT.EXP`. Ultima I and III are
+on the same disc and were used throughout as **cross-validation**, not as subjects:
+a format claim or a tool behaviour that holds on one game and also holds on its
+siblings is worth far more than one that only fits a single binary.
+
+Many of the concepts transfer. Where they do not, it is usually because the games
+differ in ways worth knowing:
+
+| | Ultima I | Ultima II | Ultima III |
+|---|---|---|---|
+| binary | `DARKNESS.EXP` | `ENCHANT.EXP` | `EXODUS.EXP` |
+| roster | `ROSTER.UT1` | `ROSTER1.UT2` | `ROSTER.UT3` |
+| world | none declared | `WORLD1-4.UT2` | `WORLD.UT3`, `PARTY.UT3`, `PLAYERS.UT3` |
+| save paths | built at runtime | literal strings | literal strings |
+| format | plain ASCII | plain ASCII | plain ASCII |
+
+The roster format is the interesting one. All three games write plain
+`KEY=value` text, so the save editing machinery generalises. **Extending the
+editor to Ultima I and III should be close to trivial and has simply not been
+attempted yet.** The work is known, not unknown:
+
+- **A field set per game.** Measured from saves the games actually wrote, the
+  names genuinely differ. U2 says `HP` and `MHP` where U1 and U3 say `HITPOINT`
+  and `MAXHIT`. U3 has `DEXTERITY` and no `AGILITY`. U1 has `TYPE` and no
+  `PROFESSION`. U3 splits food into `FOOD1` and `FOOD2`. U1 has 133 distinct
+  fields including its `WEAPON01`-`16` and `VITEM0`-`16` tables, U2 has about
+  90, U3 has 56.
+- **A different filename** in the FAT lookup: `ROSTER.UT1`, `ROSTER1.UT2`,
+  `ROSTER.UT3`.
+- **A different slot count.** U1 and U2 have four. **U3 has twenty**, `(0)`
+  through `(19)`, so its roster and world files would need a different model.
+- **Different formatting.** U1 pads its keys with spaces and indents them:
+  `  RACE        =1`. U2 does not. A parser has to tolerate both.
+- **Extra files for U3**, which writes `PARTY.UT3`, `PLAYERS.UT3` and
+  `WORLD.UT3` alongside the roster.
+
+What is genuinely U2-specific and should not be generalised: the 65-tile `ENEMY2`
+bank, the `MAP2_1/2/3` ASCII map format (Ultima III uses fixed-size binary `.MP3`
+instead), and the exact roster field set.
+
 ## The short version
 
 The game is commercial software, so it is not in this repository. You supply it.

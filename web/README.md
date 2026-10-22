@@ -6,6 +6,14 @@ modified: you open a disk, edit it, and download a new copy.
 
 **Editor:** https://sloppy-seconds.github.io/fm-towns-ultima/
 
+**This edits Ultima II only.** Ultima I and III are on the same disc and use the
+same class of format, a plain ASCII `KEY=value` roster, so extending this to them
+should be close to trivial. It has not been attempted. The work would be a roster
+parser per game for the field names, the right filename in the FAT lookup, and
+the profession letters, all of which differ between the three. See the
+[project docs](https://sloppy-seconds.github.io/fm-towns-ultima/docs/) for what
+would be involved.
+
 ## What it does
 
 - Opens an FM Towns 2HD save disk (`.hdm` or `.img`, 1,232 KB)

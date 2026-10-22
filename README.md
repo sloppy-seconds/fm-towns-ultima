@@ -2,6 +2,12 @@
 
 Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 
+**Almost all of this is Ultima II work.** Ultima I and III sit on the same disc and
+were used throughout as cross-validation, never as subjects. The save-editing
+machinery generalises to them, because all three write plain ASCII rosters, but
+that work has not been attempted. See [the docs](docs/index.md) for what would be
+needed and what is genuinely U2-specific.
+
 ## Where the game comes from
 
 The game is commercial software still in copyright, so it is not in this
