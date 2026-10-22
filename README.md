@@ -30,8 +30,8 @@ Facts confirmed by parsing the image, not assumed:
   (C) 1983-1988 MetaWare Incorporated`, plus Fujitsu's `TOWNS SOUND LIBRARY`
   and `EUPHONY DRIVER` by Joe Mizuno. `RUN386.EXE` is Phar Lap's DOS Extender,
   itself a High C build, so the toolchain is consistent across runtime and
-  game. Compiled C codegen shows through as ~440 standard `push ebp; mov
-  ebp,esp` prologues in `DARKNESS.EXP`.
+  game. Compiled C codegen shows through as ~440 standard `push ebp` then `mov
+  ebp,esp` function prologues in `DARKNESS.EXP`.
 - Tracks 2-8 are CD audio, peaking around +/-15,000 in 16-bit signed stereo.
   Extracting the disc as a plain ISO discards all of it.
 - The graphics are 16bpp art wrapped in TIFF headers whose geometry tags are
