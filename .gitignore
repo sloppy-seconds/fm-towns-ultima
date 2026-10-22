@@ -1,0 +1,18 @@
+# Game data: copyrighted, and 141 MB. Never commit it.
+*.img
+*.sub
+*.cue
+*.ccd
+*.hdm
+*.iso
+*.mds
+*.mdf
+*.bin
+
+# Emulator binaries and ROMs: downloaded per README, never committed.
+/emulator/
+
+# Runtime state.
+/saves/
+CMOS.BIN
+*.log
