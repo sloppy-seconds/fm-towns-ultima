@@ -587,6 +587,34 @@ if (!fs.existsSync(extracted)) {
 	}
 }
 
+// --- floppy geometry -------------------------------------------------------
+// FINDINGS 8.1. The claim is that only a 1232 KB image is an FM Towns disk, and
+// that the retail UserDisk shares its geometry. Both are checked against the
+// bytes rather than trusted as prose. The 640/720/1440 variants are not in the
+// repo because they are not used by anything, so they are asserted by rule.
+{
+	const ud = path.join(ROOT, 'Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm');
+	if (!fs.existsSync(ud)) {
+		skipped('floppy geometry', 'UserDisk not present');
+	} else {
+		const b = fs.readFileSync(ud);
+		eq('UserDisk size', b.length, 1261568);
+		eq('UserDisk IPL4 signature', b.toString('latin1', 0, 4), 'IPL4');
+		eq('UserDisk bytes per sector', b.readUInt16LE(11), 1024);
+		eq('UserDisk sectors per track', b.readUInt16LE(24), 8);
+		eq('UserDisk heads', b.readUInt16LE(26), 2);
+		eq('UserDisk root entries', b.readUInt16LE(17), 192);
+		eq('UserDisk total sectors', b.readUInt16LE(19), 1232);
+		// 1232 * 1024 == 1261568 is the arithmetic that ties size to geometry.
+		eq('UserDisk geometry sums to size',
+			b.readUInt16LE(19) * b.readUInt16LE(11), b.length);
+		// The retail disk contradicts itself: BPB says media 0x01, FAT says 0xFE.
+		eq('UserDisk BPB media byte', b[0x15], 0x01);
+		eq('UserDisk FAT media byte', b.readUInt16LE(1024) & 0xff, 0xfe);
+		ok('UserDisk is self-inconsistent, as a program-formatted disk would be');
+	}
+}
+
 // ---------------------------------------------------------------------------
 
 disc.close();

@@ -94,11 +94,16 @@ fi
 ROM_DIR="${ROM_DIR:-/roms}"
 CD_IMAGE="${CD_IMAGE:-}"
 CMOS="${CMOS:-/data/CMOS.BIN}"
+# Which emulator binary to run. Tsugaru_CUI by default, because it takes console
+# commands on stdin and that is what the supervisor drives. Set TSUGARU_BIN to
+# /emulator/Tsugaru_GUI for the windowed build, which has the File/New menu that
+# creates floppy images; the CUI build cannot do that through a GUI.
+TSUGARU_BIN="${TSUGARU_BIN:-/emulator/Tsugaru_CUI}"
 
 mkdir -p /data
 
-if [ ! -x /emulator/Tsugaru_CUI ]; then
-	log "ERROR: /emulator/Tsugaru_CUI not mounted. Run tools/container-run.sh"
+if [ ! -x "${TSUGARU_BIN}" ]; then
+	log "ERROR: ${TSUGARU_BIN} not mounted. Run tools/container-run.sh"
 	exit 1
 fi
 if [ ! -d "${ROM_DIR}" ]; then
@@ -129,9 +134,9 @@ fi
 # The supervisor owns the emulator's stdin/stdout and exposes an HTTP API for
 # keystrokes, debugger commands and screenshot-as-text. Running Tsugaru directly
 # here would leave no way to type into it once detached.
-log "launching supervisor: Tsugaru_CUI ${ARGS[*]}"
+log "launching supervisor: $(basename "${TSUGARU_BIN}") ${ARGS[*]}"
 export API_PORT="${API_PORT:-8080}"
 export OUT_DIR="${OUT_DIR:-/data/analysis}"
-export EMU_BIN=/emulator/Tsugaru_CUI
+export EMU_BIN="${TSUGARU_BIN}"
 export DISPLAY
 exec node /usr/local/bin/supervisor.js "${ARGS[@]}"

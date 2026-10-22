@@ -162,7 +162,7 @@ on the disc as `SOUND/ULTIMA.FMB`.
 Every one of the 23 graphics and all 14 sounds are extracted. The 10 `.EUP`
 files are EUPHONY driver preset tables, present on disc, not audio, and not
 extracted as sound on purpose. `ULTIMA.FMB` is an instrument bank, not audio.
-The 4 `A:\*.UT2` files do not exist on the disc; they are created in-game and
+The 4 `A:\*.UT2` files do not exist on the disc. They are created in-game and
 live on the UserDisk floppy.
 
 39 of the disc's 62 `GRAPH/*.TIF` files are not extracted, and **none of them is
@@ -172,7 +172,7 @@ and `DEMO3_1`-3. The remainder (`ENEMY`, `ANK`, `BRIBRI`, `HITO`, `IZUMI`,
 `ROD`, `SDRAGON`, `SDRAGON2`, `TIME`) are unreferenced by U2 and belong to the
 same sibling programs.
 
-**Verdict:** positive and complete. Ultima II's asset set is fully extracted; the
+**Verdict:** positive and complete. Ultima II's asset set is fully extracted. The
 leftovers on the disc belong to Ultima I and III, which are out of scope.
 
 **Tried:** confirm whether `ENCHANT.EXP` carries a symbol table like the others.
@@ -1591,23 +1591,160 @@ for Ultima III's towns. *Format open.*
 **Verdict:** negative but expected. These are created when a character is
 made in-game. A blank supplied UserDisk is normal.
 
+### 8.1 The floppy subsystem works, and it was proved three ways
+
+This section exists to stop the next person repeating a long dead end. The
+question was whether Ultima II can be made to save. The answer is that the
+floppy path in this emulator is sound and that Ultima II specifically refuses
+every disk offered to it, including the one the game ships with.
+
+**Tried:** determine whether a correctly formatted FM Towns disk can be written
+to at all inside Tsugaru. Read the root directory and FAT of the floppy image
+after running each game.
+
+**Measured:** `-GENFD filename size` at 1232 produces a genuine FM Towns disk.
+Four sizes are accepted and only one is an FM Towns disk:
+
+| size | first 4 bytes | bytes/sector | sectors/track | heads | root entries | FM Towns? |
+|---|---|---|---|---|---|---|
+| 1232 | `IPL4` | 1024 | 8 | 2 | 192 | **yes** |
+| 1440 | `EB FE 90 34` | 512 | 18 | 2 | 224 | no, IBM PC |
+| 640 | `EB FE 90 34` | 512 | 8 | 2 | 112 | no |
+| 720 | `EB FE 90 34` | 512 | 9 | 2 | 112 | no |
+
+A 1232 KB generated disk differs from the retail `[UserDisk]` in exactly
+**12 bytes**: 10 bytes of volume label (`AOMORI` vs `USERDISK`) and the BPB
+media byte at `0x0015` (`FE` vs `01`). Everything else is identical: same
+`IPL4`, same `FBIOS` boot code, same FAT opening `FE FF FF`, same non-zero byte
+count in every region. Note the retail disk contradicts itself, its BPB says
+media `01` while its own FAT says `FE`, which is the signature of a disk
+formatted by a program rather than by Towns OS.
+
+**Verdict:** POSITIVE. A correct FM Towns blank can be generated, and each game
+can be pointed at it with `-FD0 <image> -FD0UP`.
+
+**Tried:** run all three games of the trilogy against that disk and inspect the
+image afterwards.
+
+**Measured:**
+
+| game | binary | wrote to A: | file | size |
+|---|---|---|---|---|
+| Ultima I | `DARKNESS.EXP` | **yes** | `ROSTER.UT1` | 9,676 B |
+| Ultima II | `ENCHANT.EXP` | **no** | none | - |
+| Ultima III | `EXODUS.EXP` | **yes** | `ROSTER.UT3` | 14,622 B |
+
+Both written files are complete and parse as expected. `ROSTER.UT1` begins
+`Roster data:ULTIMA I for FM-TOWNS` and carries `NAME`, `RACE`, `TYPE`, `SEX`,
+`HITPOINT`, `STRENGTH`, `AGILITY`, `STAMINA`, `CHARISMA`, `WISDOM`,
+`INTELLIGENCE`, `GOLD`, `EXPERIENCE`, `FOOD`, `WEAPON` fields. `ROSTER.UT3`
+begins `Roster data:ULTIMA III for FM-TOWNS` and carries `NAME`, the shrine
+flags, `TORCHES`, `MEMBER`, `STATUS`, the six attributes, `RACE`,
+`PROFESSION`, `SEX`, `MAGIC`, `HITPOINT`.
+
+**Verdict:** POSITIVE and decisive for the emulator. Write protection is off,
+drive A: is correctly mapped, and a generated 1232 KB disk is writable by FM
+Towns games. The floppy subsystem is not the problem.
+
+**Tried:** find a disk state that Ultima II accepts. Four distinct candidates,
+each mounted writable as A:, each followed by an attempt at character creation.
+
+**Measured:**
+
+| disk in A: | result |
+|---|---|
+| all-zero image | "A WRONG DISK" |
+| retail `[UserDisk]`, byte-for-byte as shipped | "A WRONG DISK" |
+| `-GENFD 1232`, correct FM Towns format | "A WRONG DISK" |
+| the disk Ultima I had just written `ROSTER.UT1` to | "A WRONG DISK" |
+
+The last two rows are the ones that matter. A correctly formatted blank fails,
+and so does a disk another game in the same trilogy has just successfully
+written to. Most tellingly, **the disk that ships with the game fails.**
+
+**Verdict:** NEGATIVE, and this closes the investigation. No disk state passes
+Ultima II's check, including the one Fujitsu shipped for the purpose. The
+failure is not caused by disk preparation, format, geometry, write protection,
+drive assignment, or missing files. It is specific to `ENCHANT.EXP`.
+
+The two messages involved, decoded from Shift-JIS at `0x1af6` and `0x1b63`:
+
+- `初期化したディスクをドライブに挿入せよ` - insert an initialised disk into the drive
+- `正しいディスクをドライブに挿入せよ。［挿入したらキーを押せ］` - insert the correct disk, then press a key
+
+The second is the one the game displays. It describes an identity check, not a
+format complaint, which is consistent with the retail disk also being refused.
+
+**Where the blame most likely lies:** this is an emulation defect, not a disk
+problem. `ENCHANT.EXP` is the only one of the three that holds its save paths as
+literal strings (`A:\ROSTER1.UT2`, `A:\WORLD1-4.UT2`) rather than assembling
+them at runtime, and it is the only one that refuses to write. Nothing
+extractable from the disc can change that.
+
+### 8.2 The Tsugaru GUI exists and produces identical output
+
+**Tried:** the windowed `Tsugaru_GUI` build, on the theory that its
+`File > New > Floppy disk` menu might create a disk the CLI cannot.
+
+**Measured:** `Tsugaru_GUI` links only against X11 and OpenGL, no GTK or Qt, so
+it runs headless on Xvfb without special handling. The container previously
+hardcoded `Tsugaru_CUI`, and `container/entrypoint.sh` now honours a `TSUGARU_BIN`
+environment variable so either binary can be selected.
+
+The GUI offers four sizes, the same four as `-GENFD`. A disk created through
+the GUI at the wrong size came out at 1,474,560 bytes and was **byte-identical
+to `-GENFD 1440`**. A disk created at 1232 KB came out at 1,261,568 bytes and was
+**byte-identical to `-GENFD 1232`**.
+
+The GUI appends the string `.BIN.D77.RDD.D88.XDF` to whatever filename is typed,
+which suggests it writes one raw sector format and lists every extension it
+could be read as. Whatever it writes, it is not a D88 container.
+
+**Verdict:** NEGATIVE for the purpose it was tried. The GUI produces exactly the
+same bytes as the CLI. It offers no initialisation step that `-GENFD 1232`
+does not already perform.
+
+**Tried:** the HxC2001 forum thread (`hxc2001.com/floppy/forum/viewtopic.php?t=4214`)
+and the Reddit threads about the FM Towns Ultima Trilogy, for a reported fix.
+
+**Measured:** the HxC poster is on real hardware with a Gotek, reports that
+TownsOS cannot format either a 77-track or a 1.44M image, and never resolved it.
+Their failures are hardware-flavoured (drive not ready, 0 track error) and do not
+reproduce in an emulator. The Reddit threads report the same wall, two of them
+unanswered, and the one workaround offered is simply to mount an image in FD0,
+which is what `-FD0` already does.
+
+**Verdict:** NEGATIVE. No published fix exists for Ultima II saving on FM Towns.
+
+### 8.3 The emulator window was being clipped
+
+**Measured:** the Tsugaru window titled `FM Towns Emulator - TSUGARU` reports a
+geometry of **640x496**, not 640x480, and is positioned at y=40. The container's
+Xvfb default was `640x480`, so with the window at y=40 its bottom 56 rows fell
+off-screen and the top 40 rows were empty.
+
+**Verdict:** POSITIVE, a real bug in the container defaults. It is why the
+emulator's own menu area appeared to be missing. `RESOLUTION=1024x800x24` gives
+the whole window room. The 640x496 geometry is already noted in `AGENTS.md`.
+
 ---
 
 ## 9. Open questions
 
 Ordered by cost to resolve.
 
-1. **Palette.** Needs correct code/data separation. Candidate shortcut not yet
-   tried: diff `ENCHANT.EXP`, `DARKNESS.EXP`, `EXODUS.EXP` and `TMENU.EXP` for
-   a shared region containing the `0x1A0` port constant. `TMENU.EXP` is only
-   243 KB and is Fujitsu's own menu, so the library routine should be present
-   with far less surrounding noise.
-2. **Monster table.** Which `ENEMY2` tile is which creature, and frames per
+1. **Monster table.** Which `ENEMY2` tile is which creature, and frames per
    creature. No name strings to anchor on.
-3. **`MAP2_1/2/3` layout.** Character-per-cell confirmed, geometry not.
-4. **`DUNMON` tile count meaning.** 1,664 / 416 / 104 tiles, and what indexes them.
-5. **`.SND` playback rate.** Whether 1960 Hz is real.
-6. **`UT3/*.MP3` and `*.DG3` format.**
+2. **`MAP2_1/2/3` layout.** Character-per-cell confirmed, geometry not.
+3. **`DUNMON` tile count meaning.** 1,664 / 416 / 104 tiles, and what indexes them.
+4. **`.SND` playback rate.** Whether 1960 Hz is real.
+5. **`UT3/*.MP3` and `*.DG3` format.**
+
+Resolved or closed since this list was first written: the palette is settled
+(the art uses indices 0-7 and those eight entries are confirmed against eight
+screenshots, see 6.24), the asset inventory is proved complete (section 4), and
+Ultima II saving is closed as an emulation defect rather than an extraction
+problem (section 8.1).
 
 ---
 

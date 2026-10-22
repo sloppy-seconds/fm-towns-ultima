@@ -317,8 +317,13 @@ Do not re-derive these. Everything here is backed by a measurement in
 | `.EUP` = EUPHONY voice tables, no colour or audio payload | High |
 | `UT3/*.MP3` and `*.DG3` are map data, not MPEG audio | High |
 | No palette in any asset, no `PAL` string in `ENCHANT.EXP` | High |
+| The art uses palette indices 0-7 only, and those eight colours are confirmed | High |
 | `TMENU.EXP` has a `SYM1` symbol table naming the Fujitsu layer | High (framing open) |
 | The four game binaries carry no `SYM1` | High |
+| Every file `ENCHANT.EXP` opens is extracted (23 graphics, 14 sounds) | High |
+| A 1232 KB `-GENFD` disk is a real FM Towns disk. The other sizes are IBM PC | High |
+| Ultima I and III write save files to floppy in Tsugaru. Ultima II refuses | High |
+| Ultima II rejects the disk it ships with, so saves are not fixable by disk prep | High |
 
 ## Platform versus U2-specific
 
@@ -393,4 +398,12 @@ they use the other binaries as a cross-check rather than as separate work.
   reporting exactly this failure on FM Towns `.EXP` files.
 - Do not convert the disc to ISO or bincue. Audio track alignment is lost.
 - Do not treat greyscale output as a bug. Its cause is documented.
+- Do not try to make Ultima II save by preparing the disk differently. Four disk
+  states were tested and all four fail, including the byte-for-byte retail
+  `[UserDisk]` that ships with the game. Ultima I and III both write to a
+  generated 1232 KB disk under the same setup, so the floppy path itself is
+  sound. Ultima II's refusal is an emulation defect. See `FINDINGS.md` 8.1.
+- Do not use `-GENFD` with 640, 720 or 1440 and expect an FM Towns disk. Only
+  1232 produces `IPL4` with 1024-byte sectors. The other three are IBM PC
+  formats. The Tsugaru GUI offers the same four and produces identical bytes.
 - Do not repeat a failed probe listed in `FINDINGS.md` without a new method.
