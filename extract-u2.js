@@ -384,7 +384,9 @@ function dump(name, dir) {
 		return;
 	}
 	const tiff = parseTIFF(buf);
-	// The game reads these as 320x104 4bpp sheets regardless of the TIFF header.
+	// The game reads these as 320x104 sheets. Note these are tile banks of
+	// 16x16 or 32x32 frames, not single images; tools/tilesheet.js renders
+	// them properly. This flat output is kept for quick viewing only.
 	if (buf.length === MAP_W * MAP_H) {
 		const px = decodeBytePerPixel(buf, MAP_W, MAP_H, false);
 		writePNG(path.join(dir, name.toLowerCase() + '.png'), MAP_W, MAP_H, px);

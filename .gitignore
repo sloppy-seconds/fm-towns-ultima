@@ -19,3 +19,6 @@ CMOS.BIN
 
 # Extracted assets: derived from the copyrighted disc, regenerate with extract-u2.js
 /extracted/
+
+# Analysis output (regenerate with tools/)
+/analysis/
