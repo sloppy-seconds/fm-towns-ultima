@@ -147,6 +147,45 @@ inventory list (`ANKH`, `RED_GEM`, `SKULL_KEY`, `GREEN_GEM`, `BRASS_BUTTON`,
 
 **Verdict:** positive. The extractor uses exactly this set.
 
+**Tried:** prove extraction coverage is complete, by enumerating every path
+string in the shipped binary and matching it against what the extractor emits.
+
+**Measured:** `ENCHANT.EXP` contains exactly **52 file references** and no others.
+Of those, 23 are `Q:\GRAPH\*.TIF`, 14 are `Q:\SOUND\*.SND`, 10 are
+`Q:\SOUND\*.EUP`, 1 is `Q:\SOUND\ULTIMA.FMB` (the FM instrument bank), and 4
+are `A:\*.UT2` save slots.
+
+Note on counting: `ULTIMA.FMB` is stored as `\SOUND\ULTIMA.FMB` with the drive
+letter split off, so a naive `[A-Z]:\` scan finds only 51 and misses it. It is
+on the disc as `SOUND/ULTIMA.FMB`.
+
+Every one of the 23 graphics and all 14 sounds are extracted. The 10 `.EUP`
+files are EUPHONY driver preset tables, present on disc, not audio, and not
+extracted as sound on purpose. `ULTIMA.FMB` is an instrument bank, not audio.
+The 4 `A:\*.UT2` files do not exist on the disc; they are created in-game and
+live on the UserDisk floppy.
+
+39 of the disc's 62 `GRAPH/*.TIF` files are not extracted, and **none of them is
+referenced by `ENCHANT.EXP`**. They belong to the other programs on the disc:
+`UT1*` and `UT1T*` (Ultima I), `UT3_A`-`D`, `EXOEND1`-5 and `MAP3` (Ultima III),
+and `DEMO3_1`-3. The remainder (`ENEMY`, `ANK`, `BRIBRI`, `HITO`, `IZUMI`,
+`ROD`, `SDRAGON`, `SDRAGON2`, `TIME`) are unreferenced by U2 and belong to the
+same sibling programs.
+
+**Verdict:** positive and complete. Ultima II's asset set is fully extracted; the
+leftovers on the disc belong to Ultima I and III, which are out of scope.
+
+**Tried:** confirm whether `ENCHANT.EXP` carries a symbol table like the others.
+
+**Measured:** no. Searching for `SYM1`, `SYM2`, `SYMB`, `NDBG` and `FIXU` returns
+nothing, and the file ends in ordinary x86 code. `ENCHANT.EXP` is the stripped
+shipping build. The 1,725-record `SYM1` table documented elsewhere in this file
+belongs to `TMENU.EXP`, not to U2, so its symbols cannot be used to locate U2
+data. The `Common_screen_data1`-11 and `Palette_data1`-3 names come from that
+TMENU table and do not describe Ultima II.
+
+**Verdict:** negative, and a correction to earlier assumptions.
+
 **Tried:** search for a monster name table using U2 monster names.
 
 **Measured:** no hits. `ORC` matched only inside `TORCHES`.

@@ -518,6 +518,75 @@ if (!fs.existsSync(extracted)) {
 	if (pngOk >= 37) ok('all PNGs valid', pngOk + ' files');
 }
 
+// --- asset coverage against the shipped binary ----------------------------
+// ENCHANT.EXP names every file U2 opens. Parse those names straight out of the
+// disc and confirm the extractor produced all of them. This is the check that
+// makes the completeness claim in FINDINGS.md machine-verified rather than
+// prose.
+{
+	const { Disc } = require('./cd.js');
+	const discPath = path.join(ROOT, 'Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img');
+	if (!fs.existsSync(discPath)) {
+		skipped('asset coverage', 'disc image not present');
+	} else {
+		const d2 = new Disc(discPath);
+		const cat2 = d2.catalogue();
+		const ent = cat2.get('ENCHANT.EXP');
+		const bin = d2.read(ent.lba, ent.size);
+		const txt = bin.toString('latin1');
+
+		// Graphics and sounds are referred to with a drive letter, except
+		// ULTIMA.FMB whose prefix is split off. Match on the bare filename.
+		const gfx = new Set();
+		const snd = new Set();
+		let mm;
+		const reG = /\\GRAPH\\([A-Z0-9_]+)\.TIF/gi;
+		while ((mm = reG.exec(txt)) !== null) gfx.add(mm[1].toUpperCase());
+		const reS = /\\SOUND\\([A-Z0-9_]+)\.SND/gi;
+		while ((mm = reS.exec(txt)) !== null) snd.add(mm[1].toUpperCase());
+
+		if (gfx.size === 23) ok('ENCHANT.EXP names 23 graphics');
+		else bad('ENCHANT.EXP graphics count', String(gfx.size));
+		if (snd.size === 14) ok('ENCHANT.EXP names 14 sounds');
+		else bad('ENCHANT.EXP sounds count', String(snd.size));
+
+		let gfxMissing = 0;
+		for (const g of gfx) {
+			const base = g.toLowerCase();
+			let hit = false;
+			for (const sub of ['title', 'sprites', 'map']) {
+				const p = path.join(extracted, sub, base + '.png');
+				if (fs.existsSync(p)) { hit = true; break; }
+			}
+			if (!hit) { gfxMissing++; bad('extracted graphic: ' + g, 'absent'); }
+		}
+		if (!gfxMissing) ok('every referenced graphic is extracted', gfx.size + ' of ' + gfx.size);
+
+		let sndMissing = 0;
+		for (const s of snd) {
+			if (!fs.existsSync(path.join(extracted, 'sfx', s.toLowerCase() + '.wav'))) {
+				sndMissing++;
+				bad('extracted sound: ' + s, 'absent');
+			}
+		}
+		if (!sndMissing) ok('every referenced sound is extracted', snd.size + ' of ' + snd.size);
+
+		// Nothing U2 references should be missing from the disc itself.
+		let refMissing = 0;
+		for (const g of gfx) if (!cat2.get('GRAPH/' + g + '.TIF')) { refMissing++; bad('on disc: GRAPH/' + g + '.TIF', 'absent'); }
+		for (const s of snd) if (!cat2.get('SOUND/' + s + '.SND')) { refMissing++; bad('on disc: SOUND/' + s + '.SND', 'absent'); }
+		if (cat2.get('SOUND/ULTIMA.FMB')) ok('FM instrument bank ULTIMA.FMB present');
+		else { refMissing++; bad('on disc: SOUND/ULTIMA.FMB', 'absent'); }
+		if (!refMissing) ok('every referenced file exists on the disc');
+
+		// The stripped-binary claim: ENCHANT.EXP carries no SYM1 table.
+		if (bin.indexOf(Buffer.from('SYM1')) === -1) ok('ENCHANT.EXP is stripped (no SYM1)');
+		else bad('ENCHANT.EXP SYM1', 'unexpectedly present');
+
+		d2.close();
+	}
+}
+
 // ---------------------------------------------------------------------------
 
 disc.close();

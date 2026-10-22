@@ -23,6 +23,17 @@ const ROOT = path.join(__dirname, '..');
 // --- the palette, exactly as the machine reported it ----------------------
 // Page0 and Page1 were identical. Sixteen entries, RGB888 as the emulator
 // presents them.
+//
+// IMPORTANT: only the first eight matter. The extracted art uses indices 0-7
+// exclusively, and the first eight entries below are the canonical Ultima
+// palette (black, blue, red, dark, green, cyan, yellow, white). Measured
+// against eight separate screenshots in tools/palette-reference.js, those
+// eight colours are the top consensus for every image that was sampled.
+//
+// The second half of the table was captured while the boot menu was up, not
+// while art was on screen. A few stray pixels in player.png land on indices
+// 10/12/13 and pick up those entries. That affects a few dozen pixels out of
+// tens of thousands and is noted here rather than silently patched.
 const PALETTE_HEX = [
 	'000000', '0000FF', 'FF0000', '000000', '00FF00', '00FFFF', 'FFFF00', 'FFFFFF',
 	'000000', '000000', '007777', 'FFFF55', '11CC22', '0022EE', 'FF0000', 'FFFFFF',
