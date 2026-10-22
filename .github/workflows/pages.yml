@@ -1,10 +1,14 @@
-# Deploy the save disk editor to GitHub Pages.
+# Deploy the save disk editor and the documentation to GitHub Pages.
 #
-# This repository holds the whole Ultima II FM Towns project: extraction tools,
-# findings, container definitions and the browser editor. Only the editor is
-# published, and it lives in web/, so the artefact path points there rather than
-# at the repository root. Nothing else needs a build step.
-name: Deploy editor to Pages
+# Two things get published from one repo:
+#
+#   /          the browser save-disk editor, served from web/ as static files
+#   /docs/     the MkDocs site built from docs/
+#
+# They are assembled into a single artefact rather than using two deployments,
+# because Pages serves one site per repo. The editor keeps the root path it has
+# always had, so existing links to it still work.
+name: Deploy to Pages
 
 on:
   push:
@@ -21,16 +25,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # Pinned so a theme release cannot change the site silently. Bump
+      # deliberately, checking the result.
+      - name: Install MkDocs
+        run: pip install 'mkdocs-material==9.*'
+
+      - name: Build docs
+        run: mkdocs build --strict
+
+      # Assemble the artefact. The editor goes to the root, the built docs go
+      # under /docs/. site_dir in mkdocs.yml points at _site/docs so this is a
+      # straight copy rather than a rename.
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r web/. _site/
+          test -f _site/index.html
+          test -f _site/docs/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: web
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -2,7 +2,7 @@
 // tools/palette-reference.js - derive U2's real palette from screenshots.
 //
 // Why screenshots: the palette is not stored in any asset file and is not a
-// static table in ENCHANT.EXP (FINDINGS 6.2-6.6). But the running game shows
+// static table in ENCHANT.EXP (`docs/save-disk.md` 6.2 to 6.6). But the running game shows
 // the colours, so a handful of emulator screenshots give ground truth.
 //
 // Method: quantise each screenshot to exactly 16 colours with dithering off,

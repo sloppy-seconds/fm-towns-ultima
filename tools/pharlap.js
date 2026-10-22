@@ -5,7 +5,7 @@
 // so the address in a symbol table becomes a byte offset you can disassemble at.
 //
 // Two formats, both documented by Open Watcom's exephar.h and verified against
-// the four Trilogy executables (see FINDINGS 6.7 and 6.11):
+// the four Trilogy executables (see `docs/save-disk.md` 6.7 and 6.11):
 //
 //   MP  30-byte header, flat image. Used by DARKNESS, ENCHANT, EXODUS.
 //   P3  128-byte header, extended format with a runtime parameter block,

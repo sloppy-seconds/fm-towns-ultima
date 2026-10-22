@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tools/sym1.js - parse the SYM1 symbol table out of TMENU.EXP.
 //
-// See FINDINGS.md 6.8. The layout below is derived from the data and validated
+// See `docs/save-disk.md` 6.8. The layout below is derived from the data and validated
 // by requiring the walk to consume the blob exactly.
 //
 //   [u8 namelen][name bytes][u16 value][u16 zero][u16 type]

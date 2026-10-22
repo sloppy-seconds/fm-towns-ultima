@@ -1,7 +1,7 @@
 // tools/crossdiff.js - find code shared between the Trilogy executables.
 //
 // Purpose: the palette setter is inside a statically linked Fujitsu graphics
-// library, not inline in any game (see FINDINGS.md 6.3). If the same routine is
+// library, not inline in any game (see `docs/save-disk.md` 6.3). If the same routine is
 // present in TMENU.EXP (243 KB, Fujitsu's own menu) and all three games, then
 // anchoring on TMENU gives a much smaller haystack.
 //

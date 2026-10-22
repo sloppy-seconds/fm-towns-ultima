@@ -23,173 +23,97 @@ that, including a free set with no copyright problem.
 Nothing copyrighted. Scripts, tests and documentation only. Everything the game
 needs is supplied by you, and everything derived from the disc stays gitignored.
 
-## Four things you might want to do
+Documentation: **https://sloppy-seconds.github.io/fm-towns-ultima/docs/**
 
-| you want | start here |
+## How this was made
+
+On a **headless Bazzite Linux host**, with no monitor attached, using pi.dev
+driving DeepSeek 4.1 flash for under 10 USD of credit. Some later work may use a
+local Qwen 3.8 flash model.
+
+That explains two things that otherwise look odd. The container with VNC exists
+because there was no display to launch a window into, and the HTTP API exists so
+screen state could be read as text rather than seen. Both were built out of
+necessity, not as features.
+
+It also explains why the tools verify so aggressively. The agent was confidently
+wrong several times, including a written conclusion that Ultima II saving was an
+unfixable emulation defect, and the corrections are recorded rather than edited
+away. See [how this was made](docs/provenance.md).
+
+## What you can do, and what each route costs
+
+Every route to actually playing needs the game (which you supply) and the FM Towns
+ROMs. The routes differ in how much else you install, not in whether you install
+anything. The hosted editor is the only thing here that genuinely needs nothing.
+
+| what you want | needs | start here |
+|---|---|---|
+| Edit a save disk in a browser, nothing installed | the save disk only | [Section 4](#4-making-a-character), the hosted editor |
+| Play in a browser, from another machine | podman, emulator, ROMs, game | [Section 2](#2-play-in-a-browser) |
+| Play locally with a window | emulator, ROMs, game | [Section 3](#3-play-locally-with-the-emulator) |
+| Make a character without the menus | the save disk, or Node for the CLI | [Section 4](#4-making-a-character) |
+| Take the game apart | everything above, plus Node | [Section 7](#7-taking-the-game-apart) |
+
+No prebuilt image is published, so "in a browser" means the container is built on
+your machine the first time. The honest figures, measured rather than guessed:
+
+| what | size |
 |---|---|
-| Play Ultima II in a browser, nothing installed locally | [Section 3](#3-play-in-a-browser) |
-| Play it locally with the emulator | [Section 4](#4-play-locally-with-the-emulator) |
-| Make a character without fighting the menus | [Section 5](#5-making-a-character) |
-| Take the game apart | [Section 0](#0-reproducing-this-work), then `FINDINGS.md` |
+| game disc image, from archive.org | 135 MB |
+| emulator and ROMs, `tools/vendor.sh` | 24 MB |
+| container image, built locally | 911 MB |
 
-## 0. Reproducing this work
+So budget a gigabyte and some build time. The image is Ubuntu with Xvfb, x11vnc,
+noVNC and Node, which is most of it.
 
-Everything about the disc can be reproduced from the archive.org zip alone.
+## 1. What you need, and what you should end up with
 
-1. Download the zip linked above.
-2. Unpack it into this directory. You should end up with the five files in
-   section 1.
-3. Run:
+You need two things, and neither is in this repository.
 
-```bash
-node tools/verify.js     # every assertion about the disc, exits 0 if all pass
-node extract-u2.js       # writes extracted/u2/
-```
+**The game**, from the archive.org link above.
 
-`tools/verify.js` is the authority for what is established, currently 107
-assertions. It checks the rip identity (sizes and MD5s), the disc structure, the
-executable headers, the toolchain, the U2 asset inventory, every graphics claim,
-every sound claim, and the negative results. A claim in `FINDINGS.md` not
-asserted there should be treated as unverified.
+**The FM Towns ROMs**, which the emulator needs to boot. Section 2 below has
+both, including a free set that carries no copyright problem, and the checksums
+to confirm you have the same rip this work was built against.
 
-Expected source file checksums, so you can confirm you have the same rip:
-
-| File | Size | MD5 |
-|---|---|---|
-| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img` | 141,649,200 | `1a0b01f4498b561878dbc49ffb9e1af6` |
-| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd` | 2,137 | `f89a0640f0a2e75beb3763e80b7be352` |
-| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).cue` | 415 | `6f931bead286bac24c03ad687f40ac8d` |
-| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).sub` | 5,781,600 | `6ad09bf5dde849b1d3fa6b00f7ab6ee0` |
-| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm` | 1,261,568 | `5ae4dc119f990adde82a2b91c0b7feef` |
-
-If the MD5s differ you have a different rip and results will legitimately
-differ. `verify.js` will say so rather than failing silently.
-
-**Nothing copyrighted is in this repository.** The game, its artwork, its audio
-and its ROMs are commercial software still in copyright. All of it is
-gitignored and a pre-commit hook blocks it. This repository is scripts, tests
-and documentation. You supply the game, following this section.
-
-Install the guard after cloning:
+The detail is in **[docs/setup.md](docs/setup.md)**. The short version:
 
 ```bash
-ln -sf ../../tools/precommit-guard.sh .git/hooks/pre-commit
+# unpack the game zip into this directory, then:
+./tools/vendor.sh        # Tsugaru emulator + free ROMs into vendor/
+node tools/verify.js     # confirms your disc matches, 107 assertions
 ```
 
-## 1. What is in this directory
-
-| File | Size | What it is |
-|---|---|---|
-| `*.img` | 141,649,200 B | Raw 2352-byte/sector CD dump, 60,225 sectors (13:25) |
-| `*.cue` | 415 B | 8 tracks: track 1 data, tracks 2-8 CD audio |
-| `*.ccd` | 2137 B | CloneCD TOC for the same disc |
-| `*.sub` | 5,781,600 B | Subchannel data, 96 B per sector |
-| `*[UserDisk].hdm` | 1,261,568 B | FM Towns 2HD floppy: the player save disk |
-| `run.sh` | | Launcher (see section 4) |
-| `extract-u2.js` | | Extracts Ultima II assets (see section 7) |
-
-Facts confirmed by parsing the image, not assumed:
-
-- Track 1 is ISO 9660, volume label `TRILOGY`, ~112 files across `\`, `\GRAPH`,
-  `\SOUND`, `\UT1`, `\UT2`, `\UT3`.
-- The game executables are `DARKNESS.EXP`, `ENCHANT.EXP`, `EXODUS.EXP`, Pharlap
-  386|DOS-Extender images run through `RUN386.EXE`. The `.EXP` extension means
-  "executable", not "export".
-- `CONTROL.EXE` plus `TMENU.INF` form the boot menu that picks which of the
-  three games to launch.
-- The games are written in **C** and compiled with **MetaWare High C** for 386
-  protected mode. Every game `.EXP` carries `High C Run-time Library Copyright
-  (C) 1983-1988 MetaWare Incorporated`, plus Fujitsu's `TOWNS SOUND LIBRARY`
-  and `EUPHONY DRIVER` by Joe Mizuno. `RUN386.EXE` is Phar Lap's DOS Extender,
-  itself a High C build, so the toolchain is consistent across runtime and
-  game. Compiled C codegen shows through as ~440 standard `push ebp` then `mov
-  ebp,esp` function prologues in `DARKNESS.EXP`.
-- Tracks 2-8 are CD audio, peaking around +/-15,000 in 16-bit signed stereo.
-  Extracting the disc as a plain ISO discards all of it.
-- The graphics are 16bpp art wrapped in TIFF headers whose geometry tags are
-  wrong (they claim 257x169 while holding 512x169 of data). Only the game can
-  read them meaningfully, which is expected rather than corruption.
-
-`(Jp-En)` means the text is in English with Japanese produced only where the
-machine needs it. No translation patch is required.
-
-## 2. What you need to download
-
-### The emulator: Tsugaru
-
-FM Towns emulator by CaptainYS. BSD 3-clause, actively developed, roughly 97%
-of the commercial catalogue runs.
-
-1. Go to <https://github.com/captainys/TOWNSEMU/releases>.
-2. Open the newest release that has assets. Releases are marked
-   *pre-release* on GitHub, so **do not trust `/releases/latest`** or the
-   green "Latest" badge, they will show nothing. Pick the newest dated tag
-   (for example `v20260522`).
-3. Download `ubuntu_binary_latest.zip`, about 4.3 MB.
-4. Unpack it so that both executables sit directly inside `emulator/`:
+Expected layout once set up:
 
 ```
-emulator/Tsugaru_CUI
-emulator/Tsugaru_GUI   (optional, needs Qt6)
+fm-family-ultima-trilogy/
+├── vendor/                  emulator and ROMs, gitignored
+├── extracted/               extractor output, gitignored
+├── saves/                   save disks and CMOS, gitignored
+├── *.img  *.ccd  *.cue  *.sub   the disc, gitignored
+└── *[UserDisk].hdm          the save floppy, gitignored
 ```
 
-   `Tsugaru_GUI` shells out to `Tsugaru_CUI` and will not start without it in
-   the same directory.
+`./run.sh` launches the emulator on the host if you have a display. Pass extra
+Tsugaru options with `EXTRA`, and override paths with `EMU_DIR`, `ROM_DIR` or
+`SAVE_DIR`:
 
-Building from source is also fine:
-
-```
-git clone https://github.com/captainys/TOWNSEMU.git
-cd TOWNSEMU/gui/src
-git clone https://github.com/captainys/public.git
-cd .. && mkdir build && cd build
-cmake ../src && cmake --build . --parallel
+```bash
+EXTRA="-SCALE 200" ./run.sh
 ```
 
-You also need `xorg-xwayland` if you are on a Wayland session.
+## 2. Play in a browser
 
-### The ROMs: FreeTowns, no copyright problem
+Play from any machine that can reach the host over the network, with no display on
+the host and no emulator window to manage. The browser is the only thing on *your*
+machine. The host still needs podman, and still needs the emulator, the ROMs and
+the game, which the steps below cover.
 
-Tsugaru needs FM Towns ROM images. You can extract them from real hardware, but
-there is a free and legal replacement set built for exactly this purpose.
-
-1. Download <https://ysflight.in.coocan.jp/FM/towns/FreeTOWNS/ROMS.zip>
-2. Unpack the contents into `emulator/ROMS/`.
-3. You should end up with at least `FMT_SYS.ROM` and `FMT_DOS.ROM` in there.
-
-Background and the source for those ROMs: <https://github.com/captainys/TOWNSROM>
-plus the project page at <http://ysflight.com/FM/towns/FreeTOWNS/e.html>.
-
-If you use ROMs dumped from real hardware instead, the names differ
-(`IPLROM.DAT`, `CGROM.DAT`, and so on). `run.sh` accepts either. Towns OS
-software that depends on the Fujitsu font ROM may render text badly with the
-free set. The Ultima games do not need Japanese input, so this is not a
-blocker.
-
-## 2b. Use the CCD, not the CUE
-
-This disc has `PREGAP 00:02:00` before track 2, and that is a trap.
-
-Tsugaru's author documents the problem directly: a CUE file does not record
-which of two incompatible PREGAP interpretations produced it. Alcohol 52%
-treats PREGAP as affecting only its own track, ImgBurn as affecting every
-later track, and the resulting track start times differ for the same disc. The
-emulator has no way to tell which convention was used, so it cannot compensate.
-The README's verdict is that CUE is "absolutely inappropriate" for preservation
-and recommends `.MDS` or `.CCD`.
-
-The CCD here records the unambiguous answer: track 1 ends at sector 8999 and
-track 2 starts at 9000, with 450 real zero sectors in the image itself. So:
-
-- Feed Tsugaru the **`.ccd`**. `run.sh` does this automatically.
-- Keep the `.img` beside it, unmodified.
-- Do **not** convert to `.bin`/`.cue` or extract an ISO. Both lose or mangling
-  the audio track alignment.
-
-## 3. Play in a browser
-
-The quickest path, and the only one that needs nothing installed on your machine
-beyond a browser and a container runtime.
+This is worth it when the machine running the game is headless, or remote, or
+you want to poke at it from a phone. If you just want to play on the machine in
+front of you, section 3 is fewer moving parts.
 
 ### Vendor the emulator and ROMs
 
@@ -278,7 +202,7 @@ Full route list in `tools/README.md`. The save-disk routes (`/api/save/info`,
 headless over SSH. That is how the live palette was captured. See
 `tools/README.md`.
 
-## 4. Play locally with the emulator
+## 3. Play locally with the emulator
 
 
 ```
@@ -319,7 +243,7 @@ The script runs:
 Tsugaru_CUI <ROM_DIR> -CD <disc>.ccd -CMOS saves/CMOS.BIN -FD0 <UserDisk>.hdm
 ```
 
-## 5. Making a character
+## 4. Making a character
 
 Ultima II stores characters as plain ASCII, so there are three ways to make one
 and they all produce the same result. Pick whichever suits you.
@@ -414,12 +338,12 @@ Where most references say Stamina is never boosted, male gives it +10. Fighter
 splits its +15 into +10 STR and +10 AGI. Bobbit carries a penalty, which no
 published table has.
 
-## 6. Playing Ultima II for the first time
+## 5. Playing Ultima II for the first time
 
 **"A WRONG DISK" is harmless.** It appears twice during Ultima II's startup,
 before the splash screen. Press space through both. The game then runs normally.
 No disk preparation is needed, and the `[UserDisk]` from the zip works as
-shipped. See `FINDINGS.md` 8.5.
+shipped. See [the docs](docs/) 8.5.
 
 **Slot numbering catches everyone.** The character list you pick from is
 1-indexed but the roster file stores slots from 0, so in-game slot 1 is
@@ -474,7 +398,7 @@ the gameport settings.
 why `saves/CMOS.BIN` appears after the first clean exit. Delete that file to get
 back to a clean BIOS state.
 
-## 7. If it does not work
+## 6. If it does not work
 
 | Symptom | Cause |
 |---|---|
@@ -488,138 +412,64 @@ back to a clean BIOS state.
 Emulator compatibility list, including Origin titles confirmed working:
 <http://ysflight.com/FM/towns/FreeTOWNS/e.html>
 
-## 8. Extracting Ultima II assets
+## 7. Taking the game apart
 
-```
-node extract-u2.js
-```
+The full investigation lives in [`docs/`](docs/), split by subject. It is long,
+because it records the failures as well as the results, and the failures are what
+make the results credible.
 
-Writes `extracted/u2/` with `map/`, `sprites/`, `title/`, `sfx/` and a
-`manifest.txt` recording what decoded and what did not. No dependencies, no
-`sudo`. The disc is read in place and never modified.
+| page | what is in it |
+|---|---|
+| [Disc and binaries](docs/disc-and-binaries.md) | The platform, disc layout, the C toolchain, and the Phar Lap executable format. |
+| [Assets and graphics](docs/assets-and-graphics.md) | The asset set proved complete, and the 4bpp formats behind it. |
+| [Extraction](docs/extraction.md) | How to run the extractor, and what it produces. |
+| [Palette](docs/palette.md) | Five failed approaches before the palette was read from the running machine. |
+| [Sound](docs/sound.md) | The `.SND` effect format. |
+| [Save files](docs/save-files.md) | The roster format, and the measured stat modifiers. |
+| [Save disk](docs/save-disk.md) | Making the game write to a floppy. |
+| [Open questions](docs/open-questions.md) | What is still unknown. |
 
-The file list is not guesswork. `ENCHANT.EXP` contains its own asset paths as
-literal strings (`Q:\GRAPH\MAP2_1.TIF`, `A:\ROSTER1.UT2`, and so on), so the
-extractor uses exactly the set Ultima II opens. Confirmed from those strings:
+To regenerate everything from the disc:
 
-- **3 maps**: `MAP2_1`, `MAP2_2`, `MAP2_3`
-- **6 sheet/sprite files**: `PLAYER`, `ENEMY2`, `EXTRA`, `CHEST`, `DUNG1`, `DUNG2`
-- **14 title and ending images**: `HEADTTL`, `U2TITLE1-4`, `U2END1-5`, `GAI`,
-  `DUNMON1-3`
-- **14 sound effects**, out of the 15 `.SND` files on the disc
-- **3 save files** `ROSTER1.UT2` and `WORLD1-4.UT2`, which live on the UserDisk
-  floppy and do not exist until you start a game
-
-### Graphics
-
-Two different layouts, both determined by exact byte counts rather than by the
-TIFF headers, which on this disc are unreliable:
-
-| Layout | Sizes | Rule |
-|---|---|---|
-| Sheet | 320x104 | 1 pixel per byte, high nibble only |
-| Picture | 640x400, 256x200, 352x352, ... | 4bpp packed, 2 pixels per byte |
-
-Maps decode as legible terrain (coastlines, rivers, mountain rows). Pictures
-decode as legible title screens with readable text. Each picture is also
-written with a `_planar.png` suffix holding the planar interpretation, so the
-layout choice stays inspectable instead of being baked in silently.
-
-Two honest caveats:
-
-- **No palette.** These are 4-bit palette indices written as greyscale. The
-  index-to-colour mapping is not stored in the image files, it is set by code,
-  so the PNGs show structure and shapes but not original colours.
-- **`U2TITLE1` is two screens stacked.** It is 640x400 of packed pixels, which
-  is twice the 640x200 the visible title occupies. Row 200 is where the first
-  screen ends. The decode is correct, the layout is just a stacked pair.
-- **`DUNMON1-3` do not fit any layout.** 213504, 53760 and 13824 bytes against
-  8192, 2048 and 512 expected for their declared sizes. They are emitted on a
-  best-effort basis and should be treated as unresolved.
-
-### Sound effects
-
-`.SND` layout, verified against all 15 files on the disc. Every one satisfies
-`filesize == 32 + u32@12` exactly:
-
-```
- 0   char[8]  name
- 8   u32      flag (1 for most files, junk in FIRE and WHAT)
-12   u32      payload length, authoritative
-16   u32      payload length-1 for BUMP/FIRE/WHAT, else 0
-20   u32      same as 12 for BUMP/FIRE/WHAT, else 0
-24   u32      nominal sample rate, unreliable
-28   u16      always 60
-30   u16      always 0
-32   bytes    payload, runs to end of file, no trailer
+```bash
+node tools/verify.js     # every assertion, exits 0 if all pass
+node extract-u2.js       # writes extracted/u2/
+node tools/recolour.js   # renders the art in colour
 ```
 
-Field 24 is 1960 Hz for 13 of 15 files, but reads 2426302 for `BUMP`, 4292870291
-for `FIRE` and 1568 for `WHAT`. The WAV header uses 1960 Hz as the
-best-supported value and the manifest reports the raw field, so the guess stays
-visible rather than being silently trusted. If an effect sounds wrong-pitched,
-that field is the thing to revisit.
+## 8. The tools
 
-### What is not extracted
+All in `tools/`, each documented in [`tools/README.md`](tools/README.md).
 
-- **CD audio** (tracks 2-8): the trilogy soundtrack, not U2-specific. Extract
-  with `bchunk` against the `.cue` if you want it.
-- **`SOUND/ULTIMA.FMB`**: the FM instrument bank. It is shared by all three
-  games and needs a YM2612 renderer to become audio, so there is nothing to
-  convert here.
-- **`.EUP` files**: EUPHONY driver preset tables, not audio. No waveform data.
+**Playing.** `vendor.sh` fetches the emulator and ROMs, pinned so the setup is
+reproducible. `container-run.sh` runs the browser-playable container. `try.sh`
+starts it on fixed ports with a chosen floppy, tearing down the previous one
+first. `mame-run.sh` is the same for MAME, which is worth reading about in
+`docs/save-disk.md` before spending time on it.
 
+**Characters.** `savedisk.js` reads and writes a save disk from the shell,
+`makesave.js` builds a disk with characters from the command line using the same
+modules the web editor runs, and `test-savedisk.js` asserts the FAT12 and roster
+logic against a synthetic disk.
 
-## 9. The tools, and what each is for
+**Extraction.** `extract-u2.js` is the extractor, `cd.js` is the shared library
+for discs and image formats, `tilesheet.js` lays out tile banks, `recolour.js`
+applies the real palette.
 
-Everything here exists because something needed it. Listed by what you would use
-them for rather than by filename.
+**Binaries.** `pharlap.js` parses the `MP` and `P3` headers, `sym1.js` parses the
+symbol table in `TMENU.EXP`, `crossdiff.js` finds shared code between binaries,
+`findpal.js` does the I/O port census.
 
-### Playing and running
+**Verification.** `verify.js` asserts every claim against the disc,
+`precommit-guard.sh` blocks copyrighted data from being committed,
+`palette-reference.js` derives the palette from screenshots, `debug-session.sh`
+runs the emulator with its debugger.
 
-| tool | what it does |
-|---|---|
-| `tools/vendor.sh` | Downloads Tsugaru and the free FreeTOWNS ROMs into `vendor/`. Pinned version, so the setup is reproducible. |
-| `run.sh` | Runs the emulator directly on the host, for when you have a display. |
-| `tools/container-run.sh` | Builds and runs the browser-playable container. Ports, logs, shell. |
-| `tools/try.sh` | Starts the emulator on **fixed** ports with a chosen floppy, tearing down the previous container first. Use this rather than inventing new ports. |
-| `tools/mame-run.sh` | The same idea for MAME. Kept because MAME's floppy controller is a genuinely different implementation, but read `FINDINGS.md` 8.4 before spending time on it. |
+## 9. What is established, and what is not
 
-### Save disks and characters
+`tools/verify.js` is the authority, currently 107 assertions. It checks the rip
+identity, the disc structure, the executable headers, the toolchain, the asset
+inventory, every graphics and sound claim, and the negative results.
 
-| tool | what it does |
-|---|---|
-| `tools/savedisk.js` | Reads and writes an FM Towns save disk from the shell: `ls`, `cat`, `slots`, `clone`, `set`, `world-copy`, `newdisk`. |
-| `tools/makesave.js` | Builds a disk with characters from the command line, applying the measured modifiers. Imports the browser editor's own modules. |
-| `tools/test-savedisk.js` | 25 assertions over the FAT12 and roster logic, against a synthetic disk. Needs no game data. |
-| `web/` | The browser editor, published at the GitHub Pages URL above. |
-
-### Extraction
-
-| tool | what it does |
-|---|---|
-| `extract-u2.js` | Everything Ultima II needs: 23 graphics, 14 sound effects, title and ending art. Writes `extracted/u2/`. |
-| `tools/cd.js` | Shared library. Disc reader, ISO9660 walk, PNG and WAV writers, decoders for 4bpp packed, planar and byte-per-pixel, and `.SND`. Import this rather than reimplementing a format. |
-| `tools/tilesheet.js` | Lays a tile bank out as a labelled PNG grid, so you can see what the 65 `ENEMY2` tiles actually are. |
-| `tools/recolour.js` | Renders the extracted greyscale art using the real palette. Run this on `extracted/u2`. |
-
-### Understanding the binaries
-
-| tool | what it does |
-|---|---|
-| `tools/pharlap.js` | Parses the Phar Lap `MP` and `P3` headers. The size arithmetic is exact, which is how the header layouts were proved. |
-| `tools/sym1.js` | Parses the `SYM1` symbol table out of `TMENU.EXP`, then validates that the walk consumes the blob exactly. |
-| `tools/crossdiff.js` | Rabin-Karp shared-substring search between executables. Used to find the Fujitsu graphics library inside the game binaries. |
-| `tools/findpal.js` | I/O port census and indirect-call correlation. Indicative, not authoritative: see the caveat in `tools/README.md` before trusting it. |
-
-### Verification
-
-| tool | what it does |
-|---|---|
-| `tools/verify.js` | 107 assertions covering every claim in this repository, read from the disc. The authority on what is established. |
-| `tools/precommit-guard.sh` | Blocks a commit containing copyrighted game data. Install as a git hook, see section 0. |
-| `tools/palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
-| `tools/debug-session.sh` | Runs the emulator with its debugger, headless over SSH. How the live palette was captured. |
-| `tools/addfile-fat12.js` | Injects a file into an FM Towns 2HD FAT12 image. Used to get `FORMAT.EXE` onto a boot floppy. |
-
-`tools/README.md` has the detailed usage for each, plus the command lines.
+If a claim in `docs/` is not asserted there, treat it as unverified. The
+[open questions](docs/open-questions.md) page lists what is still unknown.

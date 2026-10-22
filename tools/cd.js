@@ -215,7 +215,7 @@ function parseTIFF(buf) {
 	};
 }
 
-// .SND: 32-byte header, then payload to EOF. See FINDINGS.md section 7.1.
+// .SND: 32-byte header, then payload to EOF. See `docs/sound.md` 7.1.
 const SND_HDR = 32;
 const SND_RATE_DEFAULT = 1960;
 function decodeSND(buf) {

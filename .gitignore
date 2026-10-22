@@ -146,6 +146,11 @@ CMOS.BIN
 *.log
 *.tmp
 
+# MkDocs build output. Built in CI and assembled with web/ into the Pages
+# artefact, so it never needs to be in git.
+/_site/
+/site/
+
 # --- Tooling noise ---------------------------------------------------------
 
 node_modules/

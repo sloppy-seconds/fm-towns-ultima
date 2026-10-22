@@ -2,7 +2,7 @@
 // tools/recolour.js - render U2's extracted 4bpp art using the real palette.
 //
 // The palette was read from the running game with `PRI PALETTE` in Tsugaru,
-// after U2 had installed its own table. See FINDINGS.md 6.17 and 6.18.
+// after U2 had installed its own table. See `docs/playing-and-environment.md` 6.17 and 6.18.
 //
 // This matters because every earlier extraction was greyscale: the pixel values
 // in the art files are 4-bit palette indices, not luminances. Rendering them as

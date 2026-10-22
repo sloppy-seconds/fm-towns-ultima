@@ -31,7 +31,7 @@ Two rules shape how the work is done:
 Working order from here:
 
 1. Data and artwork extraction for U2. This is the job.
-2. Format documentation. Every format gets a record in `FINDINGS.md`, because
+2. Format documentation. Every format gets a record in `docs/`, because
    an undocumented extraction is not repeatable.
 3. Code understanding, but only where it unlocks something extraction cannot
    reach. The palette is the standing example.
@@ -40,7 +40,7 @@ Working order from here:
 
 | File | Why |
 |---|---|
-| `FINDINGS.md` | Every probe tried, with measurements and verdicts. **Read before proposing any investigation.** Five palette approaches are already documented as failed. |
+| `docs/` | Every probe tried, with measurements and verdicts, split by subject. **Read before proposing any investigation.** Five palette approaches are already documented as failed. |
 | `README.md` | How to run the game, and how to run the extractors. |
 | `tools/README.md` | What each tool does and how to invoke it. |
 
@@ -65,7 +65,7 @@ Each looked convincing. Each was wrong. So:
   counts. `33280 == 320*104` and `filesize == 32 + u32@12` are proofs.
   Plausible-looking images and plausible-looking statistics are not.
 - Record failures. A failed probe is worth as much as a success, because it
-  stops the next person repeating it. `FINDINGS.md` exists for this.
+  stops the next person repeating it. `docs/` exists for this.
 
 ## Hard-won technical constraints
 
@@ -169,7 +169,7 @@ returns "Do what?".
 `A:\ROSTER1.UT2`). When a file list is needed, **read it out of the binary**
 rather than inferring from filenames. This is how the U2 asset set was confirmed.
 
-### Evidence lives in FINDINGS.md
+### Evidence lives in docs/
 
 New investigation, new section. Format per entry:
 
@@ -256,7 +256,7 @@ intermediate, it builds it from the disc each run.
   fails loudly.
 
 If something cannot yet be reproduced from the zip alone, it is not a finding.
-Write it in `FINDINGS.md` as OPEN and say what is missing.
+Write it in `docs/` as OPEN and say what is missing.
 
 A second person should be able to reproduce the disc identity independently.
 `verify.js` therefore checks file sizes, MD5 sums of the source files, and the
@@ -298,7 +298,7 @@ silently producing different results.
 ## Known-good findings
 
 Do not re-derive these. Everything here is backed by a measurement in
-`FINDINGS.md`.
+`docs/`.
 
 | Fact | Confidence |
 |---|---|
@@ -375,7 +375,7 @@ All of these are U2 extraction work. Some are marked *(validates)*, meaning
 they use the other binaries as a cross-check rather than as separate work.
 
 1. **Confirm the palette in-game.** `PRI PALETTE` now works headless
-   (FINDINGS 6.15) and gave a 16-colour table from the running machine. Those
+   (`docs/palette.md` 6.15) and gave a 16-colour table from the running machine. Those
    values were captured about 15 seconds into boot and look like the BIOS
    default set. Re-run `tools/debug-session.sh` once U2 is showing a coloured
    screen and compare. If the palette changes, that is U2's real table and the
@@ -402,7 +402,7 @@ they use the other binaries as a cross-check rather than as separate work.
 - Do not convert the disc to ISO or bincue. Audio track alignment is lost.
 - Do not treat greyscale output as a bug. Its cause is documented.
 - Ultima II saves work. A formatted FM Towns floppy is fine and was never the
-  problem. See `FINDINGS.md` 8.5. What went wrong for most of one session was
+  problem. See `docs/` 8.5. What went wrong for most of one session was
   that tests were run against disks whose contents had not been checked, and
   negative results were built on top of each other without re-verifying the
   input.
@@ -414,11 +414,11 @@ they use the other binaries as a cross-check rather than as separate work.
   (`tools/mame-run.sh`) but its `fmtowns` driver is `status="preliminary"` and
   the pointer dies at the CD launcher, so the games cannot be reached. It also
   needs a real Fujitsu ROM dump, since the FreeTOWNS clean-room ROMs all fail
-  CRC verification. See `FINDINGS.md` 8.4.
+  CRC verification. See `docs/` 8.4.
 - Do not use the FreeTOWNS ROMs with MAME. All four CRC32s mismatch, and
   `FMT_DIC.ROM` is byte-identical to `FMT_F20.ROM`, which is what a substitute
   build looks like rather than dumped silicon.
 - Do not use `-GENFD` with 640, 720 or 1440 and expect an FM Towns disk. Only
   1232 produces `IPL4` with 1024-byte sectors. The other three are IBM PC
   formats. The Tsugaru GUI offers the same four and produces identical bytes.
-- Do not repeat a failed probe listed in `FINDINGS.md` without a new method.
+- Do not repeat a failed probe listed in `docs/` without a new method.

@@ -14,7 +14,7 @@
 // arguments required. Everything is derived from the files on disk each run.
 //
 // Adding a finding? Add a check here too. A claim that is not in this file is
-// not verified, whatever FINDINGS.md says.
+// not verified, whatever [the docs](docs/) says.
 
 'use strict';
 
@@ -179,7 +179,7 @@ else bad('ccd track 2 starts at sector 9000', 'INDEX 1=9000 not present');
 // 3. Executable headers
 // ---------------------------------------------------------------------------
 
-section('Phar Lap MP/P3 headers (FINDINGS 6.7)');
+section('Phar Lap MP/P3 headers (`docs/save-disk.md` 6.7)');
 
 const LOADER_STUB = 0x75f;
 
@@ -321,7 +321,7 @@ else bad('U2 map path present', '\\UT2\\MAP.MP2 not found');
 // 6. Graphics formats
 // ---------------------------------------------------------------------------
 
-section('Graphics formats (FINDINGS 5.4)');
+section('Graphics formats (`docs/assets-and-graphics.md` 5.4)');
 
 function size(name) {
 	const e = cat.get('GRAPH/' + name + '.TIF');
@@ -400,7 +400,7 @@ for (const name of ['U2TITLE1', 'U2TITLE2', 'GAI', 'U2END1']) {
 // 7. Sound
 // ---------------------------------------------------------------------------
 
-section('Sound (FINDINGS 7.1)');
+section('Sound (`docs/sound.md` 7.1)');
 
 const SND = [
 	'BOMB2', 'BOMB4', 'BOMB5', 'BUL1', 'BUMP', 'DOOR3', 'FIRE', 'KATANA1',
@@ -521,7 +521,7 @@ if (!fs.existsSync(extracted)) {
 // --- asset coverage against the shipped binary ----------------------------
 // ENCHANT.EXP names every file U2 opens. Parse those names straight out of the
 // disc and confirm the extractor produced all of them. This is the check that
-// makes the completeness claim in FINDINGS.md machine-verified rather than
+// makes the completeness claim in [the docs](docs/) machine-verified rather than
 // prose.
 {
 	const { Disc } = require('./cd.js');
@@ -588,7 +588,7 @@ if (!fs.existsSync(extracted)) {
 }
 
 // --- floppy geometry -------------------------------------------------------
-// FINDINGS 8.1. The claim is that only a 1232 KB image is an FM Towns disk, and
+// `docs/save-files.md` 8.1. The claim is that only a 1232 KB image is an FM Towns disk, and
 // that the retail UserDisk shares its geometry. Both are checked against the
 // bytes rather than trusted as prose. The 640/720/1440 variants are not in the
 // repo because they are not used by anything, so they are asserted by rule.

@@ -1,7 +1,7 @@
 // tools/tilesheet.js - render a tile bank as a labelled PNG grid.
 //
 // The sprite files on this disc are banks of fixed-size tiles, not single
-// images (see FINDINGS.md 5.4). This lays them out with gutters so individual
+// images (see `docs/assets-and-graphics.md` 5.4). This lays them out with gutters so individual
 // frames can be inspected by eye.
 //
 // Usage:

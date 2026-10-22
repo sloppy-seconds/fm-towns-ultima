@@ -8,7 +8,7 @@ directory, so run them from the repo root.
 
 | Script | What it does |
 |---|---|
-| `verify.js` | **Start here.** Reproduces every claim in `FINDINGS.md` from the unpacked zip. Exits non-zero if any check fails. No arguments, no dependencies. |
+| `verify.js` | **Start here.** Reproduces every claim in [the docs](docs/) from the unpacked zip. Exits non-zero if any check fails. No arguments, no dependencies. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
 | `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. |
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
@@ -21,9 +21,9 @@ directory, so run them from the repo root.
 | `test-savedisk.js` | Assertions for the FAT12 and roster logic, against a synthetic disk. Needs no game data. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
-| `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
-| `crossdiff.js` | Rabin-Karp shared-substring search between executables. Used in FINDINGS.md 6.5. |
-| `findpal.js` | I/O census and port classification, plus indirect-call/constant correlation. Used in FINDINGS.md 6.6. |
+| `tilesheet.js` | Render a tile bank to a labelled PNG grid. See `docs/assets-and-graphics.md` 5.4 for which layout to use per file. |
+| `crossdiff.js` | Rabin-Karp shared-substring search between executables. Used in `docs/save-disk.md` 6.5. |
+| `findpal.js` | I/O census and port classification, plus indirect-call/constant correlation. Used in `docs/save-disk.md` 6.6. |
 
 ## Loading a Phar Lap executable
 
@@ -145,7 +145,7 @@ that was worth testing against the one game that will not save.
 It does not help. MAME boots the machine and shows Fujitsu's CD browser, but the
 pointer stops working at the grey launcher menu exactly as it does under
 Tsugaru, so Ultima II is never reached. MAME's own description of the driver is
-`status="preliminary" emulation="preliminary"`. Read FINDINGS.md 8.4 before
+`status="preliminary" emulation="preliminary"`. Read `docs/save-files.md` 8.4 before
 spending time here.
 
 It also needs a different ROM set. MAME will not accept the FreeTOWNS clean-room
@@ -297,7 +297,7 @@ node tools/verify.js --verbose
 node extract-u2.js            # produces extracted/u2/
 ```
 
-`verify.js` is the authority. If a claim in `FINDINGS.md` is not asserted there,
+`verify.js` is the authority. If a claim in [the docs](docs/) is not asserted there,
 treat it as unverified. If `verify.js` fails on the source file MD5s, you have a
 different rip of the disc and the results will legitimately differ.
 
@@ -328,4 +328,4 @@ Outputs go to `extracted/tiles/` and `analysis/`, both gitignored.
 instruction boundaries. The `MP` payload does not decode as one flat 32-bit
 stream, and evidence from `TMENU.EXP` shows the load address is not simply
 "file offset + 0x75f". Treat its port census as indicative, not authoritative.
-Read FINDINGS.md 6.6 before trusting anything it reports.
+Read `docs/save-disk.md` 6.6 before trusting anything it reports.
