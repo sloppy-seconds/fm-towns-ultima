@@ -2049,6 +2049,42 @@ are worth knowing:
 - Counting only `0x20` to `0x7E` as printable puts a normal DOS text file with
   CRLF endings at 80 percent and misclassifies it as binary.
 
+### 8.8 What a blank save disk actually contains
+
+This matters for any tool that wants to create a disk rather than edit one, and
+it is not obvious. Measured on the stock `[UserDisk]`:
+
+| region | offset | contents |
+|---|---|---|
+| boot sector | `0x0000`-`0x03FF` | `IPL4`, the BPB, and FBIOS boot code. 408 non-zero bytes |
+| FAT1 | `0x0400`-`0x07FF` | `FE FF FF` then zeros |
+| FAT2 | `0x0C00`-`0x0FFF` | identical to FAT1 |
+| root directory | `0x1400`-`0x2BFF` | one volume label entry, then `0xE5` fill |
+| data area | `0x2C00`-end | every byte `0xE5` |
+
+`0xE5` is the fill value an FM Towns format writes, which is the same byte that
+appears in a fresh `WORLD<n>.UT2` map grid. Space that has been formatted but
+never written is `0xE5`, not zero.
+
+A generated disk differs from the retail one in **exactly one byte**: offset
+`0x15`, the BPB media descriptor, which is `0x01` on the retail disk and `0xFE`
+from `-GENFD`. Everything else is identical.
+
+**Consequence for tooling.** The `0xE5` fill and the FAT can be synthesised from
+a formula. The boot sector cannot: it is Fujitsu BIOS code, the same category as
+the ROMs, and it is not ours to redistribute.
+
+So a standalone browser editor can **edit** any disk and **add characters** to
+any disk, but it must not claim to **create** a blank one. Practical routes for
+a user who has no formatted disk:
+
+1. Use the `[UserDisk].hdm` that ships in the zip. It is already formatted.
+2. `Tsugaru_CUI -GENFD <file> 1232`, which is one command and produces a correct
+   disk, differing from retail in one byte.
+3. Drop any known-good blank into the page and edit that.
+
+None of these requires shipping game or BIOS data, which is the point.
+
 ---
 
 ## 9. Open questions
