@@ -6,7 +6,8 @@ Three routes. Pick the one that matches where you are.
 
 | situation | route |
 |---|---|
-| I have a desktop, Linux or macOS or Windows | [Native](#route-1-native-emulator) |
+| I have a Linux or macOS desktop | [Native](#route-1-native-emulator) |
+| I have Windows | [Container](#route-2-container-browser-play), or native with a bash shell. Both untested. |
 | The machine is headless or remote, or I want to play in a browser | [Container](#route-2-container-browser-play) |
 | I only want to fix a save disk | [Editor alone](#route-3-the-editor-with-no-emulator) |
 
@@ -16,15 +17,43 @@ Three routes. Pick the one that matches where you are.
 `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`. Unpack it
 into the repository directory.
 
-**The emulator and ROMs.** One command, on any platform:
+**The emulator and ROMs.** Two downloads.
+
+1. **Tsugaru**, from
+   [github.com/captainys/TOWNSEMU/releases](https://github.com/captainys/TOWNSEMU/releases).
+   Take the latest tag and pick your platform: `windows_binary_latest.zip`,
+   `macos_binary_latest.zip` or `ubuntu_binary_latest.zip`. Unzip it into
+   `vendor/emulator/`.
+
+2. **The ROMs**, from
+   [ysflight.com/FM/towns/FreeTOWNS](https://ysflight.in.coocan.jp/FM/towns/FreeTOWNS/e.html).
+   Unzip into `vendor/roms/`.
+
+   **Yes, Tsugaru needs ROMs.** It emulates the hardware, and the hardware has
+   firmware. Tsugaru's own readme says there are two sources: extract them from a
+   real FM Towns if you own one, which gives the best fidelity, or use FreeTOWNS
+   if you do not. FreeTOWNS is a clean-room reimplementation rather than a Fujitsu
+   dump, so there is no copyright problem, and it is the option this project uses.
+   The set is compatible with the UNZ emulator too.
+
+On Linux and macOS one command does both:
 
 ```bash
 ./tools/vendor.sh
 ```
 
-That fetches Tsugaru and the free FreeTOWNS ROMs into `vendor/`, both gitignored.
-Tsugaru publishes Linux, macOS and Windows builds, and the script picks the right
-one from `uname`. Override with `TSUGARU_PLATFORM=macos` if detection is wrong.
+It is a shell script, so on Windows use Git Bash or WSL, or just do the two
+downloads above by hand. Under WSL it will fetch the Linux build, which is only
+right if you then run the emulator inside WSL.
+
+Either way you should end up with:
+
+```
+vendor/emulator/Tsugaru_CUI        (or Tsugaru_CUI.exe)
+vendor/roms/FMT_SYS.ROM  FMT_DOS.ROM  FMT_DIC.ROM  FMT_F20.ROM  FMT_FNT.ROM
+```
+
+`vendor/` is gitignored, because both halves are somebody else's work.
 
 **Confirm your disc matches:**
 
@@ -37,27 +66,57 @@ differ. That is stated rather than silently tolerated.
 
 ## Route 1: native emulator
 
-The shortest path, and the one with the fewest moving parts.
+The shortest path, and the one with the fewest moving parts. **Instructions
+rather than a script**, because a `.sh` wrapper would only work on two of the
+three platforms and this command works on all of them.
 
-```bash
-./run.sh
+Tsugaru takes the ROM directory first, then options. From the repository
+directory:
+
+```
+vendor/emulator/Tsugaru_CUI vendor/roms \
+  -CD   "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd" \
+  -CMOS saves/CMOS.BIN \
+  -FD0  "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm"
 ```
 
-That runs Tsugaru with the disc, the save floppy and a CMOS file, using the
-`vendor/` you just fetched. Override paths if you keep things elsewhere:
+On Windows the executable is `vendor\emulator\Tsugaru_CUI.exe` and the paths use
+backslashes. PowerShell:
 
-```bash
-EMU_DIR=/path/to/emulator ROM_DIR=/path/to/roms SAVE_DIR=/path/to/saves ./run.sh
-EXTRA="-SCALE 200" ./run.sh
+```powershell
+vendor\emulator\Tsugaru_CUI.exe vendor\roms `
+  -CD   "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd" `
+  -CMOS saves\CMOS.BIN `
+  -FD0  "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm"
 ```
 
-**Platform support.** Only Linux has been tested, specifically Bazzite. The
-script itself is plain shell, the emulator publishes macOS and Windows builds, and
-nothing in `run.sh` is Linux-specific beyond the executable name. But **macOS and
-Windows are untested**, and the likely snags are the executable being
-`Tsugaru_CUI.exe`, or macOS wanting the app bundle rather than the bare binary.
-If it fails, the container route below is better tested, and the editor route
-needs neither.
+On macOS, if you unzipped the release there may be an app bundle. Run the binary
+inside it rather than the `.app` itself.
+
+That is the whole invocation. What each option does:
+
+| option | why |
+|---|---|
+| `vendor/roms` | the ROM directory. First argument, no flag. |
+| `-CD <file>.ccd` | the disc. Use the `.ccd`, not the `.cue`: this disc's cue uses `PREGAP`, which is ambiguous. The `.img` must sit beside it, unmodified. |
+| `-CMOS saves/CMOS.BIN` | BIOS settings. Created on first clean quit, which is normal. Delete it to reset. |
+| `-FD0 <file>.hdm` | the save floppy in drive A. Omit it if you have none, and the game will report a wrong disk at character creation. |
+
+Add `-SCALE 200` for a larger window. Type `Q` then Enter to quit: closing the
+window skips the CMOS write.
+
+`./run.sh` does the same thing with a few conveniences (path discovery, checking
+the files exist, warnings about Wayland and missing ROMs). It is a shell script,
+so use it on Linux and macOS, or on Windows under Git Bash or WSL. The raw
+command above needs none of that.
+
+**Only Linux has been tested**, specifically Bazzite. **macOS and Windows are
+untested.** The emulator does publish builds for both, and the command above is
+the one it documents, but no machine has run this. The likely snags are macOS
+wanting the app bundle rather than the bare binary, and Windows objecting to
+argument quoting.
+
+If it does not work, the editor route needs neither emulator nor game.
 
 ## Route 2: container, browser play
 

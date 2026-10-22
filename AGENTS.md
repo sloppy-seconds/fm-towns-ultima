@@ -41,8 +41,54 @@ Working order from here:
 | File | Why |
 |---|---|
 | `docs/` | Every probe tried, with measurements and verdicts, split by subject. **Read before proposing any investigation.** Five palette approaches are already documented as failed. |
-| `README.md` | How to run the game, and how to run the extractors. |
+| `README.md` | The GitHub front door. How to set up, play, make a character, run the tools. |
+| `docs/index.md` | The docs site homepage. Scope, what is established, reading order. Not a copy of the README. |
+| `docs/quickstart.md` | Three routes to playing. The thing most visitors actually want. |
 | `tools/README.md` | What each tool does and how to invoke it. |
+| `web/README.md` | The browser editor, for someone who arrived there and no further. |
+
+### Documentation lives in four places, and changes go in all the relevant ones
+
+`README.md`, `docs/index.md` and `web/README.md` are **separate documents serving
+separate audiences**, not copies of each other. That is deliberate and it is also
+a trap, because the same facts appear in several.
+
+When something changes, ask which of these carry it:
+
+| changed | update |
+|---|---|
+| how to set up or run anything | `README.md` and `docs/quickstart.md` |
+| the project's scope, or what is established | `README.md`, `docs/index.md`, `web/README.md` |
+| a link to the site, editor or repo | all three of those |
+| a format finding | `docs/` only, plus `tools/verify.js` if assertable |
+| a platform limitation | `README.md`, `docs/quickstart.md` |
+
+Currently duplicated and easy to let drift: the archive.org link, the editor and
+docs URLs, the scope paragraph, and the untested-platform caveat. If you touch
+one, grep for the others.
+
+A fact stated in the README but not in `docs/` is fine. The same fact stated
+differently in two places is a bug waiting to be found.
+
+### Do not claim more platform support than has been tested
+
+Everything here was built on Linux and **only Linux has run it**. `vendor.sh`
+now detects Windows and macOS and fetches the right emulator build, and the
+executable names are handled, but no Windows or macOS machine has ever run this
+code.
+
+The specific trap: the scripts are `.sh` and do not run in `cmd` or PowerShell.
+Saying "one command, on any platform" about `./tools/vendor.sh` is false on
+Windows, and that exact wording was written and then corrected.
+
+When describing platform support, separate the two questions, because they have
+different answers:
+
+- **the container**, which is Linux inside and plausibly portable
+- **the shell scripts**, which need a bash environment on Windows
+
+Both must be marked untested. The browser editor is the only component that is
+genuinely cross-platform, because it is a web page.
 
 ## The central lesson of this project
 

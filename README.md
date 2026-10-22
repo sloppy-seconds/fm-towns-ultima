@@ -168,20 +168,31 @@ virtual screen clips it).
 
 ### Does this work on macOS or Windows?
 
-Probably, with a caveat worth stating plainly rather than implying support that
-has not been tested.
+**Untested.** Stated plainly rather than implied.
 
-*Everything is ordinary Linux containers.* The image is Ubuntu, and the pieces
-inside it are Xvfb, x11vnc, noVNC and the emulator, none of which care about the
-host OS. `tools/container-run.sh` detects SELinux and only adds the `:z` mount
-suffix where it is enforcing, which is what breaks on Docker Desktop if applied
-blindly.
+Two separate things, and they have different answers.
 
-The caveat is that **it has only been tested on Linux**, specifically Fedora
-Bazzite with rootful podman. On macOS and Windows the likely snags are performance
-under the virtual machine those runtimes use, and the emulator wanting a window
-(the container provides one via Xvfb, so this should be fine). If it does not
-work, the browser-based editor below needs no container at all.
+**The container** is the more likely to work. Everything inside it is ordinary
+Linux: an Ubuntu image running Xvfb, x11vnc, noVNC and the emulator, none of which
+care about the host OS. `tools/container-run.sh` detects SELinux and only adds the
+`:z` mount suffix where it is enforcing, which is exactly what Docker Desktop
+rejects if applied blindly. The likely snags are performance under the virtual
+machine those runtimes use, and the emulator wanting a window, which Xvfb
+provides. **Not verified on either platform.**
+
+**The shell scripts are a harder problem.** `tools/vendor.sh`, `tools/container-run.sh`
+and `run.sh` are `.sh` files. They do not run in `cmd` or PowerShell. On Windows
+they need Git Bash, MSYS2 or WSL, and under WSL `vendor.sh` will fetch the Linux
+build rather than the Windows one, which is only right if you then run the
+emulator inside WSL.
+
+If you would rather not deal with that, download `windows_binary_latest.zip` or
+`macos_binary_latest.zip` from
+[Tsugaru's releases](https://github.com/captainys/TOWNSEMU/releases) by hand and
+run the emulator directly.
+
+**The one route that definitely works everywhere is the editor**, because it is a
+web page. No emulator, no game, no install.
 
 ### The API
 
@@ -218,44 +229,35 @@ headless over SSH. That is how the live palette was captured. See
 
 ## 3. Play locally with the emulator
 
+The command, which works on Linux, macOS and Windows. From this directory:
 
 ```
-./run.sh
+vendor/emulator/Tsugaru_CUI vendor/roms \
+  -CD   "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd" \
+  -CMOS saves/CMOS.BIN \
+  -FD0  "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm"
 ```
 
-Expected layout:
+On Windows the executable is `vendor\emulator\Tsugaru_CUI.exe` and paths use
+backslashes.
 
-```
-fm-family-ultima-trilogy/
-├── emulator/
-│   ├── Tsugaru_CUI
-│   ├── Tsugaru_GUI          (optional)
-│   └── ROMS/
-│       ├── FMT_SYS.ROM
-│       └── FMT_DOS.ROM
-├── saves/                   created on first run
-├── run.sh
-├── *.img  *.cue  *.ccd  *.sub
-└── *[UserDisk].hdm
-```
+| option | why |
+|---|---|
+| `vendor/roms` | the ROM directory, first argument, no flag |
+| `-CD <file>.ccd` | the disc. Use the `.ccd`, not the `.cue` (see section 2b). The `.img` must sit beside it. |
+| `-CMOS saves/CMOS.BIN` | BIOS settings, created on first clean quit |
+| `-FD0 <file>.hdm` | the save floppy. Without it the game will refuse to make a character. |
 
-Environment overrides, if you keep the pieces elsewhere:
+Add `-SCALE 200` for a bigger window. Type `Q` then Enter to quit: closing the
+window skips the CMOS write.
 
-```
-EMU_DIR=/path/to/emulator ROM_DIR=/path/to/roms SAVE_DIR=/path/to/saves ./run.sh
-```
+`./run.sh` wraps the same command with path discovery, existence checks and
+warnings about missing ROMs and Wayland. It is a shell script, so Linux and macOS
+directly, or Windows under Git Bash or WSL. The raw command above needs none of
+that.
 
-Pass extra Tsugaru options with `EXTRA`:
-
-```
-EXTRA="-SCALE 200" ./run.sh
-```
-
-The script runs:
-
-```
-Tsugaru_CUI <ROM_DIR> -CD <disc>.ccd -CMOS saves/CMOS.BIN -FD0 <UserDisk>.hdm
-```
+**macOS and Windows are untested.** The emulator publishes builds for both and
+the command is the documented one, but no machine has run this.
 
 ## 4. Making a character
 

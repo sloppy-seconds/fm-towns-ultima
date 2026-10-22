@@ -100,11 +100,12 @@ of the commercial catalogue runs.
    green "Latest" badge, they will show nothing. Pick the newest dated tag
    (for example `v20260522`).
 3. Download `ubuntu_binary_latest.zip`, about 4.3 MB.
-4. Unpack it so that both executables sit directly inside `emulator/`:
+4. Unpack it so that both executables sit directly inside `vendor/emulator/`,
+   which is where `tools/vendor.sh` puts them and where `run.sh` looks:
 
 ```
-emulator/Tsugaru_CUI
-emulator/Tsugaru_GUI   (optional, needs Qt6)
+vendor/emulator/Tsugaru_CUI
+vendor/emulator/Tsugaru_GUI   (optional, needs Qt6)
 ```
 
    `Tsugaru_GUI` shells out to `Tsugaru_CUI` and will not start without it in
@@ -124,12 +125,18 @@ You also need `xorg-xwayland` if you are on a Wayland session.
 
 ### The ROMs: FreeTowns, no copyright problem
 
-Tsugaru needs FM Towns ROM images. You can extract them from real hardware, but
-there is a free and legal replacement set built for exactly this purpose.
+Tsugaru needs FM Towns ROM images. It emulates the hardware, and the hardware has
+firmware, so there is no way around this.
+
+Tsugaru's own readme puts it plainly: extract the ROMs from a real FM Towns if
+you own one, which gives the best fidelity, or use the free set if you do not.
+The free set is a clean-room reimplementation rather than a Fujitsu dump, and is
+compatible with the UNZ emulator as well, so it is not tied to this project.
 
 1. Download <https://ysflight.in.coocan.jp/FM/towns/FreeTOWNS/ROMS.zip>
-2. Unpack the contents into `emulator/ROMS/`.
-3. You should end up with at least `FMT_SYS.ROM` and `FMT_DOS.ROM` in there.
+2. Unpack the contents into `vendor/roms/`.
+3. You should end up with `FMT_SYS.ROM`, `FMT_DOS.ROM`, `FMT_DIC.ROM`,
+   `FMT_F20.ROM` and `FMT_FNT.ROM` in there.
 
 Background and the source for those ROMs: <https://github.com/captainys/TOWNSROM>
 plus the project page at <http://ysflight.com/FM/towns/FreeTOWNS/e.html>.
@@ -149,8 +156,14 @@ which of two incompatible PREGAP interpretations produced it. Alcohol 52%
 treats PREGAP as affecting only its own track, ImgBurn as affecting every
 later track, and the resulting track start times differ for the same disc. The
 emulator has no way to tell which convention was used, so it cannot compensate.
-The README's verdict is that CUE is "absolutely inappropriate" for preservation
-and recommends `.MDS` or `.CCD`.
+The README's verdict is stronger than a preference: CUE is "absolutely
+inappropriate" from a preservation point of view, and it highly recommends
+`.MDS` wherever the disc has an audio track.
+
+**This rip has no `.MDS`.** The archive.org download ships `.ccd` plus `.cue`,
+`.img` and `.sub`. So `.ccd` is not the author's first choice, it is the best of
+what is available here, and it is genuinely good: the CCD records track boundaries
+unambiguously, which is exactly the thing CUE cannot do.
 
 The CCD here records the unambiguous answer: track 1 ends at sector 8999 and
 track 2 starts at 9000, with 450 real zero sectors in the image itself. So:

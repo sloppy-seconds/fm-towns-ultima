@@ -8,13 +8,23 @@ site_dir: _site/docs
 # stays at the root where it has always been and where people link to it.
 use_directory_urls: true
 
+# repo_url drives the GitHub icon and repository name in the header, and the
+# "edit this page" pencil on every page. Using the theme's own support rather
+# than pasting an icon means the mark is Material Design Icons, Apache 2.0.
+repo_url: https://github.com/sloppy-seconds/fm-towns-ultima
+repo_name: sloppy-seconds/fm-towns-ultima
+
 theme:
   name: material
+  icon:
+    repo: fontawesome/brands/github
   features:
     - navigation.sections
     - navigation.top
     - navigation.indexes
+    - navigation.tabs
     - content.code.copy
+    - content.action.edit
     - search.suggest
   palette:
     - scheme: slate
@@ -63,3 +73,14 @@ nav:
 # referenced but not built. Edit `docs/index.md` for the site homepage.
 exclude_docs: |
   README.md
+
+# Explicit links, so the repo is reachable from the footer and on mobile where
+# the header icon is hidden.
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sloppy-seconds/fm-towns-ultima
+      name: Source on GitHub
+    - icon: material/language-html5
+      link: https://sloppy-seconds.github.io/fm-towns-ultima/
+      name: Save game editor
