@@ -454,6 +454,103 @@ functions. That is still the strongest lever available for the palette, because
 `EGB_palette` and the `Common_screen_data` blocks are library routines and data
 the games call, but it will not name U3's internals.
 
+### 6.8 SYM1 framing solved
+
+**Tried:** parse the `TMENU.EXP` symbol table. Four earlier attempts failed by
+assuming a fixed record stride, a padded name field, or a `u32` value.
+
+**Method that worked:** stop guessing the layout. Anchor on the names instead.
+An identifier is preceded by a length byte equal to its length, so every
+`(namelen, name)` pair is findable without knowing anything else. Then measure
+the gap from each name's end to the next length byte. That gap is the record
+tail, and it came out uniform at 6 bytes, 1,723 times out of 1,724.
+
+**Measured:** record layout, from the hexdump:
+
+```
+0x0e  07            namelen 7
+0x0f  "PROGRAM"     0x0f..0x15, ends 0x16
+0x16  00 00 00 00   six bytes unique to the first record
+0x1c  94 38 04 00   value 0x00043894
+0x20  0c 00         type 0x000c
+0x22  0a            next namelen
+0x23  "ACT_HANDLE"  ends 0x2d
+0x2d  f3 d2 00 00   value 0xd2f3
+0x31  01 00         type 1
+0x33  0a            next namelen
+```
+
+So: `[u8 namelen][name][u16 value][u16 reserved][u16 type]`, with the first
+record carrying 6 extra bytes before its value field.
+
+**Verdict:** POSITIVE. The walk consumes the blob exactly, ending on `0x7b7a`
+which is the blob length. 1,725 records, 1,723 with a nonzero value, values
+16-bit ranging `0xd8` to `0xffac`, type field 1 for 1,724 records.
+
+Implemented as `tools/sym1.js`. `--dump` writes `analysis/SYM1-symbols.txt`.
+
+**Caveat:** symbol values are **not** usable as direct file offsets. Testing
+`value`, `value-0x200` and `value+0x200` against known function prologues fails
+for every symbol. `push ebp`/`mov ebp,esp` prologues do exist in the file at
+`0xa04` through `0x33a48`, so code is present, but the address-to-file mapping
+requires a real `P3` loader and is *open*.
+
+### 6.9 The graphics library is named
+
+**Measured:** 30 `EGB_*` symbols, all in the `0xa168`-`0xa514` range, which is
+the Fujitsu graphics layer:
+
+`EGB_init`, `EGB_palette`, `EGB_color`, `EGB_pen`, `EGB_penSize`, `EGB_pset`,
+`EGB_rectangle`, `EGB_linePattern`, `EGB_paintMode`, `EGB_writeMode`,
+`EGB_clearScreen`, `EGB_partClearScreen`, `EGB_putBlock`, `EGB_putBlockColor`,
+`EGB_getBlock`, `EGB_maskData`, `EGB_displayPage`, `EGB_writePage`,
+`EGB_displayStart`, `EGB_resolution`, `EGB_graphicCursor`, `EGB_sjisString`,
+`EGB_fontStyle`, `EGB_textSpace`, `EGB_connect`, `EGB_unConnect`.
+
+Also `EGB_para` (0x3c44), `EGB_work` (0x3d44), `EGB_work2` (0x4344),
+`EGB_work3` (0x4944).
+
+Because these are library functions rather than per-game code, the palette
+routine is almost certainly **platform-level**, which resolves the open question
+in AGENTS.md in the useful direction.
+
+### 6.10 Palette recovered from screenshots
+
+**Tried:** the palette is not in the assets and not findable by scanning. But the
+running game displays it. Eight 640x480 FM Towns U2 screenshots from
+`pixsoriginadventures.co.uk/ultima-2-fm-towns-part-1` and `part-2` were used as
+ground truth.
+
+**Method:** quantise each screenshot to exactly 16 colours with dithering off,
+convert every colour to RGB555 (the CRTC format), then rank by screen area and
+by how many independent screens each entry appears in. JPEG noise does not
+survive cross-screen agreement.
+
+**Measured:** high-confidence entries, appearing on most screens:
+
+| RGB555 | RGB | Screens |
+|---|---|---|
+| `0x0000` | (0,0,0) | 8/8 |
+| `0x7fff` | (248,248,248) | 7/8 |
+| `0x7c00` | (248,0,0) | 7/8 |
+| `0x009c` | (0,32,224) | 6/8 |
+| `0x03c1` | (0,240,8) | 5/8 |
+| `0x0402` | (8,0,16) | 5/8 |
+| `0x07de` | (8,240,240) | 4/8 |
+| `0x7fca` | (248,240,80) | 4/8 |
+
+**Verdict:** POSITIVE on the palette being 16 colours and stable across screens.
+The colours are recognisable Ultima 2 tones: black, white, red, blue, green,
+cyan, yellow. Implemented as `tools/palette-reference.js`.
+
+**Open:** this is the **on-screen** palette, not the index-to-colour mapping
+used by the art files. Screenshots give the colours, not which index each
+corresponds to. Mapping index to colour still needs either the `EGB_palette`
+call site or a comparison of rendered art against screenshots. Also, JPEG
+compression means these values carry quantisation error of roughly +/- 8 per
+channel, so they are close enough to identify a palette but not to overwrite one
+byte for byte.
+
 ---
 
 ## 7. Sound

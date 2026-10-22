@@ -9,11 +9,38 @@ directory, so run them from the repo root.
 | Script | What it does |
 |---|---|
 | `verify.js` | **Start here.** Reproduces every claim in `FINDINGS.md` from the unpacked zip. Exits non-zero if any check fails. No arguments, no dependencies. |
+| `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. |
+| `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
 | `crossdiff.js` | Rabin-Karp shared-substring search between executables. Used in FINDINGS.md 6.5. |
 | `findpal.js` | I/O census and port classification, plus indirect-call/constant correlation. Used in FINDINGS.md 6.6. |
+
+## Symbols
+
+```bash
+node tools/sym1.js                  # summary + colour/graphics symbols
+node tools/sym1.js --find EGB_      # 30 EGB_* graphics functions
+node tools/sym1.js --dump           # writes analysis/SYM1-symbols.txt
+```
+
+## Palette from screenshots
+
+The palette is not in the assets and not findable by scanning the binary. The
+running game shows it, so screenshots are used as ground truth:
+
+```bash
+node tools/palette-reference.js --dir /path/to/u2-screenshots
+```
+
+Quantises each screenshot to 16 colours, converts to RGB555, and ranks entries
+by cross-screen agreement. A real palette entry appears on most screens, a JPEG
+artefact does not.
+
+Reference screenshots used for U2 came from
+`pixsoriginadventures.co.uk/ultima-2-fm-towns-part-1` and `part-2`. They are
+copyrighted and are not committed, per `AGENTS.md`.
 
 ## Copyright guard
 

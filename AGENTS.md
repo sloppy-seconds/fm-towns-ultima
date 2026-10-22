@@ -328,23 +328,24 @@ the search is different, so resolve this before hunting.
 All of these are U2 extraction work. Some are marked *(validates)*, meaning
 they use the other binaries as a cross-check rather than as separate work.
 
-1. **Locate the palette.** The single blocker on U2 art. Every image currently
-   comes out greyscale. The `SYM1` symbols `EGB_palette`, `EGB_color` and
-   `Palette_data1` in `TMENU.EXP` are the lead. Resolve those first, because
-   they also answer whether U2 has its own table or inherits a shared one, and
-   that decides where to search.
-2. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
+1. **Map palette indices to colours.** The colours themselves are now known
+   from screenshots (FINDINGS 6.10): 16 stable RGB555 entries, black, white,
+   red, blue, green, cyan, yellow and so on. What is still unknown is *which
+   index is which colour*, and the `EGB_palette` routine address does not
+   resolve to a file offset without a `P3` loader.
+2. **`P3` loader.** Promoted from last place. Two separate blockers now depend
+   on it: resolving `EGB_palette` to code, and reading the segment information
+   table in the `P3` header. Without it, symbol addresses are unusable.
+3. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
    table indexing `SPID` so each creature can be named and its frames grouped.
    *(validates)* compare the corresponding table shape in `EXODUS`.
-3. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
+4. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
    geometry and how `\UT2\MAP.MP2` relates to it.
-4. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
+5. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
    string in `ENCHANT.EXP` lists every field, so the schema is already known,
    the byte layout is not.
-5. **Strings.** `ENCHANT.EXP` holds the game text including the Japanese and
+6. **Strings.** `ENCHANT.EXP` holds the game text including the Japanese and
    English dialogue tables. Not yet extracted in usable form.
-6. **`MP`/`P3` loader.** Only worth building when something needs correct
-   disassembly. Items 1 and 2 may make it unnecessary.
 
 ## What not to do
 
