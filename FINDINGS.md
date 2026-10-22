@@ -1065,6 +1065,65 @@ must be writable (container mount and `-FD0UP`), and the launcher is what prints
 "A WRONG DISK". What is missing is the click path through TMENU's disk menu, or
 a route to a Towns OS command prompt. Recorded honestly rather than claimed.
 
+### 6.21 The save-disk messages, finally decoded
+
+**Method:** the game's user-facing messages are **Shift-JIS**, not ASCII, which
+is why searching for `WRONG DISK` in any executable found nothing. `ENCHANT.EXP`
+contains 2,294 Japanese strings. Decoded with `TextDecoder('shift_jis')`.
+
+**The messages, at known file offsets:**
+
+| offset | message | meaning |
+|---|---|---|
+| `0x1a0f` | ディスクが書き込み許可でない［許可にしたらキーを押せ］ | "The disk is not write-enabled [press a key once enabled]" |
+| `0x1a83` | ディスクをドライブに挿入せよ。［挿入したらキーを押せ］ | "Insert a disk into the drive [press a key when inserted]" |
+| `0x1af6` | 初期化したディスクをドライブに挿入せよ。［キーを押せ］ | "**Insert an initialised disk** into the drive [press a key]" |
+| `0x1b63` | 正しいディスクをドライブに挿入せよ［挿入したらキーを押せ］ | "Insert the correct disk into the drive [press a key]" |
+| `0x1cca` | 注意：ディスクが書き込み禁止である | "Note: the disk is write-protected" |
+| `0x2f9a` | 名簿データが読めません | "Cannot read roster data" (ROSTER1.UT2) |
+| `0x309a` | 世界データが読めません | "Cannot read world data" (WORLD1-4.UT2) |
+| `0x26e3` | 名簿データ | "Roster data" |
+| `0x27f1` | 世界データ | "World data" |
+
+So the English `A WRONG DISK` seen on screen is the localised form of
+`0x1b63`, and the requirement is explicit at `0x1af6`: **the disk must be
+initialised**. A blank or pre-labelled image will not do.
+
+**Confirmed by experiment:** removing the floppy entirely replaces the complaint
+with a different one, after which U2 proceeds all the way to character creation.
+So U2 starts without any disk and only demands one when it needs to read or write
+roster data.
+
+**Superseded:** the earlier claim in 6.19 that the message came from TMENU was
+wrong. It is U2's own Shift-JIS string. `MENU_DISK_FORMAT` in `TMENU.EXP` is a
+symbol-table entry for a build function, not a menu the user can reach, and
+`Tsugaru_GUI` has no format command. There is no way to format from outside the
+machine.
+
+**What is needed:** initialise the disk from **inside Towns OS**. The disc
+carries `FORMAT.EXP` for exactly this. Run it against drive A from a Towns OS
+command prompt, then launch U2. That is the path the original release assumes,
+and it is the only remaining route.
+
+**Attempted and failed:** passing `-CONSCMD FORMAT.EXP` as a launch argument.
+The emulator accepted the option, the argument was correctly formed (verified in
+the container log), the VM booted normally, and the floppy image was
+**byte-identical afterwards** (`5ae4dc119f99` before and after). The command did
+not format anything.
+
+`CONSCMD` is not a console command, so it cannot be injected through the
+supervisor API either; typing it returns `Do what?`. It is a launch option only.
+
+Likely reasons, none verified: `-CONSCMD` requires the exact Towns OS command
+syntax (`FORMAT.EXP` may need a path or different switches), the command runs
+before the drive is ready, or `FORMAT.EXP` needs interactive confirmation that a
+non-interactive launch cannot supply.
+
+**Not done:** the interactive route. Booting with `NO_FD=1` reaches U2's
+character creation with no disk error, so the launcher and the game both work.
+What remains is formatting a disk through the Towns OS user interface, which
+needs a human at the browser session.
+
 ---
 
 ## 7. Sound

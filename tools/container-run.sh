@@ -87,7 +87,9 @@ cmd_start() {
 	# "A WRONG DISK" and refuse to manage saves. Copy the pristine image into
 	# saves/ once, and mount that copy read-write so the original in the repo
 	# root is never modified.
-	if [ -f "$USERDISK" ]; then
+	# NO_FD=1 boots with no floppy in drive A. Useful for testing whether a
+	# game complaint is about drive A at all.
+	if [ "${NO_FD:-0}" != "1" ] && [ -f "$USERDISK" ]; then
 		SAVEDISK="$ROOT/saves/userdisk.hdm"
 		[ -f "$SAVEDISK" ] || cp "$USERDISK" "$SAVEDISK"
 		args+=(-v "$SAVEDISK:/disc/userdisk.hdm:z" -e "FD0_IMAGE=/disc/userdisk.hdm")
