@@ -264,8 +264,30 @@ characters overwrites slot 0, so it can look like nothing is being kept.
 **Quit properly.** Type `Q` then Enter in `Tsugaru_CUI`. Closing the window
 skips the CMOS write, so BIOS settings and your save disk state are not flushed.
 
-**Choosing a game.** The disc boots into the `CONTROL` menu. Pick 1, 2 or 3 for
-*Ultima I*, *II* or *III*.
+**Choosing a game.** The disc boots into the `CONTROL` menu, a grey browser with
+Japanese labels. Double-click the icon for the game: `ULTIMA I` is icon 1,
+`ULTIMA II` icon 2, `ULTIMA III` icon 3. The launch commands are in `TMENU.INF`
+on the disc if the icons are ambiguous.
+
+**Starting a game, step by step.** This is the sequence that trips people up, so
+it is written out in full. Ultima II:
+
+1. Double-click the Ultima II icon.
+2. "A WRONG DISK [push space]" appears **twice**. Press space through both. It
+   is harmless. The splash screen follows.
+3. Press space at the splash.
+4. Generate character, then create a character.
+5. Allocate stats, choose race, sex and profession, type a name, press Enter,
+   answer **Y**.
+6. "saving world data" appears.
+7. The game returns to `create entry 1-4`. **Choose 0.** Picking 1 to 4 starts
+   character creation again. This is the step that looks like a bug.
+8. Look at a character, choose the slot, check the character is there.
+9. Press space, choose **0** again at the slot prompt, then main menu.
+10. Journey onward, select the character, answer **Y**, press space at
+    "player selected", wait at "loading".
+
+Steps 7 and 9 both require **0**, and neither prompt tells you that.
 
 **Controls.** The FM Towns has no mouse for this game. It is keyboard driven.
 `Tsugaru_CUI` maps host keys directly, so the commands match the on-screen

@@ -1829,18 +1829,33 @@ Tsugaru's `-GENFD 1232` does not already create.
 **Tried:** mount an untouched copy of the `[UserDisk]` that ships with the
 release, launch Ultima II, create a character, save world data, quit, and reload.
 
-**Measured:** Ultima II is fully playable. The exact sequence that works:
+**Measured:** Ultima II is fully playable. This is the exact navigation, as
+performed, with the awkward steps kept in:
 
-1. Launch Ultima II from the CD browser.
-2. **"A WRONG DISK [push space]" appears twice during startup.** Press space
-   through both. The game then shows its splash and runs normally.
-3. Select generate character, then create a character.
-4. Allocate stats, choose race/profession/sex, enter a name, confirm with Y.
-   The game reports "saving world data" and returns to slot selection.
-5. Choose the slot again and look at the character. It is there, with stats
-   modified by race and sex.
-6. Main menu, journey onward, select the character, confirm Y, press space at
-   "player selected", the game loads and plays.
+1. Boot the disc. It lands in the `CONTROL` menu (the grey CD browser).
+2. Double-click the **Ultima II** icon.
+3. **"A WRONG DISK [push space]" appears twice.** Press space through both. The
+   splash screen follows.
+4. Press space at the splash.
+5. Choose **generate character**.
+6. Choose **create a character**.
+7. Allocate stats. The values used were strength 20, agility 15, stamina 20,
+   charisma 15, wisdom 10, intelligence 10.
+8. Choose race **human**, sex **female**, profession **fighter**.
+9. Type a name, press Enter, answer **Y** to the create prompt.
+10. "saving world data" appears.
+11. Back at `create entry 1-4`. **This is where it goes wrong for most people.**
+    Choosing 1 to 4 re-enters character creation. Choose **0** to leave.
+12. Choose **look at a character**, pick the slot, and the character is shown.
+    Stats are higher than entered because race and sex modify them.
+13. Press space, then **0** again at the slot prompt, then **main menu**.
+14. Choose **journey onward**. Four slots are listed, slot 1 holding the new
+    character and the rest empty.
+15. Select the character, answer **Y**, press space at "player selected", wait
+    at "loading", and the game starts.
+
+Step 11 is the one that reads as a bug and is not. Steps 11 and 13 both need
+**0**, and neither prompt says so.
 
 The packaged disk afterwards:
 
