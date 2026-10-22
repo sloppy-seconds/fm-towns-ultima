@@ -1180,9 +1180,21 @@ selector, not a Towns OS shell.
    States, then Save machine state. Captures the whole VM so play resumes
    exactly. Console equivalents `SSTATE`/`LSTATE`, and `-QUICKSTATESAVE` at
    launch. Tied to the emulator build, so debugger-grade rather than portable.
-2. **A Towns OS environment.** Towns OS 1.1 or 2.1, or the Tsugaru project's
-   Rescue Boot Loader CD, would give a command prompt where `FORMAT.EXP` can
-   actually be run. Not present in this download.
+2. **A Towns OS environment.** Towns OS V1.1 L10 or V2.1 L20/L31, or the
+   Tsugaru project's Rescue Boot Loader CD, would give a command prompt where
+   `FORMAT.EXP` can actually be run. Not present in this download.
+
+   **Tested and ruled out:** booting with `-NOINTCD` and no disc, hoping the
+   FreeTOWNS compatible ROM would fall through to a shell. It does not. The
+   machine stops inside the boot ROM at `CS:EIP=FC00:00000A04` displaying a
+   notice about running on compatible ROMs, and ignores keystrokes. The reason
+   is that `FMT_SYS.ROM` still needs a bootable medium, and the supplied
+   `UserDisk` floppy carries an `IPL4` boot sector with **no bootable files in
+   it**, so there is nothing to boot. Verified: no `.EXE`, `.SYS` or `.COM`
+   entries anywhere in the boot area.
+
+   So a compatible ROM is not enough on its own. A real Towns OS CD image is
+   required.
 3. **Patch or bypass.** U2 could be patched to skip the save, or the disk
    initialisation performed by a small Towns OS program written for the purpose.
    Both are real projects, not quick fixes.
