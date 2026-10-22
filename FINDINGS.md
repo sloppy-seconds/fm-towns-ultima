@@ -1209,6 +1209,42 @@ selector, not a Towns OS shell.
    initialisation performed by a small Towns OS program written for the purpose.
    Both are real projects, not quick fixes.
 
+### 6.23 The zero-filled disk suggestion, assessed
+
+**Suggestion received:** create a save disk with
+`dd if=/dev/zero of=save_disk.d88 bs=1261568 count=1` and mount it as `-FD0`.
+
+**Assessed against the evidence, and it cannot work.** Measured byte histograms:
+
+| image | size | dominant bytes |
+|---|---|---|
+| supplied `[UserDisk].hdm` | 1,261,568 | `0xE5` x1,250,304, `0xF6` x5,922, `0x00` x4,913 |
+| `TsugaruUtil.D77` | 1,281,968 | `0xE5` x1,005,615, `0x00` x186,364, `0xF6` x7,758 |
+| `dd` zero fill | 1,261,568 | `0x00` x1,261,568 |
+
+Both real disks are dominated by `0xE5`, which is FAT12's free-cluster marker.
+A zero-filled file has none of that. It has no boot sector, no BPB, no FAT and no
+directory, so it is not a formatted disk at all. U2's own requirement, decoded
+from Shift-JIS at `0x1af6`, is an **initialised** disk. Zeros are not that.
+
+**Also note the sizes:** FM Towns 2HD is 1,261,568 bytes (1232 x 1024),
+confirmed against the supplied image. 1.44 MB is the IBM PC format and does not
+apply here, so creating a 1.44 MB image would be wrong for this machine.
+
+**Tested:** mounted a zero-filled image as FD0 and booted. The launcher came up
+normally, but reaching character creation to observe the write attempt was not
+completed, so the zero-disk case is *unconfirmed in practice*. It is however
+ruled out on structure alone: a filesystem-less image cannot satisfy a check for
+an initialised disk.
+
+**One thing in the suggestion is right and useful:** `-GAMEPORT0 KEY` maps the
+game port to keyboard. Worth adding for any title that reads a joystick, though
+U2 is keyboard and mouse driven so it does not apply here.
+
+**Still the conclusion:** a Towns OS image is needed to initialise a floppy. No
+amount of external file creation substitutes for running the machine's own
+formatter.
+
 ---
 
 ## 7. Sound
