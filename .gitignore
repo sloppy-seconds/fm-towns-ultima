@@ -1,24 +1,149 @@
-# Game data: copyrighted, and 141 MB. Never commit it.
+# Copyrighted material. Nothing in this list may ever be committed.
+#
+# The disc images and ROMs are commercial, still-in-copyright software. They are
+# not distributed with this repository. Anyone who wants them gets them from
+# archive.org themselves, per README.md section 0. Only scripts, tests and
+# documentation belong in git.
+#
+# Adding a rule here is cheap. Committing a game file is not recoverable, because
+# history is forever and a rewrite does not un-distribute it. When in doubt,
+# ignore.
+
+# --- Game data -------------------------------------------------------------
+
+# Disc images. CloneCD trio, ISO, Alcohol, raw bin/cue.
 *.img
 *.sub
 *.cue
 *.ccd
-*.hdm
 *.iso
 *.mds
 *.mdf
 *.bin
+*.nrg
+*.toast
+*.dmg
 
-# Emulator binaries and ROMs: downloaded per README, never committed.
+# Floppy and hard disk images (the FM Towns save floppy lives here).
+*.hdm
+*.HDM
+*.d77
+*.d88
+*.hdf
+*.vhd
+*.fdi
+*.2hd
+
+# Archive formats. A .zip of the retail release is the single most likely way
+# for copyrighted data to arrive by accident.
+*.zip
+*.7z
+*.rar
+*.lzh
+*.tar
+*.tar.gz
+*.tgz
+
+# Executables and libraries from the disc, even if extracted somewhere tidy.
+*.exe
+*.EXE
+*.exp
+*.EXP
+*.Exp
+*.com
+*.COM
+*.sys
+*.SYS
+*.drv
+*.DRV
+*.386
+*.rex
+*.REX
+
+# Any surviving dump of the game files themselves. Both cases are listed
+# because gitignore patterns are case-sensitive and FM Towns and DOS tooling
+# upper-cases extensions. *.TIF in particular will slip through a *.tif rule.
+*.snd
+*.SND
+*.eup
+*.EUP
+*.fmb
+*.FMB
+*.tif
+*.TIF
+*.tiff
+*.TIFF
+*.mp3
+*.MP3
+*.mp2
+*.MP2
+*.mp1
+*.MP1
+*.dg3
+*.DG3
+*.dic
+*.DIC
+*.fnt
+*.FNT
+
+# --- Case-insensitive safety net ------------------------------------------
+# Enumerating every mixed-case spelling is a losing game, as z.Eup proved.
+# These patterns catch any capitalisation of the extensions that matter.
+*.[eE][xX][pP]
+*.[eE][xX][eE]
+*.[cC][oO][mM]
+*.[sS][yY][sS]
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
+*.[sS][nN][dD]
+*.[eE][uU][pP]
+*.[fF][mM][bB]
+*.[mM][pP][0-9]
+*.[dD][gG][0-9]
+*.[hH][dD][mM]
+*.[dD]77
+*.[zZ][iI][pP]
+*.[rR][aA][rR]
+*.[lL][zZ][hH]
+*.[dD][iI][cC]
+*.[fF][nN][tT]
+
+# --- Emulator and ROMs -----------------------------------------------------
+
+# Tsugaru binaries and ROM sets are downloaded per README, never committed.
+# ROMs are copyrighted whether dumped from hardware or not.
 /emulator/
+*.rom
+*.ROM
+*.DAT
+*.dat
 
-# Runtime state.
+# Extracted artwork and audio formats. A stray .png or .wav in the repo root is
+# just as much derived copyrighted content as the original disc file.
+*.[pP][nN][gG]
+*.[gG][iI][fF]
+*.[bB][mM][pP]
+*.[wW][aA][vV]
+*.[fF][lL][aA][cC]
+
+# --- Derived output --------------------------------------------------------
+
+# Extracted artwork and audio is derived from copyrighted data. Same rule.
+/extracted/
+/analysis/
+/output/
+/build/
+
+# --- Runtime state ---------------------------------------------------------
+
 /saves/
 CMOS.BIN
 *.log
+*.tmp
 
-# Extracted assets: derived from the copyrighted disc, regenerate with extract-u2.js
-/extracted/
+# --- Tooling noise ---------------------------------------------------------
 
-# Analysis output (regenerate with tools/)
-/analysis/
+node_modules/
+package-lock.json
+.DS_Store
+*.swp

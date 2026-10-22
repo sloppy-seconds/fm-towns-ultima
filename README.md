@@ -40,6 +40,17 @@ Expected source file checksums, so you can confirm you have the same rip:
 If the MD5s differ you have a different rip and results will legitimately
 differ. `verify.js` will say so rather than failing silently.
 
+**Nothing copyrighted is in this repository.** The game, its artwork, its audio
+and its ROMs are commercial software still in copyright. All of it is
+gitignored and a pre-commit hook blocks it. This repository is scripts, tests
+and documentation. You supply the game, following this section.
+
+Install the guard after cloning:
+
+```bash
+ln -sf ../../tools/precommit-guard.sh .git/hooks/pre-commit
+```
+
 ## 1. What is in this directory
 
 | File | Size | What it is |

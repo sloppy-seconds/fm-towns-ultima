@@ -144,6 +144,47 @@ New investigation, new section. Format per entry:
 Corrections go in as corrections. Superseded claims get marked as superseded
 rather than quietly deleted, because the history of being wrong is useful.
 
+## Copyrighted material never enters git
+
+This is a standing rule with no exceptions and no judgement call.
+
+**What is copyrighted here:** the disc images, the floppy image, the executables,
+all artwork, all audio, the ROM sets, and anything extracted from them. The game
+is commercial software still in copyright. This repository distributes
+**scripts, tests and documentation only**.
+
+**Why it is absolute:** committing a copyrighted file is not recoverable. Git
+history is permanent, a force-push does not un-distribute what has already been
+cloned, and the mistake cannot be undone by the person who made it. The cost of
+an over-broad ignore rule is that someone un-ignores one line. The cost of
+committing a retail game is a distributed copyright violation. Bias hard toward
+ignoring.
+
+Rules that follow:
+
+- Everything copyrighted is in `.gitignore`. If you find something copyrighted
+  that is not covered, add the rule **before** doing anything else.
+- Never `git add -f`. The force flag exists to defeat the only protection there
+  is. If a file is ignored and you think it should be tracked, that is a
+  conversation, not an override.
+- Extracted output is copyrighted too. `extracted/`, `analysis/` and anything
+  derivable from the disc stays out. The extraction **code** is committed, the
+  extraction **product** is not.
+- Do not paste game text, dialogue tables, or long strings from the binaries
+  into documentation. Schema strings and format names (`SHAPE=%d`, `EGB_palette`)
+  are protocol and are fine. Dialogue and story text are not.
+- Extension matching is a safety net, not a guarantee. Gitignore patterns are
+  case-sensitive, so mixed-case extensions slip through naive rules. The file
+  has a case-insensitive block for this reason. Test any new rule against
+  capitalised and mixed-case variants before trusting it.
+- Before committing, run `git status --ignored` and confirm the expected files
+  are among the ignored set rather than the tracked set.
+- A verification harness asserting the presence of copyrighted files is fine.
+  The harness must read them from disk and must not bundle them.
+
+The test is not "is this file small enough to sneak in". The test is "would a
+stranger cloning this repository receive a copy of the game".
+
 ### Reproducibility is the hard requirement
 
 Every result in this repository must be reproducible by a stranger who has done
