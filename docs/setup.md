@@ -13,7 +13,13 @@ Everything about the disc can be reproduced from the archive.org zip alone.
 1. Download the zip linked above.
 2. Unpack it into this directory. You should end up with the five files in
    section 1.
-3. Run:
+3. Confirm the rip, which needs no Node:
+
+```bash
+./tools/check-disc.sh
+```
+
+4. If you are also extracting assets, which does need Node:
 
 ```bash
 node tools/verify.js     # every assertion about the disc, exits 0 if all pass

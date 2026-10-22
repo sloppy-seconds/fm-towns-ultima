@@ -58,11 +58,18 @@ vendor/roms/FMT_SYS.ROM  FMT_DOS.ROM  FMT_DIC.ROM  FMT_F20.ROM  FMT_FNT.ROM
 **Confirm your disc matches:**
 
 ```bash
-node tools/verify.js     # 107 assertions, exits 0 if all pass
+./tools/check-disc.sh
 ```
 
-If it fails on checksums you have a different rip, and results will legitimately
-differ. That is stated rather than silently tolerated.
+Plain shell, no dependencies beyond `md5sum` or `md5`. It compares sizes and
+checksums against the rip this work was built on, and peeks at sector 0 to
+confirm the disc is a MODE1 image. If anything differs you have a different rip
+and results will legitimately differ.
+
+There is also `node tools/verify.js`, which checks 107 things including the
+executable headers, the asset inventory and every format claim. You only need
+that if you are going to run the extractors, because those need Node anyway. For
+playing, `check-disc.sh` is enough.
 
 ## Route 1: native emulator
 

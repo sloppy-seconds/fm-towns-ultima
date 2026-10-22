@@ -96,8 +96,11 @@ The detail is in **[docs/setup.md](docs/setup.md)**. The short version:
 ```bash
 # unpack the game zip into this directory, then:
 ./tools/vendor.sh        # Tsugaru emulator + free ROMs into vendor/
-node tools/verify.js     # confirms your disc matches, 107 assertions
+./tools/check-disc.sh    # confirms your disc matches. plain shell, no Node
 ```
+
+Neither needs Node. `node tools/verify.js` checks 107 things, but that is for
+working on the extraction, not for playing.
 
 Expected layout once set up:
 
@@ -445,13 +448,15 @@ make the results credible.
 | [Save disk](docs/save-disk.md) | Making the game write to a floppy. |
 | [Open questions](docs/open-questions.md) | What is still unknown. |
 
-To regenerate everything from the disc:
+To regenerate everything from the disc. This part needs Node, unlike playing:
 
 ```bash
 node tools/verify.js     # every assertion, exits 0 if all pass
 node extract-u2.js       # writes extracted/u2/
 node tools/recolour.js   # renders the art in colour
 ```
+
+No npm packages. Node on its own is enough.
 
 ## 8. The tools
 
