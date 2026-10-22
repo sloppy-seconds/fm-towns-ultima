@@ -144,6 +144,46 @@ New investigation, new section. Format per entry:
 Corrections go in as corrections. Superseded claims get marked as superseded
 rather than quietly deleted, because the history of being wrong is useful.
 
+### Reproducibility is the hard requirement
+
+Every result in this repository must be reproducible by a stranger who has done
+nothing but download the `.zip` from the Internet Archive. That is the standard.
+Not "it worked on my machine", not "the author has the disc already".
+
+Concretely, that person must be able to:
+
+1. Download
+   `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip` from
+   `archive.org/details/fmtownscdcollection`.
+2. Unpack it into this directory, producing the five files listed in
+   `README.md` section 1.
+3. Run `node tools/verify.js` and get the same pass/fail verdict as everyone
+   else.
+4. Run the extractors and get byte-identical output, verified by checksums.
+
+So every non-obvious fact needs all three of: a script that derives it, a test
+that confirms it, and a paragraph that explains it.
+
+- **No result may depend on unshared state.** Not a temp file, not a cached
+dump, not something produced in an earlier conversation. If a script needs an
+intermediate, it builds it from the disc each run.
+- **No result may depend on manual steps.** If a human had to hand-edit a byte,
+  that edit must become code.
+- **Every extraction is checksummed.** `tools/verify.js` records expected
+  SHA-256 sums for every output. A mismatch means either the disc is a different
+  rip or a decoder changed, and both need to be known.
+- **Assertions replace prose where possible.** "`MAP2_1` is 33,280 bytes" is a
+  claim. `assert(size === 33280)` in `verify.js` is a fact that stays true or
+  fails loudly.
+
+If something cannot yet be reproduced from the zip alone, it is not a finding.
+Write it in `FINDINGS.md` as OPEN and say what is missing.
+
+A second person should be able to reproduce the disc identity independently.
+`verify.js` therefore checks file sizes, MD5 sums of the source files, and the
+ISO volume label, so a different rip of the same game is detected rather than
+silently producing different results.
+
 ### Scripts
 
 - Every extraction step lives in `tools/` and is committed. Nothing is done by
@@ -153,6 +193,8 @@ rather than quietly deleted, because the history of being wrong is useful.
 - Scripts must print what they did, including counts and any mismatch.
 - Write derived artefacts to `extracted/` or `analysis/`, both gitignored.
   Never commit game data, ROMs, or extracted assets.
+- `tools/verify.js` is the entry point for anyone checking this work. It must
+  stay dependency-free and must not require arguments.
 
 ### Editing files
 

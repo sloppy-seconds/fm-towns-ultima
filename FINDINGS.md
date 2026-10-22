@@ -36,6 +36,21 @@ track 2 starting at 9000, with 450 zero sectors present in the image.
 **Verdict:** use the CCD. Tsugaru's author documents PREGAP as ambiguous, so a
 CUE cannot be interpreted reliably. Positive result.
 
+**Tried:** reconcile the ISO 9660 volume space against the CCD track map.
+
+**Measured:** PVD volume space size is 12,911 sectors (LE and BE agree). The
+disc total is 60,225 sectors. Track 1 is claimed to end at 8999 and track 2 to
+start at 9000.
+
+**Verdict:** the two numbers do not match and are not supposed to. Volume space
+covers the filesystem only, and the seven audio tracks sit outside it. But 12,911
+is larger than the 9,000 sectors the track map assigns to track 1, which means
+the ISO is declared as extending past where the CCD says audio begins. In
+practice the data files all live below sector 6,000 so nothing is lost, and the
+disc plays correctly in Tsugaru. Recorded because it is a real inconsistency in
+the rip rather than something to assume away. *Open whether the CCD track
+boundary or the PVD is the wrong one.*
+
 **Tried:** confirm the audio tracks are real CD-DA.
 
 **Measured:** 16-bit big-endian stereo, peaks around +/-15,000.
@@ -95,7 +110,9 @@ segment table has not been located.
 `_mwStdlib5`, `_mwFINIT`, `_mwARG`, `_mwStackDump`) and 5 are Fujitsu keyboard
 stubs (`KYB_init`, `KYB_setbuf`, `KYB_lock`, `KYB_clic`, `KYB_clrbuf`,
 `KYB_read`). `EXODUS` additionally has `Whirl_X`, `Whirl_Y`, `Whirl_d_X`,
-`Whirl_d_Y`, `Gate_X`, `Gate_Y`. Printable ASCII density 6-9%.
+`Whirl_d_Y`, `Gate_X`, `Gate_Y`. **These six are in `EXODUS` only.** An earlier
+note claimed they were in `DARKNESS`/`ENCHANT` as well. They are not. `ENCHANT`
+and `DARKNESS` carry only the runtime and keyboard stub names. Printable ASCII density 6-9%.
 
 **Verdict:** binaries are stripped. Six genuine game symbols in the entire
 trilogy. Negative result for source recovery, positive for the claim that

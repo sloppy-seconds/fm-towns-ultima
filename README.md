@@ -5,6 +5,41 @@ Playing the Fujitsu FM Towns release of *Ultima Trilogy 1-3* on Linux.
 Source of this copy: `archive.org/details/fmtownscdcollection`, file
 `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`.
 
+## 0. Reproducing this work
+
+Everything here can be reproduced from the archive.org zip alone.
+
+1. Download
+   `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip` from
+   <https://archive.org/details/fmtownscdcollection>.
+2. Unpack it into this directory. You should end up with the five files in
+   section 1.
+3. Run:
+
+```bash
+node tools/verify.js     # 89 assertions against the disc, exits 0 if all pass
+node extract-u2.js       # writes extracted/u2/
+```
+
+`tools/verify.js` is the authority for what is established. It checks the rip
+identity (sizes and MD5s), the disc structure, the executable headers, the
+toolchain, the U2 asset inventory, every graphics claim, every sound claim, and
+the negative results. A claim in `FINDINGS.md` that is not asserted there should
+be treated as unverified.
+
+Expected source file checksums, so you can confirm you have the same rip:
+
+| File | Size | MD5 |
+|---|---|---|
+| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img` | 141,649,200 | `1a0b01f4498b561878dbc49ffb9e1af6` |
+| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd` | 2,137 | `f89a0640f0a2e75beb3763e80b7be352` |
+| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).cue` | 415 | `6f931bead286bac24c03ad687f40ac8d` |
+| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).sub` | 5,781,600 | `6ad09bf5dde849b1d3fa6b00f7ab6ee0` |
+| `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm` | 1,261,568 | `5ae4dc119f990adde82a2b91c0b7feef` |
+
+If the MD5s differ you have a different rip and results will legitimately
+differ. `verify.js` will say so rather than failing silently.
+
 ## 1. What is in this directory
 
 | File | Size | What it is |

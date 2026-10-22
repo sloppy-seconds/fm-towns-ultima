@@ -8,10 +8,26 @@ directory, so run them from the repo root.
 
 | Script | What it does |
 |---|---|
+| `verify.js` | **Start here.** Reproduces every claim in `FINDINGS.md` from the unpacked zip. Exits non-zero if any check fails. No arguments, no dependencies. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
 | `crossdiff.js` | Rabin-Karp shared-substring search between executables. Used in FINDINGS.md 6.5. |
 | `findpal.js` | I/O census and port classification, plus indirect-call/constant correlation. Used in FINDINGS.md 6.6. |
+
+## Reproducing this work
+
+You need only the zip from `archive.org/details/fmtownscdcollection`, unpacked
+into the repository root. Then:
+
+```bash
+node tools/verify.js          # 89 assertions, exits 0 only if all pass
+node tools/verify.js --verbose
+node extract-u2.js            # produces extracted/u2/
+```
+
+`verify.js` is the authority. If a claim in `FINDINGS.md` is not asserted there,
+treat it as unverified. If `verify.js` fails on the source file MD5s, you have a
+different rip of the disc and the results will legitimately differ.
 
 ## Usage
 
