@@ -9,6 +9,7 @@ directory, so run them from the repo root.
 | Script | What it does |
 |---|---|
 | `verify.js` | **Start here.** Reproduces every claim in `FINDINGS.md` from the unpacked zip. Exits non-zero if any check fails. No arguments, no dependencies. |
+| `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
 | `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. |
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
@@ -16,6 +17,19 @@ directory, so run them from the repo root.
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See FINDINGS.md 5.4 for which layout to use per file. |
 | `crossdiff.js` | Rabin-Karp shared-substring search between executables. Used in FINDINGS.md 6.5. |
 | `findpal.js` | I/O census and port classification, plus indirect-call/constant correlation. Used in FINDINGS.md 6.6. |
+
+## Loading a Phar Lap executable
+
+```bash
+node tools/pharlap.js --file TMENU.EXP --map
+node tools/pharlap.js --file TMENU.EXP --at EGB_palette
+node tools/pharlap.js --file TMENU.EXP --disasm EGB_palette --len 192
+node tools/pharlap.js --file TMENU.EXP --dump /var/tmp/tmenu-load.bin
+```
+
+For `P3` (`TMENU.EXP`) this resolves the load image to `0x200`-`0x33892` and
+reports that 1,723 of 1,725 symbol addresses fall inside it. For `MP`
+(`DARKNESS`, `ENCHANT`, `EXODUS`) it reports the header, entry point and stack.
 
 ## Symbols
 

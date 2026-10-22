@@ -489,11 +489,10 @@ which is the blob length. 1,725 records, 1,723 with a nonzero value, values
 
 Implemented as `tools/sym1.js`. `--dump` writes `analysis/SYM1-symbols.txt`.
 
-**Caveat:** symbol values are **not** usable as direct file offsets. Testing
-`value`, `value-0x200` and `value+0x200` against known function prologues fails
-for every symbol. `push ebp`/`mov ebp,esp` prologues do exist in the file at
-`0xa04` through `0x33a48`, so code is present, but the address-to-file mapping
-requires a real `P3` loader and is *open*.
+**Superseded:** this section originally recorded that symbol values were not
+usable as file offsets and that a `P3` loader was needed. That was wrong, and
+was caused by reading the value field as a `u16`. See 6.12. The values are
+32-bit file offsets into the load image.
 
 ### 6.9 The graphics library is named
 
@@ -550,6 +549,95 @@ call site or a comparison of rendered art against screenshots. Also, JPEG
 compression means these values carry quantisation error of roughly +/- 8 per
 channel, so they are close enough to identify a palette but not to overwrite one
 byte for byte.
+
+### 6.11 P3 loader built, and the address question resolved
+
+**Tried:** build a real `P3` loader, because symbol addresses did not resolve as
+direct file offsets and two blockers depended on that.
+
+`tools/pharlap.js` now parses both formats. For `P3` the header layout was
+derived by testing candidate layouts against the data rather than trusting the
+documentation prose:
+
+| Field | Offset | Value for `TMENU.EXP` |
+|---|---|---|
+| signature | 0x00 | `P3` |
+| level (flat model) | 0x02 | 1 |
+| header size | 0x04 | 384 |
+| declared file size | 0x06 | 211,616 |
+| checksum | 0x0A | `0x5b2c` |
+| runtime parameter offset | 0x0C | 384 |
+| runtime parameter size | 0x10 | 128 |
+| relocation offset | 0x14 | 512 |
+| load image end | 0x74 | `0x33892` |
+
+The runtime parameter block at `0x180` carries the `DX` signature, confirming
+the Phar Lap DX layout.
+
+**Resulting map:** header `0x000`-`0x180`, `DX` block `0x180`-`0x200`, load image
+`0x200`-`0x33892` (210,578 bytes), symbol table `0x33a92`-`0x3b60c`.
+The declared file size is 211,616 while the file is 243,212, so the symbol table
+is trailing data beyond the declared size. That is why the earlier cross-diff
+anchored wrongly.
+
+### 6.12 Symbol values are 32-bit, not 16-bit
+
+**Tried:** re-read the `SYM1` record tail with fresh eyes after the loader gave
+us real bounds.
+
+**Measured:** the bytes after `EGB_init` are `68 a1 01 00 01 00`. Read as a
+`u32` that is `0x0001a168`. The earlier parser split it into a `u16` value
+`0xa168` plus a "reserved" `0x0001`, which is why it reported a maximum value of
+`0xffac` and 974 suspicious records. There is no reserved field. The record is
+`[u8 len][name][u32 value][u16 type]`, a 6-byte tail, which is exactly what the
+tail measurement said.
+
+**Verdict:** POSITIVE. With the `u32` read, values range `0x238` to `0x33848`, and
+**1,723 of 1,725** symbols fall inside the declared load image `0x200`-`0x33892`.
+The two exceptions are `PROGRAM` and `LINKTOP_R`, both legitimately zero. The
+address is therefore a **file offset into the load image**, and no segment
+translation is needed.
+
+The earlier claim in 6.8 that symbol values were unusable is **superseded**. It
+was a parser bug, not an addressing scheme.
+
+### 6.13 EGB_palette examined
+
+**Tried:** disassemble `EGB_palette` now that its address resolves.
+
+**Measured:** the symbol points at `0x1a1e4`, which is 12 bytes into the tail of
+the preceding function. The real entry is `0x1a1f0`:
+
+```
+push ebp / mov ebp,esp / push edi
+mov edi,[ebp+0x10]
+push dword [ebp+0xc]
+call 0x19fe0
+mov [0x9890],edi
+movzx eax,byte [ebp+0x8]
+mov [0x988c],eax
+push dword 0x40
+call 0x19f6c
+```
+
+`0x19fe0` builds a far pointer: it takes DS and stores it plus the caller's
+argument into `[0x9894]` and `[0x98a0]`. So `EGB_palette` **copies a far pointer
+to the colour table into the library state**, it does not write CRTC ports. It
+is a setter, and the actual hardware write happens later when the library
+refreshes.
+
+`EGB_para` at `0x3c44` is uninitialised BSS, filled with the P3 `0x88` fill
+byte, so the parameter block is populated at runtime.
+
+**Verdict:** the palette is per-application data passed in at runtime, not a
+static table and not compiled into the library. Combined with 6.10, that means
+the colours seen on screen come from a table built at run time, which is why no
+static RGB555 run was found in any executable.
+
+**Open:** where that table is constructed. The likely source is either
+`ENCHANT.EXP` pushing its own table (the games link the same library) or the
+library defaulting. Next step is to grep `ENCHANT.EXP` for `EGB_palette` call
+sites and see what pointer is passed.
 
 ---
 

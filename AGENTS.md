@@ -328,23 +328,20 @@ the search is different, so resolve this before hunting.
 All of these are U2 extraction work. Some are marked *(validates)*, meaning
 they use the other binaries as a cross-check rather than as separate work.
 
-1. **Map palette indices to colours.** The colours themselves are now known
-   from screenshots (FINDINGS 6.10): 16 stable RGB555 entries, black, white,
-   red, blue, green, cyan, yellow and so on. What is still unknown is *which
-   index is which colour*, and the `EGB_palette` routine address does not
-   resolve to a file offset without a `P3` loader.
-2. **`P3` loader.** Promoted from last place. Two separate blockers now depend
-   on it: resolving `EGB_palette` to code, and reading the segment information
-   table in the `P3` header. Without it, symbol addresses are unusable.
-3. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
+1. **Find where the palette table is built.** `tools/pharlap.js` resolves
+   symbols now, and `EGB_palette` turns out to copy a far pointer to a caller
+   supplied table rather than writing CRTC ports (FINDINGS 6.13). The colours
+   are known from screenshots (6.10) but the index mapping is not. Grep
+   `ENCHANT.EXP` for calls to `EGB_palette` and see what pointer it passes.
+2. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
    table indexing `SPID` so each creature can be named and its frames grouped.
    *(validates)* compare the corresponding table shape in `EXODUS`.
-4. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
+3. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
    geometry and how `\UT2\MAP.MP2` relates to it.
-5. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
+4. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
    string in `ENCHANT.EXP` lists every field, so the schema is already known,
    the byte layout is not.
-6. **Strings.** `ENCHANT.EXP` holds the game text including the Japanese and
+5. **Strings.** `ENCHANT.EXP` holds the game text including the Japanese and
    English dialogue tables. Not yet extracted in usable form.
 
 ## What not to do
