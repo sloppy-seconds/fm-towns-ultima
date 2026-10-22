@@ -18,6 +18,7 @@
 //   node tools/savedisk.js clone <disk.hdm> <from> <to> [--name NAME]
 //   node tools/savedisk.js set <disk.hdm> <slot> <field> <value>
 //   node tools/savedisk.js world-copy <disk.hdm> <from> <to>
+//   node tools/savedisk.js world-new <disk.hdm> <n>
 //
 // Everything writes to a new file unless --inplace is given, and every write is
 // verified by reading the file back and re-parsing it. Never operate on an
@@ -203,6 +204,26 @@ function setField(slotText, field, value) {
 	return slotText.replace(re, (_, pre) => pre + value);
 }
 
+// A fresh WORLD<n>.UT2 as the game writes it has exactly one non-zero run:
+// 6,144 bytes of 0xE5 starting at offset 0xF200, with zeros either side.
+//
+// That figure comes from world files the game has never written to. Once a
+// character has played, the block is partly replaced by real map data and only
+// the leading 512 bytes of 0xE5 survive, which is why an intermediate version
+// of this function used 512 and was wrong.
+//
+// Nothing here is game content, so a world file can be generated rather than
+// copied, which is what allows a standalone editor that redistributes nothing.
+const WORLD_SIZE = 68096;
+const WORLD_FILL_FROM = 0xf200;
+const WORLD_FILL_LEN = 6144;
+
+function newWorld() {
+	const b = Buffer.alloc(WORLD_SIZE, 0);
+	b.fill(0xe5, WORLD_FILL_FROM, WORLD_FILL_FROM + WORLD_FILL_LEN);
+	return b;
+}
+
 // --- CLI ------------------------------------------------------------------
 
 // Only run the command line when invoked directly. The supervisor imports this
@@ -222,6 +243,8 @@ module.exports = {
 	fatGet, fatSet, chainOf, freeClusters,
 	// files
 	listRoot, findEntry, readFile, writeFile, addEntry,
+	// world files
+	newWorld, WORLD_SIZE, WORLD_FILL_FROM,
 	// roster
 	parseSlots, getField, setField,
 	// roster convenience
@@ -353,6 +376,33 @@ if (cmd === 'ls') {
 	}
 	const written = saveDisk(argv[1], img, inplace);
 	console.log('copied ' + srcName + ' (' + data.length + ' B) -> ' + dstName);
+	console.log('wrote ' + written);
+} else if (cmd === 'world-new') {
+	// Generate a fresh world file instead of copying one. Produces the same
+	// bytes the game writes for a new character, so no game data is needed.
+	const img = loadDisk(argv[1]);
+	const n = Number(argv[2]);
+	const inplace = argv.includes('--inplace');
+	const dstName = 'WORLD' + n + '.UT2';
+	const data = newWorld();
+	let dst = findEntry(img, dstName);
+	if (dst) {
+		writeFile(img, dst, data);
+	} else {
+		const free = freeClusters(img);
+		const need = Math.ceil(data.length / SS);
+		if (free.length < need) die('not enough free clusters: need ' + need + ', have ' + free.length);
+		const chain = free.slice(0, need);
+		for (let i = 0; i < chain.length; i++) {
+			const next = i + 1 < chain.length ? chain[i + 1] : 0xfff;
+			fatSet(img, FAT1, chain[i], next);
+			fatSet(img, FAT2, chain[i], next);
+			data.copy(img, DATA_OFF + (chain[i] - 2) * SS, i * SS, Math.min((i + 1) * SS, data.length));
+		}
+		dst = addEntry(img, dstName, chain[0], data.length);
+	}
+	const written = saveDisk(argv[1], img, inplace);
+	console.log('generated ' + dstName + ' (' + data.length + ' B, ' + WORLD_FILL_LEN + ' x 0xE5 at 0x' + WORLD_FILL_FROM.toString(16) + ')');
 	console.log('wrote ' + written);
 } else {
 	console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 24).join('\n').replace(/^\/\/ ?/gm, ''));

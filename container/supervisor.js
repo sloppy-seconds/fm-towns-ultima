@@ -545,23 +545,22 @@ const ROUTES = {
 		savedisk.writeFile(img, roster.entry, Buffer.from(text, 'latin1'));
 
 		// World file so the slot can load. Slots are 0-based, world files 1-based.
+		// Generated rather than copied: the bytes are zeros plus an 0xE5 fill, so
+		// no game content is involved.
 		const worldName = 'WORLD' + (slot + 1) + '.UT2';
 		if (!savedisk.findEntry(img, worldName)) {
-			const src = savedisk.findEntry(img, 'WORLD1.UT2');
-			if (src) {
-				const data = savedisk.readFile(img, src);
-				const free = savedisk.freeClusters(img);
-				const need = Math.ceil(data.length / savedisk.SS);
-				if (free.length >= need) {
-					const chain = free.slice(0, need);
-					for (let i = 0; i < chain.length; i++) {
-						const next = i + 1 < chain.length ? chain[i + 1] : 0xfff;
-						savedisk.fatSet(img, 1024, chain[i], next);
-						savedisk.fatSet(img, 1024 + savedisk.FATSZ * savedisk.SS, chain[i], next);
-						data.copy(img, savedisk.DATA_OFF + (chain[i] - 2) * savedisk.SS, i * savedisk.SS, Math.min((i + 1) * savedisk.SS, data.length));
-					}
-					savedisk.addEntry(img, worldName, chain[0], data.length);
+			const data = savedisk.newWorld();
+			const free = savedisk.freeClusters(img);
+			const need = Math.ceil(data.length / savedisk.SS);
+			if (free.length >= need) {
+				const chain = free.slice(0, need);
+				for (let i = 0; i < chain.length; i++) {
+					const next = i + 1 < chain.length ? chain[i + 1] : 0xfff;
+					savedisk.fatSet(img, 1024, chain[i], next);
+					savedisk.fatSet(img, 1024 + savedisk.FATSZ * savedisk.SS, chain[i], next);
+					data.copy(img, savedisk.DATA_OFF + (chain[i] - 2) * savedisk.SS, i * savedisk.SS, Math.min((i + 1) * savedisk.SS, data.length));
 				}
+				savedisk.addEntry(img, worldName, chain[0], data.length);
 			}
 		}
 
