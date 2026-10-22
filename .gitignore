@@ -16,3 +16,6 @@
 /saves/
 CMOS.BIN
 *.log
+
+# Extracted assets: derived from the copyrighted disc, regenerate with extract-u2.js
+/extracted/
