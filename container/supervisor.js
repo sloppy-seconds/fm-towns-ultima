@@ -265,8 +265,16 @@ function findWindow() {
 function screenshot(name, mode = 'all', opts = {}) {
 	const safe = String(name || 'shot-' + Date.now()).replace(/[^A-Za-z0-9._-]/g, '_');
 	const file = path.join(OUT_DIR, safe + '.png');
-	const win = findWindow();
-	const target = win || 'root';
+	// Capture the ROOT window, not the emulator's window id.
+	//
+	// This is counter-intuitive and was learned the hard way. Capturing by
+	// window id misses what the emulator actually puts on screen, because the
+	// Tsugaru window can be occluded by its own frame or by another client
+	// surface. Measured directly: a window-id capture returned an 8-colour
+	// text-mode file browser while a simultaneous root capture of the same
+	// moment returned a 1104-colour graphics screen. Root is what a person
+	// looking at noVNC sees, so root is the only honest source.
+	const target = 'root';
 	execFileSync('import', ['-window', target, file], {
 		env: { ...process.env, DISPLAY },
 		stdio: ['ignore', 'ignore', 'pipe'],
@@ -477,8 +485,7 @@ function xmouse(win, x, y, button) {
 function recordShot(name) {
 	const safe = String(name || 'last').replace(/[^A-Za-z0-9._-]/g, '_');
 	const file = path.join(OUT_DIR, safe + '.png');
-	const win = findWindow();
-	execFileSync('import', ['-window', win || 'root', file], {
+	execFileSync('import', ['-window', 'root', file], {
 		env: { ...process.env, DISPLAY },
 		stdio: ['ignore', 'ignore', 'pipe'],
 	});

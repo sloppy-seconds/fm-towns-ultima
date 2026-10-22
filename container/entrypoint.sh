@@ -65,6 +65,23 @@ else
 	log "noVNC web root missing, VNC still available on 5900"
 fi
 
+# Kill any orphaned 640x480 windows left on the display by an earlier run.
+# These are viewable but owned by no process, and they draw over the live
+# emulator, so a person watching noVNC sees a stale screen while anything
+# capturing by window id sees the real one. That divergence produced a false
+# "we are in the game" conclusion once already.
+if command -v xdotool >/dev/null 2>&1; then
+	for w in $(xdotool search --class '' 2>/dev/null); do
+		geo=$(xdotool getwindowgeometry "$w" 2>/dev/null | grep -oE '[0-9]+x[0-9]+' | head -1 || true)
+		name=$(xdotool getwindowname "$w" 2>/dev/null || true)
+		# No name and 640-wide means a leftover framebuffer window.
+		if [ "${geo%%x*}" = "640" ] && [ -z "$name" ]; then
+			log "killing stale window $w ($geo)"
+			xdotool windowkill "$w" 2>/dev/null || true
+		fi
+	done
+fi
+
 log "browse to http://<host>:6080/vnc.html"
 
 # --- Tsugaru -----------------------------------------------------------------
@@ -96,6 +113,10 @@ ARGS+=(-CMOS "${CMOS}")
 # UserDisk save floppy, if present alongside the CD.
 if [ -n "${FD0_IMAGE:-}" ] && [ -f "${FD0_IMAGE}" ]; then
 	ARGS+=(-FD0 "${FD0_IMAGE}")
+	# Tsugaru write-protects floppies by default. U2 needs to write its save
+	# files (ROSTER1.UT2, WORLD1-4.UT2) at character creation, and with the
+	# disk protected it reports "A WRONG DISK" instead of creating them.
+	ARGS+=(-FD0UP)
 fi
 
 # Some options must come before the ROM directory to take effect, and the

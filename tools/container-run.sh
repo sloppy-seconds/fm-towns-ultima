@@ -82,7 +82,16 @@ cmd_start() {
 	)
 	[ -f "$DISC_CCD" ] && args+=(-v "$DISC_CCD:/disc/game.ccd:ro,z" -e "CD_IMAGE=/disc/game.ccd")
 	[ -f "$DISC_IMG" ] && args+=(-v "$DISC_IMG:/disc/game.img:ro,z")
-	[ -f "$USERDISK" ] && args+=(-v "$USERDISK:/disc/userdisk.hdm:ro,z" -e "FD0_IMAGE=/disc/userdisk.hdm")
+	# The save floppy MUST be writable. U2 creates ROSTER1.UT2 and WORLD1-4.UT2
+	# on it at character creation, and a read-only mount makes the game report
+	# "A WRONG DISK" and refuse to manage saves. Copy the pristine image into
+	# saves/ once, and mount that copy read-write so the original in the repo
+	# root is never modified.
+	if [ -f "$USERDISK" ]; then
+		SAVEDISK="$ROOT/saves/userdisk.hdm"
+		[ -f "$SAVEDISK" ] || cp "$USERDISK" "$SAVEDISK"
+		args+=(-v "$SAVEDISK:/disc/userdisk.hdm:z" -e "FD0_IMAGE=/disc/userdisk.hdm")
+	fi
 
 	note "starting $NAME ..."
 	PODMAN run "${args[@]}" "$IMAGE" >/dev/null

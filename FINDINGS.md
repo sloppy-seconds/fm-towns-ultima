@@ -821,6 +821,250 @@ The palette is **unchanged** after reaching the graphics screen: still the same
 16 entries per page. So that table is what U2 runs with, and the earlier
 screenshot-derived colours agree with it.
 
+### 6.17 U2 IS RUNNING, and its palette is finally known
+
+**Tried:** get into Ultima II and read the palette from the live machine.
+
+**How to launch, definitively:**
+
+The Tsugaru boot is a mouse-driven CD browser. To launch Ultima II:
+
+- icon row 1, cell 2, x centre **203**, label baseline **y=185** (screen coords)
+- **double-click**. A single click only highlights the cell. Two clicks with a
+  short delay activate it.
+
+Reproduced by a human via noVNC. `xdotool` XTEST events reach X but **do not
+reach the emulated machine**, so an automated double-click via XTEST does
+nothing. VNC input works. Any automation must inject at the VNC layer, not XTEST.
+
+**Measured, palette after entering U2:**
+
+```
+Page0:000000 0000FF FF0000 000000 00FF00 00FFFF FFFF00 FFFFFF
+      000000 000000 007777 FFFF55 11CC22 0022EE FF0000 FFFFFF
+Page1: identical
+```
+
+This is **different** from the boot-menu palette in 6.15 and 6.16. Compare:
+
+| index | boot menu | **in U2** |
+|---|---|---|
+| 1 | `000099` | **`0000FF`** |
+| 2 | `990000` | **`FF0000`** |
+| 3 | `990099` | **`000000`** |
+| 4 | `009900` | **`00FF00`** |
+| 5 | `009999` | **`00FFFF`** |
+| 6 | `FF00FF` | **`FFFF00`** |
+| 7 | `BBBBBB` | **`FFFFFF`** |
+| 10 | `0000FF` | **`007777`** |
+| 11 | `FF0000` | **`FFFF55`** |
+| 12 | `CCCCCC` | **`11CC22`** |
+| 13 | `555555` | **`0022EE`** |
+| 14 | `00FFFF` | **`FF0000`** |
+| 15 | `FF8800` | **`FFFFFF`** |
+
+**Verdict:** POSITIVE, and this settles the question left open in 6.10, 6.15 and
+6.16. The boot palette was **not** U2's palette. U2 installs its own at startup,
+which confirms `EGB_palette` is called with per-application data, matching the
+call-site analysis in 6.14 where every call passes `[edi+8]`.
+
+The colours visible on screen agree with this table: `#000000` 45%,
+`#007777` 35%, `#ffffff` 7%, `#ffff55` 4%, `#ff0000` 3%, `#0022ee` 1.5%. Every
+one of those is a U2 palette entry.
+
+**This is the index-to-colour mapping needed to render the extracted art in
+colour.** The remaining step is to apply it: the 4bpp pixel values in the TIFFs
+are indices into this 16-entry table.
+
+**Cross-check with the screenshot work in 6.10:** that analysis independently
+derived black, white, red, blue, green, cyan and yellow as dominant. This table
+contains all of them. Two unrelated methods, agreeing.
+
+### 6.18 In-game palette confirmed, and the disk error
+
+**Tried:** get past the title screen into playable U2.
+
+**Measured:** after double-clicking Ultima II a title screen appears, then:
+
+```
+A WRONG DISK! Push [space]
+```
+
+Space gets past it. **`TYPE 20`** via the console works, so keyboard input
+reaches the VM even though XTEST mouse events do not.
+
+**Measured, palette once actually in game:**
+
+```
+Page0:000000 0000FF FF0000 000000 00FF00 00FFFF FFFF00 FFFFFF
+      000000 000000 007777 FFFF55 11CC22 0022EE FF0000 FFFFFF
+Page1: identical
+```
+
+**Cross-check against the live screen.** Colours covering more than 0.4% of the
+display, and the index each maps to:
+
+| on screen | share | palette index |
+|---|---|---|
+| `#000000` | 68.2% | 0, 3, 8, 9 |
+| `#ffffff` | 8.5% | 7, 15 |
+| `#ff0000` | 6.6% | 2, 14 |
+| `#0000ff` | 3.5% | 1 |
+| `#ffff55` | 3.1% | 11 |
+| `#ffff00` | 2.2% | 6 |
+| `#00ffff` | 2.0% | 5 |
+| `#00ff00` | 1.3% | 4 |
+
+Every on-screen colour is a palette entry. Nothing unexplained.
+
+**Verdict:** POSITIVE and closed. This is the index-to-colour mapping. Combined
+with the 4bpp pixel values in the TIFF files, the extracted art can now be
+rendered in colour.
+
+**The save disk:** `[UserDisk].hdm` is a valid FM Towns 2HD with `IPL4` boot
+sector and an empty FAT. U2 rejects it as "a wrong disk". Space continues past
+the prompt. Whether U2 then formats it, or whether a properly initialised disk
+is needed, is *open*.
+
+**Automation constraint, now definitive:** XTEST events (`xdotool`) reach the X
+server but **not the emulated machine**. VNC input does, and so do console
+`TYPE` keycodes. Any automated driving must use `TYPE`, or inject at the VNC
+layer. This is why every `xdotool` click appeared to succeed and did nothing.
+
+### 6.19 "A WRONG DISK": what is and is not the cause
+
+**Symptom:** U2 launches, shows the splash and menu, then refuses to create or
+manage saves, printing `A WRONG DISK! Push [space]`. Space continues, but saves
+cannot be made.
+
+**Ruled out:**
+
+- **Not a read-only mount.** The floppy was mounted read-only, which was a real
+  bug and is now fixed: the image is copied to `saves/userdisk.hdm` and mounted
+  read-write. The symptom persisted after the fix.
+- **Not Tsugaru's write protection.** `-FD0UP` is now passed. The symptom
+  persisted.
+- **Not a failure to read the disk.** `PRI FDC` reports
+  `Drive00 (/disc/userdisk.hdm) MEDIA:2HD 1232KB` and
+  `Last CMD:80 Read_Sector STATUS:00`. The controller reads sector 128
+  successfully. The disk is present and readable.
+- **Not a corrupt image.** The BPB parses: 1024 bytes per sector, valid for FM
+  Towns, `IPL4` boot signature present, root directory holds a `USERDISK`
+  volume label with attribute `0x28`.
+- **Not a write attempt failing.** After reaching the error,
+  `saves/userdisk.hdm` is **byte-identical** to the pristine original (same MD5,
+  `5ae4dc119f99`). U2 never writes. It rejects the disk before trying.
+
+**Remaining hypothesis:** U2 wants a disk it initialised itself, not a
+pre-formatted blank. The image supplied as `[UserDisk]` is a formatted but
+completely empty volume (`0xE5` free-cluster fill throughout, one volume label,
+no files). U2 likely checks for a signature or attempts an exclusive format that
+it refuses to do on a disk with an existing label.
+
+**The string is not in U2.** Searching `ENCHANT.EXP` for `WRONG` finds only
+`WRONG TIFF HEADDER`. There is **no `WRONG DISK`** in the game binary at all. The
+message comes from **TMENU**, the launcher, before U2 runs. So this is a launcher
+complaint about the disk, not a game complaint. That reframes the whole problem.
+
+**TMENU ships disk utilities.** Its symbol table names a complete disk menu:
+
+```
+MENU_DISK_FORMAT  MENU_DISK_COPY   MENU_DISK_BACKUP
+MENU_DISK_RESTORE MENU_DISK_VOLNAME MENU_DISK_DISKPAT
+MENU_FILE_CHDIR   MENU_FILE_DELETE MENU_FILE_EXEC
+```
+
+and the disc carries `FORMAT.EXP`, `DISKCOPY.EXP`, `LABEL.EXP`, `BACKUP.EXP`,
+`RESTORE.EXP`, `DISKPAT.EXP`, `HDUTY.EXP`.
+
+**Conclusion:** the answer to making a usable save disk is already on the disc.
+Rather than synthesising a disk externally, format one from inside Towns OS
+with TMENU's own Format command, which is the path the original release assumes.
+
+**Also on the disc:** `DRIVE_R.IMG` (131,072 bytes at LBA 59) is a Towns OS RAM
+disk image, volume label `TOWNES SYSTEM SAMPLE1`, containing `RUN386.EXE`. It is
+not a U2 save disk but it shows the disc carries ready-made volumes.
+
+**Superseded:** the `-GENFD` experiment produced a disk with the same `IPL4`
+boot sector and `0xE5` free-cluster fill as the supplied one, and U2 still
+rejects it. Generating a blank externally does not help.
+
+### 6.20 Save disk: Option A and Option B recorded
+
+Two routes to working saves, neither requiring a synthesised disk.
+
+**Option A - format a floppy from inside Towns OS, then let U2 write to it.**
+
+The launcher provides the tools. `TMENU.EXP` names a disk menu with
+`MENU_DISK_FORMAT`, `MENU_DISK_COPY`, `MENU_DISK_BACKUP`,
+`MENU_DISK_RESTORE`, `MENU_DISK_VOLNAME` and `MENU_DISK_DISKPAT`, and the disc
+ships `FORMAT.EXP`, `DISKCOPY.EXP` and `LABEL.EXP` to back it up.
+
+Procedure:
+1. Mount a floppy in FD0. The supplied `[UserDisk].hdm` is fine as a starting
+   point, and so is one made with
+   `Tsugaru_CUI <roms> -GENFD saves/blank.hdm 1232`.
+2. The image must be **writable**. Two separate things control that and both
+   must be set:
+   - the container bind mount must not be `:ro`, handled by copying to
+     `saves/userdisk.hdm`,
+   - Tsugaru needs **`-FD0UP`**, because floppies are write-protected by
+     default.
+3. In the launcher, use the disk menu to Format drive A. This writes a Towns OS
+   filesystem that U2 will accept, which a merely blank or pre-labelled image is
+   not.
+4. Launch U2 and create a character. It writes `A:\ROSTER1.UT2` and
+   `A:\WORLD1-4.UT2` directly.
+
+**Option B - Tsugaru machine state. Documented because it is useful for
+debugging, not as a substitute for real saves.**
+
+Tsugaru can snapshot the entire VM, which sidesteps the game's own save path
+entirely. Worth knowing for debugging a specific screen or chasing a bug,
+because it captures exact memory and device state rather than a game-level save.
+
+From the GUI: open the emulator menu with **Scroll Lock** or the menu icon in
+the bottom-right, then **States**, then **Save machine state**, and pick a slot
+or name. Load reverses it.
+
+From the console, the same thing is scriptable:
+
+```
+SSTATE <filename>     save
+LSTATE <filename>     load
+```
+
+and the command line takes **`-QUICKSTATESAVE filename`**. The console also
+exposes `-QUICKSSDIR` for the directory.
+
+**Caveat:** a state file is tied to the emulator build and to the memory
+configuration. `Tsugaru_CUI` warns that a state saved under the default CPU core
+may crash under `-HIGHFIDELITY` and vice versa. Treat state files as
+debugger scratch, never as the thing that preserves a playthrough. Use Option A
+for that.
+
+**Tsugaru_GUI has no format command.** Its string table contains
+`Select FD Image`, `Eject`, `Save Machine State`, `Load Machine State`,
+`Quick State Save`, `Quick State Load`, `Save Screenshot`, `Save Captured WAV`,
+`Save Captured VGM`. There is **no** floppy format, no new-disk, no initialise.
+Tsugaru only mounts and ejects images. Formatting a floppy is a Towns OS job,
+not an emulator job.
+
+This matters because it means Option A cannot be done from the emulator GUI at
+all. Whatever produces a disk U2 accepts must run **inside the emulated
+machine**, using `FORMAT.EXP` from the disc, driven either through TMENU's disk
+menu or from a Towns OS command prompt.
+
+`Tsugaru_GUI` also requires a real display and Qt, so it cannot run in the
+headless container as things stand. `Tsugaru_CUI` plus the supervisor is the
+only scriptable path here.
+
+**Not yet done:** the actual Format sequence has not been executed. Established
+facts: the format function exists (`MENU_DISK_FORMAT`, `FORMAT.EXP`), the disk
+must be writable (container mount and `-FD0UP`), and the launcher is what prints
+"A WRONG DISK". What is missing is the click path through TMENU's disk menu, or
+a route to a Towns OS command prompt. Recorded honestly rather than claimed.
+
 ---
 
 ## 7. Sound
