@@ -10,8 +10,24 @@ question that used to head this list is answered: see
    map-id fields, which is what a teleport feature would need.
    See [save-files.md](save-files.md).
 2. **Monster table.** Which `ENEMY2` tile is which creature, and frames per
-   creature. No name strings to anchor on in the binary, so this needs the code
-   that indexes the bank, not a string search.
+   creature.
+
+   **The names exist, in Japanese, and they are in the binary.** Extracted from a
+   savestate with `tools/savetext.py`, in a contiguous table at `0x79377` onward:
+   商人 (merchant), 道化師 (jester), 衛兵 (guard), 放浪戦士 (wandering warrior),
+   悪の遊騎兵 (evil ranger), 僧兵 (warrior monk), 死霊使い (necromancer),
+   魔法使い (wizard), 盗賊 (thief), オ−ク (orc), ゴブリン (goblin),
+   ガ−ゴイル (gargoyle), ネス湖の恐竜 (Loch Ness dinosaur),
+   ドラゴンタ−トル (dragon turtle), ドラゴン (dragon), ウォ−ロック (warlock).
+
+   Sixteen names, which is closer to the 25 the Codex lists than a bare tile count
+   suggests. Each name is stored **twice**: once in a custom font encoding where
+   every glyph is `0xEB <index>`, and once in standard Shift-JIS. The two copies sit
+   adjacent, so the font encoding can be derived from them by alignment.
+
+   Still open: which tile each name indexes. That is the code at `0xe7b58` and the
+   four banks, and it needs either the indexer read properly or a savestate taken
+   while standing on the map so the banks are populated.
 
    Progress. The bank is **64 populated tiles of 512 bytes**, a flat 8x8 list with
    no grouping. The [Ultima Codex bestiary](https://wiki.ultimacodex.com/wiki/Ultima_II_monster_data)
