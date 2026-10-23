@@ -72,6 +72,38 @@ Reading the values:
 either a second save from a different position, or a controlled change (walk ten
 steps, save, diff again) to see which block moves.
 
+## Moving right changes exactly five bytes
+
+Second experiment. Save, walk a few tiles to the right, save again. Diff the two.
+
+Only **five bytes** differ, and two of them are in the blocks:
+
+| offset | block | slot | before | after | delta |
+|---|---|---|---|---|---|
+| `0x0620` | `0x600` | 8 | 43 | 39 | **-4** |
+| `0x06a0` | `0x680` | 8 | 24 | 22 | **-2** |
+| `0x51a1` | outside | | 96 | 98 | +2 |
+| `0x4fa7` | outside | | 0 | 60 | appeared |
+| `0x502b` | outside | | 60 | 0 | cleared |
+
+**Both blocks changed at slot index 8**, the same position in each. That points at
+the player rather than at a party member chosen at random, and it means the two
+blocks are two different fields for the same slot rather than two members of a
+list.
+
+Both deltas are **negative while the player moved right**, so the coordinate axes
+are mirrored. That is consistent with an origin at the far edge.
+
+Two candidates remain for the horizontal coordinate, `-4` and `-2`, and one move
+along a single axis cannot tell them apart. A vertical move would: whichever block
+also responds to up and down is one axis, and the one that changes on both is a
+derived value such as a screen offset.
+
+The two bytes outside the blocks at `0x4fa7` and `0x502b` are 132 bytes apart and
+one is cleared while the other appears. That looks like a marker moving rather
+than a value changing, and 132 is 4 times 33, so a 33-byte cell size would make
+them four cells apart. Unconfirmed.
+
 ## Also changed, outside the blocks
 
 Ten single bytes far into the file, at `0x4b52`, `0x4bb6`, `0x4c57`, `0x4e11`,
