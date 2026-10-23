@@ -131,6 +131,44 @@ one is cleared while the other appears. That looks like a marker moving rather
 than a value changing, and 132 is 4 times 33, so a 33-byte cell size would make
 them four cells apart. Unconfirmed.
 
+## Position is stored twice, in two different files
+
+A fight and a save produced a clean diff of `ROSTER1.UT2`, which is plain ASCII
+and therefore readable directly. It carries the player position as named fields:
+
+```
+PLAYER_X=11   ->  14
+PLAYER_Y=16   ->  12
+```
+
+The same two values appear as **slots 8 and 9 of blocks `0x600` and `0x680`** in
+`WORLD1.UT2`, in binary. So the position lives in both files at once.
+
+| file | encoding | field |
+|---|---|---|
+| `ROSTER1.UT2` | ASCII, `key=value` | `PLAYER_X=`, `PLAYER_Y=` |
+| `WORLD1.UT2` | uint32 LE | slot 8 and slot 9 of blocks `0x600` and `0x680` |
+
+**A teleport must write both.** Which one the game reads at load, and whether it
+trusts the binary over the ASCII when they disagree, is not established. Guessing
+wrong would produce a save that loads at one position and reports another.
+
+## What a fight changes in the roster
+
+Same diff, before and after winning a fight:
+
+| field | before | after | |
+|---|---|---|---|
+| `HP` | 233 | 116 | took 117 damage |
+| `EXPERIENCE` | 12 | 21 | +9 |
+| `GOLD` | 436 | 470 | +34 |
+| `SCORE` | 32 | 57 | +25 |
+| `FOOD` | 39505 | 39115 | -390, time passed |
+| `DAGGER` | 1 | 1 | unchanged, already held |
+
+`DAGGER` was 1 both before and after, so this fight did not grant it. Inventory is
+a set of `0`/`1` flags per item name, not a counted quantity.
+
 ## Also changed, outside the blocks
 
 Ten single bytes far into the file, at `0x4b52`, `0x4bb6`, `0x4c57`, `0x4e11`,
