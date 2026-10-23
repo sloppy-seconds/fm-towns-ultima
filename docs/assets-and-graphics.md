@@ -93,18 +93,52 @@ payload against 86,338 needed for that geometry. `DUNMON1.TIF` declares
 **Verdict:** the declared geometry is sometimes wrong and always insufficient to
 trust alone. Byte count is the reliable signal.
 
-### 5.2 Map files are character data, not bitmaps
+### 5.2 Map files are a 64-tile grid, packed as two 3-bit fields
 
-**Tried:** decode `UT2/MAP.MP2` and `GRAPH/MAP2_1.TIF` as bitmaps at every
-width 8-420.
+**Superseded claim:** an earlier version of this section said `MAP2_1/2/3` are
+ASCII, one character per cell, on the strength of `0x0a`, `0x0d` and `0x20`
+appearing prominently in the histogram. That is wrong, and the error was reading
+one file's histogram and applying it to another. Measured now, directly:
 
-**Measured:** no width produced a coherent image and all scored 57.2-57.7 mean
-horizontal gradient. Byte histogram of `MAP2_1`: `0x0a` newline, `0x0d`
-carriage return, `0x20` space all prominent.
+| file | size | `0x0a` | `0x0d` | `0x20` |
+|---|---|---|---|---|
+| `GRAPH/MAP2_1.TIF` | 33,280 | **0** | **0** | 19 |
+| `UT2/MAP.MP2` | 167,936 | 4 | 16 | 256 |
 
-**Verdict:** `MAP2_1/2/3` are ASCII map data, one character per cell. My earlier
-"terrain map" renderings were the character codes interpreted as greyscale and
-were not meaningful. Correcting that. *Exact cell layout still open.*
+Neither file is character data. `MAP2_1` contains no newline and no carriage
+return at all, so the earlier ASCII verdict cannot hold for it.
+
+**What `MAP2_1` actually is.** 62 distinct byte values, every one of them
+`(high << 4) | low` where **both nibbles are in 0 to 7**:
+
+```
+0x00 0x01 0x02 0x03 0x05 0x06 0x07
+0x10 0x11 0x12 0x13 0x14 0x15 0x16 0x17
+0x20 0x21 0x22 ... 0x77
+```
+
+That is 8 x 8 = **64 combinations**, of which 62 occur. Two are unused (`0x04`
+and `0x27`). The DOS release's map also has a 64-entry tile atlas, but packed as
+`art_index << 2` giving values `0, 4, 8 ... 252`. Different packing, same 64.
+
+The two nibbles behave almost independently, which fits two separate fields rather
+than one packed number. Horizontal neighbours agree 75.8% on the high nibble and
+74.7% on the low, where full-byte agreement is 63.4%, and independence predicts
+63.4/75.8 = 83.6% for the low given the high. So high and low carry different
+information, not a single index split for convenience.
+
+**Geometry.** 33,280 bytes at 320 x 104. Horizontal autocorrelation spikes at
+**lag 16** (64.6%, against 41% at nearby lags), which is a 16-pixel period and
+matches the documented 20x10-tile viewport of 16x16 tiles. It does **not** show
+uniform 8x8 or 16x16 blocks: only 2 of 520 candidate 8x8 blocks hold a single
+value, so this is not a grid of one byte per tile. 320 wide is consistent with the
+screen, not with a 64-column grid.
+
+**Verdict:** the values are a 64-tile vocabulary, almost certainly `terrain` in the
+high nibble and `variant` in the low. Whether each byte is a pixel or a sub-tile
+element is **open**: the 16-pixel horizontal period argues for a pixel-resolution
+store, but 33,280 at one byte per cell is 512x65 or 320x104, neither of which is a
+plausible 64x64 world. Do not build on the cell size yet.
 
 ### 5.3 Two real bitmap layouts
 
