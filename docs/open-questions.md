@@ -4,11 +4,17 @@ What is still unknown, ordered by cost to resolve. The statistics modifier
 question that used to head this list is answered: see
 [save-files.md](save-files.md).
 
-1. **`WORLD1-4.UT2` structure.** 68,096 bytes each, almost entirely zeros on a
-   fresh character. Slot pairing is confirmed but the contents are unread.
-   Diffing saves taken at different positions would locate the coordinate and
-   map-id fields, which is what a teleport feature would need.
-   See [save-files.md](save-files.md).
+1. **`WORLD1-4.UT2` structure. NEEDS A DECISION, because the save we have cannot answer it.**
+   68,096 bytes each and all four are **byte-identical**, because all four characters in the only
+   available save are at `MAP=0`, `WORLD=0` and have never entered the world. There is no populated
+   world in the file to read. Measured shape: 128-byte rows, 24 dwords each, six rows of data,
+   120 nonzero bytes total, then zero to the end. Rows 1 and 0 are a **sorted/unsorted pair** and
+   rows 2 and 3 are bitmask tables, which reads as start-up scratch rather than world state.
+   See [world-format.md](world-format.md).
+
+   **The decision:** the format needs a save taken mid-game, which is Track B work requiring a
+   human to play a few steps. Either that happens, or this question stays closed as unanswerable
+   from available evidence. It should not be listed as simply "unread" any more.
 2. **Monster table.** Which `ENEMY2` tile is which creature, and frames per
    creature.
 
@@ -26,10 +32,15 @@ question that used to head this list is answered: see
    The names are plain Shift-JIS. An earlier reading in this file said they were
    stored twice, once in a custom font encoding and once in Shift-JIS, and that the
    encoding could be recovered by aligning the two. That was **wrong** and has been
-   removed. Nine probes are recorded in `font-encoding.md`, and the mechanism is now
-   partly understood: the `0xEB` run is the *reading* in mora and the Shift-JIS is the
-   kanji display form, which is why their lengths never match. Eight glyphs are
-   established, not enough to decode arbitrary text. Do not retry the failed probes.
+   removed.
+
+   > **CORRECTION: the "mora reading" explanation that used to sit here is also
+   > superseded.** It claimed the `0xEB` run was the reading in mora and the Shift-JIS
+   > the kanji display, which is why the lengths never matched. It is not: `0xEB` is a
+   > Shift-JIS lead byte, `[0xEB, code]` is one double-byte character, and the renderer
+   > passes the bytes unchanged to TownsOS, which owns the glyph shapes. The mapping is
+   > not in `ENCHANT.EXP` at all. See [eb-renderer.md](eb-renderer.md). Thirteen probes
+   > searched the executable for it and none could have succeeded.
 
    Still open: which tile each name indexes.
 

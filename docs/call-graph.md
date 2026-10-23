@@ -31,7 +31,7 @@ this session.
 
 ## Named routines
 
-Twenty-two of 738. Grouped by what they do.
+**This page owns the named-routine count.** Grouped by what they do, and the count is at the end.
 
 ### Entry and start-up
 
@@ -115,11 +115,17 @@ they touch or not at all.
 
 ## Where this leaves the count
 
+**This is the owner of the number.** Other pages quote it by linking here rather than repeating it, so a
+drift has one place to fix.
+
 ```
 738  routines
  38  named
 700  unnamed
 ```
+
+Derived by parsing the tables on this page and in `inside-a-turn.md` against the function-start list from
+`tools/callgraph.js`. Re-derive it rather than trusting it.
 
 Up from 14 at the start of this stretch of work. The count is derived by parsing the tables on this page
 and in `inside-a-turn.md` against the real function-start list, so it can be re-measured rather than

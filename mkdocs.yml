@@ -52,6 +52,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Plan: plan.md
+  - How the plan is maintained: plan-process.md
   - Quickstart: quickstart.md
   - Getting set up: setup.md
   - Playing:
@@ -118,6 +119,8 @@ nav:
       - The palette: palette.md
   - Where it stands:
       - Reading the code: code-analysis.md
+      - The consumable function: consumable-function.md
+      - A source review of game meta-notes: u2-game-meta-analysis.md
       - Open questions: open-questions.md
       - How this was made: provenance.md
 

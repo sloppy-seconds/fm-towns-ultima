@@ -1,3 +1,11 @@
+> **Provenance: this is an imported research document, not a finding of this project.**
+>
+> It was not written here and its claims have not been verified against the disc. It uses em-dashes and
+> footnote markers that the rest of this site does not, and it has a promotional register. **Treat every
+> statement in it as a hypothesis to be tested**, and prefer the project's own pages where they disagree.
+> It is kept because it is a useful list of things worth checking, not because it is known to be true.
+> See [meta-analysis-uses.md](meta-analysis-uses.md) for what it is and is not good for.
+
 # **Comprehensive Technical and Architectural Analysis of Ultima II: The Revenge of the Enchantress**
 
 Published in 1982 by Sierra On-Line and designed by Richard Garriott, *Ultima II: The Revenge of the Enchantress* represents a pivotal transitional phase in early computer role-playing game architecture1. Built natively for the 8-bit MOS 6502 microprocessor on the Apple II platform3, the game expanded the scope of its predecessor by introducing multi-era time travel, an expanded 64-tile overworld renderer, space travel across a three-dimensional solar system grid, and machine-level arithmetic structures1.  

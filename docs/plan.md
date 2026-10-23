@@ -43,7 +43,8 @@ emulator.
 
 ### 1a. Name the remaining routines by string reference
 
-**38 of 738 named.** `tools/fnstrings.js --top N` ranks candidates by string count and the technique
+**The named-routine count is owned by [call-graph.md](call-graph.md).** Re-derive it there rather than
+quoting a number from here. `tools/fnstrings.js --top N` ranks candidates by string count and the technique
 takes seconds per routine. Most of the remaining 700 are glue with no strings and can be skipped
 honestly rather than named by guess.
 

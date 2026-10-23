@@ -76,9 +76,14 @@ layouts, NPC dialogue assignment.
 
 ### 3. Game rules: this is the hole
 
-**26 of 738 functions.** The rules that make Ultima II playable are mostly unread. Combat, movement
-costs, spell effects, monster behaviour, shop pricing, NPC schedules, the passage of time, win
-conditions. Almost none of it is documented as arithmetic.
+**[call-graph.md](call-graph.md) owns the named-routine count, and far fewer than that number are
+described as arithmetic.** The rules that
+make Ultima II playable are mostly unread. Combat, movement costs, spell effects, monster behaviour, shop
+pricing, NPC schedules, the passage of time, win conditions. Almost none of it is documented as
+arithmetic.
+
+The count is owned by [call-graph.md](call-graph.md) and quoted here. It was 26 before the work on the
+call graph and the turn, and it will move again, so this page should link to it rather than repeat it.
 
 The shrine function and the consumable tick are read, which is two behaviours out of hundreds.
 
@@ -127,7 +132,7 @@ most message routines reference only `0xEB` runs. The twelve probes were not was
 aimed at decoding the data rather than at finding the code that reads it, and those are different
 questions.
 
-Meanwhile **38 of 738 functions are named.** That ratio is the honest scoreboard, and
+Meanwhile the named-routine count in [call-graph.md](call-graph.md) is the honest scoreboard, and
 [plan.md](plan.md) is now sequenced by phase rather than by item.
 
 ## The revised plan, in order

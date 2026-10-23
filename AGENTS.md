@@ -76,6 +76,27 @@ When something changes, ask which of these carry it:
 | a link to the site, editor or repo | all three of those |
 | a format finding | `docs/` only, plus `tools/verify.js` if assertable |
 | a platform limitation | `README.md`, `docs/quickstart.md` |
+| an item's state, or the order of work | `docs/plan.md`, then whichever of `docs/open-questions.md` / `docs/overnight.md` listed it |
+| any count | the one page that owns it, then grep for the old number |
+| a finding that closes a question | the closed list in `docs/plan.md`, and the question's own page |
+
+### Planning documents have defined jobs
+
+Three documents carry the plan and confusing their jobs is what causes drift. **`docs/plan.md` is the
+plan of record.** `docs/open-questions.md` and `docs/overnight.md` are views of it. If they disagree,
+`plan.md` wins and the other is the bug.
+
+Item state uses exactly four words, bolded at the top of the item: **OPEN**, **DONE**, **CUT**,
+**NEEDS A DECISION**. No synonyms. `DONE` obliges a page that records the result, an assertion in
+`tools/verify.js` where assertable, and a line saying what is now known. `NEEDS A DECISION` names the
+options and what each costs, because several items sat for sessions described as "untouched" when they
+were really waiting on a choice nobody had framed.
+
+**After every session, ask "what did this session make false?"** Every count that drifted here was
+invalidated by work done in the same session that wrote it. Working forwards from a new finding to its
+consequences is how a session closes cleanly.
+
+Full process, including the five mechanical checks to run before committing: `docs/plan-process.md`.
 
 Currently duplicated and easy to let drift: the archive.org link, the editor and
 docs URLs, the scope paragraph, and the untested-platform caveat. If you touch
