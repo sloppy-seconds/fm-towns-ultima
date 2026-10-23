@@ -167,3 +167,4 @@ package-lock.json
 *.ENV
 *.Env
 !.env.example
+__pycache__/
