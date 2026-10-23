@@ -206,6 +206,17 @@ inference: the tiles render, so they can be matched against a rendered map.
 
 
 
+## Phase 2b: a bot that plays the game
+
+**The way out of the human bottleneck.** Every runtime measurement so far needed a person at the emulator.
+A bot removes that, and the plan is in [gameplayer-plan.md](gameplayer-plan.md).
+
+**Glyphs first.** `tools/u2read.py` measures the panels exactly but cannot read the characters, and nothing
+downstream can be validated without readable text. This is one session and produces a reusable asset whether
+or not the bot is finished.
+
+Then the `waiting` flag, which is the highest-risk unknown, then walking, fighting and touring.
+
 ## Phase 3: go to the emulator (Track B)
 
 **This is the phase that has never happened, and it is now worth more than another night of static work.**

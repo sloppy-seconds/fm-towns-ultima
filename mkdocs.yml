@@ -97,6 +97,7 @@ nav:
       - HP and damage: hp-and-damage.md
       - Combat observed: combat-observed.md
       - Reading the action window: action-window.md
+      - Plan for a game-playing bot: gameplayer-plan.md
       - U2 combat formulas: combat-formulas.md
       - Command dispatch: command-dispatch.md
       - Two jump tables: jump-tables.md
