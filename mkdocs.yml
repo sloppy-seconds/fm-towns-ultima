@@ -78,6 +78,7 @@ nav:
       - The random number helpers: rng-helpers.md
       - The stat-gain routine: stat-gain.md
       - The shrine function: shrine-function.md
+      - The randMod function groups: randmod-groups.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md
       - The randMod survey: randmod-survey.md

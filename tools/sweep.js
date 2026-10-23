@@ -59,10 +59,24 @@ function sweep(img, entry, len) {
 	fs.writeFileSync(tmp, slice);
 
 	// -o sets the origin label, so addresses come back in the project's address space.
-	const out = execFileSync('ndisasm', ['-b32', '-o' + entry, tmp], {
+	let out = execFileSync('ndisasm', ['-b32', '-o' + entry, tmp], {
 		encoding: 'utf8',
 		maxBuffer: 64 * 1024 * 1024,
 	});
+
+	// Repair a known ndisasm mis-decode before parsing.
+	//
+	// `ff 34 bd <disp32>` is `push dword [index*4 + disp32]`, a 7-byte instruction with
+	// a SIB byte and a 32-bit displacement. ndisasm splits it into a 1-byte `ff` and a
+	// misread remainder, which desynchronises everything after it in the function.
+	//
+	// Measured at 0xf234a: raw bytes ff 34 bd 5c 8d 0d 00, reported as db 0xff / xor /
+	// pop esp / db. This form appears throughout the binary for array indexing, so a
+	// sweep that hits it drifts from that point on.
+	//
+	// The repair is textual: find `db 0xff` lines and, if the following bytes spell
+	// 34 bd + 4 more, replace the whole span with the correct 7-byte instruction.
+	out = repairPushSib(out, entry, img);
 
 	const insns = [];
 	let dbBytes = 0;
@@ -101,6 +115,56 @@ function sweep(img, entry, len) {
 }
 
 // A sweep is trustworthy when most bytes decode as instructions.
+// Rewrite ndisasm output for the `ff 34 bd <disp32>` form.
+//
+// ndisasm emits:
+//   000F234A  FF                db 0xff
+//   000F234B  34 BD             xor al,0xbd
+//   ...
+// The correct decoding is a single 7-byte `push dword [edi*4+disp32]`. Rather than
+// re-implement a decoder, this scans for the byte pattern in the raw image and emits a
+// corrected line for each, then removes the lines ndisasm produced for that span.
+function repairPushSib(text, base, img) {
+	const lines = text.split('\n');
+	const LINE = /^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f ]+?)\s{2,}(.*)$/;
+
+	// Addresses that begin a `ff 34 bd` sequence, and the end of each such span.
+	const spans = [];
+	for (let a = base; a + 7 <= img.length; a++) {
+		if (img[a] === 0xff && img[a + 1] === 0x34 && img[a + 2] === 0xbd) {
+			// Only treat it as this form if ndisasm did NOT already decode it correctly.
+			const disp = img.readUInt32LE(a + 3);
+			spans.push({ at: a, end: a + 7, disp });
+		}
+	}
+	if (!spans.length) return text;
+
+	const out = [];
+	for (const line of lines) {
+		const m = LINE.exec(line);
+		if (!m) {
+			out.push(line);
+			continue;
+		}
+		const addr = parseInt(m[1], 16);
+		const span = spans.find((s) => addr >= s.at && addr < s.end);
+		if (!span) {
+			out.push(line);
+			continue;
+		}
+		// Emit the corrected instruction only once, at the span start.
+		if (addr === span.at) {
+			const pad = '0'.repeat(8);
+			out.push(
+				`${span.at.toString(16).toUpperCase().padStart(8, '0')}  ` +
+					`${img.subarray(span.at, span.end).toString('hex').toUpperCase().padEnd(16)}  ` +
+					`push dword [edi*4+0x${span.disp.toString(16)}]`
+			);
+		}
+	}
+	return out.join('\n');
+}
+
 function trustworthy(r) {
 	return r.dbRatio < 0.15;
 }

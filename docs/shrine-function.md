@@ -1,4 +1,4 @@
-# The shrine function at `0xf2ce0`
+# The shrine function at `0xf2cc0`
 
 The largest cluster of `randMod` call sites, read end to end. Nine sites in one function, and it
 turns out to be the **shrine** logic: four branches keyed on a tile value, three of which grant a
@@ -6,6 +6,14 @@ stat increase with a random chance and one of which grants gold.
 
 This is the first complete piece of game logic recovered from the FM Towns binary, not just a
 formula but a decision tree.
+
+## A correction to the entry address
+
+This page first gave the entry as `0xf2ce0`. The real entry is **`0xf2cc0`**, confirmed as an
+instruction boundary by `tools/cfgwalk.js --check`. The `0x20` difference is the same
+file-offset-versus-virtual-address confusion that has now bitten this project three times. The
+disassembly quoted below is correct because it was produced by `tools/sweep.js` from the right
+bytes; only the address label was wrong.
 
 ## Dispatch
 
