@@ -11,6 +11,14 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `extractstrings.js` | Extracts every string reachable from a renderer call site, classified by encoding. Writes `extracted/strings.json`, which is gitignored. |
+| `msgtable.js` | Tests whether register-supplied string arguments come from constant-address loads. Found zero, which is a real negative. |
+| `structmap.js` | Enumerates the fields of a strided array, searching both `[reg+disp32]` and `[base+index+disp]` encodings. The second form is what made the object array readable. |
+| `sndparse.js` | Establishes the `.SND` header layouts. Offset 12 equals `filesize - 32` in 15 of 15 files. |
+| `sndrate.js` | Tests whether the `1960` rate field can be a frequency, by computing effect durations. |
+| `fontsheet.js` | Tests whether a greyscale PNG is a character sheet, by gutter and periodicity analysis. |
+| `fontgrid.js` | Finds the cell grid in a character sheet, and prints a coarse ASCII view. Used to rule out `GAI.TIF` as a font. |
+| `ebsuffix.py`, `ebfreq.py`, `ebposition.py`, `ebrefine.py`, `ebgojuon.py` | The five probes that produced `0x74` = `。` and ruled out gojuon ordering. |
 | `msgcallers.js` | Walks back from every call to the text renderer to find where the string pointer comes from. Found 123 literal string call sites. `--target` picks a different function, `--literals` and `--all` list them. |
 | `funcs.js` | Finds real function entries from `CALL rel32` targets, ranks them by call count, and disassembles from any entry with correct alignment. This is the tool that makes reading the binary reliable. |
 | `stride.js` | Decodes `lea` chains into exact struct strides. Found the 57-byte record used by six functions. |

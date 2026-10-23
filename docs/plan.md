@@ -1,9 +1,11 @@
 # Plan
 
-What this project is doing, what order it is doing it in, and which work does not need a
-human in the loop. Written because the work had drifted into reacting to whichever probe
-was most recent, and several items were being re-attempted from different angles without a
-record of what each one was for.
+What this project is doing, in what order, and which work does not need a human in the
+loop. Written because the work had drifted into reacting to whichever probe was most
+recent. Updated as items completed.
+
+**Last updated after an autonomous work session. A1, A2, A4 and A5 are done. A3 is partly
+done. A6 is blocked and says why.**
 
 ## The standing goal
 
@@ -12,141 +14,165 @@ zip alone. Ultima II only. Everything else is subordinate.
 
 ## The two-track split
 
-This project has two kinds of work and they have been interleaved badly.
-
 **Track A, static analysis.** Reading `ENCHANT.EXP` and the asset files with no emulator.
-Deterministic, reproducible, scriptable, and it can proceed without anyone watching.
+Deterministic, scriptable, and it can proceed without anyone watching.
 
 **Track B, runtime work.** Booting the game, navigating menus, taking savestates, measuring
-behaviour. Needs the emulator, needs someone to decide when to press a key, and cannot be
-scripted reliably end to end.
+behaviour. Needs the emulator and needs decisions about pressing keys.
 
-Almost everything blocked right now is blocked on Track B. Almost everything done recently
-was Track A. That is the imbalance the plan exists to fix.
+Everything still blocked is blocked on Track B, or on the addressing limit documented in
+[addressing-limits.md](addressing-limits.md).
 
-## Track A: what can be done with no input
+## Track A: status
 
-Ordered by value per unit of effort. Each is a self-contained piece of work with a
-definition of done.
+### A1. Read the remaining top-called functions: DONE
 
-### A1. Read the remaining top-called functions
+Documented in [core-routines.md](core-routines.md).
 
-**Why:** `0xe6e90` was read completely and immediately corrected a documented assumption.
-The same method on the next functions is the highest-yield work available, and it needs no
-emulator.
+Read completely: `0xe6e90` (text renderer), `0xe5834` (draw string), `0xe5810` (format
+helper), `0x0c5d` (**TownsOS BIOS gateway**), `0xf3e04` (**pixel writer**, row stride 128),
+`0x10096c` (bounded copy), `0x101928` (variadic forwarder), `0xe1b24` (sprite slot setup),
+`0xe6e48` (counter with limit), `0xe6b1c`, `0xe7440` (object record access).
 
-**What:** disassemble and annotate, from real entries only:
+Three leads came out and one closed:
 
-| entry | calls | what is known |
+- `0xe5810` is **not** "draw message N". It formats a number with padding, transforms it, and
+  draws it. That is the debug readout path.
+- `0xe41d0` is integer-to-string with space padding.
+- `0xe4238` is a per-character switch over `0x20`-`0x5A`, whose **jump table at `0xe4086`
+  does not resolve**. Open, recorded rather than guessed at.
+
+### A2. Finish the 57-byte record: DONE
+
+Documented in [record-arrays.md](record-arrays.md).
+
+There are **two** 57-stride arrays, not one:
+
+| array | base | fields |
 |---|---|---|
-| `0xe5834` | 563 | strlen-then-call, wraps `0xe6e90` |
-| `0xe6b1c` | 240 | uses the 57-byte array, calls `0xe5928` |
-| `0xe7440` | 231 | uses the 57-byte array |
-| `0xe1b24` | 171 | unknown |
-| `0xe5810` | 120 | unknown |
-| `0xf3e04` | 104 | unknown |
-| `0x10096c` | 94 | unknown |
-| `0x101928` | 93 | unknown |
-| `0xe6da8` | - | the pager `0xe6e90` calls on row limit |
-| `0x0c5d` | - | the draw call `0xe6e90` makes |
+| text windows | `0x7aee4` | 14, roles identified |
+| objects | `0x7a7d0` | 10, plus a constructor |
 
-**Done when:** each has a documented signature, a plain-English purpose, and any struct
-offsets it reads.
+An earlier field scan found 8 fields for the text array using the wrong base and 3 for the
+object array using only one addressing form. Searching both `[reg+disp32]` and
+`[base+index+disp]` is what made them readable. `tools/structmap.js` now does both.
 
-### A2. Finish the 57-byte record
+**Unresolved:** the object constructor writes to offset `+69`, which is 13 bytes past a
+57-byte record. And no `CALL` target matches its entry, so it is reached indirectly. Both
+recorded, neither explained.
 
-**Why:** 14 fields found, 6 identified, 8 unknown. The unknown ones are read by functions
-already in the list above, so A1 partly does this for free.
+### A3. Find the message tables: PARTLY DONE
 
-**What:** identify offsets +33, +37, +41, +49, +53 by reading their accessors.
+Documented in [string-sources.md](string-sources.md).
 
-**Done when:** every field has a role or is recorded as unread with the reason.
+**123 call sites to the renderer pass a literal string address.** That is the first map of
+where the game's text lives, and it was the largest single result of the session.
 
-### A3. Find the message tables
+Found and previously unknown:
 
-**Why:** the renderer takes a caller-supplied string pointer, so every message in the game
-is reachable from a call site. The Shift-JIS text is in the image and its containing
-structures have never been mapped.
+- the **music track titles** in English (`Theme of Sosaria`, `Fight!Fight!Fight!`,
+  `Lord British`, `Severe conflict`, `Dark field`, `In a deep dungeon`, `Amem`)
+- the **debug mode readouts** (`PLAYER_X = `, `PLAYER_Y = `, `DUNGEON_Y = `, `GATE X=`,
+  `MAP Y=`, and the `TOWN`/`CASTLE`/`TOWER`/`DUNGEON` labels)
 
-**What:** for each `CALL 0xe6e90` and `CALL 0xe5834`, walk back to find what is pushed as
-argument 2. Classify: immediate string, table indexed by a constant, or computed.
+**Not done:** the 75 register-supplied calls. `tools/msgtable.js` tested whether they come
+from constant-address loads and found **zero**. They are computed, so they are behind the
+addressing limit.
 
-**Done when:** there is a table of message sources, and the ones fetched by constant index
-are enumerated. This is likely to produce the **largest single extraction win** on this
-project, because it turns "the text is somewhere in RAM" into "here is every message and
-where it lives".
+`tools/extractstrings.js` extracts all 138 sites and classifies them by encoding: 96
+Shift-JIS, 21 `EB` runs, 11 ASCII. Output goes to `extracted/strings.json`, gitignored.
 
-### A4. The `0xEB` glyph runs, one more time with code
+### A4. The `0xEB` glyph runs: DONE, one glyph proven
 
-**Why:** nine statistical probes failed. `font-encoding.md` says the answer needs the code
-that reads them. Now there is tooling to find code.
+Documented in [eb-glyphs.md](eb-glyphs.md).
 
-**What:** find what writes `0xEB` bytes. Search for instructions storing `0xEB`, and for
-the `0xEB` constant as an immediate. A writer will name the structure.
+**`0x74` = `。` is established**, by a test that could have failed: in 160 pure `EB` strings
+it occurs non-finally 3 times and all three are `。。`.
 
-**Done when:** either a writer is found and the format is explained, or the search is
-recorded as negative with the method used.
+Ruled out:
 
-**Note:** this is genuinely optional. Text draws from Shift-JIS and the `0xEB` runs are not
-on the rendering path, so nothing is blocked on them.
+- gojuon ordering: no 46-long contiguous run exists, the largest is 16
+- `0x5d` = `ス` from a `-masu` ending: only 11% of strings contain `0x5d`, and polite text
+  would use it nearly always
+- transliteration against ship names: lengths differ in both directions
+- **a font on the disc**: `GAI.TIF` is one 168x249 illustration, not a sheet, and
+  `EXTRA.TIF` is a dense tile bank. Neither is a font.
+- a font pointer table in the binary: the only 16-long pointer runs are the known string
+  table at `0x7a864`
 
-### A5. The sound setup, for the 1960 question
+The remaining route is the writer, which is behind the addressing limit.
 
-**Why:** `sound.md` records the `.SND` rate as unverified. A first probe found **no `1960`
-constant anywhere in the image**, which is evidence in itself: 1960 is read from the file,
-not set by the code.
+### A5. The sound rate: DONE, negative on the original question
 
-**What:** find the `.EUP` driver interface through the string table at `0x7a864`, then the
-code that programs the PCM channel. The rate is whatever that code writes, which may be a
-divisor rather than a frequency.
+Documented in [sound.md](sound.md).
 
-**Done when:** either the rate is established from the code, or the negative is recorded.
+The `1960` puzzle is an **artefact of a second header layout**, not a corrupt field. The
+discriminator is offset 16: `0` in layout A, `length - 1` in layout B. `BUMP`, `FIRE` and
+`WHAT` carry a loop point, and it shifts what the later offsets mean.
 
-### A6. `MAP2_*` geometry, from the indexing code
+Measured: **offset 12 equals `filesize - 32` in 15 of 15 files.**
 
-**Why:** every statistical approach failed and one produced a confident wrong answer. The
-loader at `0xe7b38` was the wrong function. The right one has not been found.
+**The actual question is still open.** A scan of `ENCHANT.EXP` finds **no `1960`** as a u16
+or u32, so the game reads the value rather than programming it. At 1960 Hz the effects would
+run 1.5 to 30 seconds, which is implausibly long. Answering it needs the PCM setup code.
 
-**What:** the map file is opened by a call site that pushes `Q:\GRAPH\MAP2_1.TIF`. Find
-that call site's enclosing function and read how the loaded buffer is indexed.
+### A6. `MAP2_*` geometry: BLOCKED
 
-**Done when:** the cell geometry is stated with the instruction that proves it.
+The `Q:\GRAPH\MAP2_1.TIF` string is at `0x22cc` and is **never pushed as an immediate**. The
+only reference to it anywhere is its own bytes. So the loader that opens it cannot be found
+by looking for a reference.
+
+This is the addressing limit again. See [addressing-limits.md](addressing-limits.md), where
+it is now recorded as a systemic obstacle with six examples rather than a one-off.
+
+**Cheapest unblocker:** a savestate while the map is displayed, dumped at the loaded map
+address, compared against the file. That is Track B.
+
+## New item A7, added this session
+
+### A7. Dump the runtime image where `0xe4086` and friends should be
+
+**Why:** the addressing limit blocks five separate lines of work. One savestate read would
+show whether the image as loaded differs from the file at the addresses that fail to resolve.
+
+**What:** read `death.state` at image base plus the failing addresses, and check whether the
+jump table at `0xe4086` and the references that should exist are present at runtime.
+
+**Cost:** low. The base is known (`0x762d2`).
+
+**Blocks:** A3's register calls, A4's writer, A6 entirely.
 
 ## Track B: what needs a human
 
-Not scheduled. Listed so it is clear what is stuck and why.
+| item | needs |
+|---|---|
+| Which `ENEMY2` bank is which | a savestate on the overworld |
+| Combat formula measurement | a character with known stats, then fighting |
+| Equipment thresholds | a character at the boundary |
+| Debug mode activation | input testing, or finding the flag |
+| `WORLD*.UT2` contents | saves at different positions |
+| The addressing limit | a savestate dumped at known addresses (A7) |
 
-| item | needs | blocked on |
-|---|---|---|
-| Which `ENEMY2` bank is which | savestate on the overworld | someone to boot and stand on the map |
-| Combat formula measurement | known `AGILITY`/`STRENGTH` then fight | playing the game |
-| Equipment thresholds | a character at the boundary, tested | playing the game |
-| Debug mode activation | trying inputs, or finding the flag | playing the game |
-| `WORLD*.UT2` contents | saves at different positions | playing the game |
-
-**Track B has a cheaper alternative that has not been tried:** `saves/maxed_four.hdm`
-already exists with known stats. If the formula can be predicted from the code, a single
-save file can confirm it, and making a save file is a Track A operation. That is worth
-trying before asking anyone to play.
+**One Track B item may be closable from Track A:** `saves/maxed_four.hdm` already exists with
+known stats. If a formula can be predicted from the code, one save file confirms it, and
+making a save file is a Track A operation.
 
 ## What this plan deliberately does not do
 
-- **No more statistical probes on `MAP2_*` or the `0xEB` runs.** Both have been tried to
-  exhaustion. If A4 or A6 do not crack them, that is the honest answer.
+- **No more statistical probes on `MAP2_*` or the `0xEB` runs.** Both tried to exhaustion.
 - **No more U3 cross-checks.** One round done, one test wrong, nothing transferred.
-  `references/` stays as reading material, not as a source of claims.
-- **No decompiler.** `code-analysis.md` records why a flat binary at a guessed base
-  produces systematic errors. Reading functions from real entries is working and is cheap.
+- **No decompiler.** Reading functions from real entries works and is cheap.
 
 ## The rule that governs all of it
 
-Every claim needs a measurement that distinguishes it from its alternatives, and every
-failed probe gets recorded so it is not retried. Three confident wrong conclusions exist in
-this project's history and each one came from a plausible-looking pattern.
+Every claim needs a measurement that distinguishes it from its alternatives, and every failed
+probe gets recorded so it is not retried. Three confident wrong conclusions exist in this
+project's history and each came from a plausible-looking pattern.
 
-The most useful thing recent work produced was not a finding but a correction: the text
-renderer reads Shift-JIS directly, which removed a blocker that was shaping the search.
+This session produced two more examples of the same failure mode, both caught: a tool that
+took the wrong argument order and reported 216 implausible hits, and a field scan that used
+the wrong array base and reported 49 untouched bytes in a 57-byte record.
 
 ---
 
-**[Open questions](open-questions.md)** **[Finding functions](function-recovery.md)** **[The text renderer](text-renderer.md)**
+**[Open questions](open-questions.md)** **[Core routines](core-routines.md)** **[Addressing limits](addressing-limits.md)** **[Where the strings are](string-sources.md)**
