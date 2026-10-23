@@ -11,6 +11,7 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `msgcallers.js` | Walks back from every call to the text renderer to find where the string pointer comes from. Found 123 literal string call sites. `--target` picks a different function, `--literals` and `--all` list them. |
 | `funcs.js` | Finds real function entries from `CALL rel32` targets, ranks them by call count, and disassembles from any entry with correct alignment. This is the tool that makes reading the binary reliable. |
 | `stride.js` | Decodes `lea` chains into exact struct strides. Found the 57-byte record used by six functions. |
 | `structfields.js` | Given a record base and stride, finds every field offset by scanning displacements over the whole image. |

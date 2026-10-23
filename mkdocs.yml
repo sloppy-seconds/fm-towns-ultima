@@ -51,6 +51,7 @@ markdown_extensions:
 # findings, then the investigations, then what is still open.
 nav:
   - Home: index.md
+  - Plan: plan.md
   - Quickstart: quickstart.md
   - Getting set up: setup.md
   - Playing:
@@ -71,6 +72,7 @@ nav:
       - Testing U3 hypotheses against U2: u3-hypothesis-tests.md
       - Finding functions and structure: function-recovery.md
       - The text renderer: text-renderer.md
+      - Where the strings are: string-sources.md
       - Equipment thresholds: equipment-thresholds.md
       - The tile loader: tile-loader.md
       - Reviewing the research doc: meta-analysis-review.md
