@@ -1,5 +1,13 @@
 # The character record layout, solved from the format string
 
+> **MAJOR CORRECTION: the format string is a SAVE format, not a memory layout.** Verified at runtime by
+> matching four values the game displays against live memory. `MHP` is in the save file but not in the
+> in-memory struct, so **every field from `EXPERIENCE` onward is 4 bytes earlier in memory than this page
+> says.** `HP` and everything before it is correct. See [save-vs-memory.md](save-vs-memory.md).
+>
+> The three anchors this page used to prove the layout (`MAP`, `PLAYER_X`, `PLAYER_Y`) are all *after* the
+> omission, so they agreed with each other while being consistently wrong.
+
 Every field offset on this project's map, shrine and formula pages was unnamed, because deriving
 roster-field to memory-offset had failed twice. It is now solved, and it changes what several
 earlier pages mean.
