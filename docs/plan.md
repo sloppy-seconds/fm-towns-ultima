@@ -1,165 +1,192 @@
-# Plan and current state
+# Plan
 
-Where this project is, what is established, and what to do next. Rewritten to be a map rather than a
-log of how the map was drawn. The per-item history lives in the subject pages, which is where it
-belongs.
+Where the project is, what order the remaining work goes in, and how each piece of it finishes.
+
+This replaces an earlier version that was a list of open items with no sequencing. A list says what is
+unfinished. A plan says what to do next and how to know it worked.
 
 ## The goal
 
-Extract as much useful data and artwork as possible from the FM Towns Ultima II release, reproducibly
-from the archive.org zip alone. Ultima II only.
+**Reimplement Ultima II.** The extraction phase exists to build a strong enough corpus of data, assets
+and rules that a reimplementation is a translation exercise rather than a guess.
 
-## The two tracks
+Everything below is in service of that. [reimplementation-gap.md](reimplementation-gap.md) measures the
+distance and is the honest scoreboard.
 
-**Track A, static analysis.** Reading `ENCHANT.EXP` and the asset files with no emulator.
-Deterministic, scriptable, and it runs without anyone watching. This is where almost all progress has
-come from.
+## Two tracks, and why the balance has to change
 
-**Track B, runtime work.** Booting the game, taking savestates, measuring behaviour. Needs a human to
-decide when to press a key.
+**Track A, static.** Reading `ENCHANT.EXP` and the asset files with no emulator. Deterministic,
+scriptable, runs unattended. This is where nearly all progress has come from because it is the only
+track anyone has worked.
 
-## What is established
+**Track B, runtime.** Booting the game, taking savestates, measuring behaviour. Needs a human to press
+keys.
 
-These are measured and have pages. Do not re-derive them.
+**The balance is now the problem.** Of the four most recent questions, three ended in "this is outside
+the executable" or "this needs a keypress":
 
-| finding | page |
+| question | outcome |
 |---|---|
-| Asset inventory is complete: 23 `GRAPH\*.TIF`, 14 `SOUND\*.SND`, 10 `.EUP`, 1 `.FMB`, 4 `A:\*.UT2` | [extraction.md](extraction.md) |
-| Palette: indices 0 to 7, eight colours confirmed | [palette.md](palette.md) |
-| `MAP2_*` is a **32,768-byte buffer, 256 x 128**; the file supplies rows 12 onward | [map-geometry.md](map-geometry.md) |
-| Map cell: `v & 3` carries terrain, 4 classes | [cell-encoding.md](cell-encoding.md) |
-| Character record base **`0xcde54`**, 339 bytes, 90 fields named | [record-layout.md](record-layout.md) |
-| RNG is an LCG, `0x41c64e6d` / `0x3039`, state at `0xdfc78`, output 15 bits | [rng-helpers.md](rng-helpers.md) |
-| `randRange(lo,hi)` is **inclusive both ends**; `randMod(n)` is `0..n` | [rng-helpers.md](rng-helpers.md) |
-| `.SND` header layout; offset 12 is length in 15 of 15 files | [sound.md](sound.md) |
-| Image loads at base `0x762d2` below `0xd0000`, **mirrored** above it | [mirrored-region.md](mirrored-region.md) |
-| `tools/cfgwalk.js` gives 79,470 instruction boundaries in about two seconds | [cfgwalk.md](cfgwalk.md) |
-| The text renderer parses Shift-JIS directly; no font table on the drawing path | [text-renderer.md](text-renderer.md) |
-| Display text extracts cleanly as Shift-JIS | [game-text.md](game-text.md) |
-| Ghidra is viable **with conditions** | [ghidra-viability.md](ghidra-viability.md) |
+| `cs:`-relative jump tables | table 1 works, table 2 needs the segment registers, which are not in the savestate in a findable form |
+| the `0xEB` character mapping | the renderer hands bytes to TownsOS, so the mapping is not in the game at all |
+| key to command mapping | the table keys are control codes, and which code the keyboard produces is runtime |
+| the tick | not attempted, but every timer is a runtime quantity |
 
-## Unattended work
+**The static vein is thinning.** What remains is mostly mechanical scaling of `tools/fnstrings.js`, which
+is real work but not discovery. The high-value open questions have moved to Track B, and Track B has
+never been attempted.
 
-[docs/overnight.md](overnight.md) is the queue for work that needs nobody watching: concrete units,
-each with a stopping rule and a required commit. Start there when no human is available.
+## Phase 1: finish the readable skeleton (Track A)
 
-## What is open
+Cheap, mechanical, no blockers. Do this first because it removes the last excuse for not going to the
+emulator.
 
-Ordered by what it costs and what it is worth.
+### 1a. Name the remaining routines by string reference
 
-### 1. The routines inside the turn (`0xf6ebc` calls 39)
+**38 of 738 named.** `tools/fnstrings.js --top N` ranks candidates by string count and the technique
+takes seconds per routine. Most of the remaining 700 are glue with no strings and can be skipped
+honestly rather than named by guess.
 
-**This supersedes the `randMod` item.** The game loop is found ([game-loop.md](game-loop.md)): a turn is
-one call to `0xf6ebc`. Reading its 39 callees covers every per-turn behaviour, which is a far better
-return than 33 scattered `randMod` functions.
+**Done when** `docs/call-graph.md` names every routine that has at least one readable string reference,
+and states the count of routines with none.
 
-Progress: **38 of 738 routines named**, counted against the real function-start list by parsing the
-tables in `call-graph.md` and `inside-a-turn.md`. See those pages for the named skeleton.
-
-### 2. The tick, not the turn
+### 1b. Read the tick
 
 `inside-a-turn.md` covers what happens when the player acts. **What advances between actions is not
-covered:** food consumption per move, torch burn-down, monster repopulation, day and night, the shop
-restock, the spawn timer. These are the `randMod` functions and the time-related globals.
+covered:** food per move, torch burn-down, monster repopulation, day and night, shop restock, spawn
+timers.
 
-This is the natural next step because a turn is now a known unit, so a tick can be described as
-"what `0xf6ebc` does that is not key driven" and checked against it.
+A turn is now a known unit, so a tick is describable as "what `0xf6ebc` does that is not key-driven" and
+checkable against the loop directly. Start from `0xf6ebc`'s callees that are **not** in the key dispatch
+path, then the 33 unread `randMod` functions with the turn as a frame.
 
-### 3. The `randMod` functions (33 of 35 unread)
+**Done when** `docs/inside-a-tick.md` names each timer, its interval, and its effect, or records that it
+could not be determined statically.
 
-**Worth most, costs least, no blockers.** Grouping put the 85 `randMod` sites into 35 functions.
-Two are read: the shrine/effect dispatcher at `0xf2cc0` and the consumable tick at `0xef440`. The
-record layout is now solved, so any function read from here on can be written in field names
-immediately rather than needing a second pass.
+## Phase 2: the map, which is the last file-side unknown
 
-`tools/randgroups.js` lists them. Start with `0xf9c8c` (9 sites), `0xf3758` (6), then the 4s.
+### 2a. The high bits of a map cell
 
-**Done when** the random-number-driven behaviour of the game is described rather than sampled.
+`v & 3` is terrain, established against a shuffle control. **The upper nibble has the largest
+gain-over-shuffle of any field tested (+54pp)** and nobody knows what it carries.
 
-### 4. The high bits of a map cell
+Testable on file data alone: 256 rows by 128 columns, file supplies rows from 1,536.
 
-`v & 3` is terrain, established against a shuffle control. The upper nibble has the largest
-gain-over-shuffle of any field tested, so it carries real structure, but what it means is unknown.
-Candidate: a variant or edge qualifier. See [cell-encoding.md](cell-encoding.md).
+**Done when** the nibble's meaning is established, or the specific neighbour-correlation tests are
+recorded negative with their measurements.
 
-**This is the last substantive map question.** It is testable against the rendered map.
+### 2b. The 64-tile vocabulary
 
-### 5. The `0xe4086` switch table
+`MAP2_*` uses 64 tile values. Which tile each name maps to is open, and it is extraction rather than
+inference: the tiles render, so they can be matched against a rendered map.
 
-Not a table in the file, not a table at its mirrored runtime address, and not a `cs`-relative offset
-with the observed segment base. Three explanations ruled out. See
-[indirect-branches.md](indirect-branches.md) and [core-routines.md](core-routines.md).
+**Done when** a page lists tile value to picture, or says which ones cannot be resolved without runtime
+comparison.
 
-### 6. The top-of-image runtime mapping
+## Phase 3: go to the emulator (Track B)
 
-The mirror constant `0x4392d2` holds from `0xd0000` to about `0x104000` and then breaks. Neither it
-nor a second candidate covers the tail. This blocks reading anything above `0x104000` at runtime,
-including the printf output callback pointer at `0xdfc5c` and the 144 unresolved indirect branches.
-See [indirect-branches.md](indirect-branches.md).
+**This is the phase that has never happened, and it is now worth more than another night of static work.**
 
-**This is a memory-layout question, not a game question.** Likely segmented, given the BIOS gateway
-switches `fs` to segment `0x110`.
+**Nothing is blocking it.** Checked at the time of writing:
 
-### 7. The `0xEB` glyph mapping: ANSWERED, and closed
-
-Thirteen probes searched `ENCHANT.EXP` for a character mapping. **It is not there.** The text renderer at
-`0xe6e90` copies every byte into a buffer unchanged and calls `0xc5d`, the Fujitsu BIOS gateway, which
-draws it. **TownsOS owns the mapping.**
-
-That single fact explains every negative on the glyph question. See [eb-renderer.md](eb-renderer.md) for
-what would answer it (a savestate plus the TownsOS font, the font file on the disc, or the FM Towns BIOS
-reference) and why a reimplementation does not need it.
-
-**Closed.** No further work on this in the executable is worth doing.
-
-### 8. `WORLD*.UT2` layout
-
-68,096 bytes, four files, no page documents it. Partly solved: **128-byte rows, 6 rows of data, then
-68,000 bytes of zero**. Rows 0 and 1 hold grouped values 30 to 34 and row 2 holds values that look
-like bitmasks (255, 224, 192, 64, 32). Details and the open questions are in
-[overnight.md](overnight.md) item 1.
-
-### 9. Track B, untouched
-
-Nothing here has been attempted. All of it needs a human.
-
-| item | needs |
+| prerequisite | state |
 |---|---|
-| Which `ENEMY2` bank is which | a savestate on the overworld |
-| Combat formula measurement | a character with known stats, then fighting |
-| Equipment thresholds | a character at the boundary |
-| Debug mode activation | input testing, or finding the flag |
-| `WORLD*.UT2` contents | saves at different positions |
-| The RNG seed at `0xdfc78` | a savestate during play, since both existing states are menus |
-| The top-of-image mapping | a savestate, for the same reason |
+| emulator vendored | `vendor/emulator`, `vendor/roms`, `vendor/freetownsos` all present |
+| container image built | `localhost/fmtowns`, 911 MB |
+| driver tooling | `tools/container-run.sh`, `tools/debug-session.sh`, `tools/u2flow.py`, `tools/vncclick.py` |
+| savestate tooling | `tools/statefind.js`, `tools/mirror.js`, `tools/savetext.py`, `tools/statesegments.js` |
+| save-disk tooling | `tools/savedisk.js`, `tools/makesave.js` |
 
-**One Track B item is closable from Track A:** `saves/maxed_four.hdm` exists with known stats. If a
-formula can be predicted from the code, one save file confirms it.
+The only requirement is that someone is present to press keys, and the constraint from previous sessions
+is that **every keypress has to be explicitly requested** rather than decided by an agent. So Phase 3
+needs a human in the loop, which is exactly why it has not happened.
 
-## Method rules this project has learned the hard way
+### 3a. One savestate during play
 
-Every one of these came from getting it wrong first.
+Not a menu. Start a character, walk a few steps, save state.
 
-- **Byte-plausible is not verified.** Measure, and state what the measurement does not prove.
-- **A layout that fits its anchor and drifts by one field is wrong, and looks right.** Require three
+**This single artefact answers four open questions at once:**
+
+- the **segment registers**, which settle the second jump table and the top-of-image mapping
+- the **RNG seed** at `0xdfc78` while it is live, since both existing states are menus where the
+  generator is never called
+- the **object record size**, 57 or 69, because `0x7a7d0` is all zeros in both menu states
+- the **world file contents**, because a played world is not blank and the current save has nobody who
+  has entered the world
+
+**Done when** a state is captured, `tools/statefind.js` and `tools/mirror.js` run against it, and the
+answers to those four are recorded.
+
+### 3b. Which key is which command
+
+Press a key, see which handler runs. The dispatch table is known (ten entries, index is key minus one,
+`0xd460c` holds the key), so this is a mapping exercise rather than a search.
+
+**Done when** `docs/command-dispatch.md` maps key to command.
+
+### 3c. The `0xEB` font, if it is wanted
+
+The renderer hands bytes to TownsOS. If the OS keeps glyphs in RAM, they are in the savestate and can be
+read out.
+
+**Explicitly optional.** [eb-renderer.md](eb-renderer.md) sets out why a reimplementation does not need
+this. Do it only if the font shapes matter for their own sake.
+
+## Phase 4: the corpus a reimplementation needs
+
+### 4a. The data tables
+
+Monster stats, item properties, spell effects, shop inventories, town layouts. These are extraction work
+and they are tractable once the routines that index them are named, which is what Phase 1 buys.
+
+**Done when** each table named in a routine has a page with its record layout.
+
+### 4b. Combat formulas, stated as arithmetic
+
+The RNG is understood and the record layout is known, so the formulas are readable. They cannot be
+*verified* without a fight, which is why this sits after Phase 3.
+
+**Done when** to-hit and damage are stated exactly, and marked read-versus-verified.
+
+## What is closed and should not be reopened
+
+These have been tried, failed, and explained. Reopening them needs a new method, not a new attempt.
+
+| item | why closed |
+|---|---|
+| `0xEB` character mapping inside the executable | the renderer passes bytes to TownsOS. It is not there. See [eb-renderer.md](eb-renderer.md) |
+| `WORLD*.UT2` layout from the current save | all four characters are at `MAP=0`, `WORLD=0`. There is no populated world in the file. See [world-format.md](world-format.md) |
+| the `0xe4086` switch table | three explanations ruled out, and it is one branch in a routine that already works |
+| Ghidra as a way to *find* code | it agrees on every established address but under-decodes three to one without seeds. Use it to read, not to find |
+
+## Method rules
+
+Every one came from getting it wrong first, and the list is longer than it should be.
+
+- **Byte-plausible is not verified.** Measure, and say what the measurement does not prove.
+- **A layout that fits its anchor and drifts by one field is wrong and looks right.** Require three
   independent anchors to agree.
 - **A fast tidy answer from a cache or a scan may be wrong.** The `cfgwalk` address cache gave a
   plausible rejection list and was dropping real sites.
-- **An off-by-`0x20` between file offset and virtual address has bitten this project four times.** The
-  image is header-stripped, so an offset in it is a virtual address.
+- **Address arithmetic has produced six errors here.** An offset in the header-stripped image *is* a
+  virtual address. The `disp32` of `2e ff 24 95` starts at **+4**, not +3. Parse displacements, never
+  read them by eye.
 - **Do not trust a search that assumes one base.** The top of the image is mirrored.
-- **Do not trust a low `db` ratio as proof a disassembly is clean.** `ndisasm` mis-decodes
-  `ff 34 bd <disp32>`, and a function can be 3 percent `db` and still misaligned from the middle.
+- **Do not trust a low `db` ratio as proof of clean disassembly.** `ndisasm` mis-decodes
+  `ff 34 bd <disp32>`.
+- **A partial edit is worse than no edit.** Twice this project left a sentence asserting a claim that a
+  new paragraph had just retracted.
+- **Docs go stale fastest in the session changing them.** Numbers in the plan were wrong one commit after
+  being written, three times.
 - **Record negatives.** A failed probe is worth as much as a success.
 
-## What this plan deliberately does not do
+## How this plan is kept honest
 
-- No more statistical probes on the `0xEB` runs. Eleven approaches have failed.
-- No decompiler as a substitute for finding code. Ghidra agreed with this project on every
-  established address, but under-decodes by a factor of three without seeds. Use it to read code,
-  not to find it.
-- No attempt to make the FM Towns build behave like the DOS one. They are different games.
+- `tools/verify.js` fails loudly if an established fact stops being true. 122 checks.
+- `reimplementation-gap.md` carries the scoreboard and the named-routine count.
+- `overnight.md` is the unattended queue, derived from this plan.
+- Any number in this plan must be re-measured before being quoted, because three have already been wrong.
 
 ---
 
-**[Open questions](open-questions.md)** **[All pages](index.md)**
+**[Distance to reimplementation](reimplementation-gap.md)** **[Unattended queue](overnight.md)** **[All pages](index.md)**

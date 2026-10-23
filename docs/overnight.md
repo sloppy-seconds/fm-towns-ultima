@@ -1,8 +1,11 @@
 # Overnight queue
 
-**STATUS: all six items worked. See the outcome note at the top of each item.** This page is kept as
-the record of what was queued and what it produced, not as pending work. For what to do next, see
-[plan.md](plan.md).
+**STATUS: the first six items are worked and marked below.** This page is both the record of that queue
+and the live queue for Track A work. [plan.md](plan.md) is the plan of record, sequenced by phase.
+Items here are the subset that needs no human.
+
+**Track B is not in this queue and never will be** because it needs keypresses, and every keypress has
+to be explicitly requested. That is why [plan.md](plan.md) Phase 3 is the phase that has never run.
 
 Work that needs nobody watching. Every item here needs no emulator, no keypress and no decision from a
 human, and each ends in either a committed page or a recorded negative with its measurement.
@@ -38,7 +41,9 @@ The image has the `0x20` header stripped, so **an offset in it is a virtual addr
 
 ## Item 1: name the top-level routines
 
-**DONE.** 22 routines named. The game loop was found while doing item 2. See [call-graph.md](call-graph.md).
+**DONE.** 38 routines named at the time of writing, and the game loop was found while doing item 2. See
+[call-graph.md](call-graph.md) and [inside-a-turn.md](inside-a-turn.md). The count is derivable by
+parsing the tables in those pages against the function-start list.
 
 `tools/callgraph.js` is committed and already answers the structural question. Measured:
 

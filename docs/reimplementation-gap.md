@@ -8,14 +8,17 @@ into extraction-as-endpoint, and the drift was hiding the fact that **the corpus
 
 ## The headline number
 
-**738 distinct functions are called from `ENCHANT.EXP`. 22 are now named, the game loop is found, and
-the rest are not.**
+**738 distinct functions are called from `ENCHANT.EXP`. 38 are named, the game loop and the command
+dispatcher are found, and the rest are not.**
 
 ```
 738   distinct CALL targets
- 22   named from string references or structure   3.0%
-716   unnamed
+ 38   named from string references or structure   5.1%
+700   unnamed
 ```
+
+Measured by parsing the tables in `call-graph.md` and `inside-a-turn.md` against the real function-start
+list, so the count is derivable rather than asserted.
 
 An earlier version of this page measured by address mentions rather than by names, which counted
 incidental listings. The named count is the honest one and it is lower.
@@ -124,7 +127,8 @@ most message routines reference only `0xEB` runs. The twelve probes were not was
 aimed at decoding the data rather than at finding the code that reads it, and those are different
 questions.
 
-Meanwhile **22 of 738 functions are named.** That ratio is the honest scoreboard.
+Meanwhile **38 of 738 functions are named.** That ratio is the honest scoreboard, and
+[plan.md](plan.md) is now sequenced by phase rather than by item.
 
 ## The revised plan, in order
 

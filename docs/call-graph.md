@@ -104,24 +104,27 @@ second-level dispatch behind the character's `KEY` field.
 
 ## The pattern worth noting
 
-**19 of the 22 named routines were identified from strings alone.** The three exceptions are structural:
-the two entry points from having no caller, and `0x103c04` from being called by both.
+**Most of the named routines were identified from strings alone.** The exceptions are structural: the
+two entry points from having no caller, `0x103c04` from being called by both, and the routines whose only
+strings are `0xEB` runs, which were named from the record fields they touch instead.
 
-That means the remaining 700 routines are mostly nameable the same way, and the ones that are not
-named yet are the ones whose strings are `0xEB` runs. See [eb-encoding.md](eb-encoding.md): the runs are
-a private double-byte character set, so those routines stay unnamed until the set is understood or a
-savestate is taken.
+That means the remaining routines are largely nameable the same way, with one caveat: a routine whose
+only string references are `0xEB` runs cannot be named from text, because the text is rendered by TownsOS
+rather than decoded by the game. See [eb-renderer.md](eb-renderer.md). Those get named from the fields
+they touch or not at all.
 
 ## Where this leaves the count
 
 ```
 738  routines
- 22  named
-716  unnamed
+ 38  named
+700  unnamed
 ```
 
-That is up from 14 named before this session. It is not close to a reimplementation, but the method is
-now cheap enough that the number can move quickly.
+Up from 14 at the start of this stretch of work. The count is derived by parsing the tables on this page
+and in `inside-a-turn.md` against the real function-start list, so it can be re-measured rather than
+trusted. It is not close to a reimplementation, but the method is cheap enough that the number can move
+quickly.
 
 ---
 
