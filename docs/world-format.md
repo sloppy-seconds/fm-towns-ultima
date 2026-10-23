@@ -90,17 +90,22 @@ offset     saved file          our newWorld()
 0xf200     00000000 00000000   e5e5e5e5 e5e5e5e5
 ```
 
-**The game leaves that region zero. Our generator writes `0xe5` into it.** So `WORLD_FILL_FROM` is a
-guess that was never checked against a real save, and `newWorld()` produces a file the game does not
-produce.
+**The game leaves that region zero. Our generator wrote `0xe5` into it.**
 
-That matters beyond this page: the browser editor and `tools/makesave.js` both generate world files, and
-if the game ever validates or reads that region, generated saves would be written with bytes the game
-never writes. **It has not caused a reported failure**, and it may be harmless, because a blank region is
-a blank region. But it is not reproduced from evidence and the constant should be treated as unverified.
+**FIXED.** The cause is visible now: **`0xe5` is the fill for unused space on the DISK**, which is a
+different thing from the contents of a file. The value leaked from the FAT layer into file content. The
+game never writes `0xe5` inside a world file.
 
-**Not changed in this commit**, because changing a generator without a populated save to test against
-would replace one guess with another. Recorded so the next person knows the value is a guess.
+`WORLD_FILL_LEN` is now **0** in both `tools/savedisk.js` and `web/fat12.js`, so `newWorld()` returns all
+zeros, which is what the game produces. Asserted in `tools/test-savedisk.js` so it cannot regress.
+
+This mattered beyond this page: **the browser editor** and `tools/makesave.js` both generate world files
+through this function, so every generated save carried 6,144 bytes the game never writes. No reported
+failure, but it is now correct rather than plausible.
+
+One thing the generator still does not reproduce: the game's own files carry **120 nonzero bytes in the
+first 768 bytes**, which is start-up scratch the game writes itself. A generated file is those 120 bytes
+shorter in content and the game appears to accept it, because it is blank-world scratch.
 
 ## What is still open, and what would settle it
 

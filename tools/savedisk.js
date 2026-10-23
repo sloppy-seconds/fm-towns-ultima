@@ -251,8 +251,17 @@ function newBlankDisk() {
 // Nothing here is game content, so a world file can be generated rather than
 // copied, which is what allows a standalone editor that redistributes nothing.
 const WORLD_SIZE = 68096;
+// A blank world file from the game is ALL ZEROS. Measured against all four files in
+// saves/maxed_four.hdm: bytes 0xf200..0x109ff contain zero non-zero bytes in every one.
+//
+// An earlier version filled 6144 bytes of 0xe5 here. That was wrong, and the likely cause is
+// visible: 0xe5 IS the fill used for unused SPACE ON THE DISK (see web/fat12.js), so the value
+// leaked from the FAT layer into file content. The game never writes 0xe5 inside a world file.
+//
+// The constants are kept so callers still compile, but the fill length is zero, which makes
+// newWorld() produce what the game actually produces.
 const WORLD_FILL_FROM = 0xf200;
-const WORLD_FILL_LEN = 6144;
+const WORLD_FILL_LEN = 0;
 
 function newWorld() {
 	const b = Buffer.alloc(WORLD_SIZE, 0);
@@ -282,7 +291,7 @@ module.exports = {
 	// creating a disk from nothing
 	newBlankDisk,
 	// world files
-	newWorld, WORLD_SIZE, WORLD_FILL_FROM,
+	newWorld, WORLD_SIZE, WORLD_FILL_FROM, WORLD_FILL_LEN,
 	// roster
 	parseSlots, getField, setField,
 	// roster convenience
@@ -451,7 +460,7 @@ if (cmd === 'ls') {
 		dst = addEntry(img, dstName, chain[0], data.length);
 	}
 	const written = saveDisk(argv[1], img, inplace);
-	console.log('generated ' + dstName + ' (' + data.length + ' B, ' + WORLD_FILL_LEN + ' x 0xE5 at 0x' + WORLD_FILL_FROM.toString(16) + ')');
+	console.log('generated ' + dstName + ' (' + data.length + ' B, all zeros: the game writes no fill inside a world file)');
 	console.log('wrote ' + written);
 } else if (cmd === 'newdisk') {
 	// Build a blank save disk the game will accept. No boot sector required.

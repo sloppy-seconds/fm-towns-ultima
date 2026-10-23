@@ -15,6 +15,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const TOOL = path.join(__dirname, 'savedisk.js');
+const { newWorld, WORLD_SIZE, WORLD_FILL_LEN } = require('./savedisk.js');
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -215,6 +216,18 @@ fs.unlinkSync(tmp);
 	const ls = run('ls', dst);
 	eq('newdisk has an empty root directory', ls.trim() === '', true);
 	fs.unlinkSync(dst);
+}
+
+// A blank world file must be all zeros. An earlier version filled 6144 bytes of 0xE5 at 0xF200,
+// which is the DISK free-space fill leaking into file content. Measured against all four
+// WORLD*.UT2 files in a real save: that region is zero in every one.
+{
+	const w = newWorld();
+	eq('newWorld size', w.length, WORLD_SIZE);
+	let nz = 0;
+	for (const b of w) if (b !== 0) nz++;
+	eq('newWorld is all zeros', nz, 0);
+	eq('WORLD_FILL_LEN is zero', WORLD_FILL_LEN, 0);
 }
 
 console.log('\n' + '-'.repeat(50));

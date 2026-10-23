@@ -216,13 +216,18 @@ export function newBlankDisk() {
   return b;
 }
 
-// An untouched world file: one run of 0xE5 at 0xF200. Generated, never copied.
+// An untouched world file from the game is ALL ZEROS. Measured against all four WORLD*.UT2
+// files in a real save: bytes 0xF200..0x109FF contain zero non-zero bytes in every one.
+//
+// An earlier version filled 6144 bytes of 0xE5 here. That was wrong. 0xE5 is the fill for unused
+// SPACE ON THE DISK, which is a different thing from the contents of a file, and the value had
+// leaked from the FAT layer into file content. The game never writes 0xE5 inside a world file.
+//
+// The constants are kept so callers still work, but the fill length is zero.
 export const WORLD_SIZE = 68096;
 export const WORLD_FILL_FROM = 0xf200;
-export const WORLD_FILL_LEN = 6144;
+export const WORLD_FILL_LEN = 0;
 
 export function newWorld() {
-  const b = new Uint8Array(WORLD_SIZE);
-  b.fill(0xe5, WORLD_FILL_FROM, WORLD_FILL_FROM + WORLD_FILL_LEN);
-  return b;
+  return new Uint8Array(WORLD_SIZE);
 }
