@@ -441,10 +441,27 @@ they use the other binaries as a cross-check rather than as separate work.
 
 ## What not to do
 
-- Do not install Ghidra, Reko, or IDA and hand them a flat binary at a guessed
-  base. Every address will be systematically wrong in a way that looks like a
-  finding. Reko has no Phar Lap loader, and there is a known upstream issue
-  reporting exactly this failure on FM Towns `.EXP` files.
+- **A decompiler is now allowed, with conditions.** The old rule banned Ghidra,
+  Reko and IDA outright because the base was in doubt. That has changed: the base
+  is proved to be 0, the `MP` header declares `relocCount = 0` so nothing needs
+  fixups, and the header arithmetic reproduces the file size exactly. A test import
+  at base 0 agreed with this project's own tooling on all seven established
+  function addresses and on the `0xef4bb` false positive. See
+  `docs/ghidra-viability.md`.
+
+  **The condition: decompile only from an entry point already established by
+  `tools/funcs.js` or `tools/cfgwalk.js`, and verify any address against
+  `node tools/cfgwalk.js --check <addr>` before trusting it.** The failure mode
+  the old rule guarded against was silent systematic error. That is now detectable
+  in about two seconds per address, so the blanket ban is no longer the right
+  instrument.
+
+  **It under-decodes badly without seeds**: 25,728 instructions against this
+  project's 79,470 over the same bytes, because a raw import with no entry point
+  seeds only from what it can find by scanning. Use it to read code, not to find
+  it.
+- Reko still has no Phar Lap loader, and there is a known upstream issue reporting
+  exactly this failure on FM Towns `.EXP` files. Do not reach for Reko.
 - Do not convert the disc to ISO or bincue. Audio track alignment is lost.
 - Do not treat greyscale output as a bug. Its cause is documented.
 - Ultima II saves work. A formatted FM Towns floppy is fine and was never the

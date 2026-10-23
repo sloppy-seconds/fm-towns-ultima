@@ -403,7 +403,7 @@ the addressing limit which is now solved.
 
 - **No more statistical probes on `MAP2_*` or the `0xEB` runs.** Both tried to exhaustion.
 - **No more U3 cross-checks.** One round done, one test wrong, nothing transferred.
-- **No decompiler.** Reading functions from real entries works and is cheap.
+- **A decompiler is now permitted under conditions.** See [ghidra-viability.md](ghidra-viability.md). It agreed with this project on all seven established addresses and on the `0xef4bb` false positive, but it under-decodes by a factor of three without seeds, so it is for reading code, not for finding it.
 
 ## The rule that governs all of it
 

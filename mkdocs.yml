@@ -82,6 +82,7 @@ nav:
       - The 0x101a20 entry question: entry-point-question.md
       - The control-flow walk: cfgwalk.md
       - The indirect branches: indirect-branches.md
+      - Ghidra viability: ghidra-viability.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md
