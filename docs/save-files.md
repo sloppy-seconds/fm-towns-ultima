@@ -15,6 +15,72 @@ and the creator's score of deliberate wrong turns that preceded both.
 **Verdict:** negative but expected. These are created when a character is
 made in-game. A blank supplied UserDisk is normal.
 
+### 8.0 The complete roster schema, from the binary
+
+**Tried:** capture a full machine state with Tsugaru's `SAVESTATE` and look for
+the roster format inside it.
+
+**Measured:** the savestate is 7,607,281 bytes starting with `F M T O W N S`.
+It holds the roster **twice**. At offset 494,586 is the format string the game
+uses to write the file, and at 6,285,236 is the written data.
+
+The format string is the complete schema, in write order, 92 entries:
+
+```
+Roster data:ULTIMA II for FM-TOWNS
+LINGUAL=%d      (%d)NAME=%s     MODE=%c        LANGAGE=%c
+SHAPE=%d        SPID=%d         TORCHES=%d     STRENGTH=%d
+AGILITY=%d      STAMINA=%d      CHARISMA=%d    WISDOM=%d
+INTELLIGENCE=%d RACE=%c         PROFESSION=%c  SEX=%c
+MAGIC=%d        HP=%d           MHP=%d         EXPERIENCE=%d
+FOOD=%d         GOLD=%d         KEY=%d         ERA=%d
+TOOLS=%d        R_ARMOUR=%c     R_WEAPON=%c    SKIN=%d
+CLOTH=%d        LEATHER=%d      CHAIN=%d       PLATE=%d
+REFLECT=%d      POWER=%d        HAND=%d        DAGGER=%d
+MACE=%d         AXE=%d          BOW=%d         SWORD=%d
+GREAT_SWORD=%d  LIGHT_SWORD=%d  PHASER=%d      QUICK_SWORD=%d
+RING=%d         WAND=%d         STAFF=%d       BOOTS=%d
+CLOAK=%d        HELM=%d         GEM=%d         ANKH=%d
+RED_GEM=%d      SKULL_KEY=%d    GREEN_GEM=%d   BRASS_BUTTON=%d
+BLUE_TASSLE=%d  STRANGE_COIN=%d GREEN_IDOL=%d  TRI_LITHIUM=%d
+NONE=%d         LIGHT=%d        DOWN=%d        UP=%d
+PASSWALL=%d     SURFACE=%d      PRAYER=%d      MISSILE=%d
+BLINK=%d        KILL=%d         SCORE=%d       MAP=%d
+MAP_X=%d        MAP_Y=%d        DUNG_X=%d      DUNG_Y=%d
+PLAYER_X=%d     PLAYER_Y=%d     TORCH=%d       SPELL=%d
+VEHICLE=%d      SEED=%d         FUEL=%d        FOUND=%d
+WORLD=%d        ARM=%d          FOOT=%d        SLEEP=%d
+GATE_X=%d       GATE_Y=%d       GATE_TIME=%d
+```
+
+**Verdict:** this settles the roster format. Every field is named in the game's
+own words, in the order it writes them, with its type. No inference.
+
+Three fields here were missed by reading the file alone. `WORLD` is the map set,
+and it is separate from `ERA`. Without it a moongate looks like a time jump only,
+which is what an earlier reading of the diff concluded. `GATE_X`, `GATE_Y` and
+`GATE_TIME` are the moongate position for the current world. And `SEED` exists,
+which is worth knowing before anyone tries to predict anything from the save.
+
+### 8.0.1 The two position stores
+
+The roster carries `PLAYER_X` and `PLAYER_Y`. `WORLD1.UT2` carries them too, at
+slot 8 and slot 9 of the blocks at `0x600` and `0x680`. Comparing co-timed pairs:
+
+| save | `WORLD` | `ERA` | roster X,Y | `0x680` s8,s9 |
+|---|---|---|---|---|
+| after play | 2 | 2 | 11, 16 | 24, **16** |
+| after moongate | 3 | 1 | 41, 29 | 23, **29** |
+
+`0x680` slot 9 equals the roster's `PLAYER_Y` exactly, in both worlds. Slot 8 does
+not equal `PLAYER_X`, so the two blocks are not a second copy of the same
+coordinate and the X axis is not where it appears to be.
+
+**A real trap, recorded because it caught me twice:** files must be paired by
+timestamp. A world file captured at 13:36 and a roster captured at 13:40 are from
+different moments, and comparing them produces deltas that look like a discovery
+and are noise. One whole wrong conclusion in this project came from exactly that.
+
 ### 8.1 The floppy subsystem works, and it was proved three ways
 
 This section exists to stop the next person repeating a long dead end. The
