@@ -305,7 +305,19 @@ recording boundaries. Then re-run the site survey only on boundaries that are ge
 
 **Cost:** medium. This is the blocker for the remaining formula work, and it is bounded.
 
-**Status: BUILT.** Design and measured results in [a12-design.md](a12-design.md).
+**Status: BUILT, then superseded by a control-flow walk.** See [cfgwalk.md](cfgwalk.md).
+
+`tools/cfgwalk.js` seeds from CALL targets, follows call/jmp/jcc targets and fall-through,
+recovers functions after alignment padding, and records the 144 indirect branches it cannot
+follow. Measured: **79,470 instructions, 85 randMod sites reduced to 83**, in about 2 seconds.
+
+Two rejected, both provable: `0xef4bb` inside `mov eax,[0xceca0]`, `0xef4cd` inside
+`mov eax,[edx+0xcdeef]`. The real call in that function is `0xef4ad`, which is kept.
+
+**The earlier judgement that this was "not worth building for tidiness" was wrong.** It took one
+tool and a bug fix, and it doubles the usable site count.
+
+Design notes and the superseded sweep numbers in [a12-design.md](a12-design.md).
 
 `tools/sweep.js` produces instruction boundaries from a real entry. `tools/randmods.js --sweep`
 filters sites against them.

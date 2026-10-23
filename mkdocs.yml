@@ -80,6 +80,7 @@ nav:
       - The randMod survey: randmod-survey.md
       - The A12 disassembler design: a12-design.md
       - The 0x101a20 entry question: entry-point-question.md
+      - The control-flow walk: cfgwalk.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md
