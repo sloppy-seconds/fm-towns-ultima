@@ -127,6 +127,17 @@ copy, and every group 0 to 7 carries flags. See [cell-encoding.md](cell-encoding
 That turns the question from "what are the high bits" into two separate questions with 8 answers each,
 and 8 by 8 is small enough to enumerate rather than reason about.
 
+**Worked once and did not finish, and it found a circular dependency.** The correlation tests are recorded
+in [cell-fields.md](cell-fields.md) with their measurements: group equals flag in 75.3 percent of cells, the
+two differ at terrain boundaries 91 percent of the time, and the disagreement is biased rightward. That
+supports a reading where the flag is the current cell's terrain and the group is its right neighbour's, **but
+it does not distinguish that from the trivial reading**, because the direct test of it returns the same 75.3
+percent as the self-agreement. A test that cannot fail is not a test.
+
+What would settle it is the tile loader resolving value to tile, which is item 2b, which needs this. **That
+circularity was not visible before the work.** The next attempt should start from the tile loader rather than
+from more correlation, so this item and 2b should be attacked together rather than in order.
+
 `v & 3` is terrain, established against a shuffle control. **The upper nibble has the largest
 gain-over-shuffle of any field tested (+54pp)** and nobody knows what it carries.
 

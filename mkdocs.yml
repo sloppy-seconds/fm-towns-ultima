@@ -108,6 +108,7 @@ nav:
       - Re-running the reference searches: a9-reference-search.md
       - Map geometry: map-geometry.md
       - The cell encoding: cell-encoding.md
+      - The cell fields: cell-fields.md
       - Status of the open items: open-status.md
       - Equipment thresholds: equipment-thresholds.md
       - The tile loader: tile-loader.md

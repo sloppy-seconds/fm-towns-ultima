@@ -54,6 +54,12 @@ was meant to measure.
 **Coherence per field discriminates. Coherence per byte does not.** That distinction is the
 whole reason the earlier width search failed.
 
+> **CORRECTION: this page said `v & 3` carries terrain with 4 classes. The low field is THREE bits and
+> takes EIGHT values.** `v & 3` scored highest on a coherence metric, but a metric that rewards narrow fields
+> will always prefer two bits to three, so the win was partly an artefact of the measurement. The fourth bit
+> is the one that is always zero, which is why it looked cleaner: **it was discarding real information.**
+> See [cell-fields.md](cell-fields.md) for the full cross-tabulation and what the two fields do at boundaries.
+
 ## The value space is exactly 8 groups by 8 flags
 
 **Measured, and it constrains every other reading on this page.** Read the whole `MAP2_1` payload
