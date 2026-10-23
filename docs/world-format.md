@@ -169,6 +169,46 @@ Same diff, before and after winning a fight:
 `DAGGER` was 1 both before and after, so this fight did not grant it. Inventory is
 a set of `0`/`1` flags per item name, not a counted quantity.
 
+## A moongate moves you in time, not to another map
+
+A fourth save, after passing through a moongate and walking. The roster gains a
+field that explains what a moongate does.
+
+| field | played | after fight | after moongate |
+|---|---|---|---|
+| `ERA` | 2 | 2 | **1** |
+| `MAP` | 0 | 0 | 0 |
+| `PLAYER_X` | 11 | 14 | 41 |
+| `PLAYER_Y` | 16 | 12 | 29 |
+| `SCORE` | 32 | 57 | 132 |
+
+`MAP` never changes. `ERA` drops from 2 to 1. So the moongate does not move the
+player to a different map, it drops them into a different era's copy of the same
+map. That matches the game: moongates in Ultima II are the time travel mechanic.
+
+## The two position blocks are not duplicates
+
+The moongate save separates them, and this corrects an earlier reading in this
+document.
+
+```
+roster      PLAYER_X=41   PLAYER_Y=29
+block 0x600 slot 8 = 47   slot 9 = 44
+block 0x680 slot 8 = 23   slot 9 = 29
+```
+
+`0x680` slot 9 is **29**, which matches `PLAYER_Y` exactly. `0x600` matches
+neither axis. And `41`, the roster's X, appears **nowhere in `WORLD1.UT2`** at all.
+
+So the two blocks are not two copies of the same coordinate. One of them holds the
+player position in a space the roster does not use, plausibly a viewport or scroll
+offset that differs from the absolute coordinate. Which is which is **not
+established**.
+
+The practical consequence is concrete: a teleport that edits only the world file
+would change one axis and leave the other, because the X value it would need is not
+in that file. **Any position edit has to write the roster as well.**
+
 ## Also changed, outside the blocks
 
 Ten single bytes far into the file, at `0x4b52`, `0x4bb6`, `0x4c57`, `0x4e11`,
