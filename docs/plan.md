@@ -116,7 +116,22 @@ Measured: **offset 12 equals `filesize - 32` in 15 of 15 files.**
 or u32, so the game reads the value rather than programming it. At 1960 Hz the effects would
 run 1.5 to 30 seconds, which is implausibly long. Answering it needs the PCM setup code.
 
-### A6. `MAP2_*` geometry: BLOCKED
+### A6. `MAP2_*` geometry: SOLVED
+
+Documented in [map-geometry.md](map-geometry.md).
+
+The map buffer is **32,768 bytes = 256 x 128**. The file payload is the last 31,232 bytes of
+it, beginning at buffer offset **1,536 = 128 x 12**, so 12 rows are generated at runtime.
+
+The reason this took so long: `31232 = 128 x 244` looked plausible, but rendering from the
+payload start shifts every row by 12 cells and destroys coherence. **The width 128 was correct
+from the first attempt.** The starting offset was wrong, and an offset error of 1,536 bytes at
+width 128 is exactly 12 cells.
+
+Found by walking out from the known payload position in a savestate until the byte values
+stopped looking like map cells, giving a 32,768-byte span that divides exactly by 128.
+
+`tools/maprender.js` renders it. Previous state: BLOCKED
 
 The `Q:\GRAPH\MAP2_1.TIF` string is at `0x22cc` and is **never pushed as an immediate**. The
 only reference to it anywhere is its own bytes. So the loader that opens it cannot be found

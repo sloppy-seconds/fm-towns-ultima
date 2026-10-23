@@ -51,7 +51,22 @@ question that used to head this list is answered: see
    What the wiki cannot settle: it lists 25 representative GIFs against 64 tiles, so
    39 tiles are unaccounted for and the frame grouping has to come from the code.
    The bestiary is a cross-check for names and ordering, not a decoder.
-3. **`MAP2_1/2/3` layout.** Character-per-cell confirmed, geometry not.
+3. **`MAP2_1/2/3` layout: SOLVED.** The loaded map is a **32,768-byte buffer**, exactly
+   **256 rows of 128**. The file payload (31,232 bytes from offset `0x800`) is the **last**
+   part of it: it begins at buffer offset **1,536 = 128 x 12**, so the first **12 rows are
+   generated** at runtime, not stored.
+
+   That is why `31232 = 128 x 244` looked right and never rendered. Rendering from the
+   payload start instead of the buffer start shifts every row by exactly 12 cells, which
+   destroys horizontal coherence and produces noise. The width was 128 all along.
+
+   Rendered at the correct offset the map is immediately legible: water bands at `0x44`,
+   terrain, a row of buildings around rows 25 to 27, and a regular tiled grid at rows 36 to 39.
+
+   See [map-geometry.md](map-geometry.md). Render with `node tools/maprender.js`.
+
+   **Still open:** the cell encoding. Values 0 to `0x77` with both nibbles in 0 to 7, and
+   whether a cell is one byte or two fields is unresolved.
 4. **`DUNMON` tile count meaning.** 1,664 / 416 / 104 tiles, and what indexes them.
 5. **`.SND` playback rate.** Whether 1960 Hz is real.
 6. **`UT3/*.MP3` and `*.DG3` format.**
