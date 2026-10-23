@@ -61,6 +61,21 @@ choose(re)                    pick a line from a list, when the game shows one
 and an `idle` that knows **which** of those the game is waiting for, which is the `waiting` flag problem in
 `gameplayer-plan.md` and is now more urgent, because the shape differs.
 
+## What the first bot actually needs
+
+Only two commands need their prompt shape confirmed to start, because the scope is walk plus attack:
+
+| command | shape assumed | confirmed? |
+|---|---|---|
+| movement | arrow key, no prompt | **yes**, measured: one west step moved `PLAYER_X` by one |
+| `A)ttack` | letter, then a direction | **no** |
+
+**So there is exactly one unknown standing between us and a working bot: what `A` asks for after it is pressed.**
+Everything else in the first target is established.
+
+That is a single observation, and it can be made by a person pressing `A` once in a fight while a screenshot is
+taken.
+
 ## What would establish the prompts
 
 **Observe them.** The approach that has not failed yet: watch the game while a person does each command once,

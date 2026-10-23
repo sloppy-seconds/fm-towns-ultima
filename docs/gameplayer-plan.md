@@ -92,6 +92,31 @@ sending a key while the game is mid-animation moves the party unexpectedly, and 
 **This is the most important unknown**, and it is the difference between a bot that works and one that
 randomly walks into walls.
 
+## The scope, cut down
+
+The player set the target, and it is much smaller than a full player:
+
+| do | why |
+|---|---|
+| **walk** | movement, food, the map, and getting somewhere |
+| **attack** | combat, which is where every measurement has needed a human |
+| **enter a town with `E`** | towns have NPCs, shops and buildings to observe |
+| walk around a town | town geometry and NPC positions |
+
+| do not | why |
+|---|---|
+| **`T)rans-`** | travel between worlds; too much unknown state for the value |
+| dungeons | first-person, a different renderer, and the U3 bot could not do it either |
+| shops and dialogue choices | lists and consequences, and not needed to walk or fight |
+
+**Walk plus attack is the whole first target**, and the player's reason is right: it produces a great deal of
+measurable behaviour for very little bot.
+
+There is also a **behavioural question worth answering on the way**, and it needs no new capability: which
+monsters attack on sight and which stay passive until provoked. `combat-observed.md` has a Thief that fought.
+Guards are the known case of passive-until-attacked. **A bot that walks a grid and records which squares
+started a fight answers this directly**, and it is extraction in the sense this project means it.
+
 ## Phases
 
 ### Phase 1: read the characters (no bot)
