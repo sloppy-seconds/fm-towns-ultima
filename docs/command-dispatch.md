@@ -61,6 +61,11 @@ in, not zero. My first attempt read from `0xf6f40` and produced `0xf6d6595`, whi
 Both were caught by the arithmetic not working, which is the only reason they are in this page as
 corrections rather than as errors in a table.
 
+> **CORRECTION: the claim below that "both tables resolve to code" is wrong.** A savestate shows
+> table 1 at `0xf6d65` holds seven valid handler addresses and is real in the file and at runtime.
+> Only table 2 fails. See [jump-tables.md](jump-tables.md), which also records the off-by-one that
+> produced the confusion: the `disp32` of `2e ff 24 95` starts at offset **+4**, not +3.
+
 ## The negative: the second table is not where the instruction says
 
 `0xf6bcd` is a second dispatcher, on the character's **`KEY`** field at `0xcde99`:

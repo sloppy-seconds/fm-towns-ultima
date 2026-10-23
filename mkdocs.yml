@@ -86,6 +86,7 @@ nav:
       - The call graph: call-graph.md
       - The game loop: game-loop.md
       - Command dispatch: command-dispatch.md
+      - Two jump tables: jump-tables.md
       - Distance to reimplementation: reimplementation-gap.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md
