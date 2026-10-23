@@ -53,6 +53,7 @@ nav:
   - Home: index.md
   - Plan: plan.md
   - How the plan is maintained: plan-process.md
+  - One plan file or many: plan-structure.md
   - Quickstart: quickstart.md
   - Getting set up: setup.md
   - Playing:

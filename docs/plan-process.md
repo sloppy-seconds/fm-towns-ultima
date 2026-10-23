@@ -50,6 +50,24 @@ starts:
 as "untouched" when they were really waiting on a choice nobody had framed. Writing them as decisions with
 options converts a vague block into something that can be answered in one message.
 
+## One plan file, and why
+
+[plan-structure.md](plan-structure.md) answers this with measurements rather than preference. The short
+version: **keep one `plan.md`**, split it only when a trigger fires, and the trigger is measurable.
+
+The rule that makes one file work:
+
+**A finding and an item are different things and must not share storage.**
+
+- A **finding** is a measured fact. It lives in a subject page under `docs/` with its evidence, and in
+  `tools/verify.js` where assertable.
+- An **item** is a unit of remaining work. It lives in `plan.md` with a state and a stopping rule, and
+  **links to** findings rather than restating them.
+
+A per-item file with frontmatter conflates the two, and this project has measured that the conflation is
+where the drift comes from: nine of the last sixty commits touch a planning doc and nothing else, while
+twenty-nine touch a planning doc and a subject page together.
+
 ## The three documents that go stale, and what each is for
 
 The project has three planning documents and confusing their jobs is what caused most of the drift.

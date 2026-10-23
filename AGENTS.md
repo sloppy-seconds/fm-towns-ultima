@@ -92,6 +92,11 @@ Item state uses exactly four words, bolded at the top of the item: **OPEN**, **D
 options and what each costs, because several items sat for sessions described as "untouched" when they
 were really waiting on a choice nobody had framed.
 
+**A finding and an item are different things.** A finding is a measured fact and lives in a subject page
+with evidence and a `verify.js` assertion. An item is a unit of remaining work and lives in `plan.md` with
+a state and a stopping rule, linking to findings rather than restating them. Keeping those separate is
+what makes a single plan file work. Reasoning and measurements: `docs/plan-structure.md`.
+
 **After every session, ask "what did this session make false?"** Every count that drifted here was
 invalidated by work done in the same session that wrote it. Working forwards from a new finding to its
 consequences is how a session closes cleanly.
