@@ -291,6 +291,27 @@ is 11x32-1. `tools/stride.js` finds the `lea` stages but not the shift-and-subtr
 **Not established:** which stat the field is, and the message text at `0x6408` and `0x6428`,
 which are `EB` glyph runs. The glyph mapping being unsolved costs a real answer here.
 
+### A12. Build a linear disassembler pass
+
+**Why:** the survey of all 85 `randMod` sites in
+[randmod-survey.md](randmod-survey.md) resolved 33 and produced four numerically impossible
+results. Byte scanning finds call opcodes inside instruction operands. `0xef4bb` disassembles as
+`mov al,[0x8d000cec]`, which proves the offset is mid-operand.
+
+**What:** a pass that walks each function from its entry following real instruction lengths,
+recording boundaries. Then re-run the site survey only on boundaries that are genuine.
+
+**Done when:** the survey resolves substantially more than 33 of 85, with no impossible odds.
+
+**Cost:** medium. This is the blocker for the remaining formula work, and it is bounded.
+
+### Fixed this session: the `funcs.js` label skew
+
+`--at` passed the file address to `ndisasm -o` while disassembling the header-stripped image, so
+every printed label was `0x20` high. `call 0xe1c5c` printed as `call 0xe1c7c`. Fixed, with the
+measurement recorded in [randmod-survey.md](randmod-survey.md). Any address quoted from a `--at`
+run before the fix needs `-0x20`.
+
 **Cost:** medium Track A for steps 2 and 3. Step 1 is Track B.
 
 ## Track B: what needs a human

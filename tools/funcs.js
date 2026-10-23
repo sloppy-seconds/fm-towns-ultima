@@ -69,15 +69,34 @@ function main() {
 	const args = process.argv.slice(2);
 
 	if (args[0] === '--at') {
+		// The buffer is the image with the 0x20 MP header stripped, so an offset in
+		// buf equals a virtual address under base 0, and that is the address space the
+		// rest of the project uses throughout.
+		//
+		// ndisasm's -o value becomes the label of the FIRST byte AND the base for
+		// resolving relative branches, so it must be given the stripped address.
+		// Passing the file address labelled everything 0x20 high, which made
+		// `call 0xe1c5c` print as `call 0xe1c7c` and sent one afternoon chasing a
+		// function that does not exist. Measured, not assumed: the randMod prologue
+		// sits at stripped 0xe1c5c and raw 0xe1c7c.
 		const entry = Number(args[1]);
 		const len = args[2] ? Number(args[2]) : 0x200;
 		const out = '/var/tmp/funcs-at.bin';
 		fs.writeFileSync(out, buf.subarray(entry, entry + len));
-		const text = execFileSync(
-			'ndisasm',
-			['-b32', '-o' + entry, out],
-			{ encoding: 'utf8' }
-		);
+		// Label the origin as the STRIPPED address, which is the address space the whole
+		// project uses (base 0 over the header-stripped image).
+		//
+		// This was wrong before: no -o was passed, so labels started at 0 while the
+		// rest of the project used absolute stripped addresses. An earlier attempt
+		// passed the FILE address instead, which labelled everything 0x20 high and made
+		// `call 0xe1c5c` print as `call 0xe1c7c`. Both mistakes cost real time on a
+		// function that does not exist.
+		//
+		// Measured, not assumed: the randMod prologue is at stripped 0xe1c5c and raw
+		// 0xe1c7c.
+		const text = execFileSync('ndisasm', ['-b32', '-o' + entry, out], {
+			encoding: 'utf8',
+		});
 		process.stdout.write(text);
 		return;
 	}
