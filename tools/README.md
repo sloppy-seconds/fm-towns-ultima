@@ -11,6 +11,9 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `funcs.js` | Finds real function entries from `CALL rel32` targets, ranks them by call count, and disassembles from any entry with correct alignment. This is the tool that makes reading the binary reliable. |
+| `stride.js` | Decodes `lea` chains into exact struct strides. Found the 57-byte record used by six functions. |
+| `structfields.js` | Given a record base and stride, finds every field offset by scanning displacements over the whole image. |
 | `strtab.js` | Finds runs of consecutive dwords that point at printable strings, i.e. C arrays of `char*`. Found the string table at `0x7a864`. |
 | `strptrs.js` | Scans for dwords that land on a *known* string start. The opposite test to `strtab.js`, and the stricter one, useful for ruling out indirect address tables. |
 | `fontmap.py` | Derives the `0xEB` font glyph encoding from null-separated glyph/JIS pairs. Partial: 8 glyphs established, documented as OPEN. |
