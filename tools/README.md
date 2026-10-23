@@ -28,6 +28,7 @@ directory, so run them from the repo root.
 | `ebsuffix.py`, `ebfreq.py`, `ebposition.py`, `ebrefine.py`, `ebgojuon.py` | The five probes that produced `0x74` = `。` and ruled out gojuon ordering. |
 | `msgcallers.js` | Walks back from every call to the text renderer to find where the string pointer comes from. Found 123 literal string call sites. `--target` picks a different function, `--literals` and `--all` list them. |
 | `cfgwalk.js` | Control-flow walk from CALL targets, following jmp/jcc targets and fall-through, with gap recovery after alignment padding. `--check addr` answers whether an address is a real instruction boundary in about 2 seconds. Records the 144 indirect branches it cannot follow. |
+| `fieldmap.js` | Derives the in-memory character record layout from the roster format string. `--check` verifies three anchors agree on one base; `--resolve 0x..` names any address. Record base `0xcde54`. |
 | `randgroups.js` | Groups `randMod` call sites by enclosing function. 85 sites into 35 functions, 12 of which hold 55 sites. Follows the rule that every address is a virtual address and every image access is `img[addr]`. |
 | `sweep.js` | Linear-sweeps a function from a real entry to produce instruction boundaries. `--check addr` says whether an address begins a real instruction. Full-image sweeps are unusable; per-function sweeps are sound. |
 | `randmods.js` | Classifies `randMod` call sites. `--sweep` filters against real boundaries, which removes 13 of 85 provable false positives. |

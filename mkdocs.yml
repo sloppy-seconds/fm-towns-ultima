@@ -79,6 +79,7 @@ nav:
       - The stat-gain routine: stat-gain.md
       - The shrine function: shrine-function.md
       - The randMod function groups: randmod-groups.md
+      - The character record layout: record-layout.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md
       - The randMod survey: randmod-survey.md

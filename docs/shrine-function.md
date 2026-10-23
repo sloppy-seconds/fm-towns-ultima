@@ -1,5 +1,16 @@
 # The shrine function at `0xf2cc0`
 
+> **CORRECTION: this page names the wrong things.** The branches do not grant stats. They grant
+> `GOLD`, `ERA`, `SPID`, and two inventory items (`RING` and `WAND`). The field offsets were
+> unnamed when this was written; they are now solved in [record-layout.md](record-layout.md), and
+> the corrected reading is there.
+>
+> Two consequences worth stating up front. **No branch grants a stat.** And the `0xf0` branch
+> increments `SPID`, which is the sprite index, so it changes the character's appearance.
+>
+> The disassembly below is correct. The field names in it are wrong.
+
+
 The largest cluster of `randMod` call sites, read end to end. Nine sites in one function, and it
 turns out to be the **shrine** logic: four branches keyed on a tile value, three of which grant a
 stat increase with a random chance and one of which grants gold.
