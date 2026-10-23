@@ -68,6 +68,7 @@ nav:
       - Debug and cheat modes: debug-modes.md
       - The font encoding: font-encoding.md
       - Reference implementations: references.md
+      - Testing U3 hypotheses against U2: u3-hypothesis-tests.md
       - Equipment thresholds: equipment-thresholds.md
       - The tile loader: tile-loader.md
       - Reviewing the research doc: meta-analysis-review.md
