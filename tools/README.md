@@ -11,6 +11,9 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `strtab.js` | Finds runs of consecutive dwords that point at printable strings, i.e. C arrays of `char*`. Found the string table at `0x7a864`. |
+| `strptrs.js` | Scans for dwords that land on a *known* string start. The opposite test to `strtab.js`, and the stricter one, useful for ruling out indirect address tables. |
+| `fontmap.py` | Derives the `0xEB` font glyph encoding from null-separated glyph/JIS pairs. Partial: 8 glyphs established, documented as OPEN. |
 | `savetext.py` | Extracts Japanese and ASCII strings from a Tsugaru machine state. `--japanese`, `--ascii`, `--min N`, `--offset 0xNNN`. Found the monster name table and the game's UI text. |
 | `mapfmt.js` | Measures the `MAP2_*` map files. Confirms they are not ASCII, and that every byte is `(hi<<4)|lo` with both nibbles 0-7, i.e. a 64-tile vocabulary. `--render` for a character map. |
 | `coderefs.js` | Finds code that references an asset string. `--all`, `--string X`, `--calls`. Reports that 5 of 71 paths are compiled in. |

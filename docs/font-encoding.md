@@ -1,115 +1,108 @@
 # The font encoding
 
-**Status: OPEN.** Eight probes tried, all negative. This page exists so the next
-attempt does not repeat them.
+**Status: OPEN.** Nine probes tried. What follows is the corrected understanding, the
+mistakes that had to be undone, and the eight glyphs that are genuinely established.
 
 ## What is established
 
-The Japanese text in a savestate decodes cleanly as **standard Shift-JIS**. No
-conversion step is needed. `tools/savetext.py` does exactly that and reads it.
+The Japanese **display text** is standard Shift-JIS and reads directly. No conversion
+is needed for the dialogue, the ending, the town names or the menus.
 
-Interleaved with the Shift-JIS text are runs of the form `0xEB <byte>` repeated.
-These are **not** a second text encoding, which is what an earlier version of this
-page claimed. They are a separate data structure that happens to sit between
-strings, and `0xEB` is also a valid Shift-JIS lead byte, so naive parsing folds
-them into the text and produces garbage.
+Strings that the game draws contain **mixed encodings**: runs of `0xEB <index>` glyph
+pairs interleaved with ordinary Shift-JIS bytes, in the same string, separated by
+nulls or spliced together. A single logical string like `東へ` is stored as four
+`0xEB` glyphs because the glyph run encodes the *reading* (ひがしへ, four mora) while
+the Shift-JIS twin encodes the display form (two characters).
+
+That difference in length is the reason every equal-length pairing failed.
 
 ## Corrections to earlier claims
 
-Two claims in `game-text.md` and previous commits are wrong and are corrected here.
+Two earlier claims were wrong. They are corrected here rather than deleted, because
+the wrong method is the thing most likely to be repeated.
 
 **Wrong:** "each name is stored twice, once in a custom font encoding and once in
-standard Shift-JIS". The two are not the same string. The monster table alternates
-a Shift-JIS name with an unrelated `0xEB`-prefixed block, and pairing them gives
-nonsense such as `4d 5e 6c 6c` against `ネス湖の恐竜`.
+standard Shift-JIS, derivable by aligning the two". The two forms are not the same
+string at equal length, so alignment on length cannot work.
 
-**Wrong:** "the font encoding can be derived by alignment". Alignment was attempted
-at offsets -3 to +3 against every length constraint available and no offset
-satisfies them. See the probes below.
+**Wrong:** "eight probes failed, therefore the structure is not recoverable by
+statistic". Nine probes have now been run and the ninth produced real results. The
+conclusion drawn after eight was premature.
 
-## Probes tried
+## Probes, in order
 
-**1. Positional alignment, equal length.** Pair every adjacent `0xEB` run with the
-Shift-JIS run that follows it, keep only pairs of equal length.
-Measured: 282 adjacent pairs found, but only 30 glyph indices received any vote and
-just 2 were unambiguous. Sample pairs had 4 glyphs against 15 characters, so the
-runs are fragments, not whole lines.
-Verdict: NEGATIVE. Lengths do not match.
+| # | method | verdict |
+|---|---|---|
+| 1 | positional alignment, equal length | NEGATIVE, lengths differ by design |
+| 2 | frequency matching | NEGATIVE, BIOS fill polluted the JIS side |
+| 3 | hand-transcribed seed | NEGATIVE, 6 glyph conflicts, method unsound |
+| 4 | mechanical table walk | NEGATIVE, runs and names are separate lists |
+| 5 | reading-vs-kanji ratio | directionally right, computed on wrong pairing |
+| 6 | offset search under length constraint | NEGATIVE, no offset satisfies it |
+| 7 | two-byte code page | NEGATIVE, only 75 values |
+| 8 | Shift-JIS trail-byte confusion | PARTIAL, explains the confusion only |
+| 9 | null-separated run/JIS pairs | **POSITIVE, partial** |
 
-**2. Frequency matching.** Build the `0xEB` run vocabulary and the Shift-JIS word
-vocabulary, then look for runs and words that occur equally often.
-Measured: 2,847 runs, 1,469 distinct. 5,179 JIS strings, 333 distinct. The JIS side
-was polluted by BIOS fill patterns (a 128-character `裹` run appearing 4,586 times).
-Verdict: NEGATIVE. Frequencies did not line up.
+## Probe 9: what actually works
 
-**3. Seed from the 16 monster names, hand transcribed.** Read the glyph runs by eye
-and pair with the names.
-Measured: 11 glyphs recovered, 6 of them in direct conflict (`0x43` mapping to both
-ガ and ネ). The transcription itself was guesswork.
-Verdict: NEGATIVE, and the method was unsound. Do not repeat it.
+Walk the string pool from `0x1000` to `0x8000`. At each `0xEB`, take the maximal run
+of `0xEB <index>` pairs, skip nulls, and decode the Shift-JIS that follows. Only keep
+the pair when the Shift-JIS side is **kana only** and the two lengths agree, because
+that is the only case where glyphs and characters correspond one to one.
 
-**4. Mechanical walk of the monster table.** Walk `0x79360`-`0x79570`, splitting on
-nulls and classifying each chunk as name or run.
-Measured: 23 runs, 21 names, chunk lengths 2 to 32. Only 3 of 23 runs had a length
-matching their neighbouring name.
-Verdict: NEGATIVE. The runs and names are separate lists.
+Measured: 328 EB runs have a JIS twin in that window, of which **5** are kana-only and
+equal length. Those 5 yield **8 unanimous glyph mappings**:
 
-**5. Reading-versus-kanji ratio.** Hypothesis: the `0xEB` run is the phonetic
-reading and the Shift-JIS is the display name, so names with kanji should have
-longer runs.
-Measured: names without kanji have mean ratio 1.39, names with kanji 2.31. The
-direction matched the prediction.
-Verdict: **INCONCLUSIVE, do not trust.** The pairing it was computed on was wrong,
-and a ratio computed over a wrong pairing can show a spurious trend.
+```
+0x48 -> フ     0x4d -> 　     0x5c -> ク     0x61 -> ん
+0x6b -> −      0x74 -> と     0x75 -> 　     0x94 -> ェ
+```
 
-**6. Offset search under the length constraint.** Test whether `run[i]` pairs with
-`name[i+off]` for offsets -3 to +3, requiring that a reading never be shorter than
-its name.
-Measured: violations at every offset, 2 to 4 out of about 20. No offset satisfied
-the constraint.
-Verdict: NEGATIVE. Length is not the right invariant.
+Cross-check: `4e 6b 5c` maps to `オ−ク` (orc) and `48 94` maps to `フェ`. Both are
+coherent, and `0x6b -> −` matches the long-vowel mark seen in `オ−ク` in the monster
+table.
 
-**7. Two-byte character code.** Count every `0xEB <byte>` pair as one unit on the
-theory that the region is a dense code page.
-Measured: 75 distinct second bytes, `0xEB` present in 24.3 percent of the region.
-Verdict: NEGATIVE. 75 values is far too few for Japanese text.
+Five usable pairs is not enough to decode arbitrary text, but it is enough to prove
+the mechanism.
 
-**8. Is the second byte a Shift-JIS trail byte.** Test whether `0xEB` is just a lead
-byte being misread.
-Measured: the non-`0xEB` bytes in the region are dominated by `0x82` (2,610), `0x81`
-(1,219) and `0x83` (802), which are Shift-JIS lead bytes, confirming that Shift-JIS
-text is present and adjacent. But decoding a whole `0xEB` run as Shift-JIS fails.
-Verdict: **PARTIAL.** This explains why the two structures get confused. It does not
-explain what the `0xEB` runs are.
+## Why it stops at eight
 
-## What the runs probably are
+Most `EB` runs are not clean paired strings. They are **fragments** of longer runs
+that were split when Shift-JIS punctuation was spliced in. Two examples from the pool:
 
-Not established. Candidates, in order of plausibility:
+```
+0x1d90  eb6b eb5e eb5c eb6d 81 40 eb70 eb62 eb6d eb61 81 40 eb5a 81 40
+        ^^^^^^^^^^^^^^^^^^^^ punctuation ^^^^^^^^^^^^^^^^^^^^
+```
 
-- **Compressed or packed text.** A dictionary of common words with a one-byte index
-  would produce exactly this shape: short indices, high repetition, and a
-  distribution that does not match character frequencies.
-- **A record list**, not text. The 16 monster names could be a name table sitting
-  alongside a 16-entry struct array, in which case the `0xEB` values are field
-  bytes and `0xEB` appears often because it is a common field value.
-- **A second language.** The disc carries `.EUP` files and a bilingual launcher, so
-  a second text table is plausible.
+A walker that stops at the first non-`EB` byte sees `6b 5e 5c 6d` and then hits
+`0x81 0x40`, which is the Shift-JIS space. Splitting on that gives fragments, and
+each fragment loses its alignment with the reading.
 
-The third is testable cheaply: if the runs are text, their glyph distribution
-should match Japanese character frequency, with heavy repetition of kana like の,
-に, は and を. The observed top glyph `0x5e` appears 659 times and `0x74` 534 times,
-a steep curve, which is consistent with text but also with a struct field.
+Handling that correctly means reconstructing the logical string first, which means
+knowing where each string ends, which is the same problem as the record structure.
 
-## What would settle it
+## What a complete solution needs
 
-The structure is not recoverable by statistic alone, and eight probes are enough
-evidence for that. What is needed is the **code that reads it**, which means the
-addressing problem has to be solved first, since these runs are reached the same way
-the mode strings and asset paths are: not by immediate.
+The `EB` encoding is a **font index**, not a character code. The mapping from index to
+glyph is almost certainly a table in the executable: 75 distinct indices were observed
+across the whole game text, which is a plausible size for a subset font holding the
+kana plus the kanji that the game uses.
 
-Until then, treat the `0xEB` runs as opaque. The Shift-JIS text is readable without
-them, and that is the part that extracts cleanly.
+Finding that table needs the code that indexes it, or the font bitmap data the indices
+select from. Neither is reachable by the probes tried so far, because the addressing
+is indirect, which is the same wall the asset paths and the debug mode strings are
+behind.
+
+## Practical guidance
+
+The **display text extracts cleanly** and this page does not change that. `savetext.py`
+reads it, `game-text.md` documents where it is. The `EB` glyph runs are needed only to
+reconstruct how a string was *read* rather than *written*, and nothing in the current
+extraction depends on that.
+
+Treat them as opaque until the indirect addressing is solved.
 
 ---
 
-**[The game text](game-text.md)** **[Open questions](open-questions.md)**
+**[The game text](game-text.md)** **[The code](code-analysis.md)** **[Open questions](open-questions.md)**
