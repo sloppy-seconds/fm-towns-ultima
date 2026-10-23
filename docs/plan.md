@@ -82,9 +82,12 @@ emulator.
 | blocked by | nothing |
 
 **The named-routine count is owned by [call-graph.md](call-graph.md).** Re-derive it there rather than
-quoting a number from here. `tools/fnstrings.js --top N` ranks candidates by string count and the technique
-takes seconds per routine. Most of the remaining 700 are glue with no strings and can be skipped
-honestly rather than named by guess.
+quoting a number from here.
+
+**Worked, and the ceiling is now measured.** Of 738 function starts, **93 have at least one readable non-`0xEB`
+string** and the rest have none. The other 645 cannot be named this way at all, so this item is close to
+finished rather than ongoing: ten more were named, and what remains is inside the 93. See
+[call-graph.md](call-graph.md) for the tally and the ten new names.
 
 
 

@@ -88,6 +88,28 @@ this session.
 | `0xeafc4` | `\U2TITLE3.TIF`, `Q:\GRAPH\U2TITLE4.TIF` | **title art loader** |
 | `0xe3f08` | `Dark field`, `YASURAGI`, `Voyger`, `演奏テスト` | **music playback** |
 
+### Found by the readable-string sweep
+
+Ten routines whose only readable strings are enough to name them. Added after the grid in `0xEB` runs
+turned out to hide most of the top candidates.
+
+| routine | evidence | identification |
+|---|---|---|
+| `0xe9bec` | `Q:\GRAPH\DUNG1.TIF`, `\MAP2_1.TIF`, `\MAP2_2.TIF` | **graphics loader** |
+| `0xe8d70` | `WORLD = `, `MAPTYPE = `, `VILLAGE`, `PLAYER_X = `, `DUNGEON_Y = ` | **debug readout** |
+| `0xe3bb0` | `at's a fantastic fountain!` | **fountain** |
+| `0xee97c` | `食  　料  ：` with padding | **food display** |
+| `0xed7f0` | `性　　別  ：`, `賊` | **status panel** |
+| `0xee254` | `ｳれました`, Fujitsu attribution block | **confirmation screen** |
+| `0xd2e27` | `\nによる攻撃` | **attack, second copy** |
+| `0xf5078` | ending prose, `美酒に酔うあなたは` | **ending, second half** |
+| `0xf5394` | `ナクスはあの城で何を`, `U2END4.TIF` | **ending, first half** |
+| `0xecf17` | Fujitsu attribution, `キ－を押してください` | **publisher credit and prompt** |
+
+`0xe8d70` is worth a note: it holds `PLAYER_X = ` and `DUNGEON_Y = `, which are the same labels as the
+roster format string, so this is the routine that prints the debug readout of live game state. It is the
+most direct window into runtime values available statically.
+
 ### Already established
 
 `0xe9e0c` roster parser, `0xe1c5c` `randMod`, `0xe3d4c` `randRange`, `0xf2cc0` tile effect
@@ -120,12 +142,21 @@ drift has one place to fix.
 
 ```
 738  routines
- 38  named
-700  unnamed
+ 48  named
+690  unnamed
+
+ 93  have at least one readable, non-0xEB string
+645  have none
 ```
 
 Derived by parsing the tables on this page and in `inside-a-turn.md` against the function-start list from
 `tools/callgraph.js`. Re-derive it rather than trusting it.
+
+**The 93 is the ceiling for naming by string reference**, and it was measured rather than assumed: every
+function start was scanned for `push imm32` and `mov r32,imm32` pointing at printable data that is not an
+`0xEB` run. 93 of 738 qualify. The other 645 have no readable text at all, so they cannot be named this way
+and no amount of further sweeping will change that. See [eb-renderer.md](eb-renderer.md) for why the `0xEB`
+runs do not count as readable: the renderer hands them to TownsOS, so their text is not in the executable.
 
 Up from 14 at the start of this stretch of work. The count is derived by parsing the tables on this page
 and in `inside-a-turn.md` against the real function-start list, so it can be re-measured rather than
