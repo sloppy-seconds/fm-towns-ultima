@@ -180,3 +180,36 @@ a value, and structures are findable.
 ---
 
 **[The research doc](u2-game-meta-analysis.md)** **[Differences from published references](rebuttal.md)**
+
+## What happened when the formulas were searched for
+
+All three combat formulas were chased into the binary. **None has a fingerprint
+here**, and each negative is worth recording.
+
+| search | expected | found |
+|---|---|---|
+| `shr r32,2` | the `/ 4` in the damage formula | **1 site**, and it is inside `rep movsd` (a memory copy), not a divide |
+| `lea` with scale 4 | the `* 4` on weapon power | **626 sites**, which is the universal array-index idiom, not a formula |
+| `and reg,0x7f` | the 7-bit random roll | **2 sites**, both in a routine that clamps a text length at 127 and wraps with `sub ax,0xc` |
+
+The two `0x7f` sites are text wrapping, not combat. That was checked by
+disassembling them: the code adds a per-character width from a table at
+`0x0def25` and corrects with `sub ax,0xc` when it passes 127.
+
+**Why this is not a surprise in hindsight.** The doc verified its formulas against
+6502 assembly. This binary is 32-bit output from MetaWare High C, and a compiler of
+that era divides by small constants using a multiply-high sequence, not a shift, and
+is free to represent a random roll without a mask at all. Looking for 6502 idioms in
+32-bit compiler output was the wrong instinct.
+
+**What would actually find them:** a deliberate change and observe. Set `AGILITY`
+to a known value in a save, fight, and record hit and miss counts. That gives the
+formula empirically without needing to recognise its code. The same applies to
+damage: known Strength, known weapon, watch the HP delta on a monster.
+
+That is slower per formula than a lucky grep, but it cannot be wrong the way a byte
+pattern match can.
+
+---
+
+**[The research doc](u2-game-meta-analysis.md)** **[Differences from published references](rebuttal.md)**
