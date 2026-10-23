@@ -39,20 +39,27 @@ Reading raw bytes rather than assumed dword boundaries:
 **Four fields verified against the game's own display**, which is the only method here that has not produced
 a wrong answer.
 
-## Damage is applied to HP directly
+## Damage reaches HP, and one melee hit measured 5
 
 | moment | HP | note |
 |---|---|---|
 | before the fight | 400 | |
-| after a magic missile | 400 | **no damage** |
-| after another missile | 400 | **no damage** |
+| after a magic missile | 400 | unchanged |
+| after another missile | 400 | unchanged |
 | after a melee hit | 385 | **5 damage** |
 
-**Magic missiles did not touch HP, twice. A melee attack did.** That is a real distinction and it is the first
-combat arithmetic this project has measured.
+**A melee attack demonstrably reduced HP by 5.** That is the first combat arithmetic this project has measured.
 
-It also means the two `0 damage` observations recorded earlier were not missile misses, they were **missiles
-that never affect HP at all**. What they do affect is unresolved.
+**What the missiles did is not established.** An earlier version of this page said they "never affect HP at
+all", and that claim was withdrawn: **two samples cannot distinguish a miss from a resisted hit from a lucky
+damage roll.** All three would leave HP unchanged.
+
+The player also pointed out that the game shows **no mana or magic counter**, which removes the obvious
+explanation for the two unchanged readings. If spells do not draw on a visible pool, a spell cost is more
+likely a fixed number of casts or a per-day allowance than a resource that can run short.
+
+**A controlled test would need three or four missiles with known HP before and after and nothing else
+happening in between.** That has not been done.
 
 ## Food is 15 per turn, and HP is not
 
@@ -70,7 +77,10 @@ a completed turn, not a retry.
 
 ## What is not yet known
 
-- **What magic missiles do**, if not HP. Energy, a separate pool, or nothing measurable.
+- **Whether magic missiles can damage at all.** Two unchanged readings, inconclusive. The player reports that
+  missiles *can* damage in this game, so the likely explanation is a miss or a negated hit rather than an
+  inability to damage.
+- **What a spell costs**, given there is no visible mana counter.
 - **The monster's own HP.** The object array has not been located, so kill rewards and monster damage cannot
   be measured from the player side alone.
 - **Whether 5 damage is the roll or a constant.** One sample of one hit.
