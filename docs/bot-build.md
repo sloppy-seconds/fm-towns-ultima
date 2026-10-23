@@ -317,6 +317,33 @@ around one action, not for a whole session.
 - **Record before acting**, so a crash mid-action still leaves the prior state.
 - **No creative play.** Walk, attack, pass, enter. Anything else is out of scope by the player's instruction.
 
+## What works, tonight
+
+| command | does | verified |
+|---|---|---|
+| `state` | nine fields, `--json` for scripts | **yes**, `food_display` matches the status bar's `P:` |
+| `prompt` | is the red bar showing text | **yes**, 56 idle vs 1622 at a prompt |
+| `press` | arrows via `/api/key`, letters via `/api/keys` | **yes** |
+| `walk DIR N` | N steps, recorded | **yes**, six steps |
+| `pass` | `P)ass`, recorded | **yes**, twice |
+| `survey LEGS STEPS` | a square pattern, recorded, stops on damage | **yes**, 8 turns unattended |
+| `attack DIR` | `A` then a direction | **built, not exercised on a monster** |
+| `fight N` | repeated attacks, recorded | **built, not exercised** |
+| `record NAME` | screenshot, fields, `CS:EIP`, transcript | **yes** |
+| `tail N` | the transcript | **yes** |
+
+**Every action writes a JSON line** to `saves/bot-transcript.jsonl` with a screenshot, the nine fields and the
+CPU state. That is the instrument the exercise was for.
+
+## What does not work
+
+**`walk_to`**, because the map's live address is unknown. The map is in a savestate and renders correctly; it
+cannot yet be read from running memory.
+
+**`attack` and `fight`** are built from a shape that was measured (`A`, then an arrow, confirmed by the game
+printing "Direct with a arrow key!") but have not been run against a monster, so they are untested rather
+than wrong.
+
 ## What this does not do
 
 It will not finish Ultima II, and it is not self-play. It is a measurement instrument that happens to be able
