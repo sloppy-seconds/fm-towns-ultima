@@ -52,10 +52,11 @@ from the items below rather than maintained separately.
 | 3c The `0xEB` font | CUT unless asked | no, and should not be opened |
 | 4a The data tables | AUTONOMOUS | not yet, held back by 1a |
 | 4b Combat formulas | PARTLY AUTONOMOUS | the reading only. Verification needs a fight |
+| 4c `WORLD*.UT2` layout | BLOCKED ON HUMAN | no, needs a save taken mid-game |
+| 4d `.SND` playback rate | BLOCKED ON HUMAN | no, needs the running game |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
-writing it reports four items startable now: 1a, 1b, 2a and 4b, with 4a held back because it depends on
-1a. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
+writing it reports four of eleven startable now: 1a, 1b, 2a and 4b, with 4a and 2b held back by item order. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
 had to be assembled by reading nine paragraphs and hoping the prose was current.
 
 The tool is authoritative and this prose is not, because the tool re-reads the items every time and the
@@ -133,7 +134,7 @@ Testable on file data alone: 256 rows by 128 columns, file supplies rows from 1,
 
 
 
-### 2b. Tile picture per value
+### 2b. Tile picture per `MAP2_*` value
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS once 2a lands
 
@@ -257,6 +258,11 @@ So this item needs a state taken while the OS has a font loaded, which is the sa
 Monster stats, item properties, spell effects, shop inventories, town layouts. These are extraction work
 and they are tractable once the routines that index them are named, which is what Phase 1 buys.
 
+Four specific tables sit under this item and each has its measurement in
+[open-questions.md](open-questions.md): the `ENEMY2` monster table and which creature each tile is
+(question 2), the `DUNMON` bank sizes and what indexes them (question 4), the `UT3/*.MP3` and `*.DG3`
+formats (question 6), and the item and spell tables which have no page yet.
+
 
 
 ### 4b. Combat formulas, stated as arithmetic
@@ -273,6 +279,37 @@ The RNG is understood and the record layout is known, so the formulas are readab
 *verified* without a fight, which is why this sits after Phase 3.
 
 
+
+### 4c. `WORLD*.UT2` layout
+
+**State:** NEEDS A DECISION · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | needs a save taken mid-game, which requires a person at the emulator |
+| done when | the record layout of a populated world file is stated, or the question is closed as unanswerable from available evidence |
+| blocked by | any character having entered the world. All four in the only save are at `MAP=0`, `WORLD=0` |
+| owner | [open-questions.md](open-questions.md) question 1 carries the measurement |
+
+68,096 bytes each and all four byte-identical, because nobody in the only save has entered the world. The
+measured shape is 128-byte rows, 24 dwords, six rows of data, with rows 0 and 1 a sorted/unsorted pair. That
+reads as start-up scratch, not world state. See [world-format.md](world-format.md).
+
+**The decision:** either take a mid-game save, or close this as unanswerable from available evidence. It
+should not stay listed as merely "unread".
+
+### 4d. `.SND` playback rate
+
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | the rate is set at runtime by the EUPHONY driver, so the file cannot settle it |
+| done when | the actual playback rate is measured, or the page states that only runtime can determine it |
+| blocked by | a person listening to the running game, or a savestate of the driver state |
+
+Whether 1960 Hz is real. The header layout is established ([sound.md](sound.md)), the rate is not in the
+file. Small item, and it is the last unknown in audio extraction.
 
 ## What is closed and should not be reopened
 

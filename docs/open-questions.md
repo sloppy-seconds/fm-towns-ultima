@@ -13,7 +13,7 @@ and the `0xEB` character mapping, which turned out not to be in the executable a
 
 ---
 
-## 1. `WORLD1-4.UT2` structure
+## 1. `WORLD*.UT2` structure
 
 **State:** NEEDS A DECISION · **Autonomy:** BLOCKED ON HUMAN
 
@@ -82,7 +82,7 @@ What the wiki cannot settle: it lists 25 representative GIFs against 64 tiles, s
 for and the frame grouping has to come from the code. The bestiary is a cross-check for names and ordering,
 not a decoder.
 
-## 3. `MAP2_1/2/3` layout
+## 3. `MAP2_1/2/3` layout: geometry done, cell bits tracked as plan 2a
 
 **State:** DONE for the geometry, OPEN for the cell high bits · **Autonomy:** AUTONOMOUS
 
@@ -152,38 +152,29 @@ file.
 Neither format is MPEG audio despite the extension on `.MP3`, which is established. What they actually hold
 is not.
 
-## 7. U2 combat formulas
+## 7. U2 combat formulas: see plan item 4b
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** CUT from this list, tracked as plan 4b · **Autonomy:** PARTLY AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | the arithmetic can be read statically, verifying it needs a controlled fight |
-| done when | to-hit and damage are stated exactly, and marked read-versus-verified |
-| blocked by | verification needs a human fighting with known stats. The reading half does not |
+| autonomy | see plan 4b, which owns this item |
+| done when | see plan 4b |
+| blocked by | see plan 4b |
 
-Not found by byte pattern, because the FM Towns build is 32-bit compiler output where the 6502 arithmetic is
-no longer recognisable.
+**This is not a separate question.** It is plan item 4b, which carries the state and acceptance criteria.
+A second copy here would be the duplication `docs/plan-process.md` warns about, so this section keeps only
+the reasoning for why it was hard, which is evidence rather than an item.
+
+Not found by byte pattern, because the FM Towns build is 32-bit compiler output where the 6502 arithmetic
+is no longer recognisable.
 
 Two Ultima **III** reference implementations are cloned into `references/` (see [references.md](references.md))
 and they do give U3's formulas: to-hit rolls uniform on `[0, armour+16]` and succeeds below 8, and monster
 damage rolls against base HP divided by eight plus max HP divided by a hundred.
 
 **None of that is U2's formula.** U3 and U2 are different games. Those numbers are a hint about where to look
-and what a plausible answer looks like, not a result. Establishing U2's combat maths needs a measurement
-against U2 data, which in practice means a controlled in-game test with a known `AGILITY` and `STRENGTH`.
+and what a plausible answer looks like, not a result.
 
 The RNG is now understood ([rng-helpers.md](rng-helpers.md)) and the record layout is named
-([record-layout.md](record-layout.md)), so the reading half is cheaper than it was. This is plan item 4b.
-
-## Appendix: what the probes used
-
-The tools and methods these questions were attacked with, kept because a failed probe is worth as much as a
-success:
-
-- `tools/savetext.py` extracts Shift-JIS and ASCII strings from a savestate
-- `tools/fnstrings.js` lists the strings a function references, which names most routines
-- `tools/callgraph.js` builds caller to callee edges
-- `tools/sweep.js --check` answers whether an address is a real instruction boundary
-- `tools/fieldmap.js --resolve` names a record offset
-- `tools/randgroups.js` groups the `randMod` call sites by enclosing function
+([record-layout.md](record-layout.md)), so the reading half is cheaper than it was.

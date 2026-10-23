@@ -127,6 +127,33 @@ function main() {
 		for (const p of problems) console.log('  ' + p);
 		process.exit(1);
 	}
+	// Cross-check the view against the plan of record. An open question that the plan does not
+	// mention is drift in the direction nobody notices: the plan looks complete and is not.
+	const oqPath = path.join(__dirname, '..', 'docs', 'open-questions.md');
+	if (fs.existsSync(oqPath)) {
+		const oq = fs.readFileSync(oqPath, 'utf8');
+		const questions = [...oq.matchAll(/^## ([0-9]+)\. (.+)$/gm)].map((m) => m[2]);
+		const planText = fs.readFileSync(PLAN, 'utf8');
+		// Match on distinctive tokens rather than the whole title, because the two documents
+		// phrase the same subject differently. A question is covered if any of its identifiers
+		// appears in the plan, or if the question declares itself a pointer at a plan item.
+		const missing = questions.filter((q) => {
+			// A question that names a plan item is a pointer, not a separate question.
+			if (/tracked as plan|see plan item/i.test(q)) return false;
+			const tokens = (q.match(/`[^`]+`/g) ?? []).map((t) => t.replace(/`/g, ''));
+			// Fall back to the first two significant words when there is no code span.
+			const words = q.replace(/[`*]/g, '').split(/[\s:]+/).filter((w) => w.length > 3);
+			const probes = tokens.length ? tokens : words.slice(0, 2);
+			return !probes.some((p) => planText.includes(p));
+		});
+		if (missing.length) {
+			console.log(`\nopen-questions.md has ${missing.length} question(s) the plan does not name:`);
+			for (const m of missing) console.log('  ' + m);
+			console.log('  Either add them to plan.md or make them explicit pointers.');
+			bad++;
+		}
+	}
+
 	console.log('\nevery item is workable.');
 }
 
