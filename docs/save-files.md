@@ -68,7 +68,9 @@ The savestate holds the in-game command bar as rendered strings, each letter
 appearing twice, once in English and once in Shift-JIS:
 
 ```
-A)ttack  B)oard   C)ast    L)aunch  U)nlock
+A)ttack  J)ump    S)teal
+B)oard   K)limb   T)rans-
+C)ast    L)aunch  U)nlock
 D)ecend  M)agic   V)iew
 E)nter   N)egate  W)ear
 F)ire    O)ffer   X)-it
@@ -76,6 +78,13 @@ G)et     P)ass    Y)ell
 H)yper   Q)uit&save
 I)gnite  R)eady   Z)tat
 ```
+
+> **CORRECTION: this page previously listed 19 commands in two columns and missed four.** The bar is three
+> columns of nine, **25 commands**. The four missing were `J)ump`, `K)limb`, `S)teal` and `T)rans-`.
+>
+> Found by reading the ASCII half of the string block at file `0x1653`, which holds the bar twice, once in
+> plain English and once in Shift-JIS. Extracting every `LETTER)word` pattern gives all 25. The earlier
+> listing was probably read by eye from one column pair and stopped early.
 
 A second block holds the dungeon and spell commands, shown on their own bar:
 

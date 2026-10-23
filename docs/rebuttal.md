@@ -108,9 +108,16 @@ not repeated.
 **Reference (C64 manual) says** `K` for Klimb, and maps movement to the
 punctuation characters `@` `:` `;` `/` because the C64 has no dedicated arrow keys.
 
-**Measured:** the FM Towns command bar has **no `K)limb`**, and the game uses real
+**Measured:** the FM Towns command bar **does have `K)limb`**, and the game uses real
 arrow keys. It adds `N)egate`, `W)ear`, `O)ffer`, `P)ass` and `Z)tat`, none of which
-appear in the C64 set.
+appear in the C64 set, and also `J)ump`, `S)teal` and `T)rans-`.
+
+> **CORRECTION: this entry previously said the FM Towns bar has no `K)limb`. It does.** The bar is 25
+> commands in three columns, and `K)limb` sits beside `J)ump` and `S)teal` in the second column. The earlier
+> reading missed the second column. See `save-files.md` 8.0.1.1.
+
+**So this difference from the C64 is smaller than recorded**, and the five FM Towns-only commands named
+above are the real divergence.
 
 Source: `save-files.md` section 8.0.1.1.
 
