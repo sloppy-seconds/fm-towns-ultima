@@ -1,8 +1,9 @@
-# The call graph, and what names a routine
+# The call graph, and the named skeleton
 
 The end goal is reimplementation. A reimplementation needs a skeleton: which routine drives a turn,
-which handles combat, which enters a town. This page is the first sketch of that skeleton, produced by
-`tools/callgraph.js` and `tools/fnstrings.js`.
+which handles combat, which enters a town. This page is that skeleton, as far as it is established.
+
+Produced by `tools/callgraph.js` and `tools/fnstrings.js`. Both are committed and both are quick.
 
 ## The shape of the game
 
@@ -12,83 +13,115 @@ function starts    738
 call sites       5,435
 self recursion      16
 distinct edges   2,476
-routines with no caller: 2
+routines with no caller:  2
 ```
 
 **Two routines have no caller: `0x101bdc` and `0x1052c8`.** Everything in the game is reachable from
-them, so these are the entry points. Both call `0x103c04`, which is therefore shared start-up code.
-That is a clean, exact result and it is the top of the skeleton.
+them, so they are the entry points. Both call `0x103c04`, which is therefore shared start-up. That is
+exact arithmetic on call instructions, not an inference.
 
-## The technique that names a routine
+## How a routine gets named
 
 Scan the body for `push imm32` and `mov r32,imm32` whose operand points at printable data. **The
-strings name the routine.** It takes seconds and it works.
+strings name the routine.** `tools/fnstrings.js` does this, bounded by the next function start from the
+call graph so a scan cannot attribute a neighbour's strings.
 
-Built as `tools/fnstrings.js`. The bound for each scan is the next function start from the call graph,
-so a scan cannot attribute a neighbour's strings to the wrong routine.
+This took most identifications from minutes to seconds, and it is the single most useful tool added
+this session.
 
-## Routines named so far
+## Named routines
+
+Twenty-two of 738. Grouped by what they do.
+
+### Entry and start-up
 
 | routine | evidence | identification |
 |---|---|---|
-| `0x101bdc` | no caller | **entry point A** |
-| `0x1052c8` | no caller | **entry point B** |
-| `0x103c04` | called by both entries | **shared start-up** |
+| `0x101bdc` | no caller | entry point A |
+| `0x1052c8` | no caller | entry point B |
+| `0x103c04` | called by both entries | shared start-up |
+| `0xe1974` | `Can't call real bios!`, error text | **BIOS bridge / error handler** |
+
+### World and movement
+
+| routine | evidence | identification |
+|---|---|---|
 | `0xf6ebc` | 39 callees, references `ト・ボニフィス`, `ピタ－・ビレッジ`, `スタ－`, `・キャンプ` | **location dispatch** (Port Boniface, Pita Village, Star, Camp) |
-| `0xeafc4` | references `\U2TITLE3.TIF`, `Q:\GRAPH\U2TITLE4.TIF` | **title art loader** |
-| `0xebb70` | references `GREEN_GEM=%d\n`, `BRASS_BUTTON=%d\n` | **roster writer** |
-| `0xf5a1c` | references `食 料 品` with yen signs | **shop screen** |
-| `0xfd32c` | references `アントス卿がお待ちになっています` | **NPC dialogue** |
-| `0xe22d4` | references `E.SND`, `IC3.SND` | **sound loader** |
-| `0xe6e90` | established earlier | **text renderer** |
-| `0xe9e0c` | established earlier | **roster parser** |
-| `0xe1c5c` | established earlier | **`randMod`** |
-| `0xe3d4c` | established earlier | **`randRange`** |
-| `0xf2cc0` | established earlier | **tile effect dispatcher** |
+| `0xf6c78` | references `リンダ`, `・アントニオ`, `マクラ－`, `バスコ` | **town name table** (Linda, New San Antonio, Towne Makler, Towne Basko) |
+| `0xf38b4` | `航速度で航行中です`, `操縦装置に座標を入れよ` | **ship and sailing** |
+| `0xf7bd8` | `シャトルに乗る` | **shuttle** |
+| `0xf0fcc` | `防具]`, `呪文]`, `アイテムリスト]` | **menu panels** |
 
-Fourteen routines, of 738. The skeleton is started, not finished.
+### Combat
 
-## The finding that changes the plan
+| routine | evidence | identification |
+|---|---|---|
+| `0xcfe14` | `\nによる攻撃` | **attack message** |
 
-**Most high-string-count routines reference only `0xEB` runs.**
+### Character and inventory
 
-`0xeb354` has 70 string references and every one sampled is an `0xEB` run. Same for `0xf02c8` (33),
-`0xf0fcc` (31), `0xf4b24` (28), `0xf6c78` (27), `0xf1e8c` (26).
+| routine | evidence | identification |
+|---|---|---|
+| `0xebb70` | `GREEN_GEM=%d\n`, `BRASS_BUTTON=%d\n` | **roster writer** |
+| `0xebefc` | `SURFACE=%d\n`, `MAP=%d\n`, `SEED=%d\n`, `GATE_TIME=%d\n` | **world file writer** |
+| `0xeb354` | `WORLD1.UT2`..`WORLD4.UT2`, `FILE DATA` | **save / load** |
+| `0xf0fcc` | see menu panels | shop and inventory lists |
+| `0xf5a1c` | `食 料 品` with yen signs, `魔術店` | **shop screen** |
+| `0xedf18` | `性　　別  ：`, `－登録されました`, `を押してください` | **character creation** |
+| `0xf55ac` | `が言った：`, `占い師` | **fortune teller** |
 
-That means **the `0xEB` dictionary is the naming mechanism for the majority of the game's message
-routines.** `reimplementation-gap.md` said the glyph question was not on the reimplementation path.
-**That was wrong**, and this page corrects it.
+### Text and dialogue
 
-It does not change the cost, and it does not change the twelve recorded negatives. What it changes is
-the priority: a reimplementation that cannot read `0xEB` runs cannot name its own dialogue, shop and
-combat routines, and cannot display their text. That makes the dictionary **worth one more attempt, by
-a different method**, and the method is now obvious.
+| routine | evidence | identification |
+|---|---|---|
+| `0xe6e90` | established earlier | **text renderer**, decides Shift-JIS width |
+| `0xfd32c` | `アントス卿がお待ちになっています` | **NPC dialogue script** |
+| `0xf18a4` | `は言った：` | **speech attribution** |
+| `0xf02c8` | `ヤ－の状態を見る`, Fujitsu attribution | **status display** |
+| `0xf4b24` | ending prose, 30 calls to the renderer | **ending sequence** |
 
-### The method that has not been tried
+### Sound and art
 
-Every previous attempt tried to **decode** the runs. None tried to find the **routine that consumes**
-them, by asking which code references the run addresses as immediates.
+| routine | evidence | identification |
+|---|---|---|
+| `0xe22d4` | `E.SND`, `IC3.SND`, `\MONSTER1.SND`, `\DOOR3.SND` | **sound loader** |
+| `0xeafc4` | `\U2TITLE3.TIF`, `Q:\GRAPH\U2TITLE4.TIF` | **title art loader** |
+| `0xe3f08` | `Dark field`, `YASURAGI`, `Voyger`, `演奏テスト` | **music playback** |
 
-`tools/fnstrings.js` already lists those references with their offsets. For `0xeb354`, the addresses it
-pushes are the run starts. The next step is to read `0xeb354` itself and see what it does with the code
-byte. If it indexes a table, that table is the answer, and it will be a table of **pointers or widths**,
-not of bitmaps. Eleven probes looked for bitmaps.
+### Already established
 
-That is a bounded, static question with a specific target, which is the shape of question this project
-answers well.
+`0xe9e0c` roster parser, `0xe1c5c` `randMod`, `0xe3d4c` `randRange`, `0xf2cc0` tile effect
+dispatcher, `0xf25b4` stat gain, `0x101a40` RNG.
 
-## What is still missing from the skeleton
+## What is still missing, and it is the important part
 
-- **The turn driver.** Not yet identified. It will be the routine that calls movement, combat and
-  rendering from one body.
-- **Combat.** Not identified.
-- **Dungeon entry and movement.** `0xf6ebc` handles overworld locations, so dungeon entry is elsewhere.
-- **Character creation.** `0xebb70` writes the roster, so creation is nearby but not named.
-- **Spell casting.** Not identified.
-- **Save and load.** The roster parser and writer are named, the world file is not understood.
+**The turn driver is not identified.** It will be the routine that calls movement, combat and rendering
+from one body. Candidates worth reading next, by fan-out: `0xebefc` (31 callees), `0xf0c60` (26),
+`0xfe4a8` (26), `0xed7f0` (24), `0xe97c0` (23), `0xee770` (21), `0xf4b24` (21), `0xfb08c` (21).
 
-Naming these is the current work. `docs/overnight.md` item 1 carries the method.
+Also unnamed: spell casting, dungeon movement, monster behaviour, the main loop itself.
+
+## The pattern worth noting
+
+**19 of the 22 named routines were identified from strings alone.** The three exceptions are structural:
+the two entry points from having no caller, and `0x103c04` from being called by both.
+
+That means the remaining 700 routines are mostly nameable the same way, and the ones that are not
+named yet are the ones whose strings are `0xEB` runs. See [eb-encoding.md](eb-encoding.md): the runs are
+a private double-byte character set, so those routines stay unnamed until the set is understood or a
+savestate is taken.
+
+## Where this leaves the count
+
+```
+738  routines
+ 22  named
+716  unnamed
+```
+
+That is up from 14 named before this session. It is not close to a reimplementation, but the method is
+now cheap enough that the number can move quickly.
 
 ---
 
-**[Distance to reimplementation](reimplementation-gap.md)** **[Overnight queue](overnight.md)** **[Plan](plan.md)**
+**[Distance to reimplementation](reimplementation-gap.md)** **[Overnight queue](overnight.md)** **[`0xEB` encoding](eb-encoding.md)**
