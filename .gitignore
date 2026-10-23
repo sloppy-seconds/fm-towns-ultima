@@ -158,6 +158,11 @@ package-lock.json
 .DS_Store
 *.swp
 
+# --- Third-party reference clones ------------------------------------------
+# Other people's reimplementations, cloned for cross-checking formats. They are
+# not ours, they are large, and they carry their own licences. Never committed.
+references/
+
 # --- Secrets ---------------------------------------------------------------
 # A GitHub token lives in .env for pushing. It must never be committed, and the
 # case-insensitive block covers .ENV and .Env, which a case-sensitive rule
