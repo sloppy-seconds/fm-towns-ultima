@@ -42,7 +42,7 @@ renderer does, and it means no separate decode path exists.
 ## The wall: the runs are not parallel texts
 
 The tempting conclusion is that each `0xEB` run is the same string as the Shift-JIS text beside it, so
-one gives cribs for the other. **That is false.** Measured on all 77 adjacent pairs:
+one gives cribs for the other. **That is false.** Measured on all 78 adjacent pairs:
 
 | run | codes | next Shift-JIS text | chars |
 |---|---|---|---|

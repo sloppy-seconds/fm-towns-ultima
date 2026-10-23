@@ -32,7 +32,7 @@ directory, so run them from the repo root.
 | `callgraph.js` | Builds caller to callee edges from every `E8` call site. Reports fan-in, fan-out, roots and reachability. 738 starts, 2,476 edges, 2 routines with no caller. |
 | `fnstrings.js` | Prints the strings a function references, which is how a routine gets named. `--top N` ranks routines by string count. |
 | `worldfmt.js` | Reports the `WORLD*.UT2` save layout: 128-byte rows, 24 dwords each, 6 rows of data then 67,328 bytes of zero. `--bits`, `--compare`, `--size`. |
-| `ebcorpus.js` | Lists the 77 all-`0xEB` strings and whatever Shift-JIS string follows each. `--dupes` shows runs appearing under more than one text, which proves the runs are shared tokens rather than a transcription. |
+| `ebcorpus.js` | Lists the 271 all-`0xEB` strings (78 followed by Shift-JIS) and whatever Shift-JIS string follows each. `--dupes` shows runs appearing under more than one text, which proves the runs are shared tokens rather than a transcription. |
 | `randgroups.js` | Groups `randMod` call sites by enclosing function. 85 sites into 35 functions, 12 of which hold 55 sites. Follows the rule that every address is a virtual address and every image access is `img[addr]`. |
 | `sweep.js` | Linear-sweeps a function from a real entry to produce instruction boundaries. `--check addr` says whether an address begins a real instruction. Full-image sweeps are unusable; per-function sweeps are sound. |
 | `randmods.js` | Classifies `randMod` call sites. `--sweep` filters against real boundaries, which removes 13 of 85 provable false positives. |

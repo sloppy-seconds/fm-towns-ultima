@@ -133,7 +133,7 @@ reads a constant `2`, and why `WORLD_FILL_FROM` is 61,952 when data ends at 768.
 The reproducibility contract is missing recent results. All of these are cleanly assertable:
 
 - **Record base `0xcde54`** from the three anchors.
-- **77 all-`0xEB` strings.**
+- **271 all-`0xEB` strings, 78 followed by a Shift-JIS string.**
 - **`WORLD*.UT2`**: 68,096 bytes, 128-byte rows, 6 rows of data.
 - **Call graph**: 738 starts, 2,476 edges, exactly 2 routines with no caller.
 - **`0xf6ebc` is the location dispatcher**: its string references include the town names.

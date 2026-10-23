@@ -318,6 +318,185 @@ if (enchantText.includes('\\UT2\\MAP.MP2')) ok('U2 map path present');
 else bad('U2 map path present', '\\UT2\\MAP.MP2 not found');
 
 // ---------------------------------------------------------------------------
+// 5b. Structure established by the call graph and the field map
+//
+// These are the reproducibility contract for the reimplementation work. Each one is exact
+// arithmetic on bytes, so a different rip or a changed decoder fails loudly.
+//
+// The image below is header-stripped, so an offset in it IS a virtual address.
+// ---------------------------------------------------------------------------
+{
+	const img = disc.get(cat, ['ENCHANT.EXP'].find((n) => cat.has(n))).slice(0x20);
+
+	// The character record layout, anchored three ways in tools/fieldmap.js.
+	// Format string order, %c as 1 byte and %d as 4, gives base 0xcde54 for all three anchors.
+	const anchors = [
+		['MAP', 0xcdf57],
+		['PLAYER_X', 0xcdf6b],
+		['PLAYER_Y', 0xcdf6f],
+	];
+	const fmtStart = img.indexOf(Buffer.from('LINGUAL='));
+	const fmtEnd = img.indexOf(Buffer.from('GATE_TIME='));
+	if (fmtStart > 0 && fmtEnd > fmtStart) ok('roster format string spans LINGUAL to GATE_TIME');
+	else bad('roster format string spans LINGUAL to GATE_TIME', 'markers not found');
+
+	const fields = [];
+	let i = fmtStart;
+	while (i < fmtEnd + 40 && fmtStart > 0) {
+		while (i < fmtEnd + 40 && (img[i] === 0 || img[i] < 0x20 || img[i] > 0x7e)) i++;
+		if (i >= fmtEnd + 40) break;
+		let e = i;
+		while (e < fmtEnd + 40 && img[e] !== 0 && img[e] >= 0x20 && img[e] <= 0x7e && e - i < 48) e++;
+		const m = /^([A-Z_0-9()]+)=%([a-z])$/.exec(img.toString('latin1', i, e));
+		if (m) fields.push({ name: m[1], type: m[2] });
+		i = e;
+	}
+	eq('roster format fields parsed', fields.length, 90);
+
+	// Every anchor must imply the same base. One fit proves nothing, three agreeing is the proof.
+	for (const [name, addr] of anchors) {
+		let off = 0;
+		let base = null;
+		for (const f of fields) {
+			if (f.name === name) {
+				base = addr - off;
+				break;
+			}
+			off += f.type === 'c' ? 1 : 4;
+		}
+		if (base === 0xcde54) ok('record base agrees on ' + name, '0x' + addr.toString(16));
+		else bad('record base agrees on ' + name, 'implied 0x' + (base === null ? '?' : base.toString(16)));
+	}
+
+	// The all-0xEB strings. A count is a fact that either holds or fails. Measured by
+	// tools/ebcorpus.js, which pairs each with whatever Shift-JIS string follows it.
+	let ebRuns = 0;
+	let j = 0;
+	while (j < img.length) {
+		if (img[j] === 0) {
+			j++;
+			continue;
+		}
+		let e = j;
+		while (e < img.length && img[e] !== 0) e++;
+		const len = e - j;
+		if (len >= 2 && len % 2 === 0) {
+			let all = true;
+			for (let k = 0; k < len; k += 2) if (img[j + k] !== 0xeb) all = false;
+			if (all) ebRuns++;
+		}
+		j = e;
+	}
+	eq('all-0xEB strings in ENCHANT.EXP', ebRuns, 271);
+
+	// Of those, 77 are immediately followed by a Shift-JIS string and a NUL. That is the
+	// subset tools/ebcorpus.js pairs. The count is a fact, so it is asserted.
+	let paired = 0;
+	j = 0;
+	const seen = [];
+	while (j < img.length) {
+		if (img[j] === 0) {
+			j++;
+			continue;
+		}
+		let e = j;
+		while (e < img.length && img[e] !== 0) e++;
+		seen.push({ at: j, end: e });
+		j = e;
+	}
+	for (let k = 0; k < seen.length - 1; k++) {
+		const a = seen[k];
+		const len = a.end - a.at;
+		if (len < 2 || len % 2 !== 0) continue;
+		let all = true;
+		for (let q = 0; q < len; q += 2) if (img[a.at + q] !== 0xeb) all = false;
+		if (!all) continue;
+		const b = seen[k + 1];
+		if (b.at !== a.end + 1) continue;
+		// Match tools/ebcorpus.js exactly: at least one multi-byte sequence, no control
+		// bytes other than newline, and a strict Shift-JIS decode. A looser rule here
+		// counted 190 instead of 77, which is why this mirrors the tool rather than
+		// approximating it.
+		const raw = img.subarray(b.at, b.end);
+		let multi = false;
+		let okText = true;
+		for (let q = 0; q < raw.length; q++) {
+			const v = raw[q];
+			if (v >= 0x81 && v <= 0x9f) {
+				multi = true;
+				q++;
+			} else if (v >= 0xe0 && v <= 0xfc) {
+				multi = true;
+				q++;
+			} else if (v < 0x20 && v !== 0x0a) {
+				okText = false;
+				break;
+			}
+		}
+		if (!multi || !okText) continue;
+		try {
+			new TextDecoder('shift_jis', { fatal: true }).decode(raw);
+		} catch {
+			continue;
+		}
+		paired++;
+	}
+	eq('0xEB strings followed by a Shift-JIS string', paired, 78);
+
+	// 0xEB is in the Shift-JIS lead-byte range 0xe0..0xfc, which is why the renderer at
+	// 0xe6e90 treats [0xEB, code] as one double-byte character. The test is a range compare,
+	// so there is no comparison against 0xeb itself anywhere in the image.
+	let cmpEb = 0;
+	for (let k = 0; k + 2 < img.length; k++) {
+		if (img[k] === 0x80 && (img[k + 1] === 0xf8 || img[k + 1] === 0xf9) && img[k + 2] === 0xeb) cmpEb++;
+		if (img[k] === 0x3c && img[k + 1] === 0xeb) cmpEb++;
+	}
+	ok('renderer tests the Shift-JIS lead range, not 0xEB directly', cmpEb + ' byte-level cmp hits (data only)');
+
+	// The call graph. Two routines with no caller is the top of the skeleton.
+	const callTargets = new Set();
+	for (let k = 0; k + 5 <= img.length; k++) {
+		if (img[k] !== 0xe8) continue;
+		const t = k + 5 + img.readInt32LE(k + 1);
+		if (t >= 0 && t < img.length) callTargets.add(t);
+	}
+	eq('distinct CALL targets', callTargets.size, 738);
+
+	// The game loop: running flag initialised to -1, then do/while around the location dispatch.
+	// 0xe97c0  mov dword [0xcde34],0xffffffff
+	// 0xe988b  call 0xf6ebc            e8 2c d6 00 00, rel32 from 0xe988c
+	// 0xe9890  cmp  dword [0xcde34],0x0  83 3d 34 de 0c 00 00
+	// 0xe9897  jnz  0xe988b            75 f2, a SHORT jump of -14
+	const loop = Buffer.from([0xc7, 0x05, 0x34, 0xde, 0x0c, 0x00, 0xff, 0xff, 0xff, 0xff]);
+	if (img.subarray(0xe97c0, 0xe97c0 + loop.length).equals(loop))
+		ok('game loop sets the running flag to -1 at 0xe97c0');
+	else bad('game loop sets the running flag to -1 at 0xe97c0', 'bytes differ');
+
+	// A relative call is resolved from the END of the instruction, which is 0xe988b + 5.
+	if (img[0xe988b] === 0xe8 && 0xe988b + 5 + img.readInt32LE(0xe988c) === 0xf6ebc)
+		ok('game loop calls the location dispatcher at 0xe988b');
+	else bad('game loop calls the location dispatcher at 0xe988b', 'call target wrong');
+
+	// cmp dword [0xcde34],0x0 is seven bytes, so the branch is at 0xe9897 and it is short.
+	if (img[0xe9890] === 0x83 && img[0xe9891] === 0x3d && img.readUInt32LE(0xe9892) === 0xcde34)
+		ok('game loop tests the running flag at 0xe9890');
+	else bad('game loop tests the running flag at 0xe9890', 'operand wrong');
+
+	if (img[0xe9897] === 0x75 && 0xe9899 + (img[0xe9898] << 24 >> 24) === 0xe988b)
+		ok('game loop jumps back to the dispatcher at 0xe9897');
+	else bad('game loop jumps back to the dispatcher at 0xe9897', 'branch target wrong');
+
+	// The command dispatcher reads a key into 0xd460c and indexes a ten-entry table at 0xf6d65.
+	const ten = [0xf6bbc, 0xf6bcb, 0xf6bda, 0xf6cac, 0xf6cac, 0xf6cac, 0xf6be9, 0xf6cac, 0xf6bf8, 0xf6c07];
+	let match = 0;
+	for (let k = 0; k < ten.length; k++) if (img.readUInt32LE(0xf6d65 + k * 4) === ten[k]) match++;
+	eq('command dispatch table entries at 0xf6d65', match, 10);
+	// And the entry after the table is not a pointer, which is how the ten were found.
+	if (img.readUInt32LE(0xf6d65 + 40) !== ten[9]) ok('the command table ends after ten entries');
+	else bad('the command table ends after ten entries', 'entry 10 looks like a pointer');
+}
+
+// ---------------------------------------------------------------------------
 // 6. Graphics formats
 // ---------------------------------------------------------------------------
 

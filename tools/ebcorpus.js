@@ -75,8 +75,18 @@ function ebCodes(b) {
 
 // A string is usable Shift-JIS if the decoder produces no replacement characters and it
 // contains at least one multi-byte sequence, which distinguishes it from the 0xEB runs.
+//
+// The first check rejects an all-0xEB run by requiring the FIRST byte not to be 0xeb and the
+// string not to consist solely of 0xEB pairs. It must NOT reject 0xeb appearing as a TRAIL
+// byte inside a valid Shift-JIS character, which is what 0x95 0xeb is: 0x95 is a lead byte and
+// 0xeb its trail. An earlier version rejected any 0xeb anywhere, which dropped exactly one
+// valid pair at 0x32c5 and made the documented count 77 instead of 78.
 function sjisText(b) {
-	if (b.some((v) => v === 0xeb)) return null;
+	if (b.length >= 2 && b.length % 2 === 0) {
+		let allEb = true;
+		for (let i = 0; i < b.length; i += 2) if (b[i] !== 0xeb) allEb = false;
+		if (allEb) return null;
+	}
 	let multi = false;
 	for (let i = 0; i < b.length; i++) {
 		const v = b[i];

@@ -6,7 +6,8 @@ importantly, what it did **not**.
 
 ## What is established
 
-**77 all-`0xEB` strings exist in the image, and most are immediately followed by a Shift-JIS string
+**271 all-`0xEB` strings exist in the image, and 78 of them are immediately followed by a valid
+Shift-JIS string
 that names a similar thing.** That is `tools/ebcorpus.js`. It is a real structure and it was not
 previously known.
 
@@ -46,7 +47,7 @@ In dense clusters the pattern is `SJIS, EB, SJIS, EB, ...` where each `EB` run b
 is a different monster from the `大クモ` the file lists. **Pairing forward is right sometimes and
 wrong sometimes, and from the bytes alone I cannot tell which.**
 
-So the corpus is **77 recorded adjacencies, not 77 translations**. The page said "translations"
+So the corpus is **78 recorded adjacencies, not 78 translations**. The page said "translations"
 before I checked, which is exactly the byte-plausible-is-not-verified error this project has
 documented four times now.
 
