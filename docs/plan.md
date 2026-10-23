@@ -84,10 +84,23 @@ emulator.
 **The named-routine count is owned by [call-graph.md](call-graph.md).** Re-derive it there rather than
 quoting a number from here.
 
-**Worked, and the ceiling is now measured.** Of 738 function starts, **93 have at least one readable non-`0xEB`
-string** and the rest have none. The other 645 cannot be named this way at all, so this item is close to
-finished rather than ongoing: ten more were named, and what remains is inside the 93. See
-[call-graph.md](call-graph.md) for the tally and the ten new names.
+**Worked, and the ceiling is now measured and the remainder enumerated.** Of 738 function starts, **93 have
+at least one readable non-`0xEB` string**. Ten were named, taking the count to 48.
+
+**56 of the 93 remain unnamed** and they are listed explicitly rather than left as a search:
+
+```
+0xd3d 0xcfe14 0xd2b3b 0xd2ba5 0xd2e27 0xe1050 0xe17d8 0xe1b74 0xe1bd4 0xe1c04
+0xe26b8 0xe2734 0xe2808 0xe3368 0xe3664 0xe77a4 0xe7ffc 0xe8140 0xe83ec 0xe8fa0
+0xe9070 0xe9724 0xe9948 0xe9a94 0xe9e94 0xe9ed0 0xe9f0c 0xebe34 0xec154 0xec320
+0xee770 0xef15c 0xef594 0xef720 0xf0ea4 0xf1b68 0xf1d0c 0xf1e8c 0xf25b4 0xf2cc0
+0xf346c 0xf51f4 0xf5f00 0xf6660 0xf6bd0 0xf84a4 0xf8750 0xf8944 0xf8af4 0xf9f18
+0xfabf4 0xfb25c 0xfbd24 0xfc4fc 0xfcabc 0x103850
+```
+
+Some of those are known in prose but not in the tables, such as `0xf2cc0` (the shrine/effect dispatcher) and
+`0xf25b4` (stat gain). Several are data regions rather than functions, flagged by the boundary oracle. **This
+item is a bounded list, not an open search.**
 
 
 
