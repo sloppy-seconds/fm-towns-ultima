@@ -1,82 +1,98 @@
 # Reading the action window
 
-The bottom-right window is the game's own log. Every event it prints there is a semantic record of what
-happened, which is more useful than anything derived from memory deltas. This page records whether it can be
-read, and how.
+The bottom-right window is the game's own log of every event. Reading it gives a semantic transcript, which
+is strictly better than inferring events from field deltas: the inference produced two withdrawn claims in
+this project, and the log would have settled both in one line.
 
-## Why it matters
+## It can be read, with a vision model
 
-Everything measured so far came from watching fields change and inferring what caused it. That produced
-several wrong claims:
-
-- "magic missiles never affect HP", withdrawn because two samples cannot tell a miss from a parry
-- "HP is at `0xcde85`", wrong, because it and max HP were both 400
-
-**The action window would have settled both immediately**, because it says what happened in words:
-`Attacked!` `You parried!` `was hit for 5`.
-
-## Three routes, and which work
-
-### Route 1: search memory for the text. Does not work.
+**`local/qwen3.8-flash-next` through `delegate` reads it correctly.** Verified on a real screenshot during a
+fight. No agent definition is needed, and none should be committed: the invocation is
 
 ```
-FINDS Attacked   -> not found
-FINDS parried    -> not found
+subagent({ agent: "delegate", model: "local/qwen3.8-flash-next",
+           task: "read <path> and transcribe the lower-right box" })
 ```
 
-The text is not stored as ASCII. It is **`0xEB` runs**, the private double-byte character set established in
-[eb-renderer.md](eb-renderer.md), which the renderer hands to TownsOS. So memory search cannot find it and
-cannot decode it.
+The driving model cannot see images. The subagent can, because `delegate` accepts a model, and both
+`local/qwen3.8-flash-next` and `local/qwen3.8-27b-dense` list `image` in their input types in `models.json`.
 
-### Route 2: read the screen. Works, with a caveat.
+**This is the answer to the font problem.** The action window's glyphs are the private character set from
+[eb-renderer.md](eb-renderer.md), which is why `FINDS Attacked` in memory returns nothing and why character
+recognition against a table is not possible. A vision model reads the rendered shapes and never needs the
+font.
 
-`tools/readscreen.py` crops a framebuffer region and prints it as text. Two problems:
+## The region
 
-- The glyphs are the same private character set, so the shapes are renderable but the characters are not
-  standard. Reading them needs the font, which is unresolved.
-- At 640x496 emulated inside a 1024x800 framebuffer, a text window is small. Reading it means repeating
-  `readscreen.py --box` with the window's exact coordinates.
+In a live game, inside the 640 by 496 emulated area:
 
-**The coordinates have not been measured yet**, and the game has since returned to a title screen, so there
-is nothing to measure against until a character is back in the world.
+- the action window is a boxed region at framebuffer **rows 79 to 111**
+- horizontally it starts near **column 401** and ends near **490**
+- text lines sit in **rows 83 to 109**
 
-### Route 3: a vision model on a screenshot. Untried, and the most promising.
+Found with `tools/readscreen.py --scale 4`, which renders glyph shapes large enough to locate the box even
+though they cannot be read as characters.
 
-`POST /api/shot` writes a PNG. A vision model can read the action window directly, including the glyphs,
-without needing the font decoded.
+## What it produced
 
-**This is the route worth trying**, because it sidesteps the one unresolved problem in the whole text pipeline.
-The project has been avoiding vision because the driving model cannot see images, but a **separate vision
-agent** does not have that limitation.
+From one fight, transcribed exactly:
 
-## What a capture would look like
+```
+Damage +  16!
+You defeated
+ Thief!
+Wand !
+  Gold +  14!
+  Exp. +   4!
+```
 
-1. `POST /api/shot` once per second into `saves/fight/shot-NNN.png`
-2. `node tools/peek.js --kv` once per second into `saves/fight/record-NNN.txt`
-3. A vision pass over each shot, reading only the action window's rectangle
-4. Correlate the text, the field deltas, and the trace by timestamp
+**The log states the damage, the monster, the weapon, and both rewards.** Everything the memory work had been
+inferring one field at a time.
 
-That yields a blow-by-blow: **what the game said happened**, **what changed**, and **what code ran**.
+## The status bar confirms the field map independently
 
-## The known blocker, stated plainly
+The same screenshot showed the status bar:
 
-**`DBLOG` and field reads compete.** With `ENA AUTODISASMR` running, a single `MD` call returns about 250 lines
-because every instruction is echoed, and the 16 lines that are the actual memory dump are buried among them.
-`tools/peek.js` now requires the `|` separator that only an `MD` line carries, which fixes the parse, but the
-contention makes each read slow.
+```
+H:  344   E:    25
+P:  374  G:   249   A
+```
 
-**So a capture cannot log every instruction and read fields once a second at the same time without
-degrading.** Options:
+| letter | value | field | memory |
+|---|---|---|---|
+| `H` | 344 | HP | `0xcde81` = 344 |
+| `E` | 25 | EXPERIENCE | `0xcde89` = 25 |
+| `P` | 374 | FOOD | `0xcde8d` = 37465, displayed divided by 100 |
+| `G` | 249 | GOLD | `0xcde91` = 249 |
 
-- **Read fields and take shots only**, no instruction trace. Cheap, and the trace is what is least necessary
-  given the action window gives the semantics.
-- **Trace only**, for a short window around one action, then correlate with a few field reads taken either
-  side.
+**All four match.** This is the first time the field map has been checked against the display that uses it,
+and the four fields previously verified one at a time are now confirmed together.
 
-## Recommendation
+`P` and `G` are the game's own letters for food and gold, which resolves the naming ambiguity left open in
+`live-fieldmap.md`.
 
-**Capture the action window and the fields, not the instruction trace.** The trace answers "what code ran",
-which is the question to ask *after* knowing what happened. The action window answers what happened.
+**A fifth field is truncated.** The third line reads `P: 374  G: 249  A` and the `A` has no visible value in
+this transcription. It is probably a fifth stat cut off at the window edge, and a crop aimed at that line
+would settle it.
+
+## The rewards, cross-checked
+
+The log says `Gold + 14` and `Exp. + 4`. Independently, memory read GOLD 235 to 249 and EXPERIENCE 21 to 25.
+**Two methods, same two numbers.** That is the strongest evidence either method produced this session.
+
+## What is not settled
+
+- **What `Damage + 16` is damage to.** The phrasing does not distinguish damage dealt from damage taken, and
+  the player's HP at the end was 344, which does not obviously include a 16. Worth confirming rather than
+  assuming.
+- **The truncated fifth status field.**
+- **Whether the log scrolls or truncates** when more events occur than fit in the window. A long fight would
+  answer it.
+
+## The method, now the default for combat
+
+**Read the action window with a vision model, and the fields with `tools/peek.js`, and correlate the two.**
+Do not infer events from field deltas alone.
 
 ---
 
