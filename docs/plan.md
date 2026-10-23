@@ -231,11 +231,48 @@ reason to stop rather than a reason to try harder.
 | Equipment thresholds | a character at the boundary |
 | Debug mode activation | input testing, or finding the flag |
 | `WORLD*.UT2` contents | saves at different positions |
-| The addressing limit | a savestate dumped at known addresses (A7) |
+
+**Solved and removed from this list:** the addressing limit. A7 and A8 answered it. The
+image loads below `0x0d0000` at base `0x762d2` and above it mirrored at `0x4392d2 - offset`.
+Nothing further is needed from Track B for that.
 
 **One Track B item may be closable from Track A:** `saves/maxed_four.hdm` already exists with
 known stats. If a formula can be predicted from the code, one save file confirms it, and
 making a save file is a Track A operation.
+
+## Honest status, item by item
+
+Four of the ten Track A items are genuinely complete. The rest are not, and the headings
+above use words like DONE that overstate two of them.
+
+| item | heading says | actually |
+|---|---|---|
+| A1 | DONE | complete |
+| A2 | DONE | **mostly.** The object constructor writes to offset `+69` in a 57-byte record and no caller matches its entry. Unexplained. |
+| A3 | PARTLY DONE | **partial.** 123 of 226 call sites resolved. The 75 register-supplied ones are unresolved. |
+| A4 | DONE, one glyph proven | **partial.** 1 of 54 glyphs decoded. The rest is open and the font is not on the disc. |
+| A5 | DONE, negative | **negative only.** The header layouts are settled, the actual question, whether 1960 is a frequency, is untouched. |
+| A6 | SOLVED | complete |
+| A7 | DONE | complete |
+| A8 | DONE | complete |
+| A9 | DONE, NEGATIVE | complete as a negative |
+| A10 | ATTEMPTED | **closed as unresolvable.** The target was wrong, three further routes were tried (20-byte record grid found, base reference, `lea` x20 chain), and none found the mechanism. Five work items spent. |
+
+**Nothing on Track B has been attempted.** Every item there still needs a human, apart from
+the addressing limit which is now solved.
+
+### What is genuinely still open
+
+1. **The high bits of a map cell.** `v & 3` is terrain, established. The upper bits correlate
+   at 74% and their meaning is unknown.
+2. **The `0xEB` glyph mapping.** 1 of 54 glyphs. Needs the writer or a font, neither of which
+   is reachable by the methods tried.
+3. **The `0xe4086` switch table.** Not a table in the file, not a table at its mirrored
+   runtime address. Something else is going on there.
+4. **The asset path mechanism.** Three work items spent, all negative. The paths are real and
+   present; how they are supplied is not known.
+5. **The object record's true size.** 57 by the `lea` chain, 69 by the constructor.
+6. **Everything on the Track B list.**
 
 ## What this plan deliberately does not do
 

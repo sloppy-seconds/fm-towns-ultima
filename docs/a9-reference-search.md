@@ -84,22 +84,59 @@ pairs of small integers, which is display or palette setup, not file handling.
 **A10 does not resolve.** The asset path mechanism is still unexplained, and the assumption
 that a function showing a load-error message is the loader was wrong.
 
+## A further attempt, which found a real structure and still no reference
+
+The asset path strings are laid out on a **strict 20-byte grid** starting at `0x22cc`:
+
+```
+0x22cc  Q:\GRAPH\MAP2_1.TIF     19 chars
+0x22e0  Q:\GRAPH\PLAYER.TIF     19 chars
+0x22f4  Q:\GRAPH\ENEMY2.TIF     19 chars
+0x2308  Q:\GRAPH\EXTRA.TIF      18 chars
+0x231c  Q:\GRAPH\DUNG1.TIF      18 chars
+```
+
+Every record is 20 bytes regardless of name length, padded with NULs. 43 of 60 consecutive
+records hold printable or `EB` content. **So the paths are a fixed-stride table**, and code can
+reach any one of them as `base + index * 20`.
+
+That is a genuine structure and it makes indexing trivial. It does not make it findable: the
+table base `0x22cc` is **never referenced as a dword anywhere in the image**.
+
+Candidate bases were also tried. `0x1e00` returns 48 matches, which looks promising until the
+context is read: every one is the byte sequence `00 1e 00 00 00` inside other data, not a
+pointer in code. `0x1e00` holds the `EB` run `ëDëZëlëm`, not a pool base.
+
 ## What would actually resolve the asset paths
 
-Not a scan, and not that function. Two routes remain:
+Three routes remain, and one recommendation.
 
 **Read the BIOS file service.** The TownsOS gateway at `0x0c5d` is understood: `ah = 0x60`,
 `fs` set to `0x110`, call through `fs:0x20`. File open is one of those services. Finding which
 function calls the gateway with the open service number, and what it passes, gives the
-lowest layer.
+lowest layer. This has not been attempted.
+
+**Find the writer of the 20-byte table.** Something generates or copies these records. The
+table is fixed-stride, so a writer would compute `base + i*20` with an `lea` chain like the
+57-byte records use, and `tools/stride.js` can find that.
 
 **Or accept it.** The asset inventory is proved complete by other means: every file
 `ENCHANT.EXP` opens was extracted, and `verify.js` asserts the set. The path strings are
-documented at their offsets. Not knowing which instruction pushes which path costs nothing
-for extraction, which is the project's actual goal.
+documented at their offsets and the record stride is now known. Not knowing which instruction
+pushes which path costs nothing for extraction, which is the project's actual goal.
 
-That second option is worth stating plainly, because this has now consumed three work items
-and produced negatives.
+**The `lea` chain search was tried as the cheap last attempt and failed.** A `x20` stride would
+appear as `lea reg,[reg+reg*4]` followed by a shift of 2, which is how High C emits a multiply
+by 20. The image contains **three** `lea [eax+eax*4]` sites, at `0xe1dee`, `0x10290c` and
+`0x103e0a`. None is a ×20 index:
+
+- `0xe1dee` is mid-instruction, a false positive from the byte scan.
+- `0x10290c` is inside the printf formatter, where the surrounding code compares against
+  `0x30` and `0x39`, so it is digit parsing.
+
+**Recommendation: accept it.** This has now consumed five work items and produced one useful
+structure, the 20-byte record grid, and no reference to it. The cost of continuing exceeds the
+value, because the asset inventory is already complete and verified by other means.
 
 ---
 
