@@ -162,8 +162,16 @@ it does not distinguish that from the trivial reading**, because the direct test
 percent as the self-agreement. A test that cannot fail is not a test.
 
 What would settle it is the tile loader resolving value to tile, which is item 2b, which needs this. **That
-circularity was not visible before the work.** The next attempt should start from the tile loader rather than
-from more correlation, so this item and 2b should be attacked together rather than in order.
+circularity was not visible before the work.**
+
+**Second attempt, attacked together with 2b as the plan said.** It found the drawing chain rather than the
+answer, and that narrows the gap: the tile grid at `0x77e90` is **64 by 64 of 16-bit indices**, plotted by
+`0xf3e04` and blitted to a paged screen buffer by `0xe3d04`. Full chain in
+[map-draw-chain.md](map-draw-chain.md).
+
+**Still not done.** No routine was found that reads a `MAP2_*` cell and writes the corresponding tile index.
+Two searches failed and are recorded: the screen page is not read back by any pixel-conversion routine, and a
+64-entry pointer table search produced only false positives.
 
 `v & 3` is terrain, established against a shuffle control. **The upper nibble has the largest
 gain-over-shuffle of any field tested (+54pp)** and nobody knows what it carries.
