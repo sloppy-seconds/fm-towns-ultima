@@ -84,12 +84,12 @@ game logic, and it needs no gameplay.
 
 ## Cross-referencing assets to code
 
-The cheapest way into the game logic is to take an asset path and find the code
-that loads it. `tools/coderefs.js` does that. The result is mostly negative, and
-the negative is the finding.
+The cheap route into game logic is meant to be: take an asset path, find the code
+that loads it, and you have the loader. `tools/coderefs.js` does the search. What
+it found says the route does not work here, and the reasons are concrete.
 
-**Measured:** 71 asset strings sit in the image. Exactly **5** are referenced by
-an instruction. 66 are not.
+**Measured:** 71 asset strings sit in the image. Five are referenced by an
+instruction. 66 are not.
 
 | site | form | string | callee |
 |---|---|---|---|
@@ -99,44 +99,58 @@ an instruction. 66 are not.
 | `0x0eb011` | `mov r32,imm32` | `Q:\GRAPH\U2TITLE4.TIF` | `0xe9e44` |
 | `0x0f5485` | `push imm32` | `Q:\GRAPH\U2END4.TIF` | `0xe5854` |
 
-Hand-verified against the bytes: at `0x0e23d6` the image reads
-`68 2c 14 00 00 6a 0b e8 72 34 00 00`, which is `push 0x142c`, `push 11`,
-`call 0xe5854`. `0x142c` is the address of `Q:\SOUND\MAGIC2.SND`. The address
-in the instruction is the null-terminated string itself, and `11` is the channel.
+**And at least three of those five are not loads.** Disassembling `0xe5854`
+shows a `strlen`-then-dispatch helper: it walks to the null, then calls
+`0xe6eb0` with the length and the string. That callee takes `[ebp+8]` as an
+index into a struct table at `0x7aee4` (`lea eax,[eax+eax*2]`, so stride 3 words).
+The pushed argument `11` is that index. This is a **draw-a-string-in-window**
+routine, so `push "Q:\SOUND\MAGIC2.SND"; push 11; call` is the game printing
+the path as text, not opening it.
 
-**What this means.** Most asset paths are not compiled into the code. If they
-were, each would appear as an immediate and we would see 71 sites, not 5. So the
-loader does one of:
+The searches a reader would try next, and their results:
 
-- builds a path from a name plus a drive and directory prefix at runtime,
-- indexes a table of names held in writable memory,
-- or receives them as parameters from somewhere that computes them.
+| probe | result |
+|---|---|
+| `push imm32` of the exact path | 5 hits, mostly text printing |
+| `mov r32,imm32` of the exact path | 1 hit |
+| `lea reg,[disp32]` into the string pool | 0 |
+| reference to any pool base (`0x1240`..`0x1300`) | 0 in code |
+| same, assuming data loads at `0x100000` / `0x102000` / `0x200000` | 0 |
+| pointer array of string addresses (3+ entries) | 0 |
 
-Each of those is still findable, but not by looking for the string. That is why
-the earlier plan, "find the push of the path and you have found the loader", was
-too simple. It works for 5 assets and fails for the rest.
+**Verdict:** the paths are in the image but essentially nothing addresses them.
+They are not dead, because the game loads those files, so the addressing is
+computed at runtime in a form none of these probes sees. That is an OPEN problem,
+not a solved one. What is ruled out is the easy version of it.
 
-### Three false results this uncovered
+### The trap that produced five false answers first
 
-Recorded because each looked convincing and each cost time.
+Searching for a string address as a bare 4-byte pattern finds it in three places
+that are not references:
 
-**False positives inside Shift-JIS.** Searching for a string address as a bare
-4-byte pattern matches the middle of Japanese text. `0x1328` reports as a string
-start but is the tail of a two-byte-per-character string, and the code around it
-turned out to be a menu routine pushing character codes, not paths. A string
-address is only real if the preceding byte is null and the run is printable
-ASCII. That one condition removed every false hit.
+- **Inside Shift-JIS text.** `0x1328` reads as a plausible string start but is the
+  tail of a Japanese message, and the code around it is a menu pushing character
+  codes. This alone accounted for most of the apparent hits in the boot function.
+- **Inside tables of small integers.** A run like `00 14 00 00 00 00 25 00 00`
+  contains `0x1400` as a value with no instruction behind it. All 54 apparent
+  references to `0x1400` were of this kind, none preceded by `push`, `call` or
+  `lea`.
+- **Inside padding.** A pattern in the 337 KB zero region has zeros around it, so
+  the "instruction" reads a nonsense operand and the result still looks like an
+  address.
 
-**The site address read 0x20 low.** The flat image begins 32 bytes into the file,
-so an image offset plus `0x20` is the virtual address. Reporting the offset made
-every site point at the previous instruction. The numbers still looked like
-addresses, which is exactly why this kind of error survives review.
+Requiring a null byte before the address and an all-printable run removed the
+first. Requiring the opcode byte before the operand removed the second. The
+padding mask removed the third.
 
-**The call target read 0x20 low, for the same reason.** A rel32 is measured from
-the end of the instruction, and the end is in virtual space.
+### Two off-by-0x20 errors, which are the ones that matter
 
-`tools/test-coderefs.js` pins all three against hand-decoded bytes, so the
-arithmetic cannot drift again without a failure.
+The flat image begins 32 bytes into the file, so an image offset is not a virtual
+address. The site address and the call target were each reported `0x20` low. Both
+still produced numbers of the right shape, and neither shows up as an error in the
+output. `tools/test-coderefs.js` pins the arithmetic against hand-decoded bytes at
+`0x0e23d6`, where the image reads `68 2c 14 00 00 6a 0b e8 72 34 00 00`, so this
+cannot drift again quietly.
 
 ## Tooling
 
