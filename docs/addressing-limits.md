@@ -3,6 +3,20 @@
 A pattern has now appeared often enough to be worth naming. It is the single biggest
 obstacle on this project and it is not a bug in the analysis.
 
+## A savestate finding that changes the picture
+
+The propositions below were written before a savestate test was run. That test found
+something that reframes several of them: **the top ~230 KB of the binary, from about
+`0x0c9000` to `0x105cee`, is not resident in the savestate at all**, and the five known code
+sites in that region read as zeros.
+
+The likely explanation is that the binary is **overlayed**. A death-screen screenshot would
+not hold the map drawing code.
+
+**Consequence for this page:** searching a savestate for a function in the upper region is a
+false negative whenever that overlay is swapped out. That is a limitation of the method, not
+evidence of absence. See [runtime-image.md](runtime-image.md).
+
 ## The observation
 
 Repeatedly, something obviously exists in `ENCHANT.EXP` and cannot be found by looking for a
@@ -31,16 +45,17 @@ normally.
 **So the convention is right and these particular references are different.** That is the
 puzzle.
 
-## Candidate explanations, none proven
+## Candidate explanations
 
 **1. Segment-relative addressing.** The BIOS gateway at `0x0c5d` switches `fs` to segment
 `0x110`. If parts of the program run with a non-zero data segment, an absolute dword in a
 table would be an *offset within that segment*, not a flat address, and the flat scan would
 not match it.
 
-This is the most likely explanation and it is consistent with a 16-bit heritage: Phar Lap
-`MP` images can carry mixed 16/32-bit code, and this game was written for a 1990 machine with
-a segmented architecture.
+**DEMOTED.** This was the leading candidate. A savestate test has since shown that the
+unresolved tables are **zero at runtime**, above an initialised-data boundary at `0x7a0e0`.
+They are not hidden behind a segment, they are simply empty once the game has started. See
+[runtime-image.md](runtime-image.md).
 
 **2. The table base is loaded from a global.** If code does `mov eax,[0x7a7d0]` and then
 indexes relative to `eax`, the table address appears once as a global's *contents*, not as an
@@ -67,10 +82,12 @@ were flat, four-byte reads from `0xe4086` would give code addresses. They give
 **The table is therefore not at `0xe4086`.** Either the value is relative to something else,
 or the image as loaded differs from the file at that address.
 
-**A savestate would settle this in one read.** The captured image base is known
-(`0x762d2` in `death.state`), so dumping memory at the equivalent of `0xe4086` shows what the
-table looks like at runtime. If it is populated with code addresses there and not in the
-file, then something relocates or builds it. That is a Track B task and it is cheap.
+**This has been tested.** The captured image base is `0x762d2` in `death.state`, confirmed by
+a 50,648-byte contiguous match. At that base, `0xe4086` is **all zeros at runtime**. So the
+table is not relocated and not built elsewhere: it is empty. The game starts, clears its
+initialised data above `0x7a0e0`, and the table stays empty until something fills it.
+
+Full result in [runtime-image.md](runtime-image.md).
 
 ## What this means for planning
 

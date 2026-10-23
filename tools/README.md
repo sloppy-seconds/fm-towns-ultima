@@ -11,6 +11,10 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `statefind.js` | Finds the image base in a savestate by long-run matching. Short probes give false matches through fill patterns. Establishes `0x762d2`. |
+| `statesegments.js` | Classifies each block of the image as identical, zeroed, or different at runtime. |
+| `statedump.js` | Compares the file against the runtime image at specific addresses. Its first version used a probe that does not survive; `statefind.js` supersedes its base-finding. |
+| `overlays.js` | Maps which image regions are resident, and tests whether the binary is overlayed. |
 | `extractstrings.js` | Extracts every string reachable from a renderer call site, classified by encoding. Writes `extracted/strings.json`, which is gitignored. |
 | `msgtable.js` | Tests whether register-supplied string arguments come from constant-address loads. Found zero, which is a real negative. |
 | `structmap.js` | Enumerates the fields of a strided array, searching both `[reg+disp32]` and `[base+index+disp]` encodings. The second form is what made the object array readable. |

@@ -130,17 +130,47 @@ address, compared against the file. That is Track B.
 
 ## New item A7, added this session
 
-### A7. Dump the runtime image where `0xe4086` and friends should be
+### A7. Dump the runtime image where `0xe4086` and friends should be: DONE
 
-**Why:** the addressing limit blocks five separate lines of work. One savestate read would
-show whether the image as loaded differs from the file at the addresses that fail to resolve.
+Documented in [runtime-image.md](runtime-image.md). It did not give the expected answer and
+gave a more useful one.
 
-**What:** read `death.state` at image base plus the failing addresses, and check whether the
-jump table at `0xe4086` and the references that should exist are present at runtime.
+**Base confirmed independently:** `0x762d2`, from a 50,648-byte contiguous match. The earlier
+session's figure was right.
 
-**Cost:** low. The base is known (`0x762d2`).
+**Findings:**
 
-**Blocks:** A3's register calls, A4's writer, A6 entirely.
+- The image splits at **`0x7a0e0`**. Below it everything survives byte for byte. Above it,
+  nothing does.
+- The tables that fail to resolve (`0x7a864`, `0x7a7d0`, `0xe4086`, `0xd8f84`) are **zero at
+  runtime**. They are initialised data the game clears on startup.
+- `0x013000` to `0x050000` holds **loaded artwork** at runtime where the file has zeros. It is
+  BSS, not code.
+- **The top ~230 KB, `0x0c9000` to `0x105cee`, is not resident.** All five known code sites in
+  it read as zeros. The binary is likely **overlayed**.
+
+**This demotes the segment-relative addressing hypothesis**, which was the leading candidate.
+The references are not hidden by a segment, the targets are simply empty or not loaded.
+
+**A new limitation on method:** scanning a savestate for a function in the upper region is a
+false negative when that overlay is swapped out. Recorded in
+[addressing-limits.md](addressing-limits.md).
+
+**New item A8 below**, because this result suggests a cheap follow-up.
+
+### A8. Second savestate at a different screen: POSSIBLE, needs Track B
+
+**Why:** one state cannot distinguish "cleared once at startup" from "cleared continuously",
+nor reveal which overlays exist. A second state taken at a different screen would show a
+different resident set, and comparing the two would map the overlays.
+
+**What:** take a savestate on the overworld with the map visible, then diff which image
+regions are resident against the death-screen state.
+
+**Cost:** one Track B action, then it is Track A again.
+
+**Blocks:** nothing directly, but it would show whether the map drawing code is reachable at
+all, which bears on A6.
 
 ## Track B: what needs a human
 
