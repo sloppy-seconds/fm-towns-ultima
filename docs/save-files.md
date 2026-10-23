@@ -62,6 +62,42 @@ which is what an earlier reading of the diff concluded. `GATE_X`, `GATE_Y` and
 `GATE_TIME` are the moongate position for the current world. And `SEED` exists,
 which is worth knowing before anyone tries to predict anything from the save.
 
+### 8.0.2 `MAP` is a map type, not a map number
+
+The savestate also holds the game's debug labels, in one contiguous block:
+
+```
+WORLD =
+ERA =
+MAPTYPE =
+OUTSIDE  VILLAGE  TOWN  CASTLE  TOWER  DUNGEON
+PLAYER_X =   PLAYER_Y =
+DUNGEON_X =  DUNGEON_Y =
+GATE X=   GATE Y=   MAP X=   MAP Y=
+```
+
+`MAPTYPE` is immediately followed by six names, in order. So the roster's `MAP`
+field indexes that list:
+
+| value | type |
+|---|---|
+| 0 | OUTSIDE |
+| 1 | VILLAGE |
+| 2 | TOWN |
+| 3 | CASTLE |
+| 4 | TOWER |
+| 5 | DUNGEON |
+
+**This corrects a wrong reading recorded earlier in this document.** `MAP` staying
+at 0 across four saves was taken to mean the moongate changed nothing about
+location. It actually meant every save was taken outdoors, which is true: the
+player never entered a town. A field that does not move is not evidence of a field
+that cannot move, and this one had a fixed meaning all along.
+
+Also visible: `DUNGEON_X` and `DUNGEON_Y` are separate from `PLAYER_X` and
+`PLAYER_Y`, so a dungeon remembers its own coordinates. None of our saves populated
+them because none was inside a dungeon.
+
 ### 8.0.1 The two position stores
 
 The roster carries `PLAYER_X` and `PLAYER_Y`. `WORLD1.UT2` carries them too, at

@@ -165,6 +165,38 @@ high nibble and `variant` in the low. Two things are still open:
 
 Do not build on the cell size yet.
 
+### 5.2.1 The map geometry, from live memory
+
+**Tried:** the map files resisted static analysis, so read the loaded copy out of
+a machine state captured with `SAVESTATE`.
+
+**Measured:** `MAP2_1.TIF` is **not** loaded whole. The game holds the file from
+offset `0x800` onward, and only that part.
+
+```
+MAP2_1.TIF   33,280 bytes
+  0x0000..0x07FF    2,048 bytes   present in the file, NOT loaded
+  0x0800..0x81FF   31,232 bytes   loaded, contiguous in RAM
+```
+
+The loaded copy was found in the savestate at `0x0b0ac2` and matched **100%** for
+all 31,232 bytes with no divergence. Twelve independent high-entropy slices across
+the file each landed at the expected offset, so this is a real contiguous load and
+not a coincidence.
+
+**31,232 = 128 x 244.** That is the geometry.
+
+**Verdict:** POSITIVE for the size, and it corrects the earlier assumption that
+the file was a 320 x 104 pixel image. The 320 x 104 reading came from dividing
+33,280 by likely widths without knowing which part of the file the game reads.
+Once the `0x800` prefix is excluded, the only factorisation that is a plausible
+map is 128 by 244.
+
+The 2,048 bytes the game skips are not padding. 1,538 of them are non-zero and
+they use the same value vocabulary as the grid (`0x33`, `0x44`, `0x31`), so they
+hold map-shaped data that this code path does not consume. What they are for is
+open. One candidate is a second, coarser view of the same map.
+
 ### 5.3 Two real bitmap layouts
 
 **Tried:** exact byte-count fit across all candidate layouts.
