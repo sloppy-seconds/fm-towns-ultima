@@ -111,6 +111,20 @@ change by a constant; a display copy will not change at all. That is one artefac
 `AUTONOMOUS` on the grounds that it is static reading. It is not: reading found every direct reference to the
 two named fields and none of them is a tick.
 
+> **FOUND AT RUNTIME: the tick is per TURN, not per move, and it is 15.**
+>
+> Three consecutive turns in a live fight, each with a player action:
+>
+> ```
+> FOOD 37735 -> 37720 -> 37705     -15 each time
+> ```
+>
+> A single west step with no other action left `FOOD` unchanged. So the static search below was looking in the
+> right place for the wrong thing: it searched for a decrement tied to movement, and the decrement is tied to
+> the turn.
+>
+> 15 in the game's fixed point is 0.15 food per turn.
+>
 > **CONFIRMED AT RUNTIME: food is not consumed per move.** Measured live: `FOOD=235` before a step and
 > `FOOD=235` after. The static search below found only thresholds, a spend path and a display, and the
 > runtime agrees. See [live-session.md](live-session.md).

@@ -95,6 +95,23 @@ EXP   37810 -> 37750  a fall of 60, unexplained
 **HP unchanged means the missile missed, or 400 HP absorbed it without a visible change.** The fall in
 `EXPERIENCE` is not a combat gain and has no explanation yet. Recorded as an anomaly.
 
+## The FM Towns build has no turn timeout
+
+**Do not use `Z` to pause during a measured fight.** `Z` is the game's pause, and unpausing resolves the
+pending turn. In a fight that means a monster acts, or a spell lands, the moment the pause is released.
+
+That behaviour was mistaken for a bug in this project's own tooling first: a `PAU` and `RUN` cycle over the
+emulator console appeared to cause an extra turn. It did not. The game was already paused, and resuming the
+emulator resolved the game's pending turn.
+
+**The platform note that matters:** the original 1982 release ends a turn on a real-time timeout. This build
+appears not to, so a turn waits indefinitely for input, and any pause and resume hands it a decision.
+
+Two consequences for measurement:
+
+- **Read memory without pausing the VM.** A single `MD` is one command and does not disturb the game.
+- **Never toggle `Z` mid-fight** if a turn is being measured.
+
 ## What failed: mapping flat addresses into the state file
 
 **The savestate is not a flat memory image.** Two anchors, each verified independently:
