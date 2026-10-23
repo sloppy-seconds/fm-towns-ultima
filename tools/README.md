@@ -11,6 +11,8 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `coderefs.js` | Finds code that references an asset string. `--all`, `--string X`, `--calls`. Reports that 5 of 71 paths are compiled in. |
+| `test-coderefs.js` | Pins `coderefs.js` against hand-decoded bytes, 11 assertions. Run it after touching the tool. |
 | `expimage.js` | Measures `ENCHANT.EXP` as a code image: real-bytes ratio, zero-fill regions, dispatch mix, function-boundary counts. Reproduces every number in [code analysis](docs/code-analysis.md). |
 | `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. |
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |

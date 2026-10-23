@@ -82,6 +82,62 @@ the rest are addresses in the data segment, and something must push them.
 Finding the code that references those addresses is the cheapest route into the
 game logic, and it needs no gameplay.
 
+## Cross-referencing assets to code
+
+The cheapest way into the game logic is to take an asset path and find the code
+that loads it. `tools/coderefs.js` does that. The result is mostly negative, and
+the negative is the finding.
+
+**Measured:** 71 asset strings sit in the image. Exactly **5** are referenced by
+an instruction. 66 are not.
+
+| site | form | string | callee |
+|---|---|---|---|
+| `0x0e23d6` | `push imm32` | `Q:\SOUND\MAGIC2.SND` | `0xe5854` |
+| `0x0e240a` | `push imm32` | `Q:\SOUND\BOMB2.SND` | `0xe5854` |
+| `0x0e9c4a` | `push imm32` | `Q:\GRAPH\DUNG1.TIF` | `0xe77f8` |
+| `0x0eb011` | `mov r32,imm32` | `Q:\GRAPH\U2TITLE4.TIF` | `0xe9e44` |
+| `0x0f5485` | `push imm32` | `Q:\GRAPH\U2END4.TIF` | `0xe5854` |
+
+Hand-verified against the bytes: at `0x0e23d6` the image reads
+`68 2c 14 00 00 6a 0b e8 72 34 00 00`, which is `push 0x142c`, `push 11`,
+`call 0xe5854`. `0x142c` is the address of `Q:\SOUND\MAGIC2.SND`. The address
+in the instruction is the null-terminated string itself, and `11` is the channel.
+
+**What this means.** Most asset paths are not compiled into the code. If they
+were, each would appear as an immediate and we would see 71 sites, not 5. So the
+loader does one of:
+
+- builds a path from a name plus a drive and directory prefix at runtime,
+- indexes a table of names held in writable memory,
+- or receives them as parameters from somewhere that computes them.
+
+Each of those is still findable, but not by looking for the string. That is why
+the earlier plan, "find the push of the path and you have found the loader", was
+too simple. It works for 5 assets and fails for the rest.
+
+### Three false results this uncovered
+
+Recorded because each looked convincing and each cost time.
+
+**False positives inside Shift-JIS.** Searching for a string address as a bare
+4-byte pattern matches the middle of Japanese text. `0x1328` reports as a string
+start but is the tail of a two-byte-per-character string, and the code around it
+turned out to be a menu routine pushing character codes, not paths. A string
+address is only real if the preceding byte is null and the run is printable
+ASCII. That one condition removed every false hit.
+
+**The site address read 0x20 low.** The flat image begins 32 bytes into the file,
+so an image offset plus `0x20` is the virtual address. Reporting the offset made
+every site point at the previous instruction. The numbers still looked like
+addresses, which is exactly why this kind of error survives review.
+
+**The call target read 0x20 low, for the same reason.** A rel32 is measured from
+the end of the instruction, and the end is in virtual space.
+
+`tools/test-coderefs.js` pins all three against hand-decoded bytes, so the
+arithmetic cannot drift again without a failure.
+
 ## Tooling
 
 Two decompilers are available on this machine:
