@@ -119,10 +119,40 @@ use of a U3 auto-combat setting, and the four-member party logic, because **U2 i
 
 ## Phases, each useful alone
 
-### Phase 1: the two observations (minutes)
+### Phase 1: the two observations (DONE)
 
-Send `A` in a fight and read the screen. Send `P)ass` and read food. **These two answers settle the last two
-unknowns in the scope**, and neither needs the bot to exist.
+**Both answered, without a human.**
+
+**`P)ass` costs 15 food.** Measured twice, consecutively:
+
+```
+FOOD 37465 -> 37450 -> 37435     -15 each
+HP   344 unchanged, X/Y unchanged
+```
+
+**So the food tick is per TURN, not per action.** That resolves the contradiction in `the-tick.md`: the
+earlier "one west step, food unchanged" reading must have been taken before the turn resolved. A pass is a
+turn in which nothing happens, and it still costs 15.
+
+**`A)ttack` takes a direction.** Pressing `A` consumed nothing and showed:
+
+```
+Attack with
+Hands!
+Direct?
+```
+
+with the game printing its own instruction on the red bar: **`Direct with a arrow key!`**
+
+So the sequence is `A`, then an arrow. That was the last unknown in the bot's scope.
+
+### The trap phase 1 exposed
+
+**A pending prompt swallows the next key.** After `A` left the game at `Direct?`, an arrow sent for movement
+became the attack direction instead. Movement reported itself blocked when it was never attempted.
+
+That is why `wait()` is not optional. Until it works, every keypress must be made in a state that has just been
+read.
 
 ### Phase 2: `wait()` (the risky one)
 

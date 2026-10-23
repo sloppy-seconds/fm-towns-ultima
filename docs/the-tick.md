@@ -141,6 +141,17 @@ two named fields and none of them is a tick.
 >
 > 15 in the game's fixed point is 0.15 food.
 >
+> **ANSWERED: the tick is per TURN.** Two consecutive `P)ass` turns:
+>
+> ```
+> FOOD 37465 -> 37450 -> 37435     -15 each
+> ```
+>
+> A pass moves nothing and does nothing, and it still costs 15. **So the earlier "one west step, food
+> unchanged" reading was wrong**, and the likely cause is timing: the after-reading was taken before the turn
+> resolved, so the drain landed after it. That is the same trap as reading the character record while the game
+> was rewriting it, which is why pausing mattered there.
+>
 > **CONFIRMED AT RUNTIME: food is not consumed per move.** Measured live: `FOOD=235` before a step and
 > `FOOD=235` after. The static search below found only thresholds, a spend path and a display, and the
 > runtime agrees. See [live-session.md](live-session.md).
