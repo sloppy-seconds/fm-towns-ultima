@@ -54,6 +54,39 @@ was meant to measure.
 **Coherence per field discriminates. Coherence per byte does not.** That distinction is the
 whole reason the earlier width search failed.
 
+## The value space is exactly 8 groups by 8 flags
+
+**Measured, and it constrains every other reading on this page.** Read the whole `MAP2_1` payload
+(33,280 bytes) and the loaded map buffer from a savestate (32,768 bytes) and count the values.
+
+```
+distinct values      62, in both the file and the runtime buffer
+largest value        119 = 0x77
+bytes with bit 3 set 0, in both
+values per high nibble: every high nibble 0..7 has values with low bits 0..7
+```
+
+So the byte splits as **`v = (group << 4) | flag`** with:
+
+| bits | width | meaning |
+|---|---|---|
+| 0 to 2 | 3 | **flag, 8 values** |
+| 3 | 1 | **always zero. Never set, in either the file or memory** |
+| 4 to 6 | 3 | **group, 8 values** |
+| 7 | 1 | always zero |
+
+**This corrects an earlier reading on this page.** It said `v & 3` carries terrain with "4 terrain
+classes". The low field is **three** bits, not two, and it takes **eight** values. Two of the eight
+(`4` and `7`) are absent from some groups and present in others, which is why the count is 62 rather
+than 64.
+
+**Bit 3 being universally zero is the most useful fact here** because it is exact, it holds in two
+independent copies of the data, and it rules out any scheme where the low nibble is a plain 0 to 15
+counter. Whatever the flag means, it is one of eight.
+
+The 62 values in a 64 namespace means the encoding was designed as 8 by 8 and two combinations happen
+not to occur in this map. It does not mean two are invalid.
+
 ## What `v & 3` looks like
 
 Rendered with four symbols, the map is immediately readable:

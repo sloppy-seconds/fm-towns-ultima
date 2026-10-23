@@ -58,6 +58,13 @@ something the operating system owns.
 3. **The FM Towns technical reference for the text output BIOS call**, which documents which font is
    used and whether a private character set is selectable.
 
+**Tried and failed: a font search on an existing savestate.** The test looked for a region where every 32
+bytes is a 16x16 glyph with plausible ink and all adjacent glyphs differ, which is the signature of a CJK
+font in memory. It found one candidate at state `0xa9200` scoring 511 of 511 adjacent glyphs distinct, and
+rendering it showed **dense scattered noise with no letter structure**. Random data with a uniform byte
+distribution passes that test. **A distinctness test alone cannot distinguish a font from noise**, and the
+next attempt needs a positive signal such as a known glyph appearing where expected.
+
 **Would not:**
 
 - Any further scan of `ENCHANT.EXP`. It is settled that the answer is not there.

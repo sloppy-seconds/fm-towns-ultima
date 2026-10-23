@@ -116,8 +116,15 @@ path, then the 33 unread `randMod` functions with the turn as a frame.
 | field | value |
 |---|---|
 | autonomy | autonomous, testable on file data alone |
-| done when | the nibble meaning is established, or the neighbour-correlation tests are recorded negative with measurements |
-| blocked by | nothing |
+| done when | the 8 group values and the 8 flag values are each given a meaning, or the correlation tests that would distinguish them are recorded negative with measurements |
+| blocked by | nothing. The value space is now exactly known: `v = (group << 4) \| flag`, bits 0-2 flag, bits 4-6 group, bit 3 and bit 7 always zero |
+
+**The value space is settled**, which makes this sharper than it was. Measured across the whole
+`MAP2_1` payload and the runtime buffer: 62 distinct values, largest `0x77`, bit 3 never set in either
+copy, and every group 0 to 7 carries flags. See [cell-encoding.md](cell-encoding.md).
+
+That turns the question from "what are the high bits" into two separate questions with 8 answers each,
+and 8 by 8 is small enough to enumerate rather than reason about.
 
 `v & 3` is terrain, established against a shuffle control. **The upper nibble has the largest
 gain-over-shuffle of any field tested (+54pp)** and nobody knows what it carries.
@@ -126,15 +133,21 @@ Testable on file data alone: 256 rows by 128 columns, file supplies rows from 1,
 
 
 
-### 2b. The 64-tile vocabulary
+### 2b. Tile picture per value
 
-**State:** OPEN · **Autonomy:** NEEDS A DECISION
+**State:** OPEN · **Autonomy:** AUTONOMOUS once 2a lands
 
 | field | value |
 |---|---|
-| autonomy | work can proceed, but the matching method must be chosen first |
-| done when | a page maps tile value to picture, or names which cannot be resolved without runtime comparison |
-| blocked by | a choice between automatic matching against a rendered map and manual identification |
+| autonomy | autonomous, but only after the values mean something |
+| done when | a page maps each of the 62 observed values to a tile picture, or states which cannot be resolved without runtime comparison |
+| blocked by | 2a. Matching a picture to a number is meaningless until the number is known to select a tile |
+
+**This item was previously written as NEEDS A DECISION**, on the grounds that automatic matching against
+a rendered map and manual identification were two viable methods needing a choice. **That was a false
+blocker.** Both artefacts already exist and `tools/tilesheet.js` already renders a labelled bank, so the
+method question costs minutes rather than needing a decision. The real dependency is different and was
+missed: there is nothing to match *to* until item 2a says what a value means.
 
 `MAP2_*` uses 64 tile values. Which tile each name maps to is open, and it is extraction rather than
 inference: the tiles render, so they can be matched against a rendered map.
@@ -155,9 +168,17 @@ inference: the tiles render, so they can be matched against a rendered map.
 | savestate tooling | `tools/statefind.js`, `tools/mirror.js`, `tools/savetext.py`, `tools/statesegments.js` |
 | save-disk tooling | `tools/savedisk.js`, `tools/makesave.js` |
 
-The only requirement is that someone is present to press keys, and the constraint from previous sessions
-is that **every keypress has to be explicitly requested** rather than decided by an agent. So Phase 3
-needs a human in the loop, which is exactly why it has not happened.
+**The blocker is a policy, not a missing capability, and that distinction was not recorded before this.**
+`container/supervisor.js` already exposes `POST /api/keys {text}` and drives the emulator with `xdotool`
+against the `TSUGARU` window. Keypresses are mechanically possible right now.
+
+What stops an agent is the standing rule in `AGENTS.md`: **every keypress has to be explicitly requested**
+rather than decided by an agent. That rule exists for good reason, since a stray keypress can destroy a
+save or skip past something being measured.
+
+So Phase 3 needs a human to *authorise* the session, and after that the driver can run. It does not need a
+human to sit and press keys one at a time. **That is a much smaller ask than "Track B needs a human", which
+is how this was described for several sessions.**
 
 ### 3a. One savestate during play
 
@@ -165,7 +186,7 @@ needs a human in the loop, which is exactly why it has not happened.
 
 | field | value |
 |---|---|
-| autonomy | blocked, needs a person at the emulator |
+| autonomy | blocked by policy, not by tooling. `POST /api/keys` exists and works, but every keypress must be explicitly requested |
 | done when | a state is captured, `statefind.js` and `mirror.js` run against it, and the segment registers, RNG seed, object record size and world contents are recorded |
 | blocked by | a human starting a character and walking a few steps. Every keypress must be explicitly requested |
 
@@ -188,7 +209,7 @@ Not a menu. Start a character, walk a few steps, save state.
 
 | field | value |
 |---|---|
-| autonomy | blocked, needs keypresses |
+| autonomy | blocked by policy, not by tooling. The same `POST /api/keys` endpoint drives it |
 | done when | `command-dispatch.md` maps each key code to a command |
 | blocked by | a human pressing keys one at a time, with each press requested rather than decided |
 
@@ -203,7 +224,7 @@ Press a key, see which handler runs. The dispatch table is known (ten entries, i
 
 | field | value |
 |---|---|
-| autonomy | needs an artefact that does not exist |
+| autonomy | needs an artefact that does not exist. A font search on the existing savestate failed, see below |
 | done when | not defined, because the item is cut by default. See `eb-renderer.md` for why it is not needed |
 | blocked by | a savestate plus the TownsOS font. Reopening needs a reason, not a method |
 
@@ -212,6 +233,14 @@ read out.
 
 **Explicitly optional.** [eb-renderer.md](eb-renderer.md) sets out why a reimplementation does not need
 this. Do it only if the font shapes matter for their own sake.
+
+**A font search on the existing savestate was attempted and failed.** The test looked for a region where
+every 32 bytes is a 16x16 glyph with plausible ink and all adjacent glyphs differ, which is what a CJK font
+in memory looks like. It found one candidate at state `0xa9200` with 511 of 511 adjacent glyphs distinct,
+which looked promising and was **not a font**: rendered, the region is dense scattered noise with no letter
+structure, which is what random data looks like. Recorded so the probe is not repeated.
+
+So this item needs a state taken while the OS has a font loaded, which is the same artefact item 3a needs.
 
 ## Phase 4: the corpus a reimplementation needs
 
