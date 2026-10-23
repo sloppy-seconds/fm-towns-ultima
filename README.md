@@ -494,3 +494,12 @@ inventory, every graphics and sound claim, and the negative results.
 
 If a claim in `docs/` is not asserted there, treat it as unverified. The
 [open questions](docs/open-questions.md) page lists what is still unknown.
+
+## 10. Third-party code
+
+None is vendored. Two Ultima **III** reimplementations are cloned into `references/`
+when needed, for reading only, and that directory is gitignored. They are Ultima III
+and this project is Ultima II, so anything taken from them is a hint rather than a
+result. `docs/references.md` records what they are good for and what they are not.
+Where attribution would be owed, it is in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

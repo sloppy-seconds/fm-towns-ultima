@@ -7,28 +7,48 @@
 > value that matches on U3 tells you about U3.
 
 Two third-party reimplementations are cloned into `references/` purely to read.
-Both are gitignored. Neither is part of this project's build or tests, and neither
-produces anything this project ships.
 
 ```bash
 git clone --depth 1 https://github.com/synthwave-pixel/ultima3 references/u3-typescript
 git clone --depth 1 https://github.com/pantinor/gdx-exodus  references/u3-gdx
 ```
 
+## Licence: code and assets are not the same thing
+
+This matters because the repos are **licence-split**, and the split is the same one
+this project already works under.
+
+| part | licence | reusable |
+|---|---|---|
+| `web/src/**/*.ts` | **MIT**, Copyright (c) 2025 Leon McNeill | yes, with attribution |
+| `Lairware/Sources/*.c` and `*.h` | **MIT**, "as LairWare released it" | yes, with attribution |
+| game data, maps, music, art, tile sheets | **Origin Systems'**, not MIT | **no** |
+| key art from the 1983 box painting | Denis Loubet, not MIT | no |
+| `web/art/fonts/` | SIL Open Font License | yes, under OFL terms |
+
+The MIT grant covers **code**. It does not cover the game's assets, which are in the
+repo because the author shipped a playable game, not because they were licensed to him.
+Both repos are large mostly because of those assets.
+
+This is the same rule this project already holds: **copyrighted material never enters
+git.** The reference clones are gitignored, and nothing from them is copied in as a
+finding or as a file. Adopting MIT code is a different act from copying a bitmap.
+
 ## What is in each
 
 | | `u3-typescript` | `u3-gdx` |
 |---|---|---|
-| by | synthwave-pixel | pantinor |
-| language | TypeScript plus the original LairWare C | Java, libGDX |
+| by | synthwave-pixel, after LairWare | pantinor |
+| language | TypeScript plus the LairWare C | Java, libGDX |
 | size | 43 MB | 38 MB |
-| Ultima III only | yes | yes |
+| TypeScript | about 11,400 lines in `web/src/game/` | none |
+| game | Ultima III only | Ultima III only |
 
-`u3-typescript` is the more valuable of the two, for one specific reason:
-it vendors **LairWare's C source**, which is a reverse-engineering of the Apple II
-binary rather than a reimplementation from the manual. That source keeps the original
-zero-page addressing (`zp[0x..]`) and the original code labels (`$8672`, `c8777`), so a
-claim taken from it can be traced to an address in the real game.
+`u3-typescript` is the more valuable of the two, for one specific reason: it vendors
+**LairWare's C source**, which is a reverse-engineering of the Apple II binary rather
+than a reimplementation from the manual. That source keeps the original zero-page
+addressing (`zp[0x..]`) and the original code labels (`$8672`, `c8777`), so a claim
+taken from it can be traced to an address in the real game.
 
 `u3-gdx` is a from-scratch Java remake. Useful for behaviour, not for provenance,
 because there is no address to trace back to.
@@ -111,6 +131,22 @@ The behaviour field decoded from the hp column's top two bits:
 
 **This is a U3 layout and must not be assumed for U2.** It is recorded because it shows
 the shape these ports use, and because U2's `WORLD*.UT2` may well hold a similar table.
+
+## What is worth reusing, if U3 ever becomes a target
+
+Not now. Ultima II is the job. Recorded so the option is not lost.
+
+The MIT code that would carry over to a U3 effort is the mechanical middle of the game,
+not the presentation: `web/src/game/` runs to about 11,400 lines covering combat,
+spells, world state, dungeon state, shops, turn order and save handling. All of it is
+typed, tested (`web/tests/`), and structured as small modules rather than one loop.
+
+The 43 MB is almost entirely assets, which are the part that cannot be reused. The code
+itself is small enough to read.
+
+**The caveat that applies to reuse as much as to findings:** borrowing U3 code would
+give a U3-shaped answer. It would not make the FM Towns binary yield anything it has
+not already yielded.
 
 ## The cheat menus are not comparable
 
