@@ -38,6 +38,11 @@ These are measured and have pages. Do not re-derive them.
 | Display text extracts cleanly as Shift-JIS | [game-text.md](game-text.md) |
 | Ghidra is viable **with conditions** | [ghidra-viability.md](ghidra-viability.md) |
 
+## Unattended work
+
+[docs/overnight.md](overnight.md) is the queue for work that needs nobody watching: concrete units,
+each with a stopping rule and a required commit. Start there when no human is available.
+
 ## What is open
 
 Ordered by what it costs and what it is worth.
@@ -86,7 +91,14 @@ character table, no code writing `0xEB`, no bitmap region with glyph structure, 
 **Recommendation: leave it.** It only names things, the display text already extracts, and the record
 layout has now removed its only practical cost.
 
-### 6. Track B, untouched
+### 6. `WORLD*.UT2` layout
+
+68,096 bytes, four files, no page documents it. Partly solved: **128-byte rows, 6 rows of data, then
+68,000 bytes of zero**. Rows 0 and 1 hold grouped values 30 to 34 and row 2 holds values that look
+like bitmasks (255, 224, 192, 64, 32). Details and the open questions are in
+[overnight.md](overnight.md) item 1.
+
+### 7. Track B, untouched
 
 Nothing here has been attempted. All of it needs a human.
 
