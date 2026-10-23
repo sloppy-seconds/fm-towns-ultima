@@ -84,6 +84,7 @@ nav:
       - Overnight queue: overnight.md
       - The 0xEB encoding: eb-encoding.md
       - The call graph: call-graph.md
+      - The game loop: game-loop.md
       - Distance to reimplementation: reimplementation-gap.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md
