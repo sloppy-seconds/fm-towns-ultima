@@ -1,0 +1,110 @@
+# The cell encoding
+
+Following [map-geometry.md](map-geometry.md), which settled the grid at 128 x 256, the
+remaining question is what a cell byte means.
+
+## The measurement
+
+Spatial coherence is the test. If a field carries terrain, adjacent cells should agree far
+more often than chance.
+
+| field read as | values | horizontal | vertical | H chance |
+|---|---|---|---|---|
+| `v & 3` | 4 | **84.6%** | **77.8%** | 25% |
+| `v >> 2 & 3` | 2 | 79.7% | 65.7% | 50% |
+| `v >> 4` | 8 | 75.5% | 58.2% | 12.5% |
+| `v & 7` | 8 | 74.4% | 58.7% | 12.5% |
+| full byte | 62 | 62.9% | 46.8% | 1.6% |
+
+**`v & 3` is the strongest absolute signal**, at 84.6% horizontal against a 25% chance
+baseline.
+
+## A metric that lied, caught before it went in the doc
+
+A first version of `tools/cellfield.js` ranked fields by **coherence divided by chance**, to
+normalise for alphabet size. It put the **full byte on top at 38.97x**, ahead of `v & 3` at
+3.38x.
+
+That ranking is wrong and the reason is worth stating: dividing by chance rewards small
+probabilities, so a field with 62 values gets a large ratio for a mediocre absolute score.
+The ratio measures rarity, not structure.
+
+Two things show the full byte is not the terrain field:
+
+- Its absolute coherence, 62.9%, is **lower** than every narrower field, and it is the field
+  that contains all of them. If the low bits were noise, the full byte would score at least
+  as well as its parts. It does not, because the high bits are adding disagreement.
+- Its coherence is **identical at every assumed width** from 64 to 256. See the control
+  below.
+
+**The correct reading is absolute coherence with the alphabet size stated alongside it.**
+`v & 3` wins on that, and the narrower the field the higher it scores, until the two-value
+field where chance itself is 50%.
+
+## The critical control: why the old coherence test proved nothing
+
+Raw byte agreement is **identical at every assumed width**: 62.9% at 64, 96, 128, 160, 192,
+244 and 256, varying by 0.1 percentage points across them.
+
+That is the same 62.5% figure this project recorded much earlier and cited as evidence that no
+width fitted. It could never have found the geometry. Across a flat byte array, "the next byte
+equals this one" barely depends on where rows are cut, so the test is blind to the parameter it
+was meant to measure.
+
+**Coherence per field discriminates. Coherence per byte does not.** That distinction is the
+whole reason the earlier width search failed.
+
+## What `v & 3` looks like
+
+Rendered with four symbols, the map is immediately readable:
+
+```
+  8 .................O.......O......O..OO........OOO......................OO..O.OOO...OO....
+  9 O.........O..OO..........................O.....O...................OO......O....O.O......
+ 12 .......o........OO....OO....O...O.....O.O...............O.......O....O...O.....
+ 20 O.OooOOooooooOOO..OooOOo...O....OOooooO..oooOOOO.oo.ooOOO..O..O.Ooo.oO.O....OOo.oo.
+ 25 ooOOOOOOOOOOOOO.o.OOOOOOOOOO.O....OOOOOOOOOOOO:O..OOOOOOOOOO.O...OOOOOOOOOOO.OO.ooOOO
+ 26 ..OO.OOOOOOO.O:o:.OO.OOOOOOO.O...OOO.OOOOOOO.O.:.:OO.OOOOOOO.OO.OOOO.OOOOOOO.O...
+```
+
+Rows 8 to 11 are open water. Rows 25 to 27 are a repeated structure with regular spacing,
+which is the row of buildings identified in the geometry work. The transition from `.` to `O`
+follows coastlines rather than noise.
+
+## What the other bits are
+
+The high nibble correlates at 74.4% with itself, which is above chance but well below
+`v & 3`. It is not random and it is not the terrain class either.
+
+**Not established.** The working hypothesis is that the low two bits select terrain and the
+remaining bits carry something terrain-adjacent, such as a variant, a diagonal, or a
+combination flag. Two pieces of prior evidence point that way without proving it:
+
+- The earlier nibble work found 75.6% of bytes have high nibble equal to low nibble, with the
+  diagonal dominating inside each group, which is what a duplicated field with a boundary
+  exception looks like.
+- The renderer at `0xf3e04` masks nothing, it copies whole 16-bit words, so the display path
+  does not tell us the bit layout.
+
+## What this closes and what it opens
+
+**Closed:** the number of terrain classes visible in the map is **4**, not 64. The 64-tile
+vocabulary this project recorded earlier is the count of distinct *byte values*, not distinct
+terrain types. Those are different things and conflating them is what made the earlier nibble
+analysis confusing.
+
+**Opened:** what the upper bits mean, and whether `v & 3` really is terrain or merely
+correlates with it.
+
+## Method note
+
+Two coherence tests were run. The first, per byte, is useless and was used earlier in this
+project to justify a wrong conclusion. The second, per field with an explicit random baseline,
+is decisive.
+
+The difference is stating the null hypothesis. "62.9%" means nothing; "62.9% against 4% chance
+for 256 values, and 84.5% against 25% chance for 4 values" ranks the candidates.
+
+---
+
+**[Map geometry](map-geometry.md)** **[Testing U3 hypotheses](u3-hypothesis-tests.md)** **[Plan](plan.md)**

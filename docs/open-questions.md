@@ -65,8 +65,13 @@ question that used to head this list is answered: see
 
    See [map-geometry.md](map-geometry.md). Render with `node tools/maprender.js`.
 
-   **Still open:** the cell encoding. Values 0 to `0x77` with both nibbles in 0 to 7, and
-   whether a cell is one byte or two fields is unresolved.
+   **Cell encoding: partly solved.** `v & 3` is spatially coherent at **84.6% horizontal
+   and 77.8% vertical** against a 25% chance baseline, so the **low two bits carry terrain**
+   and there are **4 terrain classes**, not 64. The earlier "64-tile vocabulary" was the
+   count of distinct byte values, which is a different thing.
+
+   The high bits correlate at 74 to 75% with themselves, above chance but well below
+   `v & 3`. What they carry is **still open**. See [cell-encoding.md](cell-encoding.md).
 4. **`DUNMON` tile count meaning.** 1,664 / 416 / 104 tiles, and what indexes them.
 5. **`.SND` playback rate.** Whether 1960 Hz is real.
 6. **`UT3/*.MP3` and `*.DG3` format.**

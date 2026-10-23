@@ -34,6 +34,7 @@ directory, so run them from the repo root.
 | `strptrs.js` | Scans for dwords that land on a *known* string start. The opposite test to `strtab.js`, and the stricter one, useful for ruling out indirect address tables. |
 | `fontmap.py` | Derives the `0xEB` font glyph encoding from null-separated glyph/JIS pairs. Partial: 8 glyphs established, documented as OPEN. |
 | `savetext.py` | Extracts Japanese and ASCII strings from a Tsugaru machine state. `--japanese`, `--ascii`, `--min N`, `--offset 0xNNN`. Found the monster name table and the game's UI text. |
+| `cellfield.js` | Ranks candidate cell fields by spatial coherence, with an explicit random baseline. Ranking by absolute coherence, not by the ratio, which rewards large alphabets. |
 | `maprender.js` | Renders a loaded map buffer as ASCII at the correct geometry. Must render from the buffer start, not the payload start: the 1,536-byte difference is 12 rows, and getting it wrong shifts every row by 12 cells. |
 | `mapnibble.py` | Tests whether a `MAP2_*` payload is one value duplicated into both nibbles. Takes a map path. Its first attempt at this question produced a wrong falsification, recorded in `docs/u3-hypothesis-tests.md`. |
 | `mapfmt.js` | Measures the `MAP2_*` map files. Confirms they are not ASCII, and that every byte is `(hi<<4)|lo` with both nibbles 0-7, i.e. a 64-tile vocabulary. `--render` for a character map. |

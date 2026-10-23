@@ -82,6 +82,7 @@ nav:
       - The top region is mirrored: mirrored-region.md
       - Re-running the reference searches: a9-reference-search.md
       - Map geometry: map-geometry.md
+      - The cell encoding: cell-encoding.md
       - Equipment thresholds: equipment-thresholds.md
       - The tile loader: tile-loader.md
       - Reviewing the research doc: meta-analysis-review.md
