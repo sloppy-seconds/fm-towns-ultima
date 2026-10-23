@@ -111,6 +111,10 @@ item is a bounded list, not an open search.**
 
 **State:** OPEN · **Autonomy:** BLOCKED ON INPUT
 
+**Partly answered by a live session.** Food is **not** consumed per move: `FOOD=235` before and after a step.
+The static search found no per-move decrement and the runtime agrees. What still consumes food, and where,
+is open. See [live-session.md](live-session.md).
+
 | field | value |
 |---|---|
 | autonomy | was AUTONOMOUS. Reading every direct reference to FOOD and TORCHES found no tick, so it now needs a two-state diff |

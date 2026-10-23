@@ -1,5 +1,10 @@
 # The random number helpers
 
+> **CONFIRMED AT RUNTIME.** Sampled live over the emulator console at `DS:0xdfc78`, consecutive values sit a
+> constant 18 to 21 steps apart on the `0x41c64e6d` / `0x3039` chain. The multiplier and increment below are
+> correct, not inferred. See [live-session.md](live-session.md).
+
+
 Two functions wrap the generator at `0x101a40`, and both are small enough to read completely.
 They are what any formula in the game uses to get a random number in a range.
 

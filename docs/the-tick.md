@@ -111,6 +111,10 @@ change by a constant; a display copy will not change at all. That is one artefac
 `AUTONOMOUS` on the grounds that it is static reading. It is not: reading found every direct reference to the
 two named fields and none of them is a tick.
 
+> **CONFIRMED AT RUNTIME: food is not consumed per move.** Measured live: `FOOD=235` before a step and
+> `FOOD=235` after. The static search below found only thresholds, a spend path and a display, and the
+> runtime agrees. See [live-session.md](live-session.md).
+
 ## The honest state of item 1b
 
 **Not done, and one plan assumption was wrong.** The item said the tick was describable as "what `0xf6ebc`
