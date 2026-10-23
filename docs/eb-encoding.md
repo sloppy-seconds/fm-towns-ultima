@@ -96,6 +96,10 @@ hard cases is not a decode.**
 The specific error: `東へ` and `東へ進む` share a prefix, so a 4-code run can be "aligned" to either by
 choosing which characters to ignore. I was choosing per pair, which is fitting, not decoding.
 
+> **ANSWERED in [eb-renderer.md](eb-renderer.md).** The renderer passes the raw bytes to `call 0xc5d`,
+> the Fujitsu BIOS gateway, and does no lookup of any kind. The character mapping is in TownsOS, not in
+> `ENCHANT.EXP`. Every negative recorded below is explained by that one fact.
+
 ## What would actually settle it
 
 One of these, in order of cost:

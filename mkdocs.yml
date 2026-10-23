@@ -83,6 +83,7 @@ nav:
       - What the 0xEB runs are: eb-corpus.md
       - Overnight queue: overnight.md
       - The 0xEB encoding: eb-encoding.md
+      - What renders 0xEB: eb-renderer.md
       - The call graph: call-graph.md
       - The game loop: game-loop.md
       - Inside a turn: inside-a-turn.md
