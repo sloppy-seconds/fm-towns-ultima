@@ -78,6 +78,7 @@ nav:
       - The random number helpers: rng-helpers.md
       - The stat-gain routine: stat-gain.md
       - The randMod survey: randmod-survey.md
+      - The A12 disassembler design: a12-design.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md

@@ -29,6 +29,55 @@ const ROOT = path.join(__dirname, '..');
 const TARGET = 0xe1c5c;
 const img = fs.readFileSync(path.join(ROOT, 'ENCHANT.EXP')).slice(0x20);
 
+// Instruction-boundary filtering.
+//
+// A raw E8 scan finds call opcodes inside operands. Proven case: 0xef4bb looks like a
+// randMod call but is the second byte of `mov eax,[0xceca0]` at 0xef4ba.
+//
+// When --sweep is passed, every candidate site is checked against the instruction
+// boundaries produced by tools/sweep.js and rejected if no instruction starts there.
+// A FULL-IMAGE sweep is not usable and this is worth recording.
+//
+// Sweeping from offset 0 decodes the loader stub and any data as instructions, so the
+// boundaries drift and the whole set is wrong. Measured: the full sweep reports
+// stripped 0xe391e as a boundary and stripped 0xe391d (the real `cmp edx,0x48`) as
+// NOT one, which is exactly backwards.
+//
+// Per-function sweeps are trustworthy because they start at a verified entry. So the
+// boundary set is built function by function from the CALL-target list, which is what
+// tools/sweep.js --funcs does.
+function boundarySet() {
+	const { execFileSync } = require('child_process');
+	const LINE = /^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f ]+?)\s{2,}(.*)$/;
+
+	const calls = new Map();
+	for (let i = 0; i < img.length - 5; i++) {
+		if (img[i] !== 0xe8) continue;
+		const t = (i + 5 + img.readInt32LE(i + 1)) >>> 0;
+		if (t < img.length) calls.set(t, (calls.get(t) || 0) + 1);
+	}
+	// Sweep EVERY call target, not just the strongly-called ones. A function called
+	// once still contains real instructions, and a site inside it would otherwise
+	// never be checked. Measured: 0xe393e is a false positive inside 0xe3904, which
+	// has exactly one caller, so a >=3 filter let it through.
+	const entries = [...calls.keys()];
+
+	const set = new Set();
+	const tmp = '/var/tmp/bnd.bin';
+	for (const entry of entries) {
+		fs.writeFileSync(tmp, img.subarray(entry, entry + 0x200));
+		const out = execFileSync('ndisasm', ['-b32', '-o' + entry, tmp], {
+			encoding: 'utf8',
+			maxBuffer: 8 * 1024 * 1024,
+		});
+		for (const line of out.split('\n')) {
+			const m = LINE.exec(line);
+			if (m) set.add(parseInt(m[1], 16));
+		}
+	}
+	return set;
+}
+
 function sites() {
 	const out = [];
 	for (let i = 0; i < img.length - 5; i++) {
@@ -82,7 +131,14 @@ function main() {
 		return;
 	}
 
-	const all = sites();
+	let all = sites();
+	const filtered = args.includes('--sweep');
+	if (filtered) {
+		const bnd = boundarySet();
+		const before = all.length;
+		all = all.filter((at) => bnd.has(at));
+		console.log(`boundary filter: ${before} raw hits -> ${all.length} real call sites\n`);
+	}
 	const rows = [];
 	for (const at of all) {
 		const a = argumentFor(at);

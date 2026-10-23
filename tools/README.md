@@ -27,6 +27,8 @@ directory, so run them from the repo root.
 | `fontgrid.js` | Finds the cell grid in a character sheet, and prints a coarse ASCII view. Used to rule out `GAI.TIF` as a font. |
 | `ebsuffix.py`, `ebfreq.py`, `ebposition.py`, `ebrefine.py`, `ebgojuon.py` | The five probes that produced `0x74` = `。` and ruled out gojuon ordering. |
 | `msgcallers.js` | Walks back from every call to the text renderer to find where the string pointer comes from. Found 123 literal string call sites. `--target` picks a different function, `--literals` and `--all` list them. |
+| `sweep.js` | Linear-sweeps a function from a real entry to produce instruction boundaries. `--check addr` says whether an address begins a real instruction. Full-image sweeps are unusable; per-function sweeps are sound. |
+| `randmods.js` | Classifies `randMod` call sites. `--sweep` filters against real boundaries, which removes 13 of 85 provable false positives. |
 | `funcs.js` | Finds real function entries from `CALL rel32` targets, ranks them by call count, and disassembles from any entry with correct alignment. This is the tool that makes reading the binary reliable. |
 | `stride.js` | Decodes `lea` chains into exact struct strides. Found the 57-byte record used by six functions. |
 | `structfields.js` | Given a record base and stride, finds every field offset by scanning displacements over the whole image. |

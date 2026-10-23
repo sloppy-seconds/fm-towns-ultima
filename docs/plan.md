@@ -305,6 +305,27 @@ recording boundaries. Then re-run the site survey only on boundaries that are ge
 
 **Cost:** medium. This is the blocker for the remaining formula work, and it is bounded.
 
+**Status: BUILT.** Design and measured results in [a12-design.md](a12-design.md).
+
+`tools/sweep.js` produces instruction boundaries from a real entry. `tools/randmods.js --sweep`
+filters sites against them.
+
+| sweep scope | sites surviving of 85 |
+|---|---|
+| none | 85 |
+| 738 call targets | 72 |
+| 247 strongly-called | 24 |
+
+**13 of the 85 raw hits are provably false.**
+
+**Structural limit found:** one false positive survives every filter, `0xe393e`, because it lives
+in a function reached by **fall-through, not by `call`**. No list of CALL targets will ever cover
+it. Reaching those needs a control-flow walk from the entry point at `0x101a20`.
+
+Also confirmed: a **full-image sweep from offset 0 is unusable**, and reports the real
+`cmp edx,0x48` as not a boundary while reporting the byte after it as one. Function-local sweeps
+are sound; all 247 came out under 15 percent `db` ratio.
+
 ### Fixed this session: the `funcs.js` label skew
 
 `--at` passed the file address to `ndisasm -o` while disassembling the header-stripped image, so
