@@ -80,8 +80,14 @@ call dword near [0xdfc5c]
 ```
 
 That is a **call through a function pointer stored in a global**, and it appears eight times or
-more. Following it would need to know what is stored at `0xdfc5c` at runtime, which is a
-savestate question, not a static one.
+more. Following it needs to know what is stored at `0xdfc5c` at runtime.
+
+**Corrected:** this was written as if that meant playing the game. It does not. Two savestates
+already exist, and reading them settled what `0xdfc5c` is: the printf output callback, installed
+at startup. What reading it *at runtime* needs is a reliable file-to-memory mapping for the top of
+the image, which is **not** yet derived and is a static-analysis problem.
+
+See [indirect-branches.md](indirect-branches.md).
 
 This matches the 58:1 direct-to-indirect ratio `code-analysis.md` records. The walk stops at
 those points honestly rather than guessing a target.

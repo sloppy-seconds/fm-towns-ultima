@@ -115,6 +115,18 @@ is not the explanation. That remains open, recorded in
 Two explanations are ruled out by this: the table is not hidden by a wrong base, and it is
 not absent from memory. It is something else, possibly a different operand encoding.
 
+## A limit found later
+
+The constant `0x4392d2` holds across the region when probed every `0x2000`, but **the tail of the
+image does not obey it**. `0x104aa4` does not match at its mirrored address, and its bytes appear
+2,744 bytes away under a different implied constant.
+
+Neither constant covers the `0x104000`-to-end range: 2 of 462 probes at `0x4392d2`, 0 of 462 at
+`0x43881a`. So the tail is either loaded under a mapping not yet derived, or relocated per block.
+
+This does not invalidate the mapping for `0xd0000` to about `0x104000`, which is where every
+finding on this page was measured. See [indirect-branches.md](indirect-branches.md).
+
 ## What is still open
 
 Why the layout is mirrored at all. The most likely explanation is a loader that fills a
