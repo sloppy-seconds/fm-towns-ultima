@@ -85,6 +85,7 @@ nav:
       - The 0xEB encoding: eb-encoding.md
       - The call graph: call-graph.md
       - The game loop: game-loop.md
+      - Inside a turn: inside-a-turn.md
       - Command dispatch: command-dispatch.md
       - Two jump tables: jump-tables.md
       - Distance to reimplementation: reimplementation-gap.md
