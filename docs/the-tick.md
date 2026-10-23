@@ -111,7 +111,7 @@ change by a constant; a display copy will not change at all. That is one artefac
 `AUTONOMOUS` on the grounds that it is static reading. It is not: reading found every direct reference to the
 two named fields and none of them is a tick.
 
-> **FOUND AT RUNTIME: the tick is per TURN, not per move, and it is 15.**
+> **FOUND AT RUNTIME: the tick is 15, and its trigger is not yet settled.**
 >
 > Three consecutive turns in a live fight, each with a player action:
 >
@@ -119,11 +119,27 @@ two named fields and none of them is a tick.
 > FOOD 37735 -> 37720 -> 37705     -15 each time
 > ```
 >
-> A single west step with no other action left `FOOD` unchanged. So the static search below was looking in the
-> right place for the wrong thing: it searched for a decrement tied to movement, and the decrement is tied to
-> the turn.
+> A single west step with no other action left `FOOD` unchanged.
 >
-> 15 in the game's fixed point is 0.15 food per turn.
+> **Those two measurements contradict each other and the contradiction was not noticed when both were written
+> down.** If the tick were per turn, the step should have cost 15 as well. If it were per action, a step is an
+> action. Something is wrong with one of them.
+>
+> Possible resolutions, none confirmed:
+>
+> - the step test took its "after" reading before the turn resolved, so the drain landed later
+> - movement is free and the drain is per non-movement action
+> - the drain is per **turn**, and the step reading missed it for a timing reason
+>
+> **`P)ass` is the clean test**, and the player suggested it. A pass is a turn in which the player does nothing,
+> so:
+>
+> | result of one `P)ass` | conclusion |
+> |---|---|
+> | food falls 15 | the tick is **per turn**, and the step reading was wrong |
+> | food holds | the tick is **per action**, and passing is free |
+>
+> 15 in the game's fixed point is 0.15 food.
 >
 > **CONFIRMED AT RUNTIME: food is not consumed per move.** Measured live: `FOOD=235` before a step and
 > `FOOD=235` after. The static search below found only thresholds, a spend path and a display, and the

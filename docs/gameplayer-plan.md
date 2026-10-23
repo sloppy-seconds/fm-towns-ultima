@@ -99,6 +99,7 @@ The player set the target, and it is much smaller than a full player:
 | do | why |
 |---|---|
 | **walk** | movement, food, the map, and getting somewhere |
+| **`P)ass`** | a turn where the player does nothing, which isolates the food tick |
 | **attack** | combat, which is where every measurement has needed a human |
 | **enter a town with `E`** | towns have NPCs, shops and buildings to observe |
 | walk around a town | town geometry and NPC positions |
