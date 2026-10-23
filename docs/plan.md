@@ -90,13 +90,21 @@ honestly rather than named by guess.
 
 ### 1b. Read the tick
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** OPEN · **Autonomy:** BLOCKED ON INPUT
 
 | field | value |
 |---|---|
-| autonomy | autonomous, no human input needed |
-| done when | `inside-a-tick.md` names each timer, its interval and its effect, or records that it could not be determined statically |
-| blocked by | nothing |
+| autonomy | was AUTONOMOUS. Reading every direct reference to FOOD and TORCHES found no tick, so it now needs a two-state diff |
+| done when | each timer, its interval and its effect is named, or the two-state diff shows the counter is not on the fields the roster names |
+| blocked by | a savestate bracketing two moves, which is the same artefact item 3a needs |
+
+**Worked once and the plan assumption was wrong.** The item said the tick was describable as "what `0xf6ebc`
+does that is not key-driven", which presumed the tick is inside the turn. **It is not.** Every direct
+reference to `FOOD` at `0xcde91` and `TORCHES` at `0xcde62` is a threshold check, a spend, an add, an init or
+a display. Full measurements and the four eliminated candidates are in [the-tick.md](the-tick.md).
+
+That found three real constants on the way, which are new: **the 9999 food cap seen in code for the first
+time**, and starvation thresholds at **50** and **1000**.
 
 `inside-a-turn.md` covers what happens when the player acts. **What advances between actions is not
 covered:** food per move, torch burn-down, monster repopulation, day and night, shop restock, spawn
