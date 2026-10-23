@@ -128,6 +128,18 @@ not have the map drawing code loaded.
 region is a **false negative**. Searching the state for the map index code, or for the glyph
 writer, would fail even if the code exists, whenever the relevant overlay is not resident.
 
+## CORRECTION: the overlay reading was wrong
+
+The paragraph below infers that the binary is overlayed. **A two-state test has since
+disproved it.** Two savestates taken at different screens show an identical resident set, so
+nothing is swapped.
+
+The real finding is simpler: the image loads contiguously at `0x762d2` up to about `0x0d0000`,
+and the top 220 KB is **never loaded at all**, in either state.
+
+See [overlay-test.md](overlay-test.md). The reasoning below is kept because it shows how a
+single state led to a confident wrong answer.
+
 ## What this means
 
 **The tables are initialised data that the game clears or overwrites on startup.** They are

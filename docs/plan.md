@@ -158,19 +158,54 @@ false negative when that overlay is swapped out. Recorded in
 
 **New item A8 below**, because this result suggests a cheap follow-up.
 
-### A8. Second savestate at a different screen: POSSIBLE, needs Track B
+### A8. Second savestate at a different screen: DONE
 
-**Why:** one state cannot distinguish "cleared once at startup" from "cleared continuously",
-nor reveal which overlays exist. A second state taken at a different screen would show a
-different resident set, and comparing the two would map the overlays.
+A second state (`title.state`) was captured at the Ultima II title screen via
+`SAVESTATE /data/title.state` on the running container.
 
-**What:** take a savestate on the overworld with the map visible, then diff which image
-regions are resident against the death-screen state.
+**Result:** nothing is swapped between the two screens, so the overlay hypothesis is dead.
+And further probing found something better: **the top region of the image is mirrored** in
+memory, at `stateAddress = 0x4392d2 - imageOffset`, verified at five points.
 
-**Cost:** one Track B action, then it is Track A again.
+That was the real cause of the addressing limit for the upper half. Documented in
+[overlay-test.md](overlay-test.md) and [mirrored-region.md](mirrored-region.md).
 
-**Blocks:** nothing directly, but it would show whether the map drawing code is reachable at
-all, which bears on A6.
+Two of my own conclusions were wrong along the way and both are corrected in place: the
+overlay reading, and then a claim that the top 220 KB is never loaded.
+
+### A9. Re-run the upper-region searches under the mirror mapping: DONE, NEGATIVE
+
+Documented in [a9-reference-search.md](a9-reference-search.md).
+
+Searched the whole state for dwords equal to the string addresses, using both mappings.
+`Q:\GRAPH\MAP2_1.TIF` at `0x22cc` matched twice, and both were **palette data** where `22 cc`
+happens to appear inside a colour triple.
+
+**No reference to any asset path exists as a plain dword in either mapping.**
+
+**What A9 did establish:** runtime data tables can be read once the mapping is right. At the
+mirrored address of `0xd8f84` the state holds a dense ascending table of code pointers,
+structurally identical to the file's. That is a new capability even though it did not answer
+the question it was aimed at.
+
+**What replaces it:** finding the loaders is a function-reading task, not a search task. The
+image loader at `0xe9948` is a known entry, and reading its callers is the way in.
+
+### A10. Read the image loader's callers: ATTEMPTED, target was wrong
+
+`0xe9948` is called **once** in the whole image, with a register argument. A loader for 71
+assets would be called many times. So it is a single-purpose load, not the path mechanism.
+
+The assumption in A10 was that a function printing ` LOAD ERROR` must be the loader. That was
+wrong.
+
+**Status: parked.** Two routes remain, both documented in
+[a9-reference-search.md](a9-reference-search.md): read the BIOS file service at `0x0c5d`, or
+accept the position, since the asset inventory is already proved complete by other means and
+`verify.js` asserts it.
+
+Recorded as the third work item this question has consumed with a negative result, which is a
+reason to stop rather than a reason to try harder.
 
 ## Track B: what needs a human
 

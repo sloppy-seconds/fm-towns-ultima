@@ -11,6 +11,9 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `mirror.js` | Derives and verifies the mirrored runtime mapping for the top of the image: `stateAddress = 0x4392d2 - imageOffset`. |
+| `overlaymap.js` | Two-state diff. Proved nothing is swapped between the death and title screens. |
+| `relocate.js` | Probes each image region for its real runtime address. Its first version missed the mirrored region because it assumed one base. |
 | `statefind.js` | Finds the image base in a savestate by long-run matching. Short probes give false matches through fill patterns. Establishes `0x762d2`. |
 | `statesegments.js` | Classifies each block of the image as identical, zeroed, or different at runtime. |
 | `statedump.js` | Compares the file against the runtime image at specific addresses. Its first version used a probe that does not survive; `statefind.js` supersedes its base-finding. |

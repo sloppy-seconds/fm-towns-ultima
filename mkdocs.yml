@@ -78,6 +78,9 @@ nav:
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md
       - The runtime image: runtime-image.md
+      - The two-state overlay test: overlay-test.md
+      - The top region is mirrored: mirrored-region.md
+      - Re-running the reference searches: a9-reference-search.md
       - Equipment thresholds: equipment-thresholds.md
       - The tile loader: tile-loader.md
       - Reviewing the research doc: meta-analysis-review.md

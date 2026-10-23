@@ -13,9 +13,14 @@ sites in that region read as zeros.
 The likely explanation is that the binary is **overlayed**. A death-screen screenshot would
 not hold the map drawing code.
 
-**Consequence for this page:** searching a savestate for a function in the upper region is a
-false negative whenever that overlay is swapped out. That is a limitation of the method, not
-evidence of absence. See [runtime-image.md](runtime-image.md).
+**Corrected, and this is the real answer.** The region above `0x0d0000` **is** loaded, but it
+is **mirrored**: its runtime address is `0x4392d2 - imageOffset`, verified at five points.
+
+So this whole page's premise was wrong. The references are not hidden by a segment, not
+cleared, and not absent. **The file-to-memory mapping is simply not a single base**, and a
+flat scan that assumes one base cannot work above `0x0d0000`.
+
+See [mirrored-region.md](mirrored-region.md).
 
 ## The observation
 
