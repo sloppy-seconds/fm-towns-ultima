@@ -171,14 +171,23 @@ The two caps:
 
 ## What is not established
 
-**Which stat each offset is.** The message strings that name them are at `0x66e4`, `0x672c`,
-`0x674c`, `0x675c`, `0x6784`, `0x67b0`, `0x67bc`, `0x67ec`, `0x6810`, `0x6834` and are `EB` glyph
-runs. **The unsolved glyph mapping blocks naming the stats**, which is the clearest demonstration
-yet that one open item is costing another.
+**Which stat each offset is.** **RESOLVED, and the glyph mapping was never the obstacle.** The offsets
+are named by the roster format string, not by the message text: `0xcde95` is `GOLD`, `0xcde9d` is `ERA`,
+`0xcde5e` is `SPID`, `0xcdeeb` is `RING` and `0xcdeef` is `WAND`. See
+[record-layout.md](record-layout.md).
 
-**Whether `+0xcdee7` really is six elements.** RESOLVED: it is not, it is fifteen. The roll allows 0 to 14 as an index, so either the
-array is larger, or the code can over-index, or the roll is being reused for a purpose that
-constrains it elsewhere. Recorded as an anomaly, not a conclusion.
+This page said "the unsolved glyph mapping blocks naming the stats, which is the clearest
+demonstration yet that one open item is costing another". **That was wrong on both counts.** The glyphs
+were not blocking anything, and the two open items were never coupled. Naming the fields took the format
+string and three agreeing anchors. It is worth leaving this correction here rather than quietly deleting
+it, because the cost of that wrong diagnosis was several sessions aimed at the font.
+
+**Whether `+0xcdee7` really is six elements.** **RESOLVED, and the answer is fifteen.** It is the item
+inventory, from `QUICK_SWORD` at `0xcdee7` to `STRANGE_COIN` at `0xcdf1f`, established in
+[record-layout.md](record-layout.md). The roll of 0 to 14 is exactly the array length, so the
+over-index this page suspected never existed. The original reasoning ("either the array is larger, or
+the code can over-index") was correct about the first branch and should have been checked against the
+format string before being recorded as an anomaly.
 
 **The shrine tile values.** `0x60`, `0xf0`, `0xf8` and `0xfc` are known from this function. How they
 map to map cells is open, and depends on the cell encoding question.

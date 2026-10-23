@@ -1,5 +1,9 @@
 # Overnight queue
 
+**STATUS: all six items worked. See the outcome note at the top of each item.** This page is kept as
+the record of what was queued and what it produced, not as pending work. For what to do next, see
+[plan.md](plan.md).
+
 Work that needs nobody watching. Every item here needs no emulator, no keypress and no decision from a
 human, and each ends in either a committed page or a recorded negative with its measurement.
 
@@ -33,6 +37,8 @@ The image has the `0x20` header stripped, so **an offset in it is a virtual addr
 ---
 
 ## Item 1: name the top-level routines
+
+**DONE.** 22 routines named. The game loop was found while doing item 2. See [call-graph.md](call-graph.md).
 
 `tools/callgraph.js` is committed and already answers the structural question. Measured:
 
@@ -72,6 +78,9 @@ character creation, saving, rendering, sound).
 
 ## Item 2: the game loop
 
+**DONE.** It is three instructions at `0xe97c0`: set the running flag to `-1`, `call 0xf6ebc`, `jnz`
+back while the flag is non-zero. See [game-loop.md](game-loop.md).
+
 Once `0xf6ebc` and its siblings are named, find the routine that **drives a turn**. It will be one
 that calls several of the named subsystems in sequence and loops.
 
@@ -87,6 +96,10 @@ be resolved and why.
 
 ## Item 3: identify the data tables the skeleton references
 
+**PARTLY DONE.** The command dispatcher and its ten-entry table were found. The second dispatcher's
+`cs:`-relative table still resolves to code, a second independent case of the same problem. See
+[command-dispatch.md](command-dispatch.md).
+
 Reading the named routines will surface `mov reg,[disp32]` and `push imm32` references into data
 regions. Those are the monster table, item table, spell table, town table, shop tables.
 
@@ -97,6 +110,10 @@ needs these tables and does not need any more artwork.
 table that can be laid out is laid out in a page.
 
 ## Item 4: `WORLD*.UT2` format
+
+**DONE, as a negative.** The save cannot answer it: all four characters are at `MAP=0`, `WORLD=0`, so
+there is no populated world in the file. Also fixed a wrong `WORLD_FILL_LEN` in our own tooling. See
+[world-format.md](world-format.md).
 
 **Half solved.** Measured from `saves/maxed_four.hdm`, by `tools/worldfmt.js`:
 
@@ -123,12 +140,19 @@ contiguous run of ones.
 **A real negative already: all four world files are byte-identical**, so either the format carries no
 per-slot state or this save never wrote any.
 
-**Open:** whether `30..34` indexes five things, whether rows 2 and 3 are `mask << n` rotations, what
-reads a constant `2`, and why `WORLD_FILL_FROM` is 61,952 when data ends at 768.
+**Resolved since this was written:** `WORLD_FILL_FROM` is not 61,952. It is 0, because the game writes
+no fill inside a world file at all. The 6,144 bytes of `0xE5` our generator wrote there were the disk's
+free-space fill leaking into file content, and that is now fixed.
+
+**Open:** whether `30..34` indexes five things, whether rows 2 and 3 are `mask << n` rotations, and what
+reads a constant `2`.
 
 **Done when** `world-format.md` has a measured layout or a recorded negative.
 
 ## Item 5: assert the new findings in `verify.js`
+
+**DONE.** `verify.js` went from 107 checks to 122. Getting there found a bug in `tools/ebcorpus.js`,
+which was rejecting `0xEB` as a trail byte.
 
 The reproducibility contract is missing recent results. All of these are cleanly assertable:
 
@@ -142,6 +166,9 @@ The reproducibility contract is missing recent results. All of these are cleanly
 
 ## Item 6: docs drift sweep
 
+**DONE.** Corrected `shrine-function.md`, which still carried the wrong diagnosis that the glyph mapping
+blocked naming the fields. Checked `roster-reference.md` and found it was never stale.
+
 58 pages, several written before later corrections. Known drift:
 
 - `shrine-function.md`: DONE, body now names the item inventory rather than a "six-element stat
@@ -150,7 +177,6 @@ The reproducibility contract is missing recent results. All of these are cleanly
   every item field. An earlier note claiming it was stale was wrong.
 - `extracted/u2/manifest.txt` describes `MAP2_*` as 320x104 images when they are ASCII data. **Cannot
   be fixed in git** because `extracted/` is gitignored, so a stale local copy is a local problem only.
-- Pages still saying the record layout is unsolved.
 
 Grep and fix, linking to the correcting page. Annotate, do not delete history.
 

@@ -80,9 +80,12 @@ produce the layout of a populated world, because there is no populated world in 
 That is a bounded negative and it is more useful than another round of speculation: the question needs a
 save taken mid-game, which is Track B work.
 
-## A constant in our own tooling is wrong
+## A constant in our own tooling was wrong, and is fixed
 
-`savedisk.js` defines `WORLD_FILL_FROM = 61952`, and `newWorld()` fills `0xe5` from there to
+This section is written in the past tense because the fix has landed. It is kept because the cause is
+instructive and because the old value may still be quoted elsewhere.
+
+`savedisk.js` **used to** define `WORLD_FILL_FROM = 61952`, and `newWorld()` filled `0xe5` from there to
 `0x109ff`. Comparing against the game's own file:
 
 ```
