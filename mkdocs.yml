@@ -100,6 +100,7 @@ nav:
       - Plan for a game-playing bot: gameplayer-plan.md
       - U2 combat formulas: combat-formulas.md
       - Command dispatch: command-dispatch.md
+      - Commands and what follows them: command-interaction.md
       - Two jump tables: jump-tables.md
       - Distance to reimplementation: reimplementation-gap.md
       - Testing whether code writes 0xEB: glyph-writer-test.md

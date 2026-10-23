@@ -36,7 +36,12 @@ pressing keys at the right rate, and BFS pathfinding with repathing when stuck.
 
 ## The four things U2 needs that the U3 bot does not
 
-### 1. Letter commands, not a cursor menu
+### 1. Letter commands, not a cursor menu (for the bar itself)
+
+**Correction: this section originally said U2 has no cursor menu at all. It has them, just not for the bar.**
+The letter is the command; several commands then ask for a **direction**, and the scripted interactions such as
+a merchant present a **list to choose from.** So the bot needs three primitives, not one, and `choose(re)` from
+the U3 bot is still needed. See [command-interaction.md](command-interaction.md).
 
 The U3 bot's `choose(re)` moves a highlight down a list. **U2 does not work that way.** Its command bar is
 single letters, documented from the binary in `save-files.md` 8.0.1.1:
