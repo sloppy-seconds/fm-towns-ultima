@@ -244,13 +244,54 @@ node tools/verify.js
 two places and updated in one. **Check D catches the other one:** an item written without the metadata that
 makes it workable.
 
-## Part 8: the review question, asked after every session
+## Part 8: the closing report, after every unit of work
 
-**"What did this session make false?"**
+A session, an overnight run, or a single task. **Not optional, and not a summary of what was done.**
 
-Not "what did I learn" and not "what did I finish". Every count that drifted here was invalidated by work
-done in the same session that wrote it. Working forwards from a new finding to its consequences is how a
-session closes cleanly.
+### Run the report first
+
+```
+node tools/sessionreport.js
+```
+
+It prints what actually changed: commits, files, whether the plan moved with the work, correction commits,
+and which items are startable now. **Read it before writing anything**, because the failure this prevents is
+reporting from memory. Three times this project reported a number that was wrong in the same session that
+produced it.
+
+### Then say five things, in this order
+
+1. **What was asked**, in the user's words. Not a paraphrase that flatters the work.
+2. **What was done**, by file or commit.
+3. **What was claimed, and which check disproved or confirmed it.** For every assertion of the form "X is
+   true", name the command that showed it. If there was none, say so.
+4. **What is still outstanding**, by plan item id, from the report's startable list.
+5. **What this made stale or false elsewhere.** The question this section used to ask, and it is still the
+   one nobody asks unprompted.
+
+### The rule that actually prevents the failure
+
+**A claim without a check is a guess, and must be labelled as one.** This project's characteristic defect is
+not being wrong, it is being confidently wrong in a way that reads fluently:
+
+- "four of seven checks print text, three return exit codes" was **six and two**, stated without counting
+- "`0xcfe14` is the attack message" was **zero padding**, named from a nearby string
+- "both jump tables resolve to code" was **one of two**, asserted from the file without the savestate
+- "two independent cases" was **one**, and it changed a stated hypothesis
+
+Each sounded right. Each was a number or an attribution that a single command would have settled.
+
+**So: if the report contains a count, a comparison, or a claim that something does not exist, either a command
+in the report produced it or the sentence says "unverified".** No exceptions for small claims, because every
+one of the four above was small.
+
+### The other rule, about verification that cannot fail
+
+Four of the six checks in Part 7 cannot fail, and two of those are inverted: they report failure when clean.
+Before trusting any check, **break something it should catch and confirm it fails.** Then restore.
+
+A check that was never seen to fail is a comment. This has now happened four times: three tests that returned
+their own baseline, and one tool that printed success unconditionally.
 
 ## What this process deliberately does not do
 

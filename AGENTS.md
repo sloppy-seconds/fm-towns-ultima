@@ -135,8 +135,20 @@ That separation is what makes a single plan file work.
 **Before each commit**, run the checks in `docs/plan-process.md` Part 7. The two that catch this project's
 characteristic failures are a count written in two places, and an item written without its metadata.
 
-**After every session, ask "what did this session make false?"** Every count that drifted here was
-invalidated by work done in the same session that wrote it.
+**Every unit of work ends with a closing report, not a summary.** Run `node tools/sessionreport.js` first,
+so the report is read from facts rather than recalled, then state five things: what was asked, what was
+done, what was claimed and which check proved it, what is outstanding by plan item, and what this made stale
+elsewhere. Full form: `docs/plan-process.md` Part 8.
+
+**A claim without a check is a guess and must be labelled one.** This project's characteristic defect is
+confidently wrong sentences that read fluently: "four of seven checks" when it was six and two, "`0xcfe14` is
+the attack message" when it was zero padding, "both jump tables" when it was one of two. Each was a number or
+attribution a single command would have settled. If the report contains a count, a comparison or a claim that
+something does not exist, either a command produced it or the sentence says "unverified".
+
+**Before trusting a check, break something it should catch and confirm it fails.** Four of the six checks in
+`docs/plan-process.md` Part 7 cannot fail at all, and two of those report failure when clean. A check that has
+never been seen to fail is a comment.
 
 Currently duplicated and easy to let drift: the archive.org link, the editor and
 docs URLs, the scope paragraph, and the untested-platform caveat. If you touch

@@ -52,10 +52,14 @@ function load() {
 		// Detect this from the metadata rather than by reading prose: a dependency shows up as
 		// either "once Phase N lands" in the State line, or a done-when/autonomy cell naming a
 		// sibling item id such as "depends on 1a".
+		// An explicit "depends on" row is authoritative. Prose inference is a fallback only, because
+		// guessing from wording got item 2b wrong: its blocked-by cell begins "2a." and no pattern
+		// matched it, so the tool reported 2b as startable while its own text said it was not.
+		const dependsRow = /\|\s*depends on\s*\|\s*([0-9][a-z](?:\s*,\s*[0-9][a-z])*)/i.exec(c)?.[1];
 		const waitsOnItem =
+			Boolean(dependsRow) ||
 			/\*\*Autonomy:\*\*[^\n]*\bonce\b/i.test(c) ||
-			/\|\s*autonomy\s*\|[^\n]*\bdepends on\s+[0-9][a-z]/i.test(c) ||
-			/\|\s*blocked by\s*\|[^\n]*\b[0-9][a-z]\b[^\n]*first/i.test(c);
+			/\|\s*autonomy\s*\|[^\n]*\bdepends on\s+[0-9][a-z]/i.test(c);
 		return { id, title, state, autonomy, doneWhen, blockedBy, waitsOnItem };
 	});
 }

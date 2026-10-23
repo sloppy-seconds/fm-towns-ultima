@@ -178,6 +178,7 @@ Testable on file data alone: 256 rows by 128 columns, file supplies rows from 1,
 | autonomy | autonomous, but only after the values mean something |
 | done when | a page maps each of the 62 observed values to a tile picture, or states which cannot be resolved without runtime comparison |
 | blocked by | 2a. Matching a picture to a number is meaningless until the number is known to select a tile |
+| depends on | 2a |
 
 **This item was previously written as NEEDS A DECISION**, on the grounds that automatic matching against
 a rendered map and manual identification were two viable methods needing a choice. **That was a false
@@ -288,7 +289,8 @@ So this item needs a state taken while the OS has a font loaded, which is the sa
 |---|---|
 | autonomy | autonomous, but depends on 1a naming the routines that index each table |
 | done when | each table named in a routine has a page with its record layout |
-| blocked by | nothing directly, but the order matters: 1a first |
+| blocked by | nothing directly, but the order matters |
+| depends on | 1a |
 
 Monster stats, item properties, spell effects, shop inventories, town layouts. These are extraction work
 and they are tractable once the routines that index them are named, which is what Phase 1 buys.
