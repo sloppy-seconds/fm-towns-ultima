@@ -134,11 +134,36 @@ uniform 8x8 or 16x16 blocks: only 2 of 520 candidate 8x8 blocks hold a single
 value, so this is not a grid of one byte per tile. 320 wide is consistent with the
 screen, not with a 64-column grid.
 
+**The three files share a region.** Assuming 320 bytes per row, differences are
+confined to an upper band and the rest is shared:
+
+- rows 0 to 28 differ between the three files
+- rows 29 to 56 are identical in all three
+- rows 57 to 59 differ between `MAP2_1` and `MAP2_3` only
+- rows 60 to 103 are identical in all three
+
+Overall 25,710 of 33,280 bytes (77.3%) are identical across all three files. So
+they are one shared body with a per-file upper block, not three separate maps. The
+differences are confined to roughly the top sixth and a three-row stripe, which is
+the shape of a variant or overlay rather than a different map.
+
+Both regions satisfy the nibble constraint at 100%, so neither is a header. The
+upper block has 61 distinct values and the shared body 39, which means the
+per-file part carries more variety. That is consistent with the upper block being
+the part that changes between variants.
+
 **Verdict:** the values are a 64-tile vocabulary, almost certainly `terrain` in the
-high nibble and `variant` in the low. Whether each byte is a pixel or a sub-tile
-element is **open**: the 16-pixel horizontal period argues for a pixel-resolution
-store, but 33,280 at one byte per cell is 512x65 or 320x104, neither of which is a
-plausible 64x64 world. Do not build on the cell size yet.
+high nibble and `variant` in the low. Two things are still open:
+
+- **The cell size.** The 16-pixel horizontal period argues for a pixel-resolution
+  store, but 33,280 bytes at one byte per cell is 320x104 or 512x65, neither of
+  which is a plausible 64x64 world. Values also change at random positions, not on
+  a 2, 4, 8 or 16-pixel boundary, so it is not a block grid either.
+- **What the two regions are for.** Rows 32 to 103 are identical across the three
+  files but vertical autocorrelation collapses beyond lag 24 (9.6% at 36), so the
+  shared body is not a repeating pattern such as a font. Its role is unproven.
+
+Do not build on the cell size yet.
 
 ### 5.3 Two real bitmap layouts
 

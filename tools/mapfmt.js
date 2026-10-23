@@ -94,6 +94,52 @@ if (b.length === W * H) {
 	console.log('');
 }
 
+// Cross-check the three files: MAP2_1/2/3 share a body if they are variants of
+// one map rather than three maps. Measured on 320-byte rows, rows 0..31 differ
+// and rows 32..103 are byte-identical in all three.
+{
+	const m2 = get('MAP2_2.TIF');
+	const m3 = get('MAP2_3.TIF');
+	let diff = 0;
+	let sameAll = 0;
+	for (let i = 0; i < b.length; i++) {
+		if (b[i] !== m2[i] || b[i] !== m3[i]) diff++;
+		if (b[i] === m2[i] && b[i] === m3[i]) sameAll++;
+	}
+	console.log('== across MAP2_1 / MAP2_2 / MAP2_3 ==');
+	console.log('  bytes identical in all three:', sameAll, '(' + ((sameAll / b.length) * 100).toFixed(1) + '%)');
+	// Which row bands are shared? This is what showed the 0..31 / 32..103 split.
+	const W = 320;
+	const H = b.length / W;
+	if (Number.isInteger(H)) {
+		// Report the longest contiguous run of fully shared rows. Isolated shared
+		// rows inside the differing block are not interesting; the tail is.
+		const rowShared = (y) => {
+			for (let x = 0; x < W; x++) {
+				const v = b[y * W + x];
+				if (v !== m2[y * W + x] || v !== m3[y * W + x]) return false;
+			}
+			return true;
+		};
+		let bestStart = -1;
+		let bestLen = 0;
+		let runStart = -1;
+		let runLen = 0;
+		for (let y = 0; y < H; y++) {
+			if (rowShared(y)) {
+				if (runStart < 0) { runStart = y; runLen = 0; }
+				runLen++;
+				if (runLen > bestLen) { bestLen = runLen; bestStart = runStart; }
+			} else {
+				runStart = -1;
+			}
+		}
+		console.log('  longest run of rows identical in all three:', bestStart, 'to',
+			bestStart + bestLen - 1, '(' + (W * bestLen) + ' bytes)');
+	}
+	console.log('');
+}
+
 if (args.includes('--render')) {
 	const hist = {};
 	for (const x of b) hist[x] = (hist[x] || 0) + 1;
