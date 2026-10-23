@@ -326,6 +326,17 @@ if (cmd === 'ls') {
 		const ch = chainOf(img, e.cluster);
 		console.log(e.name.padEnd(12) + ' ' + String(e.size).padStart(7) + ' B  clusters ' + ch[0] + '-' + ch[ch.length - 1] + ' (' + ch.length + ')');
 	}
+} else if (cmd === 'extract') {
+	// Raw bytes of one file, for diffing. `cat` renders text and refuses binary,
+	// which is no use when the point is to compare two world files byte for byte.
+	const img = loadDisk(argv[1]);
+	const e = findEntry(img, argv[2]);
+	if (!e) die('not found: ' + argv[2]);
+	const d = readFile(img, e);
+	const out = argv[3];
+	if (!out) die('usage: extract <disk> <file> <outfile>');
+	fs.writeFileSync(out, d);
+	console.log('wrote ' + d.length + ' bytes to ' + out);
 } else if (cmd === 'cat') {
 	const img = loadDisk(argv[1]);
 	const e = findEntry(img, argv[2]);
