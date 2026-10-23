@@ -58,11 +58,10 @@ A working reimplementation needs five things. Here is each one against the real 
 
 Graphics and sound decode. Two gaps:
 
-- **The `0xEB` word dictionary** is parked, and **this page originally said it was not on the
-  reimplementation path. That was wrong.** Building the call graph showed that most high-string-count
-  routines reference only `0xEB` runs, so the dictionary is the naming and display mechanism for the
-  majority of message routines. See [call-graph.md](call-graph.md). It needs one more attempt by a
-  different method: find the routine that consumes the runs, rather than decoding the runs.
+- **The `0xEB` word dictionary** is **no longer a gap.** The renderer passes the raw bytes to the Fujitsu
+  BIOS and does no lookup, so the mapping lives in TownsOS and not in the game. A reimplementation needs
+  *which string* and *where*, both of which are established, and does not need the original code points.
+  See [eb-renderer.md](eb-renderer.md).
 - **`WORLD*.UT2` is not understood.** 68,096 bytes, six rows of data measured, meaning unknown. If the
   world file holds map state, a reimplementation cannot load a save without it.
 

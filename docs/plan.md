@@ -90,14 +90,17 @@ See [indirect-branches.md](indirect-branches.md).
 **This is a memory-layout question, not a game question.** Likely segmented, given the BIOS gateway
 switches `fs` to segment `0x110`.
 
-### 5. The `0xEB` glyph mapping: parked
+### 5. The `0xEB` glyph mapping: ANSWERED, and closed
 
-One glyph of 54, measured on 3 percent of the data. Eleven approaches tried, all negative: no
-character table, no code writing `0xEB`, no bitmap region with glyph structure, `GAI.TIF` and
-`EXTRA.TIF` not fonts. The likely answer is that TownsOS supplies the glyphs.
+Thirteen probes searched `ENCHANT.EXP` for a character mapping. **It is not there.** The text renderer at
+`0xe6e90` copies every byte into a buffer unchanged and calls `0xc5d`, the Fujitsu BIOS gateway, which
+draws it. **TownsOS owns the mapping.**
 
-**Recommendation: leave it.** It only names things, the display text already extracts, and the record
-layout has now removed its only practical cost.
+That single fact explains every negative on the glyph question. See [eb-renderer.md](eb-renderer.md) for
+what would answer it (a savestate plus the TownsOS font, the font file on the disc, or the FM Towns BIOS
+reference) and why a reimplementation does not need it.
+
+**Closed.** No further work on this in the executable is worth doing.
 
 ### 6. `WORLD*.UT2` layout
 

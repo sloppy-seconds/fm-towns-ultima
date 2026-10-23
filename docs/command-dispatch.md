@@ -87,14 +87,19 @@ gives zero valid code addresses:
 
 Those are instructions (`e8 07 6d 01` is a call, `83 c4 04` is an add), not pointers.
 
-**So both `cs:`-relative jump tables in this binary resolve to addresses that hold code.** That is the
-same wall `docs/indirect-branches.md` hit on `0xe4086`, and this is now a **second independent case of
-the same shape**, which makes it a property of the binary rather than a mistake in one search.
+**RETRACTED.** This paragraph claimed both `cs:`-relative tables resolve to code and that two
+independent cases made segmented addressing the leading hypothesis again. **Table 1 does not resolve to
+code.** A savestate shows `0xf6d65` holds seven valid handler addresses and is identical in the file and
+at runtime. Only table 2 fails.
 
-The likely explanation is that the `cs` selector at runtime has a base that is not zero, so the
-displacement is relative to a segment whose contents are not at that file offset. That was demoted as a
-leading hypothesis in `addressing-limits.md` on the strength of one case. **Two cases make it the
-leading hypothesis again.**
+So there are not two cases, `addressing-limits.md`'s demotion of segmented addressing **stands**, and the
+"leading hypothesis again" sentence was wrong. See [jump-tables.md](jump-tables.md), which also records
+the arithmetic error that produced the confusion: the `disp32` of `2e ff 24 95` begins at offset **+4**,
+not +3.
+
+A third such table exists at `0xe7020` (59 entries, target `0xe6e48`) and it also points at code, while
+being reachable from six callers. **That one is unexplained and is recorded as open rather than guessed
+at.**
 
 ## What is established, and usable for reimplementation
 

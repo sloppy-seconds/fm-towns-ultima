@@ -85,8 +85,7 @@ Once `0xf6ebc` and its siblings are named, find the routine that **drives a turn
 that calls several of the named subsystems in sequence and loops.
 
 **Method:** `--tree 0x101bdc 4` and `--tree 0x1052c8 4` give the shape from each entry. Where a node
-is a hub, expand it. The turn driver is the routine that calls movement, combat and rendering from the
-same body.
+is a hub, expand it. **Found: `0xe97c0`, three instructions. See [game-loop.md](game-loop.md).**
 
 **Record** the order of operations in a turn as far as the code shows it. That ordering is directly
 useful to a reimplementation.

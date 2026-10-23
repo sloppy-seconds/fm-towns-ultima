@@ -95,11 +95,12 @@ dispatcher, `0xf25b4` stat gain, `0x101a40` RNG.
 
 ## What is still missing, and it is the important part
 
-**The turn driver is not identified.** It will be the routine that calls movement, combat and rendering
-from one body. Candidates worth reading next, by fan-out: `0xebefc` (31 callees), `0xf0c60` (26),
-`0xfe4a8` (26), `0xed7f0` (24), `0xe97c0` (23), `0xee770` (21), `0xf4b24` (21), `0xfb08c` (21).
+**The turn driver is found.** It is `0xe97c0`: a `do { call 0xf6ebc; } while ([0xcde34] != 0)` loop,
+three instructions. See [game-loop.md](game-loop.md). The 39 callees of `0xf6ebc` are classified in
+[inside-a-turn.md](inside-a-turn.md).
 
-Also unnamed: spell casting, dungeon movement, monster behaviour, the main loop itself.
+Still unnamed: spell casting as a specific routine, dungeon movement, monster behaviour, and the
+second-level dispatch behind the character's `KEY` field.
 
 ## The pattern worth noting
 
