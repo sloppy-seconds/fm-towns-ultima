@@ -53,9 +53,19 @@ Ordered by what it costs and what it is worth.
 one call to `0xf6ebc`. Reading its 39 callees covers every per-turn behaviour, which is a far better
 return than 33 scattered `randMod` functions.
 
-Progress: 22 of 738 routines named. See [call-graph.md](call-graph.md) for the named skeleton.
+Progress: **38 of 738 routines named**, counted against the real function-start list by parsing the
+tables in `call-graph.md` and `inside-a-turn.md`. See those pages for the named skeleton.
 
-### 2. The `randMod` functions (33 of 35 unread)
+### 2. The tick, not the turn
+
+`inside-a-turn.md` covers what happens when the player acts. **What advances between actions is not
+covered:** food consumption per move, torch burn-down, monster repopulation, day and night, the shop
+restock, the spawn timer. These are the `randMod` functions and the time-related globals.
+
+This is the natural next step because a turn is now a known unit, so a tick can be described as
+"what `0xf6ebc` does that is not key driven" and checked against it.
+
+### 3. The `randMod` functions (33 of 35 unread)
 
 **Worth most, costs least, no blockers.** Grouping put the 85 `randMod` sites into 35 functions.
 Two are read: the shrine/effect dispatcher at `0xf2cc0` and the consumable tick at `0xef440`. The
@@ -66,7 +76,7 @@ immediately rather than needing a second pass.
 
 **Done when** the random-number-driven behaviour of the game is described rather than sampled.
 
-### 2. The high bits of a map cell
+### 4. The high bits of a map cell
 
 `v & 3` is terrain, established against a shuffle control. The upper nibble has the largest
 gain-over-shuffle of any field tested, so it carries real structure, but what it means is unknown.
@@ -74,13 +84,13 @@ Candidate: a variant or edge qualifier. See [cell-encoding.md](cell-encoding.md)
 
 **This is the last substantive map question.** It is testable against the rendered map.
 
-### 3. The `0xe4086` switch table
+### 5. The `0xe4086` switch table
 
 Not a table in the file, not a table at its mirrored runtime address, and not a `cs`-relative offset
 with the observed segment base. Three explanations ruled out. See
 [indirect-branches.md](indirect-branches.md) and [core-routines.md](core-routines.md).
 
-### 4. The top-of-image runtime mapping
+### 6. The top-of-image runtime mapping
 
 The mirror constant `0x4392d2` holds from `0xd0000` to about `0x104000` and then breaks. Neither it
 nor a second candidate covers the tail. This blocks reading anything above `0x104000` at runtime,
@@ -90,7 +100,7 @@ See [indirect-branches.md](indirect-branches.md).
 **This is a memory-layout question, not a game question.** Likely segmented, given the BIOS gateway
 switches `fs` to segment `0x110`.
 
-### 5. The `0xEB` glyph mapping: ANSWERED, and closed
+### 7. The `0xEB` glyph mapping: ANSWERED, and closed
 
 Thirteen probes searched `ENCHANT.EXP` for a character mapping. **It is not there.** The text renderer at
 `0xe6e90` copies every byte into a buffer unchanged and calls `0xc5d`, the Fujitsu BIOS gateway, which
@@ -102,14 +112,14 @@ reference) and why a reimplementation does not need it.
 
 **Closed.** No further work on this in the executable is worth doing.
 
-### 6. `WORLD*.UT2` layout
+### 8. `WORLD*.UT2` layout
 
 68,096 bytes, four files, no page documents it. Partly solved: **128-byte rows, 6 rows of data, then
 68,000 bytes of zero**. Rows 0 and 1 hold grouped values 30 to 34 and row 2 holds values that look
 like bitmasks (255, 224, 192, 64, 32). Details and the open questions are in
 [overnight.md](overnight.md) item 1.
 
-### 7. Track B, untouched
+### 9. Track B, untouched
 
 Nothing here has been attempted. All of it needs a human.
 
