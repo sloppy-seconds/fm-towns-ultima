@@ -4,16 +4,26 @@ Guidance for anyone (agent or human) working in this repository.
 
 ## Goal
 
-The goal is **Ultima II extraction**.
+**The end goal is reimplementation of Ultima II.** The extraction phase exists
+to build the strongest possible corpus of data, assets and rules first, so that
+reimplementation is a translation exercise rather than a guess.
 
-Extract as much useful data and artwork out of the FM Towns release of Ultima
-II (`ENCHANT.EXP`) as the disc will give up. That means every image, every
-sound effect, every map, every string, every monster, and eventually the
-palette so the art is not condemned to greyscale.
+Extraction is therefore **in service of** reimplementation, not an endpoint.
+That distinction has been wrong in this file for a long time and it mattered:
+it licensed reading code only where extraction was blocked, which is why 26 of
+the game's 738 routines are documented and the rest are not.
 
-Everything else is subordinate to that. Reimplementation is not the goal. It
-is a possible later use for good extracted data, and it is not a reason to
-extract anything, nor a reason to defer extraction.
+What the corpus needs to contain:
+
+- every image, sound effect, map and string the disc will give up
+- every data table: monsters, items, spells, towns, shops, NPC assignment
+- every rule, **as arithmetic**: combat, movement, time, magic, economy
+- the control flow that ties them together: what drives a turn, what drives
+  the main loop
+
+A fact nobody can reproduce is not part of the corpus. Every finding needs a
+script that derives it, a test that confirms it, and a paragraph that explains
+it.
 
 Two rules shape how the work is done:
 
@@ -23,18 +33,22 @@ Two rules shape how the work is done:
   confirm, not to distract.
 - Generalise the tooling where it costs nothing. Extraction code written for
   U2 should not be hardcoded in ways that would break on another title. That
-  is good engineering hygiene, not a second project. The payoff is that when
-  the U2 work is done, the same machinery can be pointed at other FM Towns
-  discs in `fmtownscdcollection` without a rewrite. That is a side benefit,
-  never the reason for a decision.
+  is good engineering hygiene, not a second project.
 
-Working order from here:
+Working order from here, revised for the real goal:
 
-1. Data and artwork extraction for U2. This is the job.
-2. Format documentation. Every format gets a record in `docs/`, because
-   an undocumented extraction is not repeatable.
-3. Code understanding, but only where it unlocks something extraction cannot
-   reach. The palette is the standing example.
+1. **The call graph, with names.** 738 routines is tractable grouped, and 247
+   are called three or more times. Identify the top-level ones. Without this a
+   reimplementation has no skeleton.
+2. **Read the routines on that skeleton** in the order a player meets them:
+   create, move, enter a town, fight, buy, cast, save. Each gets a page with
+   its arithmetic.
+3. **Data and artwork extraction**, including the tables the skeleton names.
+4. **Format documentation.** Every format gets a record in `docs/`.
+5. **Runtime confirmation**, where reading cannot settle a question.
+
+See [docs/reimplementation-gap.md](docs/reimplementation-gap.md) for the
+measured distance and what is still missing.
 
 ## Read these first
 
