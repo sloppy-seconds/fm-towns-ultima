@@ -29,6 +29,8 @@ directory, so run them from the repo root.
 | `msgcallers.js` | Walks back from every call to the text renderer to find where the string pointer comes from. Found 123 literal string call sites. `--target` picks a different function, `--literals` and `--all` list them. |
 | `cfgwalk.js` | Control-flow walk from CALL targets, following jmp/jcc targets and fall-through, with gap recovery after alignment padding. `--check addr` answers whether an address is a real instruction boundary in about 2 seconds. Records the 144 indirect branches it cannot follow. |
 | `fieldmap.js` | Derives the in-memory character record layout from the roster format string. `--check` verifies three anchors agree on one base; `--resolve 0x..` names any address. Record base `0xcde54`. |
+| `callgraph.js` | Builds caller to callee edges from every `E8` call site. Reports fan-in, fan-out, roots and reachability. 738 starts, 2,476 edges, 2 routines with no caller. |
+| `fnstrings.js` | Prints the strings a function references, which is how a routine gets named. `--top N` ranks routines by string count. |
 | `worldfmt.js` | Reports the `WORLD*.UT2` save layout: 128-byte rows, 24 dwords each, 6 rows of data then 67,328 bytes of zero. `--bits`, `--compare`, `--size`. |
 | `ebcorpus.js` | Lists the 77 all-`0xEB` strings and whatever Shift-JIS string follows each. `--dupes` shows runs appearing under more than one text, which proves the runs are shared tokens rather than a transcription. |
 | `randgroups.js` | Groups `randMod` call sites by enclosing function. 85 sites into 35 functions, 12 of which hold 55 sites. Follows the rule that every address is a virtual address and every image access is `img[addr]`. |

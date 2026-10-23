@@ -52,9 +52,11 @@ A working reimplementation needs five things. Here is each one against the real 
 
 Graphics and sound decode. Two gaps:
 
-- **The `0xEB` word dictionary** is parked. If those tokens are what the game displays in menus, a
-  reimplementation would show the wrong text there. Unknown severity, because nobody knows what the
-  tokens are for.
+- **The `0xEB` word dictionary** is parked, and **this page originally said it was not on the
+  reimplementation path. That was wrong.** Building the call graph showed that most high-string-count
+  routines reference only `0xEB` runs, so the dictionary is the naming and display mechanism for the
+  majority of message routines. See [call-graph.md](call-graph.md). It needs one more attempt by a
+  different method: find the routine that consumes the runs, rather than decoding the runs.
 - **`WORLD*.UT2` is not understood.** 68,096 bytes, six rows of data measured, meaning unknown. If the
   world file holds map state, a reimplementation cannot load a save without it.
 
@@ -107,9 +109,15 @@ exactly once are mostly glue.
 
 ## What I would do differently, stated plainly
 
-The project spent a great deal of effort on questions that do not block reimplementation: the glyph
-dictionary (twelve probes), the top-of-image runtime mapping, the switch table, the TownsOS font. Those
-were interesting and they are documented, but none of them are on the reimplementation path.
+The project spent a great deal of effort on questions that mostly do not block reimplementation: the
+top-of-image runtime mapping, the switch table, the TownsOS font. Those were interesting and they are
+documented, but none of them are on the reimplementation path.
+
+**The glyph dictionary is the exception and one correction belongs here.** Twelve probes went into it
+and this page first said it was off the critical path. The call graph shows it is on the path, because
+most message routines reference only `0xEB` runs. The twelve probes were not wasted, but they were
+aimed at decoding the data rather than at finding the code that reads it, and those are different
+questions.
 
 Meanwhile **26 of 738 functions are described.** That ratio is the honest scoreboard.
 

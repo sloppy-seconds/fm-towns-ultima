@@ -82,6 +82,7 @@ nav:
       - The character record layout: record-layout.md
       - What the 0xEB runs are: eb-corpus.md
       - Overnight queue: overnight.md
+      - The call graph: call-graph.md
       - Distance to reimplementation: reimplementation-gap.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md
