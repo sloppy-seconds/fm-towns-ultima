@@ -117,8 +117,6 @@ def main():
                 continue
             print('0x%07x (%4d B) %s' % (off, len(b), s.replace('\n', ' ')[:90]))
             shown += 1
-            if shown >= 300:
-                break
         print('shown: %d' % shown)
 
     if want_ascii:
@@ -133,8 +131,6 @@ def main():
                 continue
             print('0x%07x (%4d B) %s' % (off, len(b), s.replace('\n', ' | ')[:90]))
             shown += 1
-            if shown >= 300:
-                break
         print('shown: %d' % shown)
 
     return 0
