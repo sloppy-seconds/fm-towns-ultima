@@ -402,8 +402,16 @@ the addressing limit which is now solved.
 
 1. **The high bits of a map cell.** `v & 3` is terrain, established. The upper bits correlate
    at 74% and their meaning is unknown.
-2. **The `0xEB` glyph mapping.** 1 of 54 glyphs. Needs the writer or a font, neither of which
-   is reachable by the methods tried.
+2. **The `0xEB` glyph mapping: PARKED after 11 approaches.** 1 of 54 glyphs, and that one was
+   measured on 3 percent of the data. Every route is now negative: no character table, no code
+   writing `0xEB`, no bitmap region with glyph structure, and `GAI.TIF`/`EXTRA.TIF` are not fonts.
+
+   The most likely explanation is that **TownsOS draws the glyphs** and the index selects from an
+   OS font the game does not ship. That fits all the negatives. It is testable with a savestate by
+   looking for a TownsOS font in memory, which is a different kind of question.
+
+   See [glyph-bitmap-search.md](glyph-bitmap-search.md). **Recommendation: stop**, because the
+   mapping only names things and the display text already extracts cleanly as Shift-JIS.
 3. **The `0xe4086` switch table.** Not a table in the file, not a table at its mirrored
    runtime address. Something else is going on there.
 4. **The asset path mechanism.** Three work items spent, all negative. The paths are real and
