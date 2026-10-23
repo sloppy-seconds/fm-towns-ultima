@@ -80,6 +80,7 @@ nav:
       - The shrine function: shrine-function.md
       - The randMod function groups: randmod-groups.md
       - The character record layout: record-layout.md
+      - What the 0xEB runs are: eb-corpus.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md
       - The randMod survey: randmod-survey.md
