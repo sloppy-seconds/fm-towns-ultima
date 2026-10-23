@@ -289,13 +289,21 @@ formats (question 6), and the item and spell tables which have no page yet.
 
 ### 4b. Combat formulas, stated as arithmetic
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
 
 | field | value |
 |---|---|
-| autonomy | the reading is autonomous, the verification is not |
-| done when | to-hit and damage are stated exactly and marked read-versus-verified |
-| blocked by | verification needs a controlled fight, so this closes in two halves |
+| autonomy | was PARTLY AUTONOMOUS. The reading half also failed, so both halves now need more than static search |
+| done when | to-hit and damage are stated exactly and marked read-versus-verified, or the page records why neither is reachable |
+| blocked by | verification needs a controlled fight. The reading needs a method that is not a displacement search |
+
+**Worked and neither half closed.** No routine that touches `HP` at `0xcde85` calls `randMod`, and no routine
+touching `AGILITY` or `STRENGTH` does either. Eight HP references across six functions, all but one already
+identified as init, save, load, status panel, tile interaction or publisher credit. Full measurements in
+[combat-formulas.md](combat-formulas.md).
+
+That search also caught a false attribution on `inside-a-turn.md`: `0xcfe14` was listed as the attack routine
+and is 59 bytes of zero padding.
 
 The RNG is understood and the record layout is known, so the formulas are readable. They cannot be
 *verified* without a fight, which is why this sits after Phase 3.

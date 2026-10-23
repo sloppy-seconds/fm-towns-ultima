@@ -49,6 +49,16 @@ Every routine below calls pane select and print, so the field it touches is what
 `randMod`, `0xe3d4c` `randRange`, `0xe4928` read key, `0xe9920` pixel writer, `0xf3e04` pixel writer,
 `0xe77f8` pane-7 helper.
 
+> **CORRECTION: this page listed `0xcfe14` as the attack message** on the strength of its reference to
+> `\nによる攻撃`. **It is not a function.** It is inside 59 bytes of zero padding from `0xcfe10` to
+> `0xcfe4b`, which disassembles as `add [eax],al` repeated and fails the boundary oracle.
+>
+> The string is real but attributing it to a nearby address is the same error as pairing `0xEB` runs with
+> whatever text follows them, which cost twelve probes. Both rows are removed.
+>
+> See [combat-formulas.md](combat-formulas.md): no routine that touches `HP` calls the RNG, so U2's combat
+> arithmetic is not reachable from the fields it operates on.
+
 ## What this establishes for a reimplementation
 
 **A turn is now describable.** It is:

@@ -56,7 +56,6 @@ this session.
 
 | routine | evidence | identification |
 |---|---|---|
-| `0xcfe14` | `\nによる攻撃` | **attack message** |
 
 ### Character and inventory
 
@@ -101,7 +100,6 @@ turned out to hide most of the top candidates.
 | `0xee97c` | `食  　料  ：` with padding | **food display** |
 | `0xed7f0` | `性　　別  ：`, `賊` | **status panel** |
 | `0xee254` | `ｳれました`, Fujitsu attribution block | **confirmation screen** |
-| `0xd2e27` | `\nによる攻撃` | **attack, second copy** |
 | `0xf5078` | ending prose, `美酒に酔うあなたは` | **ending, second half** |
 | `0xf5394` | `ナクスはあの城で何を`, `U2END4.TIF` | **ending, first half** |
 | `0xecf17` | Fujitsu attribution, `キ－を押してください` | **publisher credit and prompt** |

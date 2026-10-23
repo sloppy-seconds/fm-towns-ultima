@@ -89,6 +89,7 @@ nav:
       - The game loop: game-loop.md
       - Inside a turn: inside-a-turn.md
       - The tick: the-tick.md
+      - U2 combat formulas: combat-formulas.md
       - Command dispatch: command-dispatch.md
       - Two jump tables: jump-tables.md
       - Distance to reimplementation: reimplementation-gap.md
