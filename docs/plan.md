@@ -43,7 +43,7 @@ from the items below rather than maintained separately.
 
 | item | autonomy | can an agent start it now |
 |---|---|---|
-| 1a Name the remaining routines | AUTONOMOUS | **yes** |
+| 1a Name the remaining routines | AUTONOMOUS | **done** |
 | 1b Read the tick | BLOCKED ON INPUT | no, needs a two-state diff |
 | 2a The high bits of a map cell | AUTONOMOUS | **yes**, but see the circularity |
 | 2b Tile picture per `MAP2_*` value | AUTONOMOUS | not yet, held back by 2a |
@@ -73,19 +73,22 @@ emulator.
 
 ### 1a. Name the remaining routines by string reference
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
-
-| field | value |
-|---|---|
-| autonomy | autonomous, no human input needed |
-| done when | `call-graph.md` names every routine with at least one readable string reference, and states how many have none |
-| blocked by | nothing |
-
 **The named-routine count is owned by [call-graph.md](call-graph.md).** Re-derive it there rather than
 quoting a number from here.
 
-**Worked, and the ceiling is now measured and the remainder enumerated.** Of 738 function starts, **93 have
-at least one readable non-`0xEB` string**. Ten were named, taking the count to 48.
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous, and it is finished |
+| done when | every routine with at least one readable string reference is named, and the count of routines with none is stated |
+| blocked by | nothing |
+
+**Done.** Of 738 call targets, **89 are real functions with a readable string and all 89 are now named.** Four
+more addresses in the original list were data regions rather than functions and are recorded as such. 645
+routines have no readable string and cannot be named this way.
+
+The named-routine count is owned by [call-graph.md](call-graph.md).
 
 **56 of the 93 remain unnamed** and they are listed explicitly rather than left as a search:
 

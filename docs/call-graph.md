@@ -108,6 +108,79 @@ turned out to hide most of the top candidates.
 roster format string, so this is the routine that prints the debug readout of live game state. It is the
 most direct window into runtime values available statically.
 
+### The remaining readable-string sweep
+
+Completing item 1a. These were identified from bounded scans: each function is scanned only up to the next
+call target, because an earlier attempt used a fixed 0x2200-byte window and every function appeared to
+reference the strings of the functions after it. That produced 44 strings for `0xe9724`, which has two.
+
+| routine | evidence | identification |
+|---|---|---|
+| `0xe26b8` | `H)yper   Q)uit&save`, `D)UP LADDER` | **movement menu** |
+| `0xe2734` | `YER`, part of `PLAYER` | **player prompt** |
+| `0xe2808` | `入したらキ－を押せ` | **key-press prompt, after insert** |
+| `0xe3368` | `キ－を押す`, and a 10-way switch at `0xe3377` | **sound dispatcher**, 10 slots |
+| `0xef594` | `ンをこすると・・・` | **fountain rub** |
+| `0xe3664` | `\TOWN.EUP` | **town music loader** |
+| `0xe77a4` | `KYB_clrbuf` | **keyboard buffer clear** |
+| `0xe7ffc` | `読み込みに失敗しました` | **load failure message** |
+| `0xe8140` | `call real bios!` | **BIOS bridge, copy A** |
+| `0xe83ec` | `call real bios!` | **BIOS bridge, copy B** |
+| `0xe8fa0` | `PLAYER_X = ` | **debug readout, player X** |
+| `0xe9070` | `DUNGEON_Y = ` | **debug readout, dungeon Y** |
+| `0xe9724` | `TIFF DATA`, `TIFF HEADDER` | **TIFF header check** |
+| `0xe9948` | `LOAD ERROR` | **graphics load error** (the loader noted in `a9-reference-search.md`) |
+| `0xe9a94` | `PLAYER.TIF`, `戻る` | **player sprite load, back prompt** |
+| `0xe9e94` | `デバッグ・モ－ド` | **debug mode toggle** |
+| `0xe9ed0` | `HEADTTL.TIF`, `Revenge of Enchantress` | **headline title screen** |
+| `0xe9f0c` | `■■■■` blocks, `日本語` | **language and layout setup**, called from character select |
+| `0xebe34` | `SURFACE=%d`, `MAP=%d`, `SEED=%d` | **world state writer** |
+| `0xec154` | `悪の遊騎兵`, `富士通` | **monster name table access** |
+| `0xec320` | `ゴイル`, `恐竜`, `富士通` | **creature name and credit block** |
+| `0xee770` | `魅　力`, `知　性`, `食　料` | **full character sheet** |
+| `0xef15c` | padded blanks | **layout padding routine** |
+| `0xef720` | `える` | **small text helper** |
+| `0xf0ea4` | `防具]`, `呪文]`, `アイテムリスト]` (no readable string in its own body) | **inventory and spell menus** |
+| `0xf1b68` | `コントロ－ル` | **control configuration** |
+| `0xf1d0c` | `gにつける` | **equip or attach** |
+| `0xf1e8c` | `キた：`, `プ－ ヘックス オン ユ－` | **use-on prompt** |
+| `0xf25b4` | `プ－ ヘックス オン ユ－` | **stat gain**, established earlier, now in the table |
+| `0xf2cc0` | `による攻撃` | **shrine and effect dispatcher**, established earlier |
+| `0xf346c` | `ム コントロ－ル` | **game control menu** |
+| `0xf51f4` | `DUNGEON_Y = ` | **debug readout, second copy** |
+| `0xf5f00` | `レイト` | **pirate** |
+| `0xf6660` | `進する`, `リンダ`, `アントニオ` | **town name and movement** |
+| `0xf6bd0` | `する`, `リンダ`, `ル・ジェスタ－` | **town name table access** |
+| `0xf84a4` | `ンジョンに入る` | **dungeon entry** |
+| `0xf8750` | `め` | **fragment only, unnamed** |
+| `0xf8944` | `です` | **fragment only, unnamed** |
+| `0xf8af4` | `しています` | **fragment only, unnamed** |
+| `0xf9f18` | `しています`, `冒険者` | **adventurer status line** |
+| `0xfabf4` | `ない冒険者` | **adventurer failure message** |
+| `0xfb25c` | `＜西＞` | **direction label, west** |
+| `0xfbd24` | `－トル` | **turtle creature** |
+| `0xfc4fc` | `キ－を押してください` | **key prompt**, shown by measurement to be map interaction, not combat |
+| `0xfcabc` | `データが読めません`, `DUNMON1.TIF` | **dungeon monster load** |
+| `0x103850` | non-Shift-JIS bytes | **platform routine, unnamed** |
+| `0xe1bd4` | writes `[0xe3f4+0x24]` and `+0x28` | **sound slot setter A**, TALK-11 channel |
+| `0xe1c04` | writes `[0xe3f4+0x3c]` and `+0x40` | **sound slot setter B**, TALK-11 channel |
+| `0xe1050` | `TALK-11`, caller of `0xe1bd4` region | **talk sound start** |
+| `0xe17d8` | `TALK-11` | **talk sound helper** |
+| `0xe1b74` | `TALK-11` | **talk sound helper** |
+
+**Five routines reference `TALK-11`** and four of them are sound plumbing. `0xe1bd4` and `0xe1c04` load the
+address of the `TALK-11` string at `0xe3f4` and write two arguments into fields at `+0x24`/`+0x28` and
+`+0x3c`/`+0x40`. That is a per-sound configuration struct, and `0xe3368` dispatches to it with a switch over
+indices 0 to 9.
+
+`0xd3d` is the one that needed forensics rather than a string. It takes four stack arguments, sets `ah=0x66`,
+switches `fs` to segment `0x110` and calls `[fs:0x20]`, which is the TownsOS BIOS text and graphics gateway
+named in `AGENTS.md`. **A BIOS gateway wrapper, and the lowest-addressed function in the image.**
+
+**Four addresses in the original 56 were not functions at all.** `0xcfe14`, `0xd2b3b`, `0xd2ba5` and
+`0xd2e27` are zero padding containing `\nによる攻撃`. They are removed rather than named, which also
+retires the false attribution recorded in `inside-a-turn.md`.
+
 ### Already established
 
 `0xe9e0c` roster parser, `0xe1c5c` `randMod`, `0xe3d4c` `randRange`, `0xf2cc0` tile effect
@@ -139,13 +212,20 @@ they touch or not at all.
 drift has one place to fix.
 
 ```
-738  routines
- 48  named
-690  unnamed
+738  call targets
 
- 93  have at least one readable, non-0xEB string
-645  have none
+115  appear by address in this page or inside-a-turn.md
+ 93  of those have a readable string
+ 22  were named from structure instead, such as the entry points or the loop
+
+ 89  real functions have a readable string, and ALL 89 ARE NOW NAMED
+  4  of the 93 were data regions, not functions, and are recorded as such
+
+645  have no readable string and cannot be named this way
 ```
+
+Item 1a is **done**: every function with a readable string is named. Measured by scanning each function
+only as far as the next call target, then checking which of those addresses appear in the two pages above.
 
 Derived by parsing the tables on this page and in `inside-a-turn.md` against the function-start list from
 `tools/callgraph.js`. Re-derive it rather than trusting it.

@@ -71,8 +71,18 @@ function main() {
 	if (args.includes('--list') || args.includes('--todo')) {
 		// "Now" means autonomous AND not waiting on a sibling item. Reporting an item that
 		// cannot begin without 1a as startable would repeat the error this tool exists to catch.
+		// "Now" means: OPEN, autonomous, and not waiting on a sibling item.
+		//
+		// The state check was missing until item 1a was marked DONE and the tool still offered it as
+		// startable. A finished item being advertised as work is the same class of error as a stale
+		// summary row, and it is worse in this tool because the tool exists to answer "what next".
 		const rows = args.includes('--todo')
-			? items.filter((i) => /^(AUTONOMOUS|PARTLY)/.test(i.autonomy ?? '') && !i.waitsOnItem)
+			? items.filter(
+					(i) =>
+						i.state === 'OPEN' &&
+						/^(AUTONOMOUS|PARTLY)/.test(i.autonomy ?? '') &&
+						!i.waitsOnItem
+			  )
 			: items;
 		console.log('id   autonomy            state       title');
 		console.log('-'.repeat(78));
