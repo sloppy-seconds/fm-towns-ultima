@@ -268,7 +268,19 @@ fully decoded:
 The inclusive high end is the detail that would have broken any measured formula, because a
 call with `(0, strength)` yields `0..strength`, one more value than a naive reading.
 
-**Step 3 is DONE for one formula.** Documented in [stat-gain.md](stat-gain.md).
+**Step 3 is in progress.** Grouping the 83 verified sites by enclosing function reduces them
+to **35 functions to read**, not 83 sites. The largest, `0xf2ce0` with 9 sites, is read end to end
+in [shrine-function.md](shrine-function.md): it is the shrine logic, four branches keyed on a tile
+value, three granting stat increases at 4/16 or 5/10 and one granting gold.
+
+**Two caps established:** stats at 99, gold at **999** (`0x3e7`), HP at 9999 separately.
+
+**The glyph mapping is now actively costing answers.** The messages that name which stat increased
+are `EB` glyph runs at `0x66e4` onward, so the stat offsets cannot be named.
+
+Superseded detail below.
+
+**Step 3 was DONE for one formula.** Documented in [stat-gain.md](stat-gain.md).
 
 Four call sites of `0xe3d4c` and **85** of `0xe1c5c`. Following the densest cluster found
 `0xf25b4`, a complete routine:
