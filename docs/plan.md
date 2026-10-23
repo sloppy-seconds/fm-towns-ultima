@@ -44,14 +44,14 @@ from the items below rather than maintained separately.
 | item | autonomy | can an agent start it now |
 |---|---|---|
 | 1a Name the remaining routines | AUTONOMOUS | **yes** |
-| 1b Read the tick | AUTONOMOUS | **yes** |
-| 2a High bits of a map cell | AUTONOMOUS | **yes** |
-| 2b The 64-tile vocabulary | NEEDS A DECISION | choose the matching method first |
+| 1b Read the tick | BLOCKED ON INPUT | no, needs a two-state diff |
+| 2a The high bits of a map cell | AUTONOMOUS | **yes**, but see the circularity |
+| 2b Tile picture per `MAP2_*` value | AUTONOMOUS | not yet, held back by 2a |
 | 3a One savestate during play | BLOCKED ON HUMAN | no, needs keypresses |
 | 3b Which key is which command | BLOCKED ON HUMAN | no, needs keypresses |
-| 3c The `0xEB` font | CUT unless asked | no, and should not be opened |
+| 3c The `0xEB` font | BLOCKED ON INPUT | no, and should not be opened |
 | 4a The data tables | AUTONOMOUS | not yet, held back by 1a |
-| 4b Combat formulas | PARTLY AUTONOMOUS | the reading only. Verification needs a fight |
+| 4b Combat formulas | BLOCKED ON HUMAN | no, neither half closed |
 | 4c `WORLD*.UT2` layout | BLOCKED ON HUMAN | no, needs a save taken mid-game |
 | 4d `.SND` playback rate | BLOCKED ON HUMAN | no, needs the running game |
 
@@ -171,7 +171,7 @@ Testable on file data alone: 256 rows by 128 columns, file supplies rows from 1,
 
 ### 2b. Tile picture per `MAP2_*` value
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS once 2a lands
+**State:** OPEN · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -282,7 +282,7 @@ So this item needs a state taken while the OS has a font loaded, which is the sa
 
 ### 4a. The data tables
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS once Phase 1 lands
+**State:** OPEN · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|

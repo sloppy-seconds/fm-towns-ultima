@@ -127,6 +127,33 @@ function main() {
 		for (const p of problems) console.log('  ' + p);
 		process.exit(1);
 	}
+	// Cross-check the summary table at the top against the item sections below it.
+	// This is the drift that actually happened: five of eleven rows went stale as items were
+	// worked, because the section got updated and the table did not. A table that contradicts
+	// the text under it is worse than no table, since a reader trusts the summary.
+	{
+		const text = fs.readFileSync(PLAN, 'utf8');
+		const rows = [...text.matchAll(/^\|\s*([0-9][a-z])\s+([^|]+)\|([^|]+)\|/gm)].map((m) => ({
+			id: m[1],
+			autonomy: m[3].trim(),
+		}));
+		const stale = [];
+		for (const r of rows) {
+			const i = text.indexOf('### ' + r.id + '.');
+			if (i < 0) continue;
+			const j = text.indexOf('\n### ', i + 1);
+			const body = text.slice(i, j < 0 ? text.length : j);
+			const m = /\*\*Autonomy:\*\*\s*([A-Z][A-Z ]*?)\s*(?:\n|·|$)/m.exec(body);
+			const section = m ? m[1].trim() : null;
+			if (section && r.autonomy !== section) stale.push(`${r.id}: table "${r.autonomy}" vs section "${section}"`);
+		}
+		if (stale.length) {
+			console.log(`\nsummary table has ${stale.length} row(s) contradicting the item sections:`);
+			for (const x of stale) console.log('  ' + x);
+			bad++;
+		}
+	}
+
 	// Cross-check the view against the plan of record. An open question that the plan does not
 	// mention is drift in the direction nobody notices: the plan looks complete and is not.
 	const oqPath = path.join(__dirname, '..', 'docs', 'open-questions.md');
@@ -154,6 +181,10 @@ function main() {
 		}
 	}
 
+	if (bad) {
+		console.log(`\n${bad} problem(s) found.`);
+		process.exit(1);
+	}
 	console.log('\nevery item is workable.');
 }
 
