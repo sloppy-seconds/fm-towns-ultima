@@ -36,6 +36,35 @@ the executable" or "this needs a keypress":
 is real work but not discovery. The high-value open questions have moved to Track B, and Track B has
 never been attempted.
 
+## What can be worked right now
+
+Every item carries a state, an autonomy value and acceptance criteria. This table is the summary, derived
+from the items below rather than maintained separately.
+
+| item | autonomy | can an agent start it now |
+|---|---|---|
+| 1a Name the remaining routines | AUTONOMOUS | **yes** |
+| 1b Read the tick | AUTONOMOUS | **yes** |
+| 2a High bits of a map cell | AUTONOMOUS | **yes** |
+| 2b The 64-tile vocabulary | NEEDS A DECISION | choose the matching method first |
+| 3a One savestate during play | BLOCKED ON HUMAN | no, needs keypresses |
+| 3b Which key is which command | BLOCKED ON HUMAN | no, needs keypresses |
+| 3c The `0xEB` font | CUT unless asked | no, and should not be opened |
+| 4a The data tables | AUTONOMOUS | not yet, held back by 1a |
+| 4b Combat formulas | PARTLY AUTONOMOUS | the reading only. Verification needs a fight |
+
+**Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
+writing it reports four items startable now: 1a, 1b, 2a and 4b, with 4a held back because it depends on
+1a. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
+had to be assembled by reading nine paragraphs and hoping the prose was current.
+
+The tool is authoritative and this prose is not, because the tool re-reads the items every time and the
+prose does not.
+
+**Four of nine items need a person, and that is a fact about the project rather than a failure.** Track B
+has never run because keypresses must be explicitly requested, not because anything is missing. The
+prerequisite table in Phase 3 shows every other piece is in place.
+
 ## Phase 1: finish the readable skeleton (Track A)
 
 Cheap, mechanical, no blockers. Do this first because it removes the last excuse for not going to the
@@ -43,15 +72,30 @@ emulator.
 
 ### 1a. Name the remaining routines by string reference
 
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous, no human input needed |
+| done when | `call-graph.md` names every routine with at least one readable string reference, and states how many have none |
+| blocked by | nothing |
+
 **The named-routine count is owned by [call-graph.md](call-graph.md).** Re-derive it there rather than
 quoting a number from here. `tools/fnstrings.js --top N` ranks candidates by string count and the technique
 takes seconds per routine. Most of the remaining 700 are glue with no strings and can be skipped
 honestly rather than named by guess.
 
-**Done when** `docs/call-graph.md` names every routine that has at least one readable string reference,
-and states the count of routines with none.
+
 
 ### 1b. Read the tick
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous, no human input needed |
+| done when | `inside-a-tick.md` names each timer, its interval and its effect, or records that it could not be determined statically |
+| blocked by | nothing |
 
 `inside-a-turn.md` covers what happens when the player acts. **What advances between actions is not
 covered:** food per move, torch burn-down, monster repopulation, day and night, shop restock, spawn
@@ -61,28 +105,41 @@ A turn is now a known unit, so a tick is describable as "what `0xf6ebc` does tha
 checkable against the loop directly. Start from `0xf6ebc`'s callees that are **not** in the key dispatch
 path, then the 33 unread `randMod` functions with the turn as a frame.
 
-**Done when** `docs/inside-a-tick.md` names each timer, its interval, and its effect, or records that it
-could not be determined statically.
+
 
 ## Phase 2: the map, which is the last file-side unknown
 
 ### 2a. The high bits of a map cell
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous, testable on file data alone |
+| done when | the nibble meaning is established, or the neighbour-correlation tests are recorded negative with measurements |
+| blocked by | nothing |
 
 `v & 3` is terrain, established against a shuffle control. **The upper nibble has the largest
 gain-over-shuffle of any field tested (+54pp)** and nobody knows what it carries.
 
 Testable on file data alone: 256 rows by 128 columns, file supplies rows from 1,536.
 
-**Done when** the nibble's meaning is established, or the specific neighbour-correlation tests are
-recorded negative with their measurements.
+
 
 ### 2b. The 64-tile vocabulary
+
+**State:** OPEN · **Autonomy:** NEEDS A DECISION
+
+| field | value |
+|---|---|
+| autonomy | work can proceed, but the matching method must be chosen first |
+| done when | a page maps tile value to picture, or names which cannot be resolved without runtime comparison |
+| blocked by | a choice between automatic matching against a rendered map and manual identification |
 
 `MAP2_*` uses 64 tile values. Which tile each name maps to is open, and it is extraction rather than
 inference: the tiles render, so they can be matched against a rendered map.
 
-**Done when** a page lists tile value to picture, or says which ones cannot be resolved without runtime
-comparison.
+
 
 ## Phase 3: go to the emulator (Track B)
 
@@ -104,6 +161,14 @@ needs a human in the loop, which is exactly why it has not happened.
 
 ### 3a. One savestate during play
 
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | blocked, needs a person at the emulator |
+| done when | a state is captured, `statefind.js` and `mirror.js` run against it, and the segment registers, RNG seed, object record size and world contents are recorded |
+| blocked by | a human starting a character and walking a few steps. Every keypress must be explicitly requested |
+
 Not a menu. Start a character, walk a few steps, save state.
 
 **This single artefact answers four open questions at once:**
@@ -115,17 +180,32 @@ Not a menu. Start a character, walk a few steps, save state.
 - the **world file contents**, because a played world is not blank and the current save has nobody who
   has entered the world
 
-**Done when** a state is captured, `tools/statefind.js` and `tools/mirror.js` run against it, and the
-answers to those four are recorded.
+
 
 ### 3b. Which key is which command
+
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | blocked, needs keypresses |
+| done when | `command-dispatch.md` maps each key code to a command |
+| blocked by | a human pressing keys one at a time, with each press requested rather than decided |
 
 Press a key, see which handler runs. The dispatch table is known (ten entries, index is key minus one,
 `0xd460c` holds the key), so this is a mapping exercise rather than a search.
 
-**Done when** `docs/command-dispatch.md` maps key to command.
+
 
 ### 3c. The `0xEB` font, if it is wanted
+
+**State:** CUT unless asked for · **Autonomy:** BLOCKED ON INPUT
+
+| field | value |
+|---|---|
+| autonomy | needs an artefact that does not exist |
+| done when | not defined, because the item is cut by default. See `eb-renderer.md` for why it is not needed |
+| blocked by | a savestate plus the TownsOS font. Reopening needs a reason, not a method |
 
 The renderer hands bytes to TownsOS. If the OS keeps glyphs in RAM, they are in the savestate and can be
 read out.
@@ -137,17 +217,33 @@ this. Do it only if the font shapes matter for their own sake.
 
 ### 4a. The data tables
 
+**State:** OPEN · **Autonomy:** AUTONOMOUS once Phase 1 lands
+
+| field | value |
+|---|---|
+| autonomy | autonomous, but depends on 1a naming the routines that index each table |
+| done when | each table named in a routine has a page with its record layout |
+| blocked by | nothing directly, but the order matters: 1a first |
+
 Monster stats, item properties, spell effects, shop inventories, town layouts. These are extraction work
 and they are tractable once the routines that index them are named, which is what Phase 1 buys.
 
-**Done when** each table named in a routine has a page with its record layout.
+
 
 ### 4b. Combat formulas, stated as arithmetic
+
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | the reading is autonomous, the verification is not |
+| done when | to-hit and damage are stated exactly and marked read-versus-verified |
+| blocked by | verification needs a controlled fight, so this closes in two halves |
 
 The RNG is understood and the record layout is known, so the formulas are readable. They cannot be
 *verified* without a fight, which is why this sits after Phase 3.
 
-**Done when** to-hit and damage are stated exactly, and marked read-versus-verified.
+
 
 ## What is closed and should not be reopened
 

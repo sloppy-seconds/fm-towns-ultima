@@ -1,166 +1,265 @@
-# How this project's plan is maintained
+# How this project plans and works the plan
 
-The plan drifted three times in one session, and each time the mistake was the same shape: a number or a
-claim written correctly, then invalidated by the next commit, with nothing forcing the older text to be
-revisited. This page defines what a good plan looks like here, the vocabulary for item state, and the
-mechanical checks that catch drift.
+One document covering how the plan is written, what each item must carry, how it is maintained, and why it
+is one file rather than many. It exists because "keep the docs up to date" is not an instruction an agent
+can follow. This is.
 
-It exists because "keep the docs up to date" is not an instruction an agent can follow. This is.
+The plan drifted three times in one session before this existed. Each time the mistake was the same shape: a
+number or a claim written correctly, then invalidated by the next commit, with nothing forcing the older
+text to be revisited.
 
-## What a good plan looks like
+## Part 1: what a good plan looks like
 
-A plan is not a list. A list says what is unfinished. A plan has four properties:
+A plan is not a list. A list says what is unfinished. A plan has four properties.
 
 **1. Sequenced.** Every item has a position relative to the others, and the ordering has a stated reason.
-"The map is last because it is the last file-side unknown" is a reason. Nine items in a bullet list is not
-a plan.
+"The map is last because it is the last file-side unknown" is a reason. Nine items in a bullet list is not a
+plan.
 
-**2. Each item has a stopping rule.** Not a description of the work, a statement of when it is *finished*.
-"Done when `docs/inside-a-tick.md` names each timer, its interval and its effect, or records that it could
-not be determined statically" is a stopping rule. "Read the tick" is not.
+**2. Every item is workable.** See Part 3. An item with no state, no autonomy value and no acceptance
+criteria cannot be picked up without reading its whole prose.
 
-**3. Numbers are derivable, not asserted.** Any count in the plan must be reproducible by a command. The
-named-routine count is derived by parsing the tables in `call-graph.md` and `inside-a-turn.md` against the
-function-start list. If a number cannot be re-derived, it does not belong in the plan.
+**3. Numbers are derivable, not asserted.** Any count must be reproducible by a command, and owned by one
+page. The named-routine count lives in `call-graph.md`. If a number cannot be re-derived, it does not belong
+in the plan.
 
-**4. It has a closed list.** A plan that only lists what is open invites reopening settled questions. This
+**4. It has a closed list.** A plan that only lists what is open invites reopening settled questions. The
 plan carries an explicit table of closed items with the reason each is closed, so reopening one requires a
 new method rather than a new attempt.
 
-## The four states an item can be in
+## Part 2: one file, and the measurements behind that
 
-Every item uses exactly one of these words, in a bolded line at the top of its section. No synonyms, no
-prose substitutes. The vocabulary is small on purpose.
+The question is whether to keep one `plan.md`, one file per workstream, or one file per item with
+frontmatter like local GitHub issues. The answer is **one file**, and the reason is measured rather than a
+preference.
 
-| state | meaning | what it obliges |
+### The measurements
+
+| measurement | value | implication |
+|---|---|---|
+| items under `###` headings in `plan.md` | **9** | a file-per-item scheme solves a scale problem this project does not have |
+| commits in the last 60 touching a planning doc | **29 of 60** | planning changes constantly |
+| of those, commits touching **only** planning | **6 of 60** | bookkeeping is 10 percent |
+| commits touching a subject page | 53 of 60 | findings and planning move together |
+| correction-style vs discovery-style commits | **30 vs 35** | nearly half the work is revision |
+
+Two are decisive. **Nine items** is not a scale problem. And **29 of 60 commits touch a planning doc while
+only 6 touch planning and nothing else**, which means planning text changes *in the same commit* as the
+finding that invalidates it. Any scheme separating an item from the page recording its result forces two
+edits in two places, and this project has already proved it cannot keep two places in sync: the
+named-routine count drifted three times in one session.
+
+**Half the commits are corrections**, so a structure optimised for appending to a backlog is optimised for
+the wrong activity.
+
+### Why not one file per workstream
+
+The workstreams already are the documentation. `plan-track-a.md` would duplicate the opening of
+`call-graph.md`, and `AGENTS.md` already warns that duplicated facts drift apart. Adding a second layer of
+the same facts multiplies the problem.
+
+The one split worth having already exists: `overnight.md` holds the subset that needs no human, because
+that is a different consumer with a different constraint.
+
+### Why not one file per item with frontmatter
+
+Attractive on paper, and it breaks the two things that work.
+
+**It splits every item from its evidence.** An item is not a unit of text. `0xf29f0` being the chest
+opening is a finding in `inside-a-turn.md` *and* the reason a combat item is unblocked. A file per item
+either duplicates the finding or links to it, and links rot here: the count drifted three times.
+
+**Frontmatter is a second source of truth for state.** The moment `status: done` in a file disagrees with a
+sentence in `plan.md`, there are two answers and no rule for which wins.
+
+**It has no good place for the most valuable content here:** "this finding was wrong, here is why, and the
+next attempt needs a different method". That lives in prose on subject pages, with correction banners.
+
+A local issue tracker also buys less than it looks:
+
+| benefit | already have it |
+|---|---|
+| per-item history | **`git log` on the subject page, better than a comment thread** |
+| discussion | **`NEEDS A DECISION` items carrying options and costs** |
+| linking work to a result | **same-commit edits** |
+| stable IDs | nothing has needed one in 129 commits |
+
+The one genuine gap is stable IDs. "plan.md item 3a" is stable enough.
+
+### The trigger to revisit this
+
+Split only when one of these is true, and check rather than guess:
+
+1. **`plan.md` passes about 40 open items**, or its per-item metadata exceeds roughly five lines each so
+   scanning the order of work stops being possible. Count with `node tools/plancheck.js`. Then split by
+   phase, not by item.
+2. **Two items keep disagreeing about the same finding.** That is the signal the finding needs a page and
+   both items should link to it, which is a `docs/` problem rather than a planning-structure problem.
+
+**Line count is the wrong trigger and was measured to be wrong.** An earlier version of this page said
+"about 250 lines". Adding per-item autonomy and acceptance metadata took `plan.md` to 286 lines without
+adding a single item, so the threshold fired while its own condition did not. Item count is the signal,
+line count is noise.
+
+## Part 3: every item carries three pieces of metadata
+
+State alone is not enough to work an item. Three fields, always present, always in the same order:
+
+```markdown
+### 3b. Which key is which command
+
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | blocked, needs keypresses |
+| done when | `command-dispatch.md` maps each key code to a command |
+| blocked by | a human pressing keys one at a time |
+```
+
+`node tools/plancheck.js` verifies all three are present and that the vocabulary is respected. It exits
+non-zero if an item is incomplete, so it can gate a commit.
+
+### State: four values, no synonyms
+
+| state | meaning | obliges |
 |---|---|---|
 | **OPEN** | not started, or in progress | nothing beyond its stopping rule |
-| **DONE** | finished and recorded | link the page that records it |
+| **DONE** | finished and recorded | a page recording the result, an assertion in `tools/verify.js` where assertable, and a line saying what is now known |
 | **CUT** | deliberately not doing it | state why, so it is not re-proposed |
-| **NEEDS A DECISION** | cannot proceed without a human choosing | state the options and what each costs |
+| **NEEDS A DECISION** | cannot proceed without a human choosing | the options and what each costs |
 
-**`DONE` is not enough on its own.** A done item has three parts, and missing any of them is how drift
-starts:
+### Autonomy: can an agent do this alone?
 
-1. a page or a tool that records the result
-2. an assertion in `tools/verify.js` if the result is assertable
-3. a line in the plan saying what is now known, not merely that work happened
+| value | meaning | obliges |
+|---|---|---|
+| **AUTONOMOUS** | an agent can finish it start to finish | nothing |
+| **PARTLY AUTONOMOUS** | the reading can be done alone, the verification cannot | say which half closes how |
+| **NEEDS A DECISION** | work can proceed, but one choice must be made first | name the options and their costs |
+| **BLOCKED ON HUMAN** | cannot start without a person acting | name exactly what the person must do |
+| **BLOCKED ON INPUT** | needs an artefact that does not exist yet | name who produces it and how |
 
-**`NEEDS A DECISION` is the state this project has been missing.** Several items sat for sessions described
-as "untouched" when they were really waiting on a choice nobody had framed. Writing them as decisions with
-options converts a vague block into something that can be answered in one message.
+**Why this field matters more than state.** `plan.md` had nine items, eight with a stated "done when", and
+**one** saying whether an agent could attempt it. A queue with no autonomy field cannot be picked up: an
+agent has to read every item's prose to discover which need a human, which is the reading the field saves.
 
-## One plan file, and why
+**`BLOCKED ON HUMAN` is not a failure state.** Four of nine items need a person, and saying so plainly is
+what makes the other five actionable. The alternative, used until this existed, was one paragraph saying
+"Track B needs a human", which buried the fact that Phase 1 and most of Phase 2 do not.
 
-[plan-structure.md](plan-structure.md) answers this with measurements rather than preference. The short
-version: **keep one `plan.md`**, split it only when a trigger fires, and the trigger is measurable.
+**An AUTONOMOUS item can still be held back by ordering.** Item 4a is autonomous but depends on 1a, so it
+is not startable now. The tool accounts for that; prose does not.
 
-The rule that makes one file work:
+### Done when: acceptance criteria, not a description of the work
 
-**A finding and an item are different things and must not share storage.**
+A stopping rule must be checkable **by someone who did not do the work**. Three tests:
 
-- A **finding** is a measured fact. It lives in a subject page under `docs/` with its evidence, and in
-  `tools/verify.js` where assertable.
-- An **item** is a unit of remaining work. It lives in `plan.md` with a state and a stopping rule, and
-  **links to** findings rather than restating them.
+1. **It names an artefact.** A page, a table, a tool, an assertion. Not "understand X".
+2. **It states the failure case.** Most items here finish equally well as a recorded negative, and an item
+   whose only success condition is a positive finding will be worked past its value.
+3. **It is falsifiable.** If no observation could show it unmet, it is not acceptance criteria.
 
-A per-item file with frontmatter conflates the two, and this project has measured that the conflation is
-where the drift comes from: nine of the last sixty commits touch a planning doc and nothing else, while
-twenty-nine touch a planning doc and a subject page together.
+| weak | strong |
+|---|---|
+| "read the tick" | "names each timer, its interval and its effect, or records that it could not be determined statically" |
+| "understand the map" | "the nibble's meaning is established, or the neighbour-correlation tests are recorded negative with measurements" |
+| "investigate combat" | "to-hit and damage stated exactly, and marked read-versus-verified" |
 
-## The three documents that go stale, and what each is for
+Where a number is the criterion, the number must be derivable. "All 90 fields present" is checkable. "Most
+routines named" is not.
 
-The project has three planning documents and confusing their jobs is what caused most of the drift.
+## Part 4: the three documents, and what each is for
+
+Confusing their jobs is what caused most of the drift.
 
 | document | job | changes when |
 |---|---|---|
-| `plan.md` | sequenced phases, stopping rules, closed list | the order of work changes, or an item changes state |
+| `plan.md` | the plan of record: phases, items, states, autonomy, acceptance, closed list | the order of work changes, or an item changes state |
 | `open-questions.md` | the unknown, with what would resolve it | an answer is found or a question is retired |
 | `overnight.md` | the subset that needs no human, as a queue | Track A work is queued or completed |
 
 **`plan.md` is the plan of record.** The other two are views of it. If `plan.md` and `open-questions.md`
-disagree, **`plan.md` wins and `open-questions.md` is the bug.**
+disagree, **`plan.md` wins and the other is the bug.**
 
-### What must never appear in more than one of them
+**What must never appear in more than one of them: counts, phase names, and item states.** A count lives in
+one place and the others link to it.
 
-The specific duplication that has already caused three errors: **counts, phase names, and item states.**
-A count lives in one place and the others link to it. The named-routine count lives in `call-graph.md` and
-everywhere else quotes a link, not a number.
+**Findings and items are different things and must not share storage.** A finding is a measured fact and
+lives in a subject page with its evidence and a `verify.js` assertion. An item is a unit of remaining work
+and lives in `plan.md`, linking to findings rather than restating them. A per-item store conflates the two,
+which is why this project does not use one.
 
-## The sync rule, extending what `AGENTS.md` already says
+## Part 5: the sync rule
 
 `AGENTS.md` has a table for the four public documents. This extends it to the planning documents.
 
 | changed | update |
 |---|---|
-| an item's state | `plan.md`, then whichever of `open-questions.md` / `overnight.md` listed it |
+| an item's state or autonomy | `plan.md`, then whichever of `open-questions.md` / `overnight.md` listed it |
 | any count | the one page that owns it, then grep for the old number |
-| a finding that closes a question | `plan.md` closed list, and the question's page |
+| a finding that closes a question | the closed list in `plan.md`, and the question's own page |
 | a finding that a page contradicts | the page, with a correction banner, not a silent rewrite |
 | a new page | `mkdocs.yml` nav, and `docs/index.md` if it is a headline result |
 
-## Correction banners, and why they are not optional
+## Part 6: correction banners are not optional
 
-This project keeps its wrong answers visible. A claim that was made and then disproved gets a banner
-saying what was claimed, what is true, and how the error happened. Deleting it loses the most useful
-information on the page, which is the shape of the mistake.
-
-The established form:
+This project keeps its wrong answers visible. A disproved claim gets a banner saying what was claimed, what
+is true, and how the error happened. Deleting it loses the most useful information on the page, which is the
+shape of the mistake.
 
 ```markdown
 > **CORRECTION: one line naming what was wrong.** What is true instead, with a link to the page that
 > establishes it. One sentence on why the error looked convincing.
 ```
 
-Three pages already carry these: `command-dispatch.md`, `eb-encoding.md`, `shrine-function.md`.
+**A banner on top is not a correction.** Twice a banner was added while the paragraph it retracted still
+read as fact underneath. **The body must be edited too.** A banner explains the past, the body states the
+present.
 
-**A banner on top is not a correction.** Twice this session a banner was added while the paragraph it
-retracted still read as fact underneath. **The body must be edited too.** A banner explains the past, the
-body must state the present.
+## Part 7: the mechanical checks
 
-## The mechanical checks
-
-Running these before each commit is the whole maintenance process. They take seconds.
+Run these before each commit. They take seconds.
 
 ```bash
 # A. every page is in the nav
 for f in docs/*.md; do b=$(basename "$f"); grep -q "$b" mkdocs.yml || echo "NOT IN NAV: $b"; done
 
-# B. no em-dashes or prose semicolons (style rule)
-grep -rn '—' docs/*.md | grep -v '^Binary' || true
+# B. no prose em-dashes or semicolons (style rule)
+grep -rn '—' docs/*.md || true
 
-# C. a claim asserted in two places with different numbers
+# C. a count asserted in two places with different numbers
 grep -rno '[0-9]\+ of 738' docs/*.md
 
-# D. the site builds strict
+# D. every plan item is workable
+node tools/plancheck.js
+
+# E. the site builds strict
 /var/tmp/mkvenv/bin/mkdocs build --strict 2>&1 | grep -E 'WARNING|ERROR'
 
-# E. established facts still hold
+# F. established facts still hold
 node tools/verify.js
 ```
 
-**Check C is the one that catches this project's characteristic failure.** Every drift incident so far has
-been a count written in two places and updated in one.
+**Check C catches this project's characteristic failure.** Every drift incident has been a count written in
+two places and updated in one. **Check D catches the other one:** an item written without the metadata that
+makes it workable.
 
-## The review question, asked after every session
-
-One question, and it is the one that keeps being skipped:
+## Part 8: the review question, asked after every session
 
 **"What did this session make false?"**
 
-Not "what did I learn" and not "what did I finish". Working forwards from new findings to their
-consequences is how a session closes cleanly. The three stale counts found this session were all falsified
-by work done in that same session.
+Not "what did I learn" and not "what did I finish". Every count that drifted here was invalidated by work
+done in the same session that wrote it. Working forwards from a new finding to its consequences is how a
+session closes cleanly.
 
 ## What this process deliberately does not do
 
 - **No dates and no estimates.** They would be invented, and an invented date is worse than no date.
-- **No percentages of completion.** "38 of 738 routines named" is a count. "5 percent done" is a fiction,
-  because routines are not equal weight.
+- **No percentages of completion.** A count is fine. "5 percent done" is a fiction, because routines are
+  not equal weight.
 - **No ticket IDs.** The documents are the tracker. A second tracker would drift from the first, which is
   the problem this page exists to solve.
-- **No ceremony for small findings.** A measurement with a page is recorded. Not every probe needs a plan
-  entry.
+- **No ceremony for small findings.** A measurement with a page is recorded. Not every probe needs an item.
 
 ---
 

@@ -1,31 +1,34 @@
 # Overnight queue
 
-**STATUS: the first six items are worked and marked below.** This page is both the record of that queue
-and the live queue for Track A work. [plan.md](plan.md) is the plan of record, sequenced by phase.
-Items here are the subset that needs no human.
+The subset of plan work that needs no human present, as items in the project's item format. `docs/plan.md`
+is the plan of record and this page is a view of it. See `docs/plan-process.md` for the vocabulary.
 
-**Track B is not in this queue and never will be** because it needs keypresses, and every keypress has
-to be explicitly requested. That is why [plan.md](plan.md) Phase 3 is the phase that has never run.
+**Which items an agent can start right now is answered by `node tools/plancheck.js --todo`, not by reading
+this page.** That tool reads `plan.md`, which is authoritative.
 
-Work that needs nobody watching. Every item here needs no emulator, no keypress and no decision from a
-human, and each ends in either a committed page or a recorded negative with its measurement.
-
-**This queue was rewritten when the goal was corrected.** The end goal is reimplementation, so the
-order is now the skeleton first and extraction second. The previous version put 33 `randMod` functions
-at the top, which was wrong: knowing what a routine rolls is worth little until you know which routine
-drives a turn.
+Track B is not in this queue and never will be: it needs keypresses, and every keypress has to be explicitly
+requested. That is why [plan.md](plan.md) Phase 3 has never run.
 
 ## Rules for unattended work
 
-1. **Commit and push after every completed item.** An uncommitted result the next session cannot find
-   is a lost result.
-2. **`node tools/verify.js` must pass before each commit.** 107 checks, seconds.
+1. **Commit and push after every completed item.** An uncommitted result the next session cannot find is a
+   lost result.
+2. **`node tools/verify.js` must pass before each commit.** 122 checks, seconds.
 3. **Never invent a value to make a table look complete.** Write `unknown` and say what would name it.
 4. **A negative is a finished item.** Record the measurement and move on. No cosmetic retries.
 5. **If an item is blocked, stop it and write why.** Do not substitute an easier question.
 6. **No emulator, no container, no keypress.**
 
 ## Item 0: before starting
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous |
+| done when | the extraction snippet runs and the image is not committed |
+| blocked by | nothing |
+
 
 `ENCHANT.EXP` is not in the repo and must never be committed. Extract it per-command and delete it
 before committing:
@@ -40,6 +43,15 @@ The image has the `0x20` header stripped, so **an offset in it is a virtual addr
 ---
 
 ## Item 1: name the top-level routines
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous |
+| done when | `call-graph.md` names every routine with a readable string reference |
+| blocked by | nothing |
+
 
 **DONE.** 38 routines named at the time of writing, and the game loop was found while doing item 2. See
 [call-graph.md](call-graph.md) and [inside-a-turn.md](inside-a-turn.md). The count is derivable by
@@ -77,11 +89,18 @@ data, and prints them. **Build it, commit it, then use it.**
 (31 callees), `0xf0c60` (26), `0xfe4a8` (26), `0xed7f0` (24), `0xe97c0` (23), `0xee770` (21),
 `0xf4b24` (21), `0xfb08c` (21), `0xfa928` (20).
 
-**Done when** `docs/call-graph.md` holds a named skeleton: entry points, the location dispatcher, and
-enough of the 30 to say which subsystem each belongs to (movement, combat, town, dungeon, inventory,
-character creation, saving, rendering, sound).
+
 
 ## Item 2: the game loop
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous |
+| done when | the turn driver is identified and its loop is stated |
+| blocked by | nothing |
+
 
 **DONE.** It is three instructions at `0xe97c0`: set the running flag to `-1`, `call 0xf6ebc`, `jnz`
 back while the flag is non-zero. See [game-loop.md](game-loop.md).
@@ -95,14 +114,23 @@ is a hub, expand it. **Found: `0xe97c0`, three instructions. See [game-loop.md](
 **Record** the order of operations in a turn as far as the code shows it. That ordering is directly
 useful to a reimplementation.
 
-**Done when** `call-graph.md` has a section on the loop, or a recorded negative naming what could not
-be resolved and why.
+
 
 ## Item 3: identify the data tables the skeleton references
 
-**PARTLY DONE.** The command dispatcher and its ten-entry table were found. The second dispatcher's
-`cs:`-relative table still resolves to code, a second independent case of the same problem. See
-[command-dispatch.md](command-dispatch.md).
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | partly autonomous |
+| done when | each named routine's data references are recorded, and any table that can be laid out is |
+| blocked by | the second-level dispatch table, which needs the segment registers |
+
+
+**PARTLY DONE.** The command dispatcher and its ten-entry table were found and are real.
+The second dispatcher's `cs:`-relative table still resolves to code, and that is **one** unexplained case
+rather than two: a savestate showed the first table holds valid handlers. See
+[jump-tables.md](jump-tables.md).
 
 Reading the named routines will surface `mov reg,[disp32]` and `push imm32` references into data
 regions. Those are the monster table, item table, spell table, town table, shop tables.
@@ -110,10 +138,18 @@ regions. Those are the monster table, item table, spell table, town table, shop 
 **This is extraction work and it is the highest-value extraction left**, because a reimplementation
 needs these tables and does not need any more artwork.
 
-**Done when** each named routine's data references are recorded with the region they point at, and any
-table that can be laid out is laid out in a page.
+
 
 ## Item 4: `WORLD*.UT2` format
+
+**State:** DONE · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | blocked on human |
+| done when | the layout of a populated world file is stated |
+| blocked by | a save where a character has entered the world |
+
 
 **DONE, as a negative.** The save cannot answer it: all four characters are at `MAP=0`, `WORLD=0`, so
 there is no populated world in the file. Also fixed a wrong `WORLD_FILL_LEN` in our own tooling. See
@@ -151,9 +187,18 @@ free-space fill leaking into file content, and that is now fixed.
 **Open:** whether `30..34` indexes five things, whether rows 2 and 3 are `mask << n` rotations, and what
 reads a constant `2`.
 
-**Done when** `world-format.md` has a measured layout or a recorded negative.
+
 
 ## Item 5: assert the new findings in `verify.js`
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous |
+| done when | `verify.js` covers the new findings and passes |
+| blocked by | nothing |
+
 
 **DONE.** `verify.js` went from 107 checks to 122. Getting there found a bug in `tools/ebcorpus.js`,
 which was rejecting `0xEB` as a trail byte.
@@ -166,9 +211,18 @@ The reproducibility contract is missing recent results. All of these are cleanly
 - **Call graph**: 738 starts, 2,476 edges, exactly 2 routines with no caller.
 - **`0xf6ebc` is the location dispatcher**: its string references include the town names.
 
-**Done when** `verify.js` covers these and still passes. Do this early, it protects the rest.
+
 
 ## Item 6: docs drift sweep
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous |
+| done when | no page contradicts `record-layout.md` or `reimplementation-gap.md` |
+| blocked by | nothing |
+
 
 **DONE.** Corrected `shrine-function.md`, which still carried the wrong diagnosis that the glyph mapping
 blocked naming the fields. Checked `roster-reference.md` and found it was never stale.
@@ -184,7 +238,7 @@ blocked naming the fields. Checked `roster-reference.md` and found it was never 
 
 Grep and fix, linking to the correcting page. Annotate, do not delete history.
 
-**Done when** no page contradicts `record-layout.md` or `reimplementation-gap.md`.
+
 
 ## Lower priority now
 

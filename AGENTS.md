@@ -80,28 +80,42 @@ When something changes, ask which of these carry it:
 | any count | the one page that owns it, then grep for the old number |
 | a finding that closes a question | the closed list in `docs/plan.md`, and the question's own page |
 
-### Planning documents have defined jobs
+### How to plan, and how to work the plan
 
-Three documents carry the plan and confusing their jobs is what causes drift. **`docs/plan.md` is the
-plan of record.** `docs/open-questions.md` and `docs/overnight.md` are views of it. If they disagree,
-`plan.md` wins and the other is the bug.
+Full process, with the measurements behind each rule: **`docs/plan-process.md`**. The short version:
 
-Item state uses exactly four words, bolded at the top of the item: **OPEN**, **DONE**, **CUT**,
-**NEEDS A DECISION**. No synonyms. `DONE` obliges a page that records the result, an assertion in
-`tools/verify.js` where assertable, and a line saying what is now known. `NEEDS A DECISION` names the
-options and what each costs, because several items sat for sessions described as "untouched" when they
-were really waiting on a choice nobody had framed.
+**Three documents with defined jobs.** `docs/plan.md` is the plan of record. `docs/open-questions.md` and
+`docs/overnight.md` are views of it. If they disagree, `plan.md` wins and the other is the bug.
 
-**A finding and an item are different things.** A finding is a measured fact and lives in a subject page
-with evidence and a `verify.js` assertion. An item is a unit of remaining work and lives in `plan.md` with
-a state and a stopping rule, linking to findings rather than restating them. Keeping those separate is
-what makes a single plan file work. Reasoning and measurements: `docs/plan-structure.md`.
+**Every item carries three fields.** No exceptions, and `node tools/plancheck.js` enforces it.
+
+| field | values |
+|---|---|
+| State | `OPEN`, `DONE`, `CUT`, `NEEDS A DECISION`. No synonyms |
+| Autonomy | `AUTONOMOUS`, `PARTLY AUTONOMOUS`, `NEEDS A DECISION`, `BLOCKED ON HUMAN`, `BLOCKED ON INPUT` |
+| Done when | a checkable artefact, plus the failure case |
+
+**Autonomy is not optional and it is not obvious.** It says whether an agent can do the item alone.
+Without it, picking up work means reading nine paragraphs to find out which ones need a person, which is
+exactly the reading the field exists to save. `BLOCKED ON HUMAN` is not a failure, it is a fact worth
+stating.
+
+**Acceptance criteria name an artefact and state the failure case.** "Read the tick" is not criteria.
+"Names each timer, its interval and its effect, or records that it could not be determined statically" is.
+Most items here finish just as well as a recorded negative.
+
+**`DONE` obliges three things:** a page recording the result, an assertion in `tools/verify.js` where
+assertable, and a line saying what is now known rather than merely that work happened.
+
+**A finding and an item are different things.** A finding is a measured fact in a subject page with
+evidence. An item is a unit of remaining work in `plan.md`, linking to findings rather than restating them.
+That separation is what makes a single plan file work.
+
+**Before each commit**, run the checks in `docs/plan-process.md` Part 7. The two that catch this project's
+characteristic failures are a count written in two places, and an item written without its metadata.
 
 **After every session, ask "what did this session make false?"** Every count that drifted here was
-invalidated by work done in the same session that wrote it. Working forwards from a new finding to its
-consequences is how a session closes cleanly.
-
-Full process, including the five mechanical checks to run before committing: `docs/plan-process.md`.
+invalidated by work done in the same session that wrote it.
 
 Currently duplicated and easy to let drift: the archive.org link, the editor and
 docs URLs, the scope paragraph, and the untested-platform caveat. If you touch

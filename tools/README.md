@@ -29,6 +29,8 @@ directory, so run them from the repo root.
 | `msgcallers.js` | Walks back from every call to the text renderer to find where the string pointer comes from. Found 123 literal string call sites. `--target` picks a different function, `--literals` and `--all` list them. |
 | `cfgwalk.js` | Control-flow walk from CALL targets, following jmp/jcc targets and fall-through, with gap recovery after alignment padding. `--check addr` answers whether an address is a real instruction boundary in about 2 seconds. Records the 144 indirect branches it cannot follow. |
 | `fieldmap.js` | Derives the in-memory character record layout from the roster format string. `--check` verifies three anchors agree on one base; `--resolve 0x..` names any address. Record base `0xcde54`. |
+| `plancheck.js` | Verifies every item in `docs/plan.md` carries a valid State, Autonomy, done-when and blocked-by. Exits non-zero if not. `--todo` lists items an agent could start now. |
+| `planmigrate.js` | Reports planning docs that are not in the item format. Does not rewrite, so the conversion stays a judgement call. |
 | `callgraph.js` | Builds caller to callee edges from every `E8` call site. Reports fan-in, fan-out, roots and reachability. 738 starts, 2,476 edges, 2 routines with no caller. |
 | `fnstrings.js` | Prints the strings a function references, which is how a routine gets named. `--top N` ranks routines by string count. |
 | `worldfmt.js` | Reports the `WORLD*.UT2` save layout: 128-byte rows, 24 dwords each, 6 rows of data then 67,328 bytes of zero. `--bits`, `--compare`, `--size`. |

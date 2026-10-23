@@ -52,8 +52,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Plan: plan.md
-  - How the plan is maintained: plan-process.md
-  - One plan file or many: plan-structure.md
+  - How this project plans: plan-process.md
   - Quickstart: quickstart.md
   - Getting set up: setup.md
   - Playing:
