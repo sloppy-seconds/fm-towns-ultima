@@ -25,7 +25,20 @@ Everything still blocked is blocked on Track B, or on the addressing limit docum
 
 ## Track A: status
 
-### A1. Read the remaining top-called functions: DONE
+### A1. Read the remaining top-called functions: FORMERLY MISLABELLED DONE
+
+**This was marked DONE after ten functions. There are 247 targets called three or more times,
+so ten is four percent.** The stopping rule was wrong. Sixteen have now been read, in
+[more-routines.md](more-routines.md), which is still six percent.
+
+**The most valuable find was the random number generator at `0x101a40`**, an LCG with
+constants `0x41c64e6d` and `0x3039`, state at `0xdfc78`, output 15 bits from the high word.
+That is the single most useful thing for the combat-formula problem, because every random roll
+in the game is now exactly evaluable.
+
+The rest of the original entry follows.
+
+<details><summary>Original text</summary>
 
 Documented in [core-routines.md](core-routines.md).
 
@@ -41,6 +54,8 @@ Three leads came out and one closed:
 - `0xe41d0` is integer-to-string with space padding.
 - `0xe4238` is a per-character switch over `0x20`-`0x5A`, whose **jump table at `0xe4086`
   does not resolve**. Open, recorded rather than guessed at.
+
+</details>
 
 ### A2. Finish the 57-byte record: DONE
 
@@ -221,6 +236,42 @@ accept the position, since the asset inventory is already proved complete by oth
 
 Recorded as the third work item this question has consumed with a negative result, which is a
 reason to stop rather than a reason to try harder.
+
+### A11. Use the RNG to make combat formulas testable
+
+**Why:** the generator at `0x101a40` is identified exactly. Every random roll in the game is
+now computable given the state at `0xdfc78`. That removes the main reason combat formulas have
+been unmeasurable.
+
+**What:**
+1. Read the seed at `0xdfc78` from both savestates and confirm it differs, which would show it
+   is seeded from something variable rather than a constant.
+2. Find the callers of `0x101a40` and see which formulas consume its output and how they
+   scale it. `0x101a40` returns 0 to 32767, so a caller wanting 0 to N-1 must divide or mask.
+3. With the divisors known, evaluate the formulas exactly and compare against a save file with
+   known stats, which is Track A because `saves/maxed_four.hdm` already exists.
+
+**Done when:** the to-hit roll and the damage roll are stated with their exact arithmetic.
+
+**Status: step 1 attempted and blocked.** The RNG code is identified from the disassembly, but
+its runtime address does not resolve, and its state variable reads as a small counter at both
+savestates. Both states are menu screens, so the generator was most likely never called. Step 1
+needs a savestate taken during play.
+
+**Step 2 is DONE.** Documented in [rng-helpers.md](rng-helpers.md). The two range wrappers are
+fully decoded:
+
+- `0xe3d4c` is `randRange(lo, hi)` = `lo + (rng % (hi - lo + 1))`, **both ends inclusive**.
+- `0xe1c5c` is `randMod(n)` = `rng % (n + 1)`, returning `0` to `n` inclusive, and returning
+  zero without consuming a roll when `n` is zero.
+
+The inclusive high end is the detail that would have broken any measured formula, because a
+call with `(0, strength)` yields `0..strength`, one more value than a naive reading.
+
+**Step 3 remains:** find the callers of `0xe3d4c` and `0xe1c5c`, which is where the actual
+combat formulas live.
+
+**Cost:** medium Track A for steps 2 and 3. Step 1 is Track B.
 
 ## Track B: what needs a human
 
