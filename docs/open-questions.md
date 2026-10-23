@@ -31,9 +31,15 @@ question that used to head this list is answered: see
    kanji display form, which is why their lengths never match. Eight glyphs are
    established, not enough to decode arbitrary text. Do not retry the failed probes.
 
-   Still open: which tile each name indexes. That is the code at `0xe7b58` and the
-   four banks, and it needs either the indexer read properly or a savestate taken
-   while standing on the map so the banks are populated.
+   Still open: which tile each name indexes.
+
+   **The function at `0xe7b58` was not the answer, and is now closed off.** It was
+   believed to index tiles by a map value. A full disassembly from its real entry at
+   `0xe7b38` shows it is a **scroll buffer**: a counter loops sixteen times, each
+   iteration shifting a 512-byte window through a source region and copying it to the
+   next slot of a `0x2000` bank. It moves buffers, it does not map a map byte to a tile.
+   The four banks are real but are working buffers. See [tile-loader.md](tile-loader.md).
+   The map-index code is somewhere else and has not been found.
 
    Progress. The bank is **64 populated tiles of 512 bytes**, a flat 8x8 list with
    no grouping. The [Ultima Codex bestiary](https://wiki.ultimacodex.com/wiki/Ultima_II_monster_data)

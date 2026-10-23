@@ -1,76 +1,107 @@
-# The ENEMY2 tile loader
+# The function at `0xe7b38`
 
-**Tried:** find the code that indexes the `ENEMY2` tile bank. The name search came
-back empty earlier, because the asset path is not referenced as an immediate
-anywhere in the image, so this went at the arithmetic instead.
+**Supersedes the earlier reading of this page**, which placed the function entry at
+`0xe7b58` and called it an "ENEMY2 tile loader indexing tiles by `index * 512`". That
+reading was wrong in its entry point, wrong about what it loads, and wrong about the
+direction of the copy. The measurements below are from a full disassembly of the
+function rather than a byte-pattern search.
 
-**Measured:** the tile stride is a left shift. Every 512-byte tile access in this
-binary appears as `shl r32, 9`, and of the 17 such sites, four are followed
-immediately by an `add eax, <bank base>`:
+## How the earlier reading went wrong
 
-| lookup site | bank base | gap from previous |
+The earlier probe searched for `shl r32, 9` and found four sites each followed by
+`add eax, <bank base>`, spaced `0x2000` apart. From that it concluded "four banks of
+sixteen tiles", which is arithmetically true and is the one part that survived.
+
+What it missed: those four sites are inside a **single loop body**, not four branches,
+and the shift is of a **counter**, not of a tile index read from the map. The `0x2000`
+spacing is the bank layout, not the iteration stride.
+
+## What the function actually does
+
+Entry is **`0xe7b38`**. The prologue is `push ebp`, `mov ebp,esp`, `sub esp,0x30`, then
+
+```
+0xE7B40  mov  dword [ebp-0x24], 0        ; counter = 0
+0xE7B47  cmp  dword [ebp-0x24], 0x10     ; while counter < 16
+0xE7B4B  jnl  0xe7ce5                    ; exit
+```
+
+Inside the body there are **four blocks**, A to D, run in sequence on every iteration:
+
+| block | source literal | destination bank |
 |---|---|---|
-| `0xe7bb2` | `0x0b5578` | |
-| `0xe7c15` | `0x0b7578` | `0x2000` |
-| `0xe7c78` | `0x0b9578` | `0x2000` |
-| `0xe7cdb` | `0x0bb578` | `0x2000` |
+| A | `0x07b578` | `0x0b5578` |
+| B | `0x07c778` | `0x0b7578` |
+| C | `0x07f778` | `0x0b9578` |
+| D | `0x07f978` | `0x0bb578` |
 
-All four sit inside **one function starting at `0xe7b58`**, each followed by the
-same bytes (`89 45 d8 2b ff 81 ff 80 00 00 00 7d 0d ad ...`), so they are four
-unrolled copies of the same operation rather than four branches.
+Each block does the same four things:
 
-The spacing is the informative part. `0x2000` is 8,192 bytes, which is **16 tiles
-of 512**. Four banks of sixteen is 64 tiles, and `ENEMY2` is 33,280 bytes, which is
-`4 x 8192 + 512`, so 65 tiles with one left over. That reconciles exactly.
+1. Save 8 dwords from `[esi+0x1e0]` to the stack frame.
+2. Shift 120 dwords up by `0x20`: for `edi` from `0x77` down to 0,
+   `[esi+edi*4+0x20] = [esi+edi*4]`.
+3. Restore the 8 saved dwords to `[esi]`.
+4. Compute `dest = ([ebp-0x24] << 9) + BANK`, then copy 0x80 dwords (512 bytes) from
+   `esi` to `dest` with `lodsd` / `mov [edx],eax`.
 
-**Verdict:** POSITIVE for the code location and the bank layout. The loader is at
-`0xe7b58`, it indexes tiles by `index * 512`, and it addresses **four banks of
-sixteen tiles** at `0x0b5578`, `0x0b7578`, `0x0b9578`, `0x0bb578`.
+Then `inc dword [ebp-0x24]` and jump back to the top.
 
-## What is not established
+## The arithmetic
 
-Four banks against four time periods is an inviting reading, and it is a **guess**.
-Nothing measured so far says which bank corresponds to which era, or whether the
-four banks are eras at all rather than something like land, town, dungeon and
-vehicle art. The wiki's creature lists divide into land, townsfolk and dungeon,
-which is three groups and not four, so the tidy explanation does not even fit.
+- Shift per iteration: `0x20` bytes, which is **8 dwords**.
+- Sixteen iterations: `16 x 0x20 = 0x200`, which is **exactly one 512-byte tile**.
+- Destination per iteration: `counter << 9`, so slot `counter` of the bank.
+- Sixteen slots at `0x200` each: `0x2000`, which is **exactly the bank stride**.
 
-Confirming it needs one experiment: capture a machine state with the player standing
-on the overworld in a known era, and again in a different era, then compare what is
-in each of the four banks.
+So the loop **scrolls a 512-byte window through a source region, one tile's worth at a
+time**, writing each successive window to the next slot of a 0x2000-byte bank.
 
-## Why the RAM check found nothing
+That is a **ring buffer**, or a scroll buffer. It is not a lookup that maps a map value
+to a tile.
 
-The obvious next step was to look inside those buffers in the captured state, and it
-returned zeros. That is not a contradiction and it is worth recording so it is not
-rediscovered as a bug.
+## Verdict
 
-`0x0b5578` lies inside the large zero region of `ENCHANT.EXP` itself. Of the image's
-1,072,366 bytes, a 337 KB block starting at `0x07b557` is zero fill, and `0x0b5578`
-lands inside it. Those addresses are **BSS**: runtime buffer space, present in the
-file only as zeros.
+**POSITIVE** for the function's structure, its four banks, and its source regions.
+**NEGATIVE** for the earlier claim that this indexes tiles by a map value.
 
-The image base in the savestate was re-derived and confirmed with two independent
-high-entropy anchors, the `ENEMY2` path string at image `0x22f4` and the
-`WRONG TIFF HEADDER` string at image `0x2280`. Both give the same delta, `0x762d2`,
-so the mapping is sound and the zeros are real.
+The four banks at `0x0b5578`, `0x0b7578`, `0x0b9578`, `0x0bb578` are real and are
+`0x2000` apart, and each is filled by a scroll of its own source region. So the earlier
+conclusion "four banks of sixteen tiles" is **correct as a description of the buffers**,
+and the account of what fills them was wrong.
 
-The savestate was taken **at the death screen**, by which point the tile buffers had
-been released or reused. A capture taken while standing on the map is what would
-show them populated.
+## Why this does not answer the map question
 
-## Reproducing
+The thing wanted here was the code that turns a map byte into a tile. This function does
+not do that. It moves buffers.
+
+That is a genuinely useful negative: it closes off the most promising candidate, so the
+map-index code has to be found elsewhere. It also explains why the earlier RAM check of
+these banks at the death screen returned zeros: they are working buffers, emptied or
+never filled outside the rendering path.
+
+## What the source regions are
+
+All four source literals (`0x07b578`, `0x07c778`, `0x07f778`, `0x07f978`) fall inside
+the **337 KB zero-fill block that starts at `0x07b557`**. Note that `0x07b557` is one
+byte before the first literal, which is what a BSS section boundary looks like.
+
+So both the sources and the destinations are uninitialised in the file. Neither can be
+read statically. Confirming what flows through them needs a savestate taken during
+rendering, not one taken at the death screen.
+
+## Reproducing this
 
 ```bash
-# the stride sites
-python3 - <<'EOF'
-img = open('/var/tmp/ENCHANT.EXP','rb').read()[0x20:]
-for i in range(len(img)-8):
-    if img[i]==0xC1 and (img[i+1]&0xF8)==0xE0 and img[i+2]==9 and img[i+3]==0x05:
-        print(hex(i+0x20), hex(int.from_bytes(img[i+4:i+8],'little')))
-EOF
+node -e '
+const fs=require("fs");
+const buf=fs.readFileSync("/var/tmp/ENCHANT.EXP").slice(0x20);
+fs.writeFileSync("/var/tmp/loader3.bin", buf.slice(0xe7b38,0xe7cf0));
+'
+ndisasm -b32 -o0xe7b38 /var/tmp/loader3.bin
 ```
+
+`ENCHANT.EXP` comes off the disc, or from `node tools/expimage.js --dump`.
 
 ---
 
-**[Assets and graphics](assets-and-graphics.md)** **[Open questions](open-questions.md)**
+**[The code](code-analysis.md)** **[Open questions](open-questions.md)**
