@@ -21,15 +21,15 @@ question that used to head this list is answered: see
    ドラゴンタ−トル (dragon turtle), ドラゴン (dragon), ウォ−ロック (warlock).
 
    Sixteen names, which is closer to the 25 the Codex lists than a bare tile count
-   suggests. Each name is stored **twice**: once in a custom font encoding where
-   every glyph is `0xEB <index>`, and once in standard Shift-JIS. The two copies sit
-   adjacent, so the font encoding can be derived from them by alignment.
+   suggests.
 
-   The names are plain Shift-JIS. An earlier reading that claimed a second custom
-   font encoding, and that it could be derived by aligning two copies of each
-   string, was **wrong**. Eight probes failed to decode the interleaved `0xEB` runs
-   and the negative results are recorded in `font-encoding.md`. Do not retry them
-   without a new method.
+   The names are plain Shift-JIS. An earlier reading in this file said they were
+   stored twice, once in a custom font encoding and once in Shift-JIS, and that the
+   encoding could be recovered by aligning the two. That was **wrong** and has been
+   removed. Nine probes are recorded in `font-encoding.md`, and the mechanism is now
+   partly understood: the `0xEB` run is the *reading* in mora and the Shift-JIS is the
+   kanji display form, which is why their lengths never match. Eight glyphs are
+   established, not enough to decode arbitrary text. Do not retry the failed probes.
 
    Still open: which tile each name indexes. That is the code at `0xe7b58` and the
    four banks, and it needs either the indexer read properly or a savestate taken
@@ -49,6 +49,18 @@ question that used to head this list is answered: see
 4. **`DUNMON` tile count meaning.** 1,664 / 416 / 104 tiles, and what indexes them.
 5. **`.SND` playback rate.** Whether 1960 Hz is real.
 6. **`UT3/*.MP3` and `*.DG3` format.**
+7. **U2 combat formulas.** Not found by byte pattern, because the FM Towns build is
+   32-bit compiler output where the 6502 arithmetic is no longer recognisable.
+
+   Two Ultima **III** reference implementations are cloned into `references/` (see
+   [references.md](references.md)) and they do give U3's formulas: to-hit rolls
+   uniform on `[0, armour+16]` and succeeds below 8, and monster damage rolls against
+   base HP divided by eight plus max HP divided by a hundred.
+
+   **None of that is U2's formula.** U3 and U2 are different games. Those numbers are
+   a hint about where to look and what a plausible answer looks like, not a result.
+   Establishing U2's combat maths needs a measurement against U2 data, which in
+   practice means a controlled in-game test with a known `AGILITY` and `STRENGTH`.
 
 Resolved or closed since this list was first written: the palette is settled
 (the art uses indices 0-7 and those eight entries are confirmed against eight

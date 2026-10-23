@@ -1,7 +1,14 @@
 # Reference implementations
 
-Two third-party reimplementations are cloned into `references/` for cross-checking.
-Both are gitignored. Neither is part of this project's build or tests.
+> **Both of these are Ultima III, not Ultima II.** They are references only. Nothing
+> here is evidence about Ultima II, and no number from these repos goes into this
+> project's findings without a U2 measurement to back it. U2 and U3 are different
+> games with different formulas, different tables and different record layouts. A
+> value that matches on U3 tells you about U3.
+
+Two third-party reimplementations are cloned into `references/` purely to read.
+Both are gitignored. Neither is part of this project's build or tests, and neither
+produces anything this project ships.
 
 ```bash
 git clone --depth 1 https://github.com/synthwave-pixel/ultima3 references/u3-typescript
@@ -28,25 +35,25 @@ because there is no address to trace back to.
 
 ## Why this matters and what it does not solve
 
-**What it helps with.** Formulas and record layouts that the FM Towns build shares with
-the original design. The combat maths in particular, which this project could not find
-by byte pattern because it is compiler output rather than 6502.
+**What it helps with.** Reading the shape of a shared design. The Ultima games of this
+era share a family resemblance, so seeing how U3 lays out a monster table or rolls a
+melee attack is a hint about where to look in U2, and what a plausible answer looks
+like once found.
 
 **What it does not help with.** Anything specific to the FM Towns port: the `MP`/`P3`
 container, the `0xEB` font index, the Shift-JIS text, the `.TIF` artwork container, the
 disk format. A U3 remake has no opinion on any of those.
 
-**The trap to avoid.** These are Ultima **III**. Ultima II is a different game with
-different formulas. A number that matches on U3 is evidence about U3 and about the
-shared family design, not about U2. Do not copy a constant across without a U2
-measurement to back it.
+**What it cannot do at all.** Substitute for measurement. Everything below about
+combat is **U3's formula**. U2's has not been measured. The correct use of what
+follows is as a hypothesis to test against U2 data, and nothing else.
 
-## Extracted: the melee formulas
+## Recorded: the U3 melee formulas
 
-From `Lairware/Sources/UltimaSpellCombat.c`, which is the reverse-engineered Apple II
-code with its original labels intact.
+**These are Ultima III's numbers. They are recorded so the shape is known, not so they
+can be assumed for U2.**
 
-**Player attacks a monster**, at label `plrhit`:
+**Player attacks a monster**, at label `plrhit` in `Lairware/Sources/UltimaSpellCombat.c`:
 
 ```c
 // Random from 0 to armour+16 -- less than 8 is a hit.
