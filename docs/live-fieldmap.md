@@ -17,7 +17,7 @@ they were then found in memory at four consecutive addresses.
 
 | field | screen | address | note |
 |---|---|---|---|
-| `HP` | 400 | `0xcde85` | |
+| `HP` | 400 | `0xcde85` | **WRONG, corrected: HP is `0xcde81`, `0xcde85` is max HP.** See [hp-and-damage.md](hp-and-damage.md) |
 | `EXPERIENCE` | 21 | `0xcde89` | the screen labels this `E` |
 | `FOOD` | 377 | `0xcde8d` | 37735 in memory, fixed point times 100, truncated on screen |
 | `GOLD` | 235 | `0xcde91` | |

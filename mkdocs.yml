@@ -94,6 +94,7 @@ nav:
       - What the live session measured: live-session.md
       - The save format is not the memory layout: save-vs-memory.md
       - The memory layout from live memory: live-fieldmap.md
+      - HP and damage: hp-and-damage.md
       - U2 combat formulas: combat-formulas.md
       - Command dispatch: command-dispatch.md
       - Two jump tables: jump-tables.md
