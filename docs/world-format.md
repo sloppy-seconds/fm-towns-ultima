@@ -1,232 +1,123 @@
-# The world save file, from a play-and-save diff
+# `WORLD*.UT2`: what the only available save can and cannot tell us
 
-A diff between a blank `WORLD1.UT2` and one written after play. This is the
-first time the world format has been measured rather than guessed, because every
-earlier attempt started from an untouched file where nothing had been written.
+68,096 bytes, four files, and no page documented them. This page records what is measured, and then the
+finding that matters: **the save we have cannot answer the format question**, and a constant in our own
+tooling is wrong.
 
-## How the two states were produced
+## Measured shape
 
-The disk was built empty, with `savedisk.js newdisk`, so it contained no files at
-all. Anything on it afterwards came from the game.
+From `saves/maxed_four.hdm`, using `tools/worldfmt.js`:
 
-1. Boot the disc with that empty disk in drive A. Launch Ultima II.
-2. **Generate Character**, which makes the character and a world file.
-3. Capture the disk. This is the baseline.
-4. **Journey Onward**, walk, fight, then **Q** to save.
-5. Capture again and diff.
+| finding | value |
+|---|---|
+| size | 68,096 bytes, all four **byte-identical** |
+| row pitch | **128 bytes** |
+| values per row | **24 dwords**, then 32 bytes of zero |
+| rows with data | **6**, that is 768 bytes |
+| nonzero bytes in the whole file | **120** |
+| all nonzero bytes | at offset **0 mod 4** |
+| last nonzero byte | `0x2dc` |
+| all four files identical | **yes** |
 
-Both captures are 68,096 bytes, so the file is fixed size.
+## The strongest structural fact
 
-| state | sha256 | non-zero bytes |
-|---|---|---|
-| blank, after character creation | `b4adb1f1…` | 120 |
-| after playing and saving | `9ac9ba73…` | 192 |
-
-**Only 72 bytes differ.** A whole session of walking and fighting touches less
-than 0.11% of the file.
-
-## What a blank world file contains
-
-Not `0xE5` fill, which is what an *untouched* file from the original distribution
-has. The game writes zeros with a small header:
+**Row 1 is exactly row 0 sorted ascending.** Verified:
 
 ```
-+0x000  uint32 30 31 32 33 34 30 31 32 33 34 30 31 33 34 ...   (values 30..34)
+row0  30 31 32 33 34 30 31 32 33 34 30 31 33 34 30 31 32 33 34 30 31 32 33 34
+row1  30 30 30 30 30 31 31 31 31 31 32 32 32 32 33 33 33 33 33 34 34 34 34 34
 ```
 
-120 non-zero bytes in total, all in the first 733, and every value is in the
-range 30 to 34 (`0x1e` to `0x22`). Runs of five ascending values, repeating.
+`JSON.stringify(row1) === JSON.stringify([...row0].sort())` returns true. The multiset is identical:
+`30` five times, `31` five times, `32` four times, `33` five times, `34` five times.
 
-These look like per-region default indices rather than player state, since they
-are present before the player has done anything.
+Two rows where one is the sorted form of the other is **scratch space for a sort**, not stored state.
+A save file does not persist an unsorted list beside its sorted copy and leave both there.
 
-## What changes when you play
+Row 5 is the constant `2` in all 24 slots. Row 4 is all zero.
 
-The 72 changed bytes all sit at offsets that are **multiples of 4**, in five
-blocks of twelve 32-bit values each. Block stride is `0x80` (128 bytes), of which
-48 are used and 80 are zero padding.
+## Rows 2 and 3 are bitmask tables
 
 ```
-0x600  [31, 54, 50, 54, 55, 50, 23, 18, 43, 17, 33, 32]
-0x680  [32, 50, 16,  6, 48, 17,  9,  5, 24, 16, 30, 31]
-0x700  [20, 20, 90, 80, 80, 10, 20, 10, 10, 80, 180, 10]
-0x780  [252, 252, 240, 52, 52, 48, 252, 48, 48, 52, 56, 48]
-0x880  [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+row2  192 224 255 32 64 255 255 64 192 192 255 64 192 255 32 224 255 32 32 192 64 64 255 32
+row3  56 248 60 252 52 224 60 52 56 248 60 52 56 60 252 248 60 252 252 56 60 60 224 252
 ```
 
-**Twelve entries per block.** That is the party size, and it is the strongest
-structural signal in the file. Each block is one field held for all twelve party
-members, not one record per member.
-
-Reading the values:
-
-- `0x880` is uniformly `2`, a constant per member. A class or status code.
-- `0x700` is all multiples of 10, up to 180. `[20,20,90,80,80,10,20,10,10,80,180,10]`
-  divided by ten gives small numbers, so this is plausibly a scaled statistic.
-- `0x780` holds `252` and `240` alongside `48`-`56`. `252` is `0xFC`, which in the
-  map format is the highest tile byte, so these may be position or tile values
-  rather than plain counts.
-- `0x600` and `0x680` are mixed small values in the 5 to 55 range.
-
-**What is not established:** which block is which field. Naming them would need
-either a second save from a different position, or a controlled change (walk ten
-steps, save, diff again) to see which block moves.
-
-## The player position is at slots 8 and 9 of blocks 0x600 and 0x680
-
-Three saves taken in sequence, each after one deliberate action, settle this.
-
-| save | action | `0x600` x,y | `0x680` x,y | other blocks |
-|---|---|---|---|---|
-| blank | character created | 0, 0 | 0, 0 | all zero |
-| after play | wandered, fought | 43, 17 | 24, 16 | populated, static |
-| move right | a few tiles east | **39**, 17 | **22**, 16 | unchanged |
-| move up | a few tiles north | 39, **14** | 22, **13** | unchanged |
-
-Reading it:
-
-- Moving east changed **slot 8** and left slot 9 alone.
-- Moving north changed **slot 9** and left slot 8 alone.
-- So slot 8 is one axis and slot 9 the other.
-- Both `0x600` and `0x680` moved, by **identical amounts** on both occasions.
-- The other three blocks (`0x700`, `0x780`, `0x880`) did not change at all.
-
-**Only these two blocks track position.** They are two structures that both carry
-the player's coordinates, not one coordinate split across two places.
-
-What is measured about the two:
+Every distinct value in row 2 is a **contiguous run of ones**:
 
 ```
-         0x600      0x680
-played   43, 17     24, 16
-right    39, 17     22, 16
-up       39, 14     22, 13
+32  = 00100000   one bit
+64  = 01000000   one bit
+192 = 11000000   two bits
+224 = 11100000   three bits
+255 = 11111111   eight bits
 ```
 
-The difference between them is not constant: `43-24 = 19` before the move and
-`39-22 = 17` after. So they are not the same number with a fixed offset. What each
-one means is **not established**. Plausible readings include an absolute position
-and a viewport-relative one, or a current and a previous position, but nothing in
-the data distinguishes those yet.
+Row 3 holds runs that grow a bit at a time (`52` = `00110100`, `56` = `00111000`, `60` = `00111100`)
+plus the same high-end family (`224`, `248`, `252`).
 
-## Moving right changes exactly five bytes
+**This is a shift or mask table.** It is not terrain, not a tile index, and not a coordinate. Combined
+with the sorted-pair finding, the leading reading is that these six rows are a **rendering or geometry
+scratch area written by the game at start-up**, not world state.
 
-Second experiment. Save, walk a few tiles to the right, save again. Diff the two.
+## The finding that closes the question for now
 
-Only **five bytes** differ, and two of them are in the blocks:
-
-| offset | block | slot | before | after | delta |
-|---|---|---|---|---|---|
-| `0x0620` | `0x600` | 8 | 43 | 39 | **-4** |
-| `0x06a0` | `0x680` | 8 | 24 | 22 | **-2** |
-| `0x51a1` | outside | | 96 | 98 | +2 |
-| `0x4fa7` | outside | | 0 | 60 | appeared |
-| `0x502b` | outside | | 60 | 0 | cleared |
-
-Both deltas are negative while the player moved right, so the axes are mirrored.
-That is consistent with an origin at the far edge.
-
-The two bytes outside the blocks at `0x4fa7` and `0x502b` are 132 bytes apart and
-one is cleared while the other appears. That looks like a marker moving rather
-than a value changing, and 132 is 4 times 33, so a 33-byte cell size would make
-them four cells apart. Unconfirmed.
-
-## Position is stored twice, in two different files
-
-A fight and a save produced a clean diff of `ROSTER1.UT2`, which is plain ASCII
-and therefore readable directly. It carries the player position as named fields:
+**All four `WORLD*.UT2` files are byte-identical.** And the roster explains why:
 
 ```
-PLAYER_X=11   ->  14
-PLAYER_Y=16   ->  12
+slot0  NAME=MAXFIGHT   MAP=0  MAP_X=0  PLAYER_X=20  PLAYER_Y=20  WORLD=0
+slot1  NAME=MAXCLERIC  MAP=0  MAP_X=0  PLAYER_X=20  PLAYER_Y=20  WORLD=0
+slot2  NAME=MAXWIZARD  MAP=0  MAP_X=0  PLAYER_X=20  PLAYER_Y=20  WORLD=0
+slot3  NAME=MAXTHIEF   MAP=0  MAP_X=0  PLAYER_X=20  PLAYER_Y=20  WORLD=0
 ```
 
-The same two values appear as **slots 8 and 9 of blocks `0x600` and `0x680`** in
-`WORLD1.UT2`, in binary. So the position lives in both files at once.
+**Every character is at `MAP=0`, `WORLD=0`, and has never entered the world.** A save where nobody has
+played has no world state to store, so identical blank world files are exactly what should be expected.
 
-| file | encoding | field |
-|---|---|---|
-| `ROSTER1.UT2` | ASCII, `key=value` | `PLAYER_X=`, `PLAYER_Y=` |
-| `WORLD1.UT2` | uint32 LE | slot 8 and slot 9 of blocks `0x600` and `0x680` |
+**Therefore this save cannot answer the world file format.** No amount of analysis of these bytes will
+produce the layout of a populated world, because there is no populated world in the file.
 
-**A teleport must write both.** Which one the game reads at load, and whether it
-trusts the binary over the ASCII when they disagree, is not established. Guessing
-wrong would produce a save that loads at one position and reports another.
+That is a bounded negative and it is more useful than another round of speculation: the question needs a
+save taken mid-game, which is Track B work.
 
-## What a fight changes in the roster
+## A constant in our own tooling is wrong
 
-Same diff, before and after winning a fight:
-
-| field | before | after | |
-|---|---|---|---|
-| `HP` | 233 | 116 | took 117 damage |
-| `EXPERIENCE` | 12 | 21 | +9 |
-| `GOLD` | 436 | 470 | +34 |
-| `SCORE` | 32 | 57 | +25 |
-| `FOOD` | 39505 | 39115 | -390, time passed |
-| `DAGGER` | 1 | 1 | unchanged, already held |
-
-`DAGGER` was 1 both before and after, so this fight did not grant it. Inventory is
-a set of `0`/`1` flags per item name, not a counted quantity.
-
-## A moongate moves you in time, not to another map
-
-A fourth save, after passing through a moongate and walking. The roster gains a
-field that explains what a moongate does.
-
-| field | played | after fight | after moongate |
-|---|---|---|---|
-| `ERA` | 2 | 2 | **1** |
-| `MAP` | 0 | 0 | 0 |
-| `PLAYER_X` | 11 | 14 | 41 |
-| `PLAYER_Y` | 16 | 12 | 29 |
-| `SCORE` | 32 | 57 | 132 |
-
-`MAP` never changes. `ERA` drops from 2 to 1. So the moongate does not move the
-player to a different map, it drops them into a different era's copy of the same
-map. That matches the game: moongates in Ultima II are the time travel mechanic.
-
-## The two position blocks are not duplicates
-
-The moongate save separates them, and this corrects an earlier reading in this
-document.
+`savedisk.js` defines `WORLD_FILL_FROM = 61952`, and `newWorld()` fills `0xe5` from there to
+`0x109ff`. Comparing against the game's own file:
 
 ```
-roster      PLAYER_X=41   PLAYER_Y=29
-block 0x600 slot 8 = 47   slot 9 = 44
-block 0x680 slot 8 = 23   slot 9 = 29
+offset     saved file          our newWorld()
+0xf200     00000000 00000000   e5e5e5e5 e5e5e5e5
 ```
 
-`0x680` slot 9 is **29**, which matches `PLAYER_Y` exactly. `0x600` matches
-neither axis. And `41`, the roster's X, appears **nowhere in `WORLD1.UT2`** at all.
+**The game leaves that region zero. Our generator writes `0xe5` into it.** So `WORLD_FILL_FROM` is a
+guess that was never checked against a real save, and `newWorld()` produces a file the game does not
+produce.
 
-So the two blocks are not two copies of the same coordinate. One of them holds the
-player position in a space the roster does not use, plausibly a viewport or scroll
-offset that differs from the absolute coordinate. Which is which is **not
-established**.
+That matters beyond this page: the browser editor and `tools/makesave.js` both generate world files, and
+if the game ever validates or reads that region, generated saves would be written with bytes the game
+never writes. **It has not caused a reported failure**, and it may be harmless, because a blank region is
+a blank region. But it is not reproduced from evidence and the constant should be treated as unverified.
 
-The practical consequence is concrete: a teleport that edits only the world file
-would change one axis and leave the other, because the X value it would need is not
-in that file. **Any position edit has to write the roster as well.**
+**Not changed in this commit**, because changing a generator without a populated save to test against
+would replace one guess with another. Recorded so the next person knows the value is a guess.
 
-## Also changed, outside the blocks
+## What is still open, and what would settle it
 
-Ten single bytes far into the file, at `0x4b52`, `0x4bb6`, `0x4c57`, `0x4e11`,
-`0x4e32`, `0x4e72`, `0x502b`, `0x51a1`, `0x51e0`, `0x521f`, `0x5637`, `0x56b6`.
+| question | needs |
+|---|---|
+| the layout of a populated world | a save taken after entering the world (Track B) |
+| whether rows 0 to 5 persist or are rebuilt each load | two saves at different map positions |
+| what rows 2 and 3 are for | a save where they differ, or a caller search for `0x0` to `0x2dc` |
 
-These are scattered, not in a regular structure, and their values are in the same
-range as bytes elsewhere (`0x2c`-`0x60`). They may be map cells the player
-revealed or objects encountered, but that is a guess.
+## What this page does not claim
 
-## Reproducing it
+- Not that the format is understood. Six rows of a scratch area is not a world.
+- Not that 68,096 factors into a map. It does not: 68,096 = 532 x 128, and neither 128x256 nor 256x256
+  divides it cleanly, so there is no simple tile array filling the file.
+- Not that the file is useless. It is a real artefact that the game writes, and its structure is now
+  partly measured. It just is not a *populated* world.
 
-```bash
-node tools/savedisk.js newdisk saves/probe.hdm       # empty, no files
-FREQ=16 ./tools/run.sh saves/probe.hdm               # play, Generate Character
-node tools/savedisk.js extract saves/probe.hdm WORLD1.UT2 /tmp/base.bin
-# play, then Q to save
-node tools/savedisk.js extract saves/probe.hdm WORLD1.UT2 /tmp/after.bin
-```
+---
 
-`extract` was added to `savedisk.js` for this: `cat` renders text and refuses
-binary, which is no use when the point is to compare bytes.
+**[Save files](save-files.md)** **[Overnight queue](overnight.md)** **[Plan](plan.md)**
