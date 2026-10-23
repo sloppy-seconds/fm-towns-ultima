@@ -328,6 +328,58 @@ def cmd_fight(args):
     fight_rounds(args.n, args.dir)
 
 
+
+# ---------------------------------------------------------------------------
+# survey: walk a pattern and record everything, without needing the map
+# ---------------------------------------------------------------------------
+#
+# walk_to needs the map's live address, which is not located. A SURVEY does not: it walks a fixed pattern and
+# records what happened at every turn. That is enough to measure the food tick, find blocked squares, and record
+# which squares started a fight, which is the passive-versus-aggressive question the player raised.
+
+DIRECTION_ORDER = ["up", "right", "down", "left"]
+
+
+def survey(legs, steps):
+    """Walk `legs` legs of `steps` steps, turning right between legs, recording every turn.
+
+    Deliberately dumb: no map, no pathfinding, no decisions. Every turn is recorded, so a blocked square, a
+    monster encounter and a food tick are all visible in the transcript afterwards.
+    """
+    total = 0
+    blocked = 0
+    fights = 0
+    for leg in range(legs):
+        d = DIRECTION_ORDER[leg % 4]
+        print("leg %d: %s, %d steps" % (leg + 1, d, steps))
+        for i in range(steps):
+            before = state()
+            press(d)
+            after = state()
+            total += 1
+            moved = (after["px"], after["py"]) != (before["px"], before["py"])
+            hp_fell = after["hp"] < before["hp"]
+            if not moved:
+                blocked += 1
+            if hp_fell:
+                fights += 1
+            print("  %-5s %2d/%d  %s  %s/%s->%s/%s  hp %d->%d  food %+d"
+                  % (d, i + 1, steps, "moved  " if moved else "BLOCKED",
+                     before["px"], before["py"], after["px"], after["py"],
+                     before["hp"], after["hp"], after["food"] - before["food"]))
+            record("survey", "leg %d %s %d/%d moved=%s" % (leg + 1, d, i + 1, steps, moved))
+            if hp_fell:
+                print("  HP fell: something attacked. Stopping this survey.")
+                return {"turns": total, "blocked": blocked, "attacks": fights, "stopped": "attacked"}
+    return {"turns": total, "blocked": blocked, "attacks": fights, "stopped": None}
+
+
+def cmd_survey(args):
+    result = survey(args.legs, args.steps)
+    print("\nsurvey: %(turns)d turns, %(blocked)d blocked, %(attacks)d attacked" % result)
+    record("survey-done", str(result))
+
+
 def cmd_state(args):
     print(json.dumps(state(), indent=None if getattr(args, "compact", False) else 1))
 
@@ -396,6 +448,11 @@ def cmd_tail(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    sv = sub.add_parser("survey", help="walk a square pattern, recording every turn")
+    sv.add_argument("legs", type=int, nargs="?", default=4)
+    sv.add_argument("steps", type=int, nargs="?", default=5)
+    sv.set_defaults(fn=cmd_survey)
 
     st = sub.add_parser("state", help="print the current state")
     st.add_argument("--json", dest="compact", action="store_true", help="one line, for scripts")

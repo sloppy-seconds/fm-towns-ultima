@@ -261,6 +261,35 @@ passive until provoked**. The player raised this and it needs no new capability.
 
 **Done when** a transcript exists with at least one fight and one town visited.
 
+## A survey, which works without the map
+
+`walk_to` needs the map's live address. A **survey** does not: it walks a fixed pattern and records every turn.
+That is enough to measure the food tick, find blocked squares, and answer the passive-versus-aggressive
+question, none of which needs pathfinding.
+
+A real run, unattended:
+
+```
+leg 1: up, 4 steps
+  up  1/4  BLOCKED  35/22->35/22  hp 344->344  food -15
+  up  2/4  BLOCKED  35/22->35/22  hp 344->344  food -15
+  up  3/4  BLOCKED  35/22->35/22  hp 344->344  food -15
+  up  4/4  BLOCKED  35/22->35/22  hp 344->344  food -15
+leg 2: right, 4 steps
+  right 1/4  moved   35/22->36/22  hp 344->344  food -15
+  right 2/4  BLOCKED 36/22->36/22  hp 344->344  food -15
+  ...
+
+survey: 8 turns, 7 blocked, 0 attacked
+```
+
+**Two things it establishes.** Seven of eight turns were blocked, so the party was against a wall and the
+survey found it without any map. And **food fell 15 on every turn, blocked or not**, which confirms the tick is
+per turn for the fourth and fifth time.
+
+**The survey stops itself if HP falls**, so a monster encounter ends it rather than being walked into
+repeatedly. That is the safe default for unattended runs.
+
 ## Recording, which is the actual product
 
 **Every action writes a record.** Screenshot, fields, `CS:EIP`, and the action window text. That makes the bot
