@@ -61,15 +61,10 @@ screenshot-derived colours agree with it.
 
 Tsugaru defaults to a **25 MHz** CPU. Every FM Towns of this generation, from the
 original 1989 model through the 2F and 2H, is a **386DX at 16 MHz**. So the
-emulator hands the game a machine roughly 1.5 times faster than the one it was
-written for.
+emulator hands the game a machine about 1.5 times faster than the one it was
+written for, and `-FREQ 16` is the closest match to real hardware.
 
-Ultima II animates on timing loops, not on the video refresh, so a faster CPU
-means faster walking, faster combat rounds and faster message scrolling. It is
-not a bug in the emulator and it is not a corrupted save. It is the game
-correctly responding to a processor that did not exist when it shipped.
-
-**Fix it with `-FREQ 16`.**
+**Fix the clock with `-FREQ 16`:**
 
 ```bash
 # native, via the wrapper
@@ -82,32 +77,65 @@ vendor/emulator/Tsugaru_CUI vendor/roms -CD "...ccd" -FD0 "...hdm" -FREQ 16
 FREQ=16 ./tools/try.sh saves/mydisk.hdm
 ```
 
-The value is in MHz. `-FREQ 16` is true to the hardware. `-FREQ 20` is a
-reasonable compromise if 16 feels sluggish. Do not go below about 12, because the
-CD-ROM BIOS starts failing, which manifests as a disc that will not boot rather
+The value is in MHz. `-FREQ 16` is true to the hardware. Below about 12 the
+CD-ROM BIOS starts failing, which shows up as a disc that will not boot rather
 than anything obviously speed related.
 
-**This is measured, not guessed.** Tsugaru's defaults are in its source:
-`FREQUENCY_DEFAULT=25` and `FREQUENCY_SLOWMODE_DEFAULT=5` in `src/towns/towns.h`.
-The FM Towns clocks come from Fujitsu's own model tables, where the grey towers
-(including this trilogy's 2F/2H target) are all 386DX at 16 MHz.
+### Why `-FREQ` works, proved
+
+The frequency is not cosmetic. `RunOneInstruction` in `src/towns/towns.h` converts
+it directly into emulated time:
+
+```cpp
+auto passedInNanoSec=(state.clockBalance/FREQ);
+state.townsTime+=passedInNanoSec;
+```
+
+So `currentFreq` scales emulated nanoseconds per instruction, and the i8253
+programmable timer is driven from `townsTime` rather than from instruction count.
+Lower the frequency and a timer-delay game genuinely runs slower. 25 to 12 MHz is
+a 2.08x increase in emulated time per instruction. The lever is real and it is
+measurable, which is why it is the answer rather than a guess.
+
+### But the game is still fast at 16, and that is not a bug
+
+Lowering the clock helps, and someone who has played this port on real hardware
+reports the same thing the emulator shows. From a 2012 playthrough of the FM Towns
+release, running on the real machine:
+
+> Getting going is seriously hard as the monsters in the world map spawn
+> extremely quickly and there is no holding back with some of the toughest
+> creatures being thrown at me. It took me 6 or 7 attempts to make it to the
+> nearest town with so many monsters that I was actually boxed in by them on
+> occasion and unable to move.
+
+That is not an emulation artefact. The FM Towns rebuild is faster and harder than
+the originals, which matches the measured stat changes recorded in
+`save-files.md`, where the published tables do not describe this port either.
+Origins changed the game when they rebuilt it.
+
+So expect fast movement and fast monster spawning even at `-FREQ 16`. If it is
+unpleasant, `FREQ=12` or `FREQ=10` is available, but treat that as a comfort
+setting rather than a correction.
 
 ### What is not the cause
 
-Worth ruling out, because these are the obvious suspects and both are wrong:
+These are the obvious suspects and both are wrong:
 
 - **`-NOWAIT`**, which disables real-time throttling, is **not** on by default.
   Tsugaru sets `noWait=true` only until the first disk read, then switches to
-  `noWaitStandby`, which defaults to `false`. So after boot it throttles properly.
+  `noWaitStandby`, which defaults to `false`. After boot it throttles properly.
   Adding `-YESWAIT` changes nothing.
-- **The VSYNC rate** is not the mechanism either. The throttle in
-  `TownsThread::AdjustRealTime` compares emulated time against wall clock time, so
-  a correct emulator still runs a timing-loop game too fast if the CPU clock is
-  too high.
+- **VSYNC** is not the mechanism. The throttle in `TownsThread::AdjustRealTime`
+  compares emulated time against wall clock time.
 
-Tsugaru has an app-specific tuning table for exactly this kind of problem, but it
-only carries an entry for **Ultima Underworld**, not Ultima II. So `-FREQ` is the
-supported route.
+One thing worth knowing if you watch the process: Tsugaru's throttle loop calls
+`ProcessSound` in a `while` with no sleep, so the emulator spins at over 100% of a
+core even when it is correctly waiting for real time. High CPU use is normal and
+does not mean the throttle is off.
+
+Tsugaru has an app-specific tuning table for this class of problem, but it carries
+an entry for Ultima Underworld and not Ultima II, so `-FREQ` is the supported dial.
 
 ## The live palette
 
