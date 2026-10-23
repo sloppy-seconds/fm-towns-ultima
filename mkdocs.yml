@@ -98,6 +98,7 @@ nav:
       - Combat observed: combat-observed.md
       - Reading the action window: action-window.md
       - Plan for a game-playing bot: gameplayer-plan.md
+      - Bot build: bot-build.md
       - U2 combat formulas: combat-formulas.md
       - Command dispatch: command-dispatch.md
       - Commands and what follows them: command-interaction.md
