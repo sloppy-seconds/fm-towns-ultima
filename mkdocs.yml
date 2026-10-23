@@ -65,6 +65,7 @@ nav:
       - Save files and the roster: save-files.md
       - Roster field reference: roster-reference.md
       - Equipment thresholds: equipment-thresholds.md
+      - The tile loader: tile-loader.md
       - World save format: world-format.md
   - Colour:
       - The palette: palette.md
