@@ -82,6 +82,19 @@ each fragment loses its alignment with the reading.
 Handling that correctly means reconstructing the logical string first, which means
 knowing where each string ends, which is the same problem as the record structure.
 
+## Correction: text drawing does not use the glyph runs
+
+A later reading of the renderer at `0xe6e90` (see [text-renderer.md](text-renderer.md))
+shows that text is drawn by **parsing Shift-JIS directly**, testing lead and trail byte
+ranges and advancing one or two bytes per character. There is no font index lookup on the
+drawing path.
+
+So the claim below, that a complete solution needs the font index table in order to draw
+text, was wrong in its premise. Drawing text already works. The `0xEB` runs belong to some
+other subsystem and are not a prerequisite for anything on this page.
+
+The reasoning below is kept because it still describes where the runs probably live.
+
 ## What a complete solution needs
 
 The `EB` encoding is a **font index**, not a character code. The mapping from index to
