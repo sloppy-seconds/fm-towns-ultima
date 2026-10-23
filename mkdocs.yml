@@ -76,6 +76,7 @@ nav:
       - Core routines: core-routines.md
       - More core routines: more-routines.md
       - The random number helpers: rng-helpers.md
+      - The stat-gain routine: stat-gain.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md

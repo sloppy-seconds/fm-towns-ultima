@@ -268,8 +268,28 @@ fully decoded:
 The inclusive high end is the detail that would have broken any measured formula, because a
 call with `(0, strength)` yields `0..strength`, one more value than a naive reading.
 
-**Step 3 remains:** find the callers of `0xe3d4c` and `0xe1c5c`, which is where the actual
-combat formulas live.
+**Step 3 is DONE for one formula.** Documented in [stat-gain.md](stat-gain.md).
+
+Four call sites of `0xe3d4c` and **85** of `0xe1c5c`. Following the densest cluster found
+`0xf25b4`, a complete routine:
+
+```
+roll = rng % 10                      ; 0 to 9
+if roll >= 2:                        ; 80 percent
+    record[index].field += 1         ; 351-byte records
+    if field > 99: field = 99        ; clamp
+else:
+    different message
+```
+
+**Two separate caps confirmed:** stats at 99, and HP at 9999 (the 9999 cap is elsewhere and not
+yet located).
+
+**A stride the tooling misses:** `0x351` is built as `lea *5`, `lea *11`, `shl 5`, `sub`, which
+is 11x32-1. `tools/stride.js` finds the `lea` stages but not the shift-and-subtract finish.
+
+**Not established:** which stat the field is, and the message text at `0x6408` and `0x6428`,
+which are `EB` glyph runs. The glyph mapping being unsolved costs a real answer here.
 
 **Cost:** medium Track A for steps 2 and 3. Step 1 is Track B.
 
