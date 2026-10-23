@@ -57,6 +57,58 @@ The palette is **unchanged** after reaching the graphics screen: still the same
 16 entries per page. So that table is what U2 runs with, and the earlier
 screenshot-derived colours agree with it.
 
+## The game runs fast, and why
+
+Tsugaru defaults to a **25 MHz** CPU. Every FM Towns of this generation, from the
+original 1989 model through the 2F and 2H, is a **386DX at 16 MHz**. So the
+emulator hands the game a machine roughly 1.5 times faster than the one it was
+written for.
+
+Ultima II animates on timing loops, not on the video refresh, so a faster CPU
+means faster walking, faster combat rounds and faster message scrolling. It is
+not a bug in the emulator and it is not a corrupted save. It is the game
+correctly responding to a processor that did not exist when it shipped.
+
+**Fix it with `-FREQ 16`.**
+
+```bash
+# native, via the wrapper
+EXTRA="-FREQ 16" ./run.sh
+
+# native, raw
+vendor/emulator/Tsugaru_CUI vendor/roms -CD "...ccd" -FD0 "...hdm" -FREQ 16
+
+# container
+FREQ=16 ./tools/try.sh saves/mydisk.hdm
+```
+
+The value is in MHz. `-FREQ 16` is true to the hardware. `-FREQ 20` is a
+reasonable compromise if 16 feels sluggish. Do not go below about 12, because the
+CD-ROM BIOS starts failing, which manifests as a disc that will not boot rather
+than anything obviously speed related.
+
+**This is measured, not guessed.** Tsugaru's defaults are in its source:
+`FREQUENCY_DEFAULT=25` and `FREQUENCY_SLOWMODE_DEFAULT=5` in `src/towns/towns.h`.
+The FM Towns clocks come from Fujitsu's own model tables, where the grey towers
+(including this trilogy's 2F/2H target) are all 386DX at 16 MHz.
+
+### What is not the cause
+
+Worth ruling out, because these are the obvious suspects and both are wrong:
+
+- **`-NOWAIT`**, which disables real-time throttling, is **not** on by default.
+  Tsugaru sets `noWait=true` only until the first disk read, then switches to
+  `noWaitStandby`, which defaults to `false`. So after boot it throttles properly.
+  Adding `-YESWAIT` changes nothing.
+- **The VSYNC rate** is not the mechanism either. The throttle in
+  `TownsThread::AdjustRealTime` compares emulated time against wall clock time, so
+  a correct emulator still runs a timing-loop game too fast if the CPU clock is
+  too high.
+
+Tsugaru has an app-specific tuning table for exactly this kind of problem, but it
+only carries an entry for **Ultima Underworld**, not Ultima II. So `-FREQ` is the
+supported route.
+
 ## The live palette
 
 **Tried:** get into Ultima II and read the palette from the live machine.

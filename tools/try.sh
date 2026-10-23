@@ -16,6 +16,10 @@
 #   ./tools/try.sh                  start with the stock [UserDisk]
 #   ./tools/try.sh stop             tear down
 #
+# Set FREQ to match real hardware. Tsugaru defaults to 25 MHz, but every FM Towns
+# of this generation is a 386DX at 16 MHz, so animations run about 1.5x too fast.
+#   FREQ=16 ./tools/try.sh saves/mydisk.hdm
+#
 # The image is mounted read-write. Take a copy first if it matters.
 set -euo pipefail
 
@@ -69,7 +73,7 @@ PODMAN run -d --name "$NAME" \
 	-v "$ROOT/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img:/disc/game.img:ro,z" \
 	-e ROM_DIR=/roms \
 	-e "RESOLUTION=$RESOLUTION" \
-	-e "TSUGARU_ARGS=-CD /disc/game.ccd -FD0 /data/$base -FD0UP" \
+	-e "TSUGARU_ARGS=-CD /disc/game.ccd -FD0 /data/$base -FD0UP${FREQ:+ -FREQ $FREQ}" \
 	localhost/fmtowns >/dev/null
 
 note ""
