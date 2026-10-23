@@ -124,7 +124,33 @@ binary itself from the `printf` format string, so the field list is the game's o
 
 Source: `save-files.md` section 8.0, `roster-reference.md`.
 
-## 10. Asset formats
+## 10. There is no Vacuum armour
+
+**Reference says** armour runs across seven tiers, with a table listing
+`Skin/Cloth, Leather, Chain, Plate, Vacuum, Reflect, Power Armor`.
+
+**Measured:** the roster schema, taken from the format string in the game binary,
+contains **no `VACUUM` field at all**. The seven armour fields it does have are:
+
+```
+SKIN  CLOTH  LEATHER  CHAIN  PLATE  REFLECT  POWER
+```
+
+The string `VACUUM` does not appear anywhere in `ENCHANT.EXP`, nor anywhere in a
+7.6 MB machine state. It is not a field that exists and goes unused, it is absent.
+
+Two possibilities, and the data cannot separate them: this port dropped the vacuum
+suit, or the reference's tier list is describing a different release. Either way the
+reference's seven-tier armour table does not describe this game.
+
+Also measured, and it corrects a natural assumption: **`SKIN` and `CLOTH` are both
+set to 1 on a brand new character.** They are not sequential tiers you upgrade
+through, and a naive "highest set flag" reading gives a starting character armour
+tier 1 when the reference calls it tier 0.
+
+Source: `roster-reference.md`, and the savestate at `/var/tmp/death.state`.
+
+## 11. Asset formats
 
 **Reference material** describes tile graphics as raw Apple II or CGA bitmaps.
 

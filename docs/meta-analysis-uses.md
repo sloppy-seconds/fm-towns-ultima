@@ -77,6 +77,75 @@ Testable with two edited saves differing only in INT+CHA either side of 40. Our
 captured character has INT 15 and CHA 25, a sum of 40, which sits exactly on the
 first threshold and makes a single test discriminating.
 
+## 5.5 The formulas, now that they are restored
+
+The equations came back as text after the first pass, and three of them are directly
+checkable against fields we already have.
+
+### Hit chance
+
+```
+Hit Probability = min(100%, (Agility / 80) * 100)
+```
+
+Stated as a 7-bit random roll compared against the agility value, so 80 or above
+always hits. **In a 32-bit port this would be a different comparison**, but the shape
+survives if the mechanic does: an `and` against a mask of 0x7F followed by a compare
+against the stat. That is a searchable pattern, unlike the numbers themselves.
+
+### Damage
+
+```
+Damage = floor((Weapon Power * 4 + Strength) / 4)
+```
+
+Unarmed, `floor(Strength / 4)`. Deterministic, no variance roll. Two useful
+consequences if it holds here: the `* 4` then `/ 4` suggests the code packs weapon
+power into a quarter-unit scale, and `floor` implies an integer divide by 4, which is
+a shift right by 2.
+
+**Blocker:** this needs `Weapon Power`, and we have never decoded `R_WEAPON`. It is a
+`%c` field and it is `A` in **every save we have**, including the four characters at
+99 in everything. So `A` is either "nothing readied" or index zero of a letter-coded
+weapon list. Until it is decoded the damage formula cannot be tested.
+
+### Enemy hit chance
+
+```
+Enemy Hit Probability = (8 - Armor Tier) / 16
+```
+
+**Tested, and the model the formula implies does not fit.** Three findings, all
+measured:
+
+1. **There is no Vacuum armour.** The doc's tier list includes Vacuum at tier 4. The
+   string `VACUUM` appears nowhere in `ENCHANT.EXP` and nowhere in a 7.6 MB machine
+   state. The roster has seven armour fields and Vacuum is not among them.
+
+2. **`SKIN` and `CLOTH` are both 1 on a new character.** They are not sequential
+   tiers. Reading "highest set flag" as the tier gives a starting character tier 1,
+   while the doc puts skin and cloth together at tier 0.
+
+3. Consequence: the armour tier cannot be computed from the flags without knowing
+   how the game maps them, and the doc's ladder has an entry this build does not
+   have.
+
+So the formula is recorded as **not yet usable**. It needs either the code that
+computes armour class, or a controlled experiment: equip each armour in turn, save,
+and see which flags change.
+
+### The dungeon seeds
+
+```
+Static  Seed = f(X_coord, Y_coord, Depth, Continent Index)
+Dynamic Seed = f(Game Time Counter)
+```
+
+The inputs are named, which is what makes this findable. If the code computes those
+four values together before a call to a random routine, that is a recognisable shape
+in a disassembly: four loads, some mixing, one call. `Continent Index` maps to the
+roster's `ERA` or `WORLD`, and `Depth` to `DUNG_X`/`DUNG_Y` being non-zero.
+
 ## 6. Combat formulas
 
 The doc gives hit chance as a 7-bit random roll against BCD agility, guaranteeing a
