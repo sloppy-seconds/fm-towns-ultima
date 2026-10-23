@@ -62,6 +62,50 @@ which is what an earlier reading of the diff concluded. `GATE_X`, `GATE_Y` and
 `GATE_TIME` are the moongate position for the current world. And `SEED` exists,
 which is worth knowing before anyone tries to predict anything from the save.
 
+### 8.0.1.1 The FM Towns command keys, from the binary
+
+The savestate holds the in-game command bar as rendered strings, each letter
+appearing twice, once in English and once in Shift-JIS:
+
+```
+A)ttack  B)oard   C)ast    L)aunch  U)nlock
+D)ecend  M)agic   V)iew
+E)nter   N)egate  W)ear
+F)ire    O)ffer   X)-it
+G)et     P)ass    Y)ell
+H)yper   Q)uit&save
+I)gnite  R)eady   Z)tat
+```
+
+A second block holds the dungeon and spell commands, shown on their own bar:
+
+```
+B)LIGHT   C)DOWN LADDER   D)UP LADDER   E)PASS WALL
+F)SURFACE G)PRAYER        H)MAGIC MISSILE
+```
+
+**This is not the C64 key set.** The two ports share most letters because the
+command vocabulary is Origins' design rather than a platform artefact, but they
+diverge in the details, which is exactly the trap of reading another port's manual:
+
+| command | C64 | FM Towns |
+|---|---|---|
+| Attack | `A` | `A)ttack` |
+| Cast | `C` | `C)ast` |
+| Descend | `D` | `D)ecend` |
+| Klimb | `K` | absent, climbing is `D` or `C` on the ladder bar |
+| Negate | absent | `N)egate` |
+| Wear | absent | `W)ear` |
+| Offer | absent | `O)ffer` |
+| Pass | absent | `P)ass` |
+| Stat | absent | `Z)tat` |
+
+Two things worth noting for anyone driving the game programmatically. `Q)uit&save`
+is the save path, and it is one key. And `Z)tat` is the character sheet, which is
+where the roster fields were read from by hand during the position experiments.
+
+The list is measured from the running game, not from a manual for another platform.
+
 ### 8.0.2 `MAP` is a map type, not a map number
 
 The savestate also holds the game's debug labels, in one contiguous block:
