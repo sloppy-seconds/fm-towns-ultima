@@ -40,11 +40,13 @@ The game's strings are contiguous from about `0x79300` to `0x81000`. Ordering:
 
 ## Monster names
 
-Sixteen, at `0x79377`. Each is stored **twice**: once in a custom font encoding where
-every glyph is the two bytes `0xEB <index>`, and once in standard Shift-JIS. They sit
-adjacent, so the font encoding can be recovered by aligning the two copies. That
-encoding is what the game actually draws with, which makes it more useful than the
-names alone.
+Sixteen, at `0x79377`, stored as plain Shift-JIS.
+
+**Correction.** An earlier version of this page said each name was stored twice, once
+in a custom font encoding and once in Shift-JIS, and that the encoding could be
+recovered by aligning the two. That was wrong. There are `0xEB`-prefixed blocks
+interleaved with the names, but they are not a second copy of the same string and they
+do not align. Eight probes failed to decode them. See `font-encoding.md`.
 
 ```
 商人             merchant            オ−ク            orc

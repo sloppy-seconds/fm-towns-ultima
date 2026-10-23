@@ -25,6 +25,12 @@ question that used to head this list is answered: see
    every glyph is `0xEB <index>`, and once in standard Shift-JIS. The two copies sit
    adjacent, so the font encoding can be derived from them by alignment.
 
+   The names are plain Shift-JIS. An earlier reading that claimed a second custom
+   font encoding, and that it could be derived by aligning two copies of each
+   string, was **wrong**. Eight probes failed to decode the interleaved `0xEB` runs
+   and the negative results are recorded in `font-encoding.md`. Do not retry them
+   without a new method.
+
    Still open: which tile each name indexes. That is the code at `0xe7b58` and the
    four banks, and it needs either the indexer read properly or a savestate taken
    while standing on the map so the banks are populated.

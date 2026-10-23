@@ -66,6 +66,7 @@ nav:
       - Roster field reference: roster-reference.md
       - The game text: game-text.md
       - Debug and cheat modes: debug-modes.md
+      - The font encoding: font-encoding.md
       - Equipment thresholds: equipment-thresholds.md
       - The tile loader: tile-loader.md
       - Reviewing the research doc: meta-analysis-review.md
