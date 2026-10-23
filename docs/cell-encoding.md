@@ -73,8 +73,29 @@ follows coastlines rather than noise.
 
 ## What the other bits are
 
-The high nibble correlates at 74.4% with itself, which is above chance but well below
-`v & 3`. It is not random and it is not the terrain class either.
+**CORRECTION.** An earlier version of this section called the high nibble "not the terrain
+class" on the grounds that its absolute coherence, 75.5%, is below `v & 3`'s 84.6%. That
+comparison is wrong, because absolute coherence depends on the value distribution and cannot
+compare fields with different alphabets.
+
+The correct control is a **shuffle**: randomise the byte order, keep the distribution, and
+measure again. A field carrying spatial information scores well above its own shuffle.
+
+| field | real | shuffled | gain |
+|---|---|---|---|
+| `v & 3` | 84.6% | 42.7% | +41.9 pp |
+| `v >> 2 & 3` | 79.7% | 50.8% | +28.9 pp |
+| `v >> 4` | **75.5%** | **21.6%** | **+54.0 pp** |
+| full byte | 62.9% | 13.9% | +49.0 pp |
+
+**The high nibble has the largest gain of any field.** It is strongly structured, not noise.
+Its low absolute score is an artefact of having eight values with a flat distribution, so even
+shuffled it scores only 21.6%.
+
+Run lengths agree: `v & 3` averages 6.20 cells per run, the high nibble 3.98, and both reach a
+full 128-cell row.
+
+**So the map cell holds at least two structured fields, not one terrain field plus noise.**
 
 **Not established.** The working hypothesis is that the low two bits select terrain and the
 remaining bits carry something terrain-adjacent, such as a variant, a diagonal, or a
