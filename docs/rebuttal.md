@@ -150,7 +150,20 @@ tier 1 when the reference calls it tier 0.
 
 Source: `roster-reference.md`, and the savestate at `/var/tmp/death.state`.
 
-## 11. Asset formats
+## 11. Named debug modes that no published source mentions
+
+**Reference material** describes no debug or cheat modes for Ultima II on any
+platform.
+
+**Measured:** the FM Towns binary names five, in its own text, at file offsets
+`0x5501` to `0x55ad`: `日本語表示モ−ド` (Japanese display), `ダンジョンマスタ−`
+(dungeon master), `ウルティママスタ−` (Ultima master), `ゾンビモ−ド` (zombie) and
+`お金持ちモ−ド` (rich). See `debug-modes.md`.
+
+How they are entered is unknown. They are not referenced as immediates, the same
+addressing problem as the asset paths.
+
+## 12. Asset formats
 
 **Reference material** describes tile graphics as raw Apple II or CGA bitmaps.
 
