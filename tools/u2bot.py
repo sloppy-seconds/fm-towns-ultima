@@ -328,8 +328,8 @@ def cmd_fight(args):
     fight_rounds(args.n, args.dir)
 
 
-def cmd_state(_args):
-    print(json.dumps(state(), indent=1))
+def cmd_state(args):
+    print(json.dumps(state(), indent=None if getattr(args, "compact", False) else 1))
 
 
 def cmd_press(args):
@@ -397,7 +397,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("state", help="print the current state").set_defaults(fn=cmd_state)
+    st = sub.add_parser("state", help="print the current state")
+    st.add_argument("--json", dest="compact", action="store_true", help="one line, for scripts")
+    st.set_defaults(fn=cmd_state)
 
     p = sub.add_parser("press", help="send one key")
     p.add_argument("key")

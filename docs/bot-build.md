@@ -191,6 +191,39 @@ A blocked step still spending the turn is correct, not a bug: the game consumed 
 **Every action is recorded** to `saves/bot-transcript.jsonl`, one JSON line each, with a screenshot, the nine
 fields and `CS:EIP`. `node tools/u2bot.py tail` prints them.
 
+### The map, located in a savestate but not in memory
+
+**Found the map in a savestate.** Taking a fresh one and scanning for the longest run of bytes with bit 3
+clear gave a single candidate:
+
+```
+state offset 0xb06c2
+62,976 bytes, 64 distinct values, max 0x77, bit 3 never set
+```
+
+That is **two 32,768-byte maps back to back**, and the second one renders as coherent terrain:
+
+```
+ 16 .......*.#*#.............#
+ 17 .......#@@@@.........#@@@#
+ 18 @++++#..@##........##@#@@@
+ 20 .####...##@##..#@@@@###@@@
+ 22 ##.........##########@@@@#
+```
+
+Coastlines, forest, and structures. **That is the map**, and it is the first time this project has rendered
+one from live game memory rather than from a file payload.
+
+**Two things defeated locating it by address:**
+
+- Its state offset (`0xb7cc2`, the start of the second map) is **below** the character record's base, so the two
+  live in different segments and no single base maps both.
+- **A 16-byte probe taken from it was not found by `FIND`** in live memory. Either the map changed between the
+  savestate and the search, since walking modifies it, or that region is not in the RAM the search covers.
+
+**So the map is known to exist, is readable from a savestate, and its live address is still unknown.** That is a
+strict improvement on "not located" but it is not `walk_to`.
+
 ### Phase 4: `walk_to()` (blocked, and the blocker is specific)
 
 **Not built, because the map is not located.** Two candidate sources, both wrong:
