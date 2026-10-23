@@ -48,7 +48,7 @@ from the items below rather than maintained separately.
 | 2a The high bits of a map cell | AUTONOMOUS | **yes**, but see the circularity |
 | 2b Tile picture per `MAP2_*` value | AUTONOMOUS | not yet, held back by 2a |
 | 3a One savestate during play | BLOCKED ON HUMAN | no, needs keypresses |
-| 3b Which key is which command | BLOCKED ON HUMAN | no, needs keypresses |
+| 3b Which key is which command | AUTONOMOUS | **done**, the letter before the ) is the key |
 | 3c The `0xEB` font | BLOCKED ON INPUT | no, and should not be opened |
 | 4a The data tables | AUTONOMOUS | not yet, held back by 1a |
 | 4b Combat formulas | BLOCKED ON HUMAN | no, neither half closed |
@@ -270,16 +270,23 @@ Not a menu. Start a character, walk a few steps, save state.
 
 ### 3b. Which key is which command
 
-**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | blocked by policy, not by tooling. The same `POST /api/keys` endpoint drives it |
-| done when | `command-dispatch.md` maps each key code to a command |
-| blocked by | a human pressing keys one at a time, with each press requested rather than decided |
+| autonomy | autonomous, and it needed no measurement at all |
+| done when | the key for each command is known |
+| blocked by | nothing |
 
-Press a key, see which handler runs. The dispatch table is known (ten entries, index is key minus one,
-`0xd460c` holds the key), so this is a mapping exercise rather than a search.
+**Done, and the item was misconceived.** There was never a mapping to discover: **the letter before the `)` is
+the key.** `J)ump` is `J`, `K)limb` is `K`, `A)ttack` is `A`. The command bar documents its own bindings, which
+is what a bar like that is for.
+
+The full set is 25 commands in three columns, extracted from the binary at `save-files.md` 8.0.1.1.
+
+**What remains separate, and is a design point rather than an unknown:** the dispatcher at `0xf6ebc` indexes a
+ten-entry table by key minus one, and those keys are **control codes 1 to 10**. So movement is arrow keys and
+letter commands reach a different path. The bot needs both routes, and both are known.
 
 
 

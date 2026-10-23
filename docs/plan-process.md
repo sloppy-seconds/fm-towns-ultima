@@ -113,7 +113,7 @@ State alone is not enough to work an item. Three fields, always present, always 
 | field | value |
 |---|---|
 | autonomy | blocked, needs keypresses |
-| done when | `command-dispatch.md` maps each key code to a command |
+| done when | the text of the item is no longer a category error |
 | blocked by | a human pressing keys one at a time |
 ```
 
