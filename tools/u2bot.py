@@ -380,6 +380,58 @@ def cmd_survey(args):
     record("survey-done", str(result))
 
 
+# ---------------------------------------------------------------------------
+# probing: build a local map by walking, without needing the map's address
+# ---------------------------------------------------------------------------
+#
+# walk_to needs the map. The map's live address is unknown. But the party's own position is readable, and every
+# turn moves it by exactly one tile or is refused. So the bot can DISCOVER its surroundings by trying: each
+# direction costs one food and tells you whether the square is walkable, and where it leads.
+#
+# This is slow and it is honest. A 5x5 discovery costs about 8 turns, because a blocked step does not move the
+# party and the retry is at the same square.
+#
+# It is also better than a static map in one respect: it reflects the map the game is actually using, including
+# anything generated at runtime, which map-geometry.md says accounts for the first 12 rows.
+
+
+def try_step(direction):
+    """Attempt one step. Returns (moved, before, after). Costs one food regardless."""
+    before = state()
+    press(direction)
+    after = state()
+    moved = (after["px"], after["py"]) != (before["px"], before["py"])
+    return moved, before, after
+
+
+def discover(directions=None, record_each=True):
+    """From the current square, try each direction and note whether it is walkable.
+
+    Returns a dict of direction to True/False. The party ends where it started, because a successful step is
+    undone by stepping back along the same axis. That costs two extra turns per walkable direction, which is
+    the price of not having the map.
+    """
+    if directions is None:
+        directions = DIRECTION_ORDER
+    result = {}
+    for d in directions:
+        moved, before, after = try_step(d)
+        result[d] = moved
+        if record_each:
+            record("discover", "%s walkable=%s" % (d, moved))
+        if moved:
+            # Step back so the next probe starts from the same square.
+            back = {"up": "down", "down": "up", "left": "right", "right": "left"}[d]
+            press(back)
+    return result
+
+
+def cmd_discover(args):
+    res = discover()
+    print("  walkable: " + "  ".join("%s=%s" % (k, v) for k, v in res.items()))
+    record("discover-done", str(res))
+
+
 def cmd_state(args):
     print(json.dumps(state(), indent=None if getattr(args, "compact", False) else 1))
 
@@ -448,6 +500,9 @@ def cmd_tail(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    dv = sub.add_parser("discover", help="probe which neighbouring squares are walkable")
+    dv.set_defaults(fn=cmd_discover)
 
     sv = sub.add_parser("survey", help="walk a square pattern, recording every turn")
     sv.add_argument("legs", type=int, nargs="?", default=4)

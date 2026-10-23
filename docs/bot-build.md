@@ -224,6 +224,27 @@ one from live game memory rather than from a file payload.
 **So the map is known to exist, is readable from a savestate, and its live address is still unknown.** That is a
 strict improvement on "not located" but it is not `walk_to`.
 
+### Phase 4a: `discover()`, which works without the map
+
+**Built and verified.** Rather than needing the map's address, the bot probes: try each direction, and the
+party's own position tells you whether the square was walkable. Each probe costs one food and a successful step
+is undone by stepping straight back.
+
+From `33/23`, boxed in against water:
+
+```
+walkable: up=False  right=True  down=True  left=False
+```
+
+and the party ended where it started, as designed.
+
+**This is slow and it is honest**, and it has one advantage over a static map: it reflects the map the game is
+actually using, including anything generated at runtime, which `map-geometry.md` says accounts for the first 12
+rows.
+
+**What it gives the bot:** it can now tell a wall from open ground, so a survey can avoid retrying blocked
+squares, and a fight can be sought rather than stumbled into.
+
 ### Phase 4: `walk_to()` (blocked, and the blocker is specific)
 
 **Not built, because the map is not located.** Two candidate sources, both wrong:
@@ -327,6 +348,7 @@ around one action, not for a whole session.
 | `walk DIR N` | N steps, recorded | **yes**, six steps |
 | `pass` | `P)ass`, recorded | **yes**, twice |
 | `survey LEGS STEPS` | a square pattern, recorded, stops on damage | **yes**, 8 turns unattended |
+| `discover` | probes which neighbouring squares are walkable | **yes**, and it returns the party to its square |
 | `attack DIR` | `A` then a direction | **built, not exercised on a monster** |
 | `fight N` | repeated attacks, recorded | **built, not exercised** |
 | `record NAME` | screenshot, fields, `CS:EIP`, transcript | **yes** |
