@@ -2,6 +2,27 @@
 
 Guidance for anyone (agent or human) working in this repository.
 
+## Answer questions, do not act on them
+
+**A question gets an answer, not a commit.** This repository has many checks and a strong push toward
+committing, so a question about process reads like an invitation to improve the process. It is not.
+
+When the ask is "how do we...", "why...", "are we...", "should we..." or "any...", reply with the answer.
+No edits, no new tools, no builds, no commits.
+
+**Before the first tool call, ask: is this gathering information to answer, or changing something?**
+Reading and grepping to answer is fine. Writing, editing, building and committing are not.
+
+**If the answer is "we should change something", say so and stop.** Propose it and wait. Do not implement
+it in the same turn, and do not test your own proposal. A check that is worth adding is worth adding on
+purpose, not as a side effect of being asked about it.
+
+**Do not chase a hung command.** If something hangs, report what hung and the repo state, then stop.
+Trying variants of a stuck test turns a wrong turn into a longer wrong turn.
+
+Symptoms this rule is being broken: the reply to a question contains a commit hash, a new file, or a test
+run nobody asked for.
+
 ## Goal
 
 **The end goal is reimplementation of Ultima II.** The extraction phase exists
