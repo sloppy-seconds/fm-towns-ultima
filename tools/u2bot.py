@@ -275,6 +275,59 @@ def record(label, note="", shot=True):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# the fight
+# ---------------------------------------------------------------------------
+#
+# A)ttack takes a direction. Confirmed by the game's own instruction, "Direct with a arrow key!", and by the
+# fact that A alone consumed no turn. So a turn in a fight is two keys: A, then the arrow of the target.
+#
+# From the vision transcription of a real fight, the action log reads:
+#
+#     You defeated
+#      Thief!
+#
+# and "Pass.." means the attack found nothing in that direction, which is how a miss looks.
+
+
+def attack(direction="up"):
+    """One attack turn: A, then the direction. Returns (before, after)."""
+    before = state()
+    press("a", settle=0.30, wait_for_prompt=True)
+    press(direction, settle=0.30, wait_for_prompt=True)
+    after = state()
+    return before, after
+
+
+def fight_rounds(n, direction="up"):
+    """Attack up to n times, recording every turn, stopping on death or on an experience gain."""
+    for i in range(n):
+        before, after = attack(direction)
+        hp_delta = after["hp"] - before["hp"]
+        food_delta = after["food"] - before["food"]
+        print("  round %d: hp %d -> %d (%+d)  food %+d  exp %d->%d"
+              % (i + 1, before["hp"], after["hp"], hp_delta, food_delta, before["exp"], after["exp"]))
+        record("attack", "round %d dir=%s" % (i + 1, direction))
+        if after["hp"] <= 0:
+            print("  the party fell")
+            return
+        if after["exp"] != before["exp"]:
+            print("  experience gained: %+d" % (after["exp"] - before["exp"]))
+            return
+
+
+def cmd_attack(args):
+    before, after = attack(args.dir)
+    print("  hp %d -> %d" % (before["hp"], after["hp"]))
+    print("  exp %d -> %d" % (before["exp"], after["exp"]))
+    print("  food %d -> %d" % (before["food"], after["food"]))
+    record("attack", "A then " + args.dir)
+
+
+def cmd_fight(args):
+    fight_rounds(args.n, args.dir)
+
+
 def cmd_state(_args):
     print(json.dumps(state(), indent=1))
 
@@ -353,6 +406,15 @@ def main():
     sub.add_parser("pass", help="P)ass and record it").set_defaults(fn=cmd_pass)
 
     sub.add_parser("prompt", help="is the game showing a prompt right now").set_defaults(fn=cmd_prompt)
+
+    a = sub.add_parser("attack", help="one attack turn: A then a direction")
+    a.add_argument("dir", nargs="?", default="up", choices=sorted(ARROWS))
+    a.set_defaults(fn=cmd_attack)
+
+    f = sub.add_parser("fight", help="attack repeatedly, recording each turn")
+    f.add_argument("n", type=int, nargs="?", default=5)
+    f.add_argument("--dir", default="up", choices=sorted(ARROWS))
+    f.set_defaults(fn=cmd_fight)
 
     w = sub.add_parser("walk", help="take N steps in a direction")
     w.add_argument("dir", choices=sorted(ARROWS))

@@ -191,16 +191,33 @@ A blocked step still spending the turn is correct, not a bug: the game consumed 
 **Every action is recorded** to `saves/bot-transcript.jsonl`, one JSON line each, with a screenshot, the nine
 fields and `CS:EIP`. `node tools/u2bot.py tail` prints them.
 
-### Phase 4: `walk_to()`
+### Phase 4: `walk_to()` (blocked, and the blocker is specific)
+
+**Not built, because the map is not located.** Two candidate sources, both wrong:
+
+- **`0x77e90`, the 64 by 64 tile grid**, is a *drawing buffer*: it reads all zeros when nothing is being drawn.
+  Established in `map-draw-chain.md` as the buffer the blitter reads, and it is empty between frames.
+- **Guessing a flat address for U2's own 256 by 128 map buffer** gave regions with 11 distinct values and bit 3
+  set, which contradicts the map's measured signature of 62 distinct values, max `0x77`, bit 3 never set.
+
+**Searching for a savestate map probe in live memory found nothing**, because the party has moved since that
+state was taken, so the map contents differ.
+
+**So `walk_to` needs the map buffer located first**, and that is the one genuinely hard piece left. `walk` works;
+walking *to somewhere* does not.
+
+### Phase 4b: `walk_to()` once the map is found
 
 BFS on the tile grid at `0x77e90`, with the stuck counter. Walkability established empirically: try a step,
 record whether the party moved.
 
 **Done when** the bot reaches a coordinate it has not seen, from a random start, five times out of five.
 
-### Phase 5: `fight()`
+### Phase 5: `fight()` (built, not yet exercised on a live monster)
 
-`A)ttack` plus whatever prompt phase 1 revealed, repeated until the action log says it ended.
+`tools/u2bot.py attack` and `fight N` implement it: `A`, then the direction, then read the fields. It records
+every round. **It has not been run against a monster yet**, because none was adjacent when it was written, so it
+is built and untested rather than verified.
 
 **Done when** the bot wins a fight unaided and writes a transcript of it.
 
