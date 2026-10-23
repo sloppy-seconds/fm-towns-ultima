@@ -172,8 +172,15 @@ any "strongly called" list. Sweeping all 738 call targets still misses it becaus
 list of `CALL` destinations will ever include it.
 
 That is the honest boundary of this technique: **it can only sweep functions that something
-`call`s directly.** Reaching the rest needs either a full control-flow walk from the entry point
-at `0x101a20`, or accepting a small residual error.
+`call`s directly.**
+
+**CORRECTION:** this section originally said the rest could be reached "with a control-flow walk
+from the entry point at `0x101a20`". **`0x101a20` is not an entry point.** It is the `MP` header's
+`EIP` field, and it points one byte into a real instruction. Disassembling there gives
+`add al,[ebx]` / `rol dword [ebx],1`.
+
+See [entry-point-question.md](entry-point-question.md) for the measurement and for what a real
+control-flow walk would have to do.
 
 This project's own `code-analysis.md` records that direct:indirect dispatch is 58:1, so the
 missed functions are a minority, and 13 of 14 found false positives is a large improvement on

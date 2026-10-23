@@ -38,6 +38,15 @@ falls inside that range.
 So the load address is **0**, and a file offset equals a virtual address. That is
 convenient, and it is the opposite of what the header suggests.
 
+**`EIP` is also not a usable code entry.** Disassembling at `0x101a20` gives `add al,[ebx]`
+then `rol dword [ebx],1`, which is not a prologue. Sweeping from the real prologue at
+`0x101984` puts an instruction boundary at `0x101a1f`, so `0x101a20` is **one byte into a
+real instruction**.
+
+Treat the header `EIP` as unverified. The only entries this project trusts are `CALL` targets,
+because the instruction that reaches them proves them. See
+[entry-point-question.md](entry-point-question.md).
+
 ## Dispatch is direct, unlike the DOS build
 
 The 16-bit DOS release reaches its command handlers through `jmp *%bx` and a jump
