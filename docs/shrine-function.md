@@ -72,9 +72,11 @@ instruction boundary.
   0xF2E82  cmp eax,0x63 ... clamp 99
 ```
 
-That `[edx+esi*4+0xcdee7]` is a **six-element stat array**, because the first roll returns 0 to 14
-and is used as an index directly. So the array bounds are what the roll allows, which is a bug or a
-deliberate over-index. **The value is `rand(0..2) + 2`, so 2 to 4 points**, added to a chosen stat.
+That `[edx+esi*4+0xcdee7]` was described on this page as a "six-element stat array" with a possible
+over-index. **Both parts were wrong and [record-layout.md](record-layout.md) corrects them.** The array is
+the **item inventory**, fifteen consecutive `%d` fields from `QUICK_SWORD` at `0xcdee7` to
+`STRANGE_COIN` at `0xcdf1f`. The roll of 0 to 14 is exactly the array length, so there was never an
+over-index. **The value is `rand(0..2) + 2`, so 2 to 4 items**, added to a chosen item.
 
 The index is turned into a letter for the message:
 
@@ -122,7 +124,7 @@ The character record is `351` bytes, indexed by `[0xceca0]`, computed each time 
 |---|---|---|
 | `+0xcde95` base | stat, +2 from shrine `0x60` | 99 |
 | `+0xcde9d` base | stat, +1 at 4/16 from shrine `0xfc` | 99 |
-| `+0xcdee7` base | **six-element stat array**, +2..4 points | 99 |
+| `+0xcdee7` base | **item inventory**, 15 slots, +2..4 items | 99 |
 | `+0xcdeeb` base | stat, +1 at 5/10 from shrine `0xf8` | 99 |
 | `+0xcdeef` base | stat, +1 at 5/10 from shrine `0xf8` | 99 |
 | `+0xcdefb` base | stat, +1 at 4/16 from shrine `0xf0` | 99 |
@@ -174,7 +176,7 @@ The two caps:
 runs. **The unsolved glyph mapping blocks naming the stats**, which is the clearest demonstration
 yet that one open item is costing another.
 
-**Whether `+0xcdee7` really is six elements.** The roll allows 0 to 14 as an index, so either the
+**Whether `+0xcdee7` really is six elements.** RESOLVED: it is not, it is fifteen. The roll allows 0 to 14 as an index, so either the
 array is larger, or the code can over-index, or the roll is being reused for a purpose that
 constrains it elsewhere. Recorded as an anomaly, not a conclusion.
 

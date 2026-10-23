@@ -144,9 +144,12 @@ The reproducibility contract is missing recent results. All of these are cleanly
 
 58 pages, several written before later corrections. Known drift:
 
-- `roster-reference.md` is stale and missing item fields.
-- `shrine-function.md` has a correction banner but its body still uses old field names.
-- `extracted/u2/manifest.txt` still describes `MAP2_*` as 320x104 images when they are ASCII data.
+- `shrine-function.md`: DONE, body now names the item inventory rather than a "six-element stat
+  array", and marks the over-index question resolved.
+- `roster-reference.md`: **checked and NOT stale.** All 90 format-string fields are present, including
+  every item field. An earlier note claiming it was stale was wrong.
+- `extracted/u2/manifest.txt` describes `MAP2_*` as 320x104 images when they are ASCII data. **Cannot
+  be fixed in git** because `extracted/` is gitignored, so a stale local copy is a local problem only.
 - Pages still saying the record layout is unsolved.
 
 Grep and fix, linking to the correcting page. Annotate, do not delete history.

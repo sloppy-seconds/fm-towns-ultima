@@ -47,7 +47,15 @@ each with a stopping rule and a required commit. Start there when no human is av
 
 Ordered by what it costs and what it is worth.
 
-### 1. The remaining `randMod` functions (33 of 35 unread)
+### 1. The routines inside the turn (`0xf6ebc` calls 39)
+
+**This supersedes the `randMod` item.** The game loop is found ([game-loop.md](game-loop.md)): a turn is
+one call to `0xf6ebc`. Reading its 39 callees covers every per-turn behaviour, which is a far better
+return than 33 scattered `randMod` functions.
+
+Progress: 22 of 738 routines named. See [call-graph.md](call-graph.md) for the named skeleton.
+
+### 2. The `randMod` functions (33 of 35 unread)
 
 **Worth most, costs least, no blockers.** Grouping put the 85 `randMod` sites into 35 functions.
 Two are read: the shrine/effect dispatcher at `0xf2cc0` and the consumable tick at `0xef440`. The

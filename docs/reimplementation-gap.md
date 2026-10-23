@@ -8,17 +8,23 @@ into extraction-as-endpoint, and the drift was hiding the fact that **the corpus
 
 ## The headline number
 
-**738 distinct functions are called from `ENCHANT.EXP`. 59 of them are mentioned anywhere in the
-documentation. 26 have their behaviour actually written up.**
-
-That is **3.5 percent of the game's logic documented.**
+**738 distinct functions are called from `ENCHANT.EXP`. 22 are now named, the game loop is found, and
+the rest are not.**
 
 ```
 738   distinct CALL targets
- 59   mentioned anywhere in docs        8.0%
- 26   described in enough depth to reimplement   3.5%
-679   never mentioned
+ 22   named from string references or structure   3.0%
+716   unnamed
 ```
+
+An earlier version of this page measured by address mentions rather than by names, which counted
+incidental listings. The named count is the honest one and it is lower.
+
+**What changed since that measurement is not the number, it is the method.** `tools/callgraph.js` and
+`tools/fnstrings.js` make naming a routine take seconds rather than minutes, and the game loop at
+`0xe97c0` gives every remaining question a unit to be described against.
+
+See [call-graph.md](call-graph.md) and [game-loop.md](game-loop.md).
 
 Measured by extracting every `E8` call target and matching against every `0x` address in `docs/`. The
 3.5 percent figure counts targets mentioned three or more times, which is a rough proxy for "someone
@@ -119,7 +125,7 @@ most message routines reference only `0xEB` runs. The twelve probes were not was
 aimed at decoding the data rather than at finding the code that reads it, and those are different
 questions.
 
-Meanwhile **26 of 738 functions are described.** That ratio is the honest scoreboard.
+Meanwhile **22 of 738 functions are named.** That ratio is the honest scoreboard.
 
 ## The revised plan, in order
 
