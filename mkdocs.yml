@@ -66,6 +66,7 @@ nav:
   - Colour:
       - The palette: palette.md
   - Where it stands:
+      - Reading the code: code-analysis.md
       - Open questions: open-questions.md
       - How this was made: provenance.md
 

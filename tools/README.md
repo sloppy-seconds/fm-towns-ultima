@@ -11,6 +11,7 @@ directory, so run them from the repo root.
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
 | `verify.js` | Reproduces every claim in [the docs](docs/), 107 assertions. Needs Node. Start here if you are working on the extraction. |
 | `pharlap.js` | Loads Phar Lap `MP` and `P3` executables. Resolves symbol addresses to file offsets, disassembles at a symbol, dumps the flat load image. |
+| `expimage.js` | Measures `ENCHANT.EXP` as a code image: real-bytes ratio, zero-fill regions, dispatch mix, function-boundary counts. Reproduces every number in [code analysis](docs/code-analysis.md). |
 | `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. |
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
 | `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
