@@ -159,12 +159,37 @@ read.
 Try the four signals in order. **If none work, the bot cannot be trusted and everything after this is
 worthless**, which is why it is second and not last.
 
-### Phase 3: `state()` and `press()`
+### Phase 3: `state()` and `press()` (DONE)
 
-One interface for reads, with no addresses outside it. Movement by arrow key, verified by `PLAYER_X`.
-Record every action.
+**Built and working.** `tools/u2bot.py` has `state`, `press`, `walk`, `pass`, `prompt`, `record` and `tail`.
 
-**Done when** the bot takes ten random steps and `PLAYER_X`/`PLAYER_Y` match its intent every time.
+**A real bug was found and fixed here.** Arrow keys were being sent as escape sequences through the console
+`TYPE` command, and **the game ignored them**: it sat at its `Direct?` prompt through several attempts and the
+prompt never cleared. The supervisor has a proper endpoint,
+
+```
+POST /api/key  {keys: "Up"|"Down"|"Left"|"Right"}
+```
+
+which drives `xdotool` with real named keys. Switching to it resolved the prompt on the first try. **The console
+`TYPE` path does not produce arrow keys**, which is worth knowing for anything else that tries.
+
+**Walk verified:**
+
+```
+left 1   39/25 -> 38/25   food -15
+up 1     38/25 -> 38/24   food -15
+left 3   38/24 -> 35/24   food -15 each
+down 2   35/24 -> 35/25   then BLOCKED, and still food -15
+```
+
+**Every turn costs 15 food, whether it moved or not.** That closes the food question three ways: pass, walk,
+and a blocked walk all cost the same. The earlier "one west step, food unchanged" reading was simply wrong.
+
+A blocked step still spending the turn is correct, not a bug: the game consumed the turn and refused the move.
+
+**Every action is recorded** to `saves/bot-transcript.jsonl`, one JSON line each, with a screenshot, the nine
+fields and `CS:EIP`. `node tools/u2bot.py tail` prints them.
 
 ### Phase 4: `walk_to()`
 

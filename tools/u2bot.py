@@ -88,7 +88,8 @@ FIELDS = {
 }
 
 # The keys a turn is made of. Arrow keys move, letters are commands from the bar.
-ARROWS = {"up": "ArrowUp", "down": "ArrowDown", "left": "ArrowLeft", "right": "ArrowRight"}
+# The names POST /api/key accepts. Verified against supervisor.js, which passes them to xdotool.
+ARROWS = {"up": "Up", "down": "Down", "left": "Left", "right": "Right"}
 LETTERS = set("abcdefghijklmnopqrstuvwxyz")
 
 
@@ -231,7 +232,9 @@ def press(key, settle=0.25, wait_for_prompt=False):
     default because a plain movement step generally produces no prompt.
     """
     if key in ARROWS:
-        api("/api/cmd", {"line": "TYPE " + key_text(key)})
+        # /api/key sends a real named key through xdotool. The console TYPE command with an escape
+        # sequence does NOT produce an arrow key: the game ignored it and stayed at its prompt.
+        api("/api/key", {"keys": ARROWS[key]})
     elif len(key) == 1 and key.lower() in LETTERS:
         api("/api/keys", {"text": key.lower()})
     else:
@@ -240,11 +243,6 @@ def press(key, settle=0.25, wait_for_prompt=False):
     if wait_for_prompt:
         return wait()
     return None
-
-
-def key_text(key):
-    """The console TYPE escape sequence for an arrow key."""
-    return {"up": "\\x1b[A", "down": "\\x1b[B", "right": "\\x1b[C", "left": "\\x1b[D"}[key]
 
 
 def record(label, note="", shot=True):
