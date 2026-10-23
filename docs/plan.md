@@ -205,13 +205,15 @@ inference: the tiles render, so they can be matched against a rendered map.
 ## Phase 3: go to the emulator (Track B)
 
 **This is the phase that has never happened, and it is now worth more than another night of static work.**
+**Procedure: [savestate-session.md](savestate-session.md)**, which is a run sheet with a command and a check
+per step.
 
 **Nothing is blocking it.** Checked at the time of writing:
 
 | prerequisite | state |
 |---|---|
 | emulator vendored | `vendor/emulator`, `vendor/roms`, `vendor/freetownsos` all present |
-| container image built | `localhost/fmtowns`, 911 MB |
+| container image built | `localhost/u2-novnc`, 623 MB |
 | driver tooling | `tools/container-run.sh`, `tools/debug-session.sh`, `tools/u2flow.py`, `tools/vncclick.py` |
 | savestate tooling | `tools/statefind.js`, `tools/mirror.js`, `tools/savetext.py`, `tools/statesegments.js` |
 | save-disk tooling | `tools/savedisk.js`, `tools/makesave.js` |
