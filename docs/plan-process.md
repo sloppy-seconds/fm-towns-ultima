@@ -218,31 +218,54 @@ present.
 
 ## Part 7: the mechanical checks
 
-Run these before each commit. They take seconds.
+One command, and it returns a real exit code:
 
-```bash
-# A. every page is in the nav
-for f in docs/*.md; do b=$(basename "$f"); grep -q "$b" mkdocs.yml || echo "NOT IN NAV: $b"; done
-
-# B. no prose em-dashes or semicolons (style rule)
-grep -rn '—' docs/*.md || true
-
-# C. a count asserted in two places with different numbers
-grep -rno '[0-9]\+ of 738' docs/*.md
-
-# D. every plan item is workable
-node tools/plancheck.js
-
-# E. the site builds strict
-/var/tmp/mkvenv/bin/mkdocs build --strict 2>&1 | grep -E 'WARNING|ERROR'
-
-# F. established facts still hold
-node tools/verify.js
+```
+node tools/checkall.js
 ```
 
-**Check C catches this project's characteristic failure.** Every drift incident has been a count written in
-two places and updated in one. **Check D catches the other one:** an item written without the metadata that
-makes it workable.
+Eight checks. **Each was tested by breaking something it should catch and confirming it fails**, because a
+check that has never been seen to fail is a comment.
+
+| check | what it catches |
+|---|---|
+| nav coverage | a page in `docs/` that is not in `mkdocs.yml` nav. Strict build does not catch this |
+| no em-dashes outside code | the style rule, with two provenance exemptions |
+| counts have one owner | a page restating the named-routine count that `call-graph.md` owns |
+| summary table matches sections | the top-of-plan table contradicting the item sections under it |
+| plan items | an item missing State, Autonomy, done-when or blocked-by, or outside the vocabulary |
+| plan format | a planning document not converted to the item format |
+| verify | an established fact that stopped being true |
+| site build | `mkdocs --strict` warnings |
+
+### What this replaced, and why the old list was worthless
+
+Part 7 used to give six shell one-liners. Measured against each other, only **two** could gate anything:
+
+| old check | what it actually returned |
+|---|---|
+| A nav coverage | `for ... \|\| echo`: **always exit 0**. Cannot fail |
+| B em-dashes | `grep ... \|\| true`: **always exit 0**. Cannot fail |
+| C duplicate counts | `grep -rno`: **exit 1 when there are no matches**, which is the clean case. **Inverted** |
+| D plan items | real exit code. **Worked** |
+| E site build | `mkdocs \| grep`: exit is grep's, so **1 when clean**. **Inverted** |
+| F verify | real exit code. **Worked** |
+
+**So four of six could not fail, and two of those reported failure when everything was fine.** Run by hand
+you see text and might read it. Run in a script, or skimmed, they say the opposite of reality.
+
+**That is the mechanism behind the summary-table drift.** It survived four commits because nothing compared
+the table to the sections. Check C was the closest thing to a guard, and it greps for a count pattern that
+cannot see a table row, and would have exited 0 either way.
+
+### The rule
+
+**Before trusting a check, break the thing it should catch and confirm it exits non-zero. Then restore.**
+Five plants were used for `checkall.js`: a stale summary row, a duplicated count, an orphan page, an injected
+em-dash, and a removed done-when row. All five exit 1.
+
+This has now bitten four times in this project: three tests that returned their own baseline, and one tool
+that printed success unconditionally. Every one felt like a passing test.
 
 ## Part 8: the closing report, after every unit of work
 

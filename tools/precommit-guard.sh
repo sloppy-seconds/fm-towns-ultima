@@ -59,4 +59,30 @@ Do not bypass with --no-verify unless you are certain.
 MSG
 fi
 
+# Second gate: documentation and plan consistency, per docs/plan-process.md Part 7.
+#
+# The old Part 7 gave six shell one-liners, four of which could not fail and two of which reported failure
+# when clean. checkall.js is the replacement, and every check in it has been tested by breaking something it
+# should catch.
+#
+# --no-build skips mkdocs here because it is the slowest step and this runs on every commit. The build is
+# still checked on the manual run and in any future CI job.
+#
+# SKIP_DOC_CHECKS=1 bypasses this. If you use it, say why in the commit message.
+if [ "${SKIP_DOC_CHECKS:-0}" != "1" ] && command -v node >/dev/null 2>&1; then
+	if ! node tools/checkall.js --quiet --no-build; then
+		cat >&2 <<'MSG'
+
+Documentation or plan checks failed. Run `node tools/checkall.js` to see all of them.
+
+These exist because drift has been the most common defect in this repository: a count restated in two
+places, the plan summary table contradicting the item sections under it, and items worked without their
+metadata being updated. None of them break the build, which is why they need a gate.
+
+SKIP_DOC_CHECKS=1 bypasses this.
+MSG
+		status=1
+	fi
+fi
+
 exit "$status"
