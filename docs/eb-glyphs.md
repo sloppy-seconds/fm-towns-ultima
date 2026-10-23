@@ -70,6 +70,17 @@ supported. It is the same `0x5d` that fails the 11% test, so it fails with it.
 **Equal-length alignment with Shift-JIS twins.** Eight earlier variants of this, all
 recorded in [font-encoding.md](font-encoding.md).
 
+## A scale correction
+
+The counts on this page came from **160 "pure `EB` strings"**. Counting every `0xEB` pair in the
+region `0x1000` to `0x8000` gives **5,661 pairs**, from `0x1078` to `0x8014`.
+
+So the sample behind every statistical conclusion here was about 3 percent of the data. The one
+established mapping, `0x74` = `。`, was found by positional reasoning on that narrow sample and
+should be **re-tested against the full set** before it is treated as settled.
+
+See [glyph-writer-test.md](glyph-writer-test.md) for the two tests that followed and both failed.
+
 ## Why it keeps failing, stated plainly
 
 Every failed hypothesis has the same shape: a plausible reading of one sequence, checked

@@ -78,6 +78,7 @@ nav:
       - The random number helpers: rng-helpers.md
       - The stat-gain routine: stat-gain.md
       - The shrine function: shrine-function.md
+      - Testing whether code writes 0xEB: glyph-writer-test.md
       - The randMod survey: randmod-survey.md
       - The A12 disassembler design: a12-design.md
       - The 0x101a20 entry question: entry-point-question.md
