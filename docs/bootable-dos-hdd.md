@@ -123,7 +123,7 @@ guest's own `COPY`.
 ## DOS quirks that cost real time
 
 **`COPY` rejects a trailing backslash on the destination.**
-`copy src\*.* C:\BIN\` silently copies nothing; `copy src\*.* C:\BIN` works. A
+`copy src\*.* C:\BIN\` silently copies nothing, while `copy src\*.* C:\BIN` works. A
 single-file copy to the root still needs `C:\`.
 
 **`dir *.obj` reports "file not found" even when matches exist.** Use `*.OBJ`.
