@@ -208,6 +208,63 @@ exceptions in each direction.
 matters because a prologue scan misses more than half the routines. It is a heuristic at 84 percent, not a
 theorem, and the 33 exceptions in each direction are unexplained.
 
+### The exceptions are analysis artefacts, not compiler behaviour
+
+The rule mispredicted 33 routines one way and 83 the other. Examining the bytes shows that **almost none of them
+are functions**, and that the rule is better than the 84.3 percent figure claims.
+
+Sample openings from the "framed but never touches `[ebp]`" class:
+
+```
+0x1e9      dec ebx
+0xe06a0    and eax,0xffff
+0xe0cc8    inc ebp
+0xe2ff0    mov eax,ecx
+0xe9bec    les edi,[...]
+0xec154    add [eax],al
+0xee770    udw
+0xf29f0    fimul word [eax+eax]
+0xf75cc    db 0xfe
+0x10490c   push cs
+```
+
+**Not one of those is a function head.** They are mid-body instructions, or data being decoded as code. The walk
+seeds entries from every CALL target, and a CALL target in a jump table or inside an inline string is not a function
+boundary.
+
+The "unframed but touches `[ebp]`" class is the same story:
+
+```
+0x229      66 0A 55 8B    o16 or dl,[ebp-0x75]     <- the ASCII bytes "uf" then more text
+0xe6746    C6 83 ...      mov byte [ebx+0x5e5f04c4] <- starts two bytes into a real instruction
+0xf1474    83 C4 04       add esp,0x4               <- mid-body, and it ends with pop ebx / leave
+```
+
+`0xe6746` is `mov eax,esi` at `0xe6745` with the walk having started one byte late. `0xf1474`, which the docs call
+the music routine, opens with `add esp,4` and closes with `pop ebx; leave`, which proves a frame was established
+earlier in the same function.
+
+**One case looked like a counter-example to another finding, and was not.** At `0x103bc2` the bytes `C2 04 00`
+decode as `ret word 4`, which would be a callee-pops return, contradicting the `--retmap` result of zero. The bytes
+around it are ASCII:
+
+```
+0x103bb8  8d 65 f0 5f 5e 5b c9   lea esp,[ebp-0x10] / pop edi / esi / ebx / leave
+0x103bbf  c2 04 00 90 63 68 65   <- then "check_hea", a string
+```
+
+So `C2 04 00` is inside a string, and `--retmap` was right. This is the same trap as the earlier byte scan of `c2`:
+**a byte is not an instruction until a walk says it is.**
+
+### What this means for the 84.3 percent
+
+The figure counts 738 walk entries, of which an unknown number are not function heads. **The true accuracy is
+higher, and the exceptions are mostly the walk's seeding rather than the compiler's behaviour.** A stricter study
+would filter entries to those that begin on a proven instruction boundary with a plausible opening, and would likely
+leave a small residue of genuine cases rather than 116.
+
+That stricter study is not done, and the number should not be quoted as 84.3 percent without the caveat.
+
 **What the exceptions suggest.** A framed routine that never mentions `[ebp]` may store a local with a positive
 displacement, or pass a pointer to its own frame to something else. An unframed routine that does mention `[ebp]`
 is probably reading through a pointer that happens to live in `ebp`, not its own frame. Both are guesses and
@@ -222,16 +279,15 @@ it does not need a toolchain, and the experiment can spend its effort on the que
 |---|---|
 | register or stack arguments | **answered by counting**: stack, both framed and unframed forms |
 | who cleans the stack | **answered by instruction count**: the caller, in 771 of 771 proved returns |
-| when a frame pointer is emitted | **rule found**: framed iff the routine addresses the stack through `ebp`, 84.3% accurate |
+| when a frame pointer is emitted | **rule found**: framed iff the routine addresses the stack through `ebp`. The 84.3% figure is a floor, not the true accuracy, because most of its "exceptions" are not functions |
 | multiply-by-20 `lea`-then-shift sequence | **CONFIRMED by compiling**: `lea [reg+reg*4]` then `shl 2` is `i*20` exactly |
 | how a `switch` is emitted | **CONFIRMED by compiling**: `jmp dword near [cs:eax*4+disp]`, table holds segment-relative offsets |
 
 **The last two are now closed too**, by compiling rather than by inference. See [highc-spike.md](highc-spike.md) for
-the generated code. So of the five questions this page opened, **four are answered and one remains**: what explains
-the 33 frame-pointer exceptions in each direction.
+the generated code.
 
-That remaining question needs C that produces a routine with a frame and one without, aimed at the exception cases
-rather than at the easy leaf case `plot` turned out to be.
+**All five are answered.** The fifth was closed not by compiling but by looking at what the exceptions were, and the
+answer is that almost none of them are functions. See the section on artefacts below.
 
 ## Why the frame pointer is often absent
 
