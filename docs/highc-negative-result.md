@@ -85,6 +85,26 @@ was corrected, but correcting it does not make a CD filesystem writable. **A `.O
 A CD cannot supply either. A floppy image gives no drive letter without a driver in `config.sys`, and no hard disk
 image exists in the project.
 
+## What was found afterwards, which changes the shape of the problem
+
+Three things came after the negative result was written, and together they replace most of it.
+
+**A real MS-DOS exists in this repository.** `references/fmt-roms/FMT ROMs.7z` contains an MS-DOS 6.2 L10 boot
+disk with `COMMAND.COM`, `IO.SYS` and `MSDOS.SYS`. It boots to `A:\>` on Tsugaru. **The shell that was missing is not
+missing**, and its `AUTOEXEC.BAT` already mounts a CD as `Q:` with `MSCDEX`. See
+[dos62-boot-disk.md](dos62-boot-disk.md).
+
+**The CD's driver chain was incomplete and is now repaired.** The DOS disk lacked `OAK0.SYS` and `OAK1.SYS`, which
+are on the SDK disc, and its `CONFIG.SYS` paths pointed at `D:\DOS\`. Both are fixed on a copy of the disk.
+
+**Input, not configuration, was blocking the compiler.** With the compiler's exact location proved from the ISO
+directory tree, every remaining command failure was traced to synthetic keystrokes: a stray leading backslash, a
+colon arriving as a plus, and a doubled line from an `Escape` that did not clear the buffer. See
+[hdd-build-environment.md](hdd-build-environment.md).
+
+**So the four blockers listed above are now three solved and one open.** The open one is the CD not mounting, which
+`MSCDEX` reports as "already started" while no drive letter appears, so the device was not found when it ran.
+
 ## The route that would work, and it was already on this machine
 
 **A bootable, writable TownsOS hard disk with a High C compiler already on it.** `docs/save-disk.md` had documented
