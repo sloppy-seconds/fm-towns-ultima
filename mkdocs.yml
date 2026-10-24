@@ -120,6 +120,7 @@ nav:
       - High C V1.7 (FM Towns kit): highc-v17.md
       - High C negative result: highc-negative-result.md
       - The TownsOS hard disk: towns-hdd.md
+      - A bootable build disk: bootable-build-disk.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
