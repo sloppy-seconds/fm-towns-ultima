@@ -118,6 +118,7 @@ nav:
       - High C 3.04 installer: highc-v304-installer.md
       - High C forensics: highc-forensics.md
       - High C V1.7 (FM Towns kit): highc-v17.md
+      - High C negative result: highc-negative-result.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
