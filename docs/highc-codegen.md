@@ -223,11 +223,15 @@ it does not need a toolchain, and the experiment can spend its effort on the que
 | register or stack arguments | **answered by counting**: stack, both framed and unframed forms |
 | who cleans the stack | **answered by instruction count**: the caller, in 771 of 771 proved returns |
 | when a frame pointer is emitted | **rule found**: framed iff the routine addresses the stack through `ebp`, 84.3% accurate |
-| multiply-by-20 `lea`-then-shift sequence | **partly open**: three sites found, not proved to be the idiom |
-| how a `switch` is emitted | **open**: `jump-tables.md` has tables, no attribution to High C |
+| multiply-by-20 `lea`-then-shift sequence | **CONFIRMED by compiling**: `lea [reg+reg*4]` then `shl 2` is `i*20` exactly |
+| how a `switch` is emitted | **CONFIRMED by compiling**: `jmp dword near [cs:eax*4+disp]`, table holds segment-relative offsets |
 
-That is a much sharper experiment. Compile one function with a frame and one without, and see whether the
-difference is local-variable count, `-O` level, or a specific switch.
+**The last two are now closed too**, by compiling rather than by inference. See [highc-spike.md](highc-spike.md) for
+the generated code. So of the five questions this page opened, **four are answered and one remains**: what explains
+the 33 frame-pointer exceptions in each direction.
+
+That remaining question needs C that produces a routine with a frame and one without, aimed at the exception cases
+rather than at the easy leaf case `plot` turned out to be.
 
 ## Why the frame pointer is often absent
 

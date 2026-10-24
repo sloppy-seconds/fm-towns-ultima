@@ -53,6 +53,63 @@ runtime first.
 **`tools/calibrate.sh` exists and is correct as far as it goes.** It merges the disks, writes a DOSBox-X config with
 absolute paths, borrows Xwayland, waits for a completion marker rather than sleeping, and disassembles the object.
 
+## Two idioms confirmed by compiling, not by inference
+
+Both questions the bytes could not settle are now answered, and both answers are clean.
+
+### `lea` then shift is the multiply, proven
+
+`a9-reference-search.md` found three `lea reg,[reg+reg*4]` sites and could not show they were a multiply by 20,
+because a plausible pattern is not the same as a demonstrated one. Compiling `int mul20(int i) { return i * 20; }`
+answers it:
+
+```
+mov eax,[esp+0x4]
+lea eax,[eax+eax*4]     ; i * 5
+shl eax,byte 0x2        ; * 4 more, so i * 20
+ret
+```
+
+**That is the idiom, exactly.** So any `lea [reg+reg*4]` followed by a shift of 2 in the image is a multiply by 20,
+and the three known sites can be read as arithmetic rather than guessed at.
+
+### `switch` emits a `cs:`-relative jump table
+
+This settles a question `jump-tables.md` has carried. Compiling a six-case switch produces:
+
+```
+mov eax,[esp+0x4]
+dec eax                 ; make it 0-based
+cmp eax,5               ; six cases
+jna 0x40                ; in range, go to the table
+sub eax,eax             ; else default
+jmp 0x3d
+...
+jmp dword near [cs:eax*4+0x48]
+```
+
+with the table at `0x48`:
+
+```
+case 1 -> 0x10    case 4 -> 0x28
+case 2 -> 0x18    case 5 -> 0x30
+case 3 -> 0x20    case 6 -> 0x38
+```
+
+**Three things follow, and all three are new.**
+
+The dispatch is `jmp dword near [cs:eax*4+disp]`. That is precisely the `cs:`-relative indirect jump form the
+project has been cautious about, and it is ordinary compiler output for a switch on x86-32 with a flat model, not
+evidence of anything exotic about segmented addressing.
+
+**The table holds segment-relative offsets, not absolute addresses.** Entry 1 is `0x10` and the case body is at
+`0x10`, measured from the start of the code segment. So a table of small values in the image is a switch table, and
+its entries are offsets within the segment rather than absolute virtual addresses.
+
+**Below six cases it still uses a table.** A compiler is expected to fall back to a comparison chain for a small
+switch, and this one does not at six. Where the threshold lies has not been found, and it matters because it decides
+whether a short comparison chain in the image could be a two-case switch.
+
 ## The container, which removed the DOSBox problem
 
 A container was built for this, and the reason is not convenience. **The three Flatpak traps that cost several
