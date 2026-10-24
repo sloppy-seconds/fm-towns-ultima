@@ -28,19 +28,23 @@ PORT_VNC="${PORT_VNC:-5901}"
 HC="$ROOT/build/hc386_v231"
 WORK="$ROOT/build/calib"
 
-# THIS HOST HAS TWO PODMAN STORES AND THEY DO NOT SHARE IMAGES. The image here was built with sudo, so it lives in
-# the rootful store, while a plain "podman images" shows the rootless one and finds nothing. Detecting by whether
-# "podman info" works picks the rootless store and then tries to PULL localhost/highc from a registry, which fails
-# with a certificate error that says nothing about the real cause.
+# ROOTLESS. This script uses plain podman, with no sudo, which is the default on this machine and how
+# container/Containerfile is run. It was written with sudo first and that was wrong: sudo was copied from the
+# emulator's notes without checking, and the only thing it achieved was putting the image in a second store that
+# plain "podman images" cannot see. Rootless works for the build and for the run, including the bind mounts.
 #
-# So the choice is made by asking each store whether it actually has the image.
-if sudo podman image exists "$IMAGE" 2>/dev/null; then
-	PODMAN="sudo podman"
-elif podman image exists "$IMAGE" 2>/dev/null; then
-	PODMAN="podman"
-else
-	echo "  image $IMAGE not found in either store." >&2
-	echo "  build it first: sudo podman build -t highc -f container/Containerfile.highc ." >&2
+# THE TWO STORES ARE STILL A REAL HAZARD, so the check stays. If an image exists only in the rootful store, podman
+# tries to PULL the name from a registry and fails with a certificate error that says nothing about the cause.
+# Asking explicitly turns that into a message about the actual problem.
+PODMAN=podman
+if ! podman image exists "$IMAGE" 2>/dev/null; then
+	if sudo -n podman image exists "$IMAGE" 2>/dev/null; then
+		echo "  $IMAGE exists only in the ROOTFUL store, which this script does not use." >&2
+		echo "  Rebuild it rootless: podman build -t $IMAGE -f container/Containerfile.highc ." >&2
+	else
+		echo "  $IMAGE not found. Build it first:" >&2
+		echo "    podman build -t $IMAGE -f container/Containerfile.highc ." >&2
+	fi
 	exit 1
 fi
 

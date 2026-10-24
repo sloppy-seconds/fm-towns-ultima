@@ -102,9 +102,16 @@ like from the shell.
 
 Two more traps found here and worth recording:
 
-**Podman has two image stores on this host and they do not share.** The image was built with sudo, so a plain
-`podman images` finds nothing and podman then tries to **pull** `localhost/highc` from a registry, failing with a
-certificate error that says nothing about the cause. The script now asks each store whether it has the image.
+**Podman has two image stores on this host and they do not share, and using sudo caused it.** The first version of
+this script built and ran with sudo, which put the image in the rootful store where a plain `podman images` cannot
+see it, and podman then tried to **pull** `localhost/highc` from a registry, failing with a certificate error that
+says nothing about the cause.
+
+**That sudo was not needed and should not have been there.** It was copied from the emulator's notes without
+checking. Rootless podman builds this image, runs it, and passes the bind mounts, and the existing
+`container/Containerfile` is already run rootless. So the script now uses plain podman throughout. The store check
+stays, because the failure it produces is still possible for anyone who builds rootful, and it now says which store
+the image is in instead of letting podman attempt a registry pull.
 
 **DOS gets one drive.** `C:` is mounted at `/work`, so `HCDIR=C:\HC` only resolves if the toolchain is also
 mounted at `/work/HC`. Mounting it at `/hc` looks correct on the Linux side and is invisible to DOS.
