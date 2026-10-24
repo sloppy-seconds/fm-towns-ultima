@@ -114,6 +114,7 @@ nav:
       - The indirect branches: indirect-branches.md
       - Ghidra viability: ghidra-viability.md
       - High C code generation: highc-codegen.md
+      - High C calibration spike: highc-spike.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md
