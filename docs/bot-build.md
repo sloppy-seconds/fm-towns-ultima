@@ -380,6 +380,97 @@ What that costs: the bot cannot report a monster's name, and it notices a kill b
 message. What it buys: it cannot be wrong about a number. Both modes work today, which reading the log would not
 have.
 
+## Personality: three postures, derived, and lockable from outside
+
+The first design had `curious` and `berserker` as **commands**. A mode was chosen when the process started and
+held for the whole run. That is the wrong shape: a player is not one thing for an hour, they are curious in a
+town, forward on the open road, and frightened at 20 percent health.
+
+So posture is now a value **derived before every decision**, with three possible overrides.
+
+```
+$ python3 tools/u2bot.py personality
+SCARED  hp 21%  unknown  (effective health 21% vs aggression at 65% and fear at 40%, unknown)
+```
+
+### The rule, stated as a rule
+
+Below 40 percent health the party is **scared**. Above 65 percent it is **aggressive**. Between, **curious**.
+The environment shifts both cut points rather than adding a score, so neither can invert the health order.
+
+| environment | 20% | 45% | 60% | 75% | 90% |
+|---|---|---|---|---|---|
+| town | scared | curious | curious | curious | curious |
+| overworld | scared | aggressive | aggressive | aggressive | aggressive |
+| unknown | scared | curious | curious | aggressive | aggressive |
+
+That is a player's instinct written down: no fights in town, no hesitation on the road, caution when the place
+is unfamiliar.
+
+### The bug this caught in its own output
+
+The first derivation scored each posture by how close the party was to that posture's fight threshold. At 21
+percent health it reported **AGGRESSIVE**, because low health selects the lowest threshold. It was written by
+scoring instead of by stating the rule, and the printed output showed it immediately.
+
+The fix is to write the bands in order and compare against them, which cannot invert.
+
+### Locking a posture, which is the API
+
+A bot mid-run cannot be reconfigured by calling a function in its own process. So the lock is a **file**. Writing
+it changes the next decision, with no socket, no restart, and no thread.
+
+```
+$ python3 tools/u2bot.py personality --set aggressive --note "testing the lock"
+posture lock: aggressive
+$ python3 tools/u2bot.py personality
+AGGRESSIVE [locked]  hp 21%  unknown  (locked from outside)
+$ python3 tools/u2bot.py personality --set auto
+posture lock: cleared
+$ python3 tools/u2bot.py personality
+SCARED  hp 21%  unknown  (...)
+```
+
+The running bot reads `saves/personality.json` before every decision, so a write lands on the next turn. Same
+mechanism when the bot is not running: set the posture, then start it.
+
+### The environment is inferred, and that is the weak link
+
+**The game does not expose a location kind at any address this project has confirmed.** `0xcde56` was a
+candidate, from the overworld sub-screen call at `0xf746c`, and it read `0xec` unchanged across a walk and an
+`E)nter`, so it was not used.
+
+What is used instead is **blocked-square density**: a town is bounded, so its open area is small and the fraction
+of refusals is high, while the overworld is large and mostly open. Above 0.55 refusals per visit reads as a town,
+below 0.25 as overworld, anything else as unknown.
+
+That correlates without proving. A mountain range looks like a town wall by this measure. The reason it is
+acceptable to ship is that **a wrong environment does not break anything**: it only mis-weights the posture. So
+this is a labelled inference rather than a blocker, and the code says so at the point of use.
+
+### Terrain classes, which generalise where squares cannot
+
+Recording "this square is blocked" teaches the bot nothing about any other square. Encountering one mountain
+teaches it one square. So `TerrainBook` records the **colour signature** of a square and whether walking into it
+worked, and predicts from the class:
+
+| signature | walk | blocked | so |
+|---|---|---|---|
+| `rgb010` | 41 | 0 | passable |
+| `rgb200` | 0 | 3 | impassable |
+
+Colour is sampled from the screenshot at the party's grid position, coarse-bucketed, because a tile is only about
+5.6 pixels across. Two squares with the same signature are the same bet, which is exactly the generalisation the
+player described: learn one mountain, know all mountains.
+
+The book refuses to predict on fewer than three observations, and only when the majority is decisive. A confident
+wrong guess is worse than no opinion, because it makes the bot walk into a wall repeatedly.
+
+**Seeded priors** live in `saves/lore.json`, in the shape a player who read the manual would have: water and
+mountains impassable, bridges and grass passable, some monsters beyond a starting party. This is **not measured
+from the game** and the file says so in its first field. It exists so the first turn has something to reason with,
+and observation overwrites it.
+
 ## Recording, which is the actual product
 
 **Every action writes a record.** Screenshot, fields, `CS:EIP`, and the action window text. That makes the bot
