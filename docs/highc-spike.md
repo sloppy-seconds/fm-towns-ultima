@@ -143,6 +143,61 @@ calling convention rather than about a lucky flag.
 The version question therefore remains formally open, but with less riding on it than before. A later compiler
 that changed only its optimiser would produce the same code here.
 
+## The non-leaf test: matching does NOT scale, and the reason is the division
+
+`plot` was the easy case. `0xe6a58` was chosen as its opposite: framed, eight arguments, callee-saved registers, a
+division and a clamp. The C was written from the disassembly twice, because the first version was optimised away.
+
+**The first attempt was folded to nothing.** `int ctor(...) { int t = (h-6)/8; if (t<d) d=t; return d; }` compiled to
+
+```
+mov eax,[esp+0x10]
+ret
+```
+
+because the clamp had no side effect the compiler could see. The real function **writes** to `[ebp+0x1c]`, so the
+second version wrote through a pointer and could not be eliminated.
+
+**The second attempt compiled, and does not match.** Game at `0xe6a58`:
+
+```
+lea eax,[esi-0x6]
+cdq / sub eax,edx / sar eax,byte 1      x3        ; (esi-6) / 8
+cmp eax,[ebp+0x1c]
+jnl skip
+mov [ebp+0x1c],eax
+```
+
+Compiled by High C 2.31 today:
+
+```
+mov ecx,[esp+0x14]
+add ecx,-6
+mov eax,ecx / sar eax,2 / shr eax,0x1d / add eax,ecx / sar eax,3
+mov ecx,[esp+0x1c]
+cmp eax,[ecx]
+jnl skip
+mov [ecx],eax
+```
+
+**Same semantics, and both are correct signed division by 8. But the instruction sequences are completely
+different.**
+
+Two things follow, and the second is the important one.
+
+**Division is a discriminator, not an idiom.** The game uses `cdq / sub / sar` three times, which is a naive
+divide-by-power-of-two. The compiler emits a bias-then-shift reciprocal, which is the faster and more modern form.
+These are different code-generation strategies for the same source expression.
+
+**So matching does not scale from `plot`.** `plot` had a multiply, and High C produced the same `lea`-then-shift
+that the game uses. This routine has a division, and High C produces something the game does not contain. **The
+compiler is right for multiplication and wrong for division**, which means either it is not the compiler version
+that built this code, or the source expression was written differently enough to route around the optimiser.
+
+**This is exactly the question the pilot was for, and the answer is negative.** Bulk decompilation by
+compile-and-diff would fail on every routine containing a division, and that is a large fraction of a game's
+arithmetic.
+
 ## The container, which removed the DOSBox problem
 
 A container was built for this, and the reason is not convenience. **The three Flatpak traps that cost several
