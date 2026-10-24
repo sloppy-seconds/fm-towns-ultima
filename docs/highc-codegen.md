@@ -114,6 +114,72 @@ the citation is a body address inside a correctly located function.
 honest form is "the instruction at `0xf3e04` is how the pixel writer was identified". Those support different
 conclusions, and only the second has evidence.
 
+## The calling convention is stack-based, and it is mixed
+
+Two counts that settle questions the plan was going to ask a compiler, and both contradict what I had assumed.
+
+**Arguments go on the stack, not in registers.** `pixelWriter` at `0xf3e04` reads its arguments with
+
+```
+8b 44 24 0c   mov eax,[esp+0xc]   ; arg3
+8b 54 24 08   mov edx,[esp+0x8]   ; arg2
+```
+
+which is `esp`-relative, with no frame pointer at all. Image-wide:
+
+```
+mov reg,[esp+disp8]   223
+mov eax,[ebp+disp8]   394
+```
+
+Both forms are common, and they are the same convention at different points: a framed function reads its
+arguments off `ebp`, an unframed one reads them off `esp`. **Neither passes arguments in registers.** The earlier
+guess in this page that High C used a register convention was wrong, and the count says so.
+
+**Clean-up is split.** Of the returns in the image:
+
+```
+c3        plain ret        1024
+c2 imm16  ret and pop N     341
+```
+
+A third of the returns clean their own arguments, which is the `stdcall` shape, and two thirds do not, which is
+`cdecl`.
+
+**Two caveats on that count, and they matter.** `c2` is a single byte, so the 341 is a **byte scan, not an
+instruction scan** and it includes `c2` appearing inside data or inside a longer instruction. And the addresses
+are spread across the whole image rather than clustered at the Fujitsu library:
+
+```
+0x000000:  40      0x0e0000:  69
+0x0d0000:   6      0x0f0000:  99
+                   0x100000: 127
+```
+
+So this is not a clean split between Origins code and library code, which was the tidy explanation. It is mixed
+within the game code, or the count is inflated by false positives, and **the current tooling cannot tell which.**
+Confirming it needs the `ret` bytes intersected with instruction boundaries from `cfgwalk.js`, which the CLI does
+not expose.
+
+**So this is a lead, not a finding.** Who pops the arguments is the question that decides how a decompiler should
+type every call, and it is worth a proper count before it is believed.
+
+## What this changes about the experiment
+
+The plan was going to ask a compiler how it passes arguments. **That question is now answered from the bytes**, so
+it does not need a toolchain, and the experiment can spend its effort on the questions the bytes cannot answer:
+
+| question | status now |
+|---|---|
+| register or stack arguments | **answered by counting**: stack, both framed and unframed forms |
+| who cleans the stack | **half answered**: 341 of 1365 returns pop arguments, split not yet attributed |
+| when a frame pointer is emitted | **open**, and the 50 50 split is the target to reproduce |
+| multiply-by-20 `lea`-then-shift sequence | **partly open**: three sites found, not proved to be the idiom |
+| how a `switch` is emitted | **open**: `jump-tables.md` has tables, no attribution to High C |
+
+That is a much sharper experiment. Compile one function with a frame and one without, and see whether the
+difference is local-variable count, `-O` level, or a specific switch.
+
 ## Why the frame pointer is often absent
 
 Three plain explanations, in order of likelihood, none yet tested:
@@ -121,8 +187,11 @@ Three plain explanations, in order of likelihood, none yet tested:
 **The functions are small.** A leaf that uses only registers needs no frame, and High C emitted a bare `ret`
 after pushes. The established functions are 16 to 25 instructions.
 
-**The register calling convention.** Phar Lap and High C era compilers commonly pass arguments in registers.
-Functions written that way read from registers, not `[ebp+8]`, so they need no frame to address arguments.
+**~~The register calling convention.~~ WRONG, and the count disproves it.** This page originally guessed that High
+C passed arguments in registers, which would explain the missing frames. The bytes say otherwise: 223
+`[esp+disp8]` argument reads and 394 `[ebp+disp8]` reads, and neither is a register-passed argument. Unframed
+functions read their arguments off `esp` instead of `ebp`. Kept here because the guess was reasonable and wrong,
+and a reader deserves to see which.
 
 **Optimisation level.** A higher optimisation setting drops the frame pointer when it is not needed. The
 underworld project's own notes record that the exact flags matter more than the exact version.
