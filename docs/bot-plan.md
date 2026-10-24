@@ -217,7 +217,7 @@ building it costs little.
 
 ### 1a. Read the 11x11 viewport, from memory if P4 succeeds, from the screen otherwise
 
-**State:** DONE for the screen route, OPEN for the memory route · **Autonomy:** AUTONOMOUS
+**State:** PARTLY DONE · **Autonomy:** AUTONOMOUS
 
 The map panel is measured at x1-361, y67-418, which is 360 by 351 pixels. Eleven tiles across 360 pixels is
 **32.7 pixels per tile**, which is a normal sprite size and matches what the art shows. The party is at the
@@ -232,8 +232,16 @@ means the fallback is tested rather than imagined.
 
 | | |
 |---|---|
-| done when | a function returns a 121-cell grid for a live game, with the party's cell at index 60, and the symbols are stable across two samples taken without a turn between them |
+| done when | a function returns a 121-cell grid for a live game, with the party's cell at index 60, the symbols are stable across two samples taken without a turn between them, and the ROW geometry is confirmed by the same standard of measurement as the column geometry |
 | failure case | a grid that changes when the party does not move. That means the sampling is straddling tile boundaries, or the buffer is being read while the game is rewriting it |
+
+**Done so far:** 121 cells, zero unknowns, identical hash on two reads with no turn between, party at index 60.
+The column pitch is measured at exactly 32 pixels from `59, 91, 123, 155, 187, 219`.
+
+**Still open:** the vertical pitch. The same measurement gives no clean sequence on rows, and eleven tiles at 32
+pixels is 352 where the interior is 350 tall, so a square grid does not fit. `cell_box()` divides evenly and so
+does not depend on the assumption, but the row geometry has not been verified to the standard the column geometry
+was. A frame with horizontal structure, such as a town street grid, would settle it.
 
 ### 1b. Earn the tile alphabet
 

@@ -485,7 +485,7 @@ The panel carries a blue border with a white inner line. On a live 1024 by 800 s
 | white inner line | x 1, 11, 371-372, y 67 and 418 |
 | terrain interior | **x 12-367, y 68-417**, that is 356 by 350 pixels |
 
-### The grid is 11 by 11, and here is the proof
+### The horizontal pitch is 32 pixels. The vertical pitch is NOT measured.
 
 Scanning the interior for the columns with the most colour changes returned:
 
@@ -493,8 +493,30 @@ Scanning the interior for the columns with the most colour changes returned:
 59, 91, 123, 155, 187, 219
 ```
 
-**That is an exact arithmetic sequence with step 32.** A tile boundary is where the most colours change, so the
-pitch is 32 pixels and eleven tiles span 352. No document said 11 by 11 for this panel. It was measured.
+**That is an exact arithmetic sequence with step 32**, so the horizontal pitch is 32 pixels and eleven tiles span
+352. No document said 11 by 11 for this panel. That much was measured.
+
+**The vertical pitch was assumed equal and the assumption is not supported.** The same method applied to rows
+gives no clean sequence:
+
+```
+busiest rows   83, 88, 89, 90, 91, 92, 96, 98, 99, 121, 153, 155, 162, ...
+offsets mod 32  0, 2, 3, 4, 19, 20, 21, 24, 25, 26, 27, 28
+```
+
+A best-fit search does find a 32-step chain, `88, 121, 153, 185, 217`, but it skips rows and continues only
+where the data is dense, so it is a fit rather than a measurement. The arithmetic also fails: eleven tiles at 32
+pixels is **352**, while the interior is **350** tall. A square grid does not fit the vertical interior exactly,
+so either the vertical pitch is fractional (about 31.8) or the grid is not 11 rows.
+
+**What this means for the code.** `cell_box()` divides the interior evenly, so it is correct for any pitch and does
+not depend on the assumption. Sampling at cell centres is therefore safe. What is *not* safe is treating the cell
+ordinates as exactly 32 pixels, which nothing does.
+
+**Why it resisted.** Every row of this frame holds 6 or 7 distinct colours, because the terrain is vertically
+detailed everywhere, so a "many colour changes" test has no contrast to find. The column test worked because
+building edges align vertically and give a strong signal. The same test needs a frame with horizontal structure,
+which this one does not have.
 
 The party's position was then found independently: counting white, red and magenta pixels per cell, the densest
 cell is **column 5, row 5**, which is index **60 of 121**, the exact centre. So the party is centred, which the
