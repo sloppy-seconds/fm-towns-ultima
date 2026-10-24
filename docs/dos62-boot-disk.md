@@ -75,6 +75,36 @@ unloaded with `Bad or not found: :\DOS\OAK0.SYS`, note the empty drive, meaning 
 what a boot floppy needs, and the original disk used `D:\DOS\` for the same reason: an explicit letter rather than
 a relative root.
 
+## HIMEM.SYS fails, and the SDK shows what to use instead
+
+`HIMEM.SYS` does not load on this machine:
+
+```
+Notice: high memory area is not available.
+XMS driver was not installed.
+SMARTDrive cannot load: HIMEM.SYS not loaded.
+```
+
+which cascades into no HMA and no disk cache. **The Oak driver errors are gone**, so the CD chain is a separate
+matter and did improve.
+
+**The SDK's own `config.sys` answers it.** It does not use `HIMEM.SYS` at all:
+
+```
+DEVICE=\SYS\CTL.SYS
+DEVICE=\TBIOS\TBIOSLD.SYS
+DEVICE=TOWNS.SYS
+DEVICE=\SYS\OAK0.SYS
+DEVICE=\SYS\OAK1.SYS /S0 /H1 /K0 /R0 /M3 /B1
+```
+
+`CTL.SYS` is the Fujitsu memory manager, and this matches what the project already knows about `CTL.SYS V1.1 L519`
+from the hard disk. **On FM Towns, Microsoft's HIMEM is the wrong driver**; a Fujitsu-supplied one is expected.
+
+**What that means for the compiler:** `hc386.exe` is a Phar Lap extender program and needs extended memory. If
+`HIMEM.SYS` cannot provide it, `CTL.SYS` is the candidate, and it is on the SDK CD at `sys/ctl.sys` alongside the Oak
+drivers that were copied across for the same reason.
+
 ## Why this matters
 
 Every previous route to a scriptable shell failed:
