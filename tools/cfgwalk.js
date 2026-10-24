@@ -138,6 +138,18 @@ function classify(ins) {
 	return { kind: 'normal', target: null, fallsThrough: true };
 }
 
+// Does a function start here with the standard frame-pointer prologue?
+//
+// Only HALF the routines in this image do: 366 occurrences of 55 8b ec against 738 known routines, measured. So
+// this returns true when a prologue is present and says nothing when it is absent. It is one positive signal, not
+// a test for function heads.
+function startsWithPrologue(img, addr) {
+	const off = img.base !== undefined ? addr - img.base : addr;
+	const code = Buffer.isBuffer(img) ? img : img.code || img.data;
+	if (!code || off < 0 || off + 3 > code.length) return false;
+	return code[off] === 0x55 && code[off + 1] === 0x8b && code[off + 2] === 0xec;
+}
+
 function callTargets(img) {
 	const out = new Set();
 	for (let i = 0; i < img.length - 5; i++) {
@@ -241,11 +253,37 @@ function main() {
 		const check = Number(args[i + 1]);
 		const seeds = callTargets(img);
 		const r = walk(img, seeds);
+		const isBoundary = r.boundary.has(check);
+		const isCallTarget = seeds.has(check);
+		const prologueHere = startsWithPrologue(img, check);
+
+		// AN ADDRESS BEING A BOUNDARY IS NOT THE SAME AS BEING A FUNCTION HEAD. That distinction was blurred in
+		// this project until it was measured. Of nine published addresses, five have no frame pointer within
+		// 160 bytes, and three land inside an instruction's operands rather than on a boundary. Only half of
+		// the 738 known routines begin with `push ebp; mov ebp, esp`, so a prologue test cannot prove absence
+		// either. See docs/highc-codegen.md for the counts.
+		//
+		// The answer therefore names which kind of address this is, and says what it cannot tell you.
 		console.log(`walk from ${seeds.size} CALL targets`);
 		console.log(`  instructions decoded: ${r.decoded}`);
 		console.log(`  distinct boundaries:  ${r.boundary.size}`);
 		console.log(`  unresolved edges:     ${r.unresolved.length}`);
-		console.log(`  is 0x${check.toString(16)} a boundary: ${r.boundary.has(check)}`);
+		console.log(`  is 0x${check.toString(16)} a boundary:    ${isBoundary}`);
+		console.log(`  is 0x${check.toString(16)} a CALL target: ${isCallTarget}`);
+		console.log(`  0x${check.toString(16)} starts with a standard prologue: ${prologueHere}`);
+		console.log('');
+		if (isCallTarget) {
+			console.log('  VERDICT: function head. Something CALLs it, which settles it.');
+		} else if (isBoundary && prologueHere) {
+			console.log('  VERDICT: function head, by prologue and boundary together.');
+		} else if (isBoundary) {
+			console.log('  VERDICT: instruction boundary, but NOT shown to be a function head.');
+			console.log('           Half the routines have no frame pointer, so an absent prologue proves nothing.');
+		} else {
+			console.log('  VERDICT: NOT an instruction boundary. The address falls inside an instruction.');
+			console.log('           A claim that this address names a function must restate as "the instruction');
+			console.log('           that identifies it", not "where it starts".');
+		}
 		return;
 	}
 

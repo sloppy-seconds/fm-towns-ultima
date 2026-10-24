@@ -49,6 +49,71 @@ by its most identifiable instruction, and the routine's own boundary is elsewher
 **That is a distinction the project has been blurring.** "This address is the function" and "this address is the
 instruction that identifies the function" are different claims, and only the second has been tested.
 
+## Alternate prologues were tested and do not explain the missing half
+
+The obvious objection to the 50 50 figure is that half the routines use a *different* prologue rather than none.
+That was tested image-wide rather than argued:
+
+```
+55 8b ec  (push ebp, then mov ebp,esp)    366   50% of 738 routines
+83 ec NN  (sub esp,N with no frame)        80   11% more at most
+```
+
+**`sub esp` adds at most eleven points, so the alternate-prologue explanation covers a sixth of the gap, not the
+half it would need to.** The majority of unframed routines begin with neither a frame nor a stack allocation.
+
+Three other candidate entry shapes were checked and none produced a head within 400 bytes of the cited address:
+a bare callee-saved push pair, `push ebp` followed by callee-saved registers, and a clean prologue preceded by a
+`ret` or `leave`. So the missing prologues are not simply a different pattern in a predictable place.
+
+## The cited addresses are instruction addresses, not function heads
+
+This is now measured rather than suspected, and it is the more important half of the finding.
+
+Look at the twelve bytes before each cited address:
+
+| function | cited | preceding bytes | what that is |
+|---|---|---|---|
+| `statGain` | `0xf25b4` | `...68 d4 63 00 00` | the tail of `push 0x63d4`. The cited address lands inside an instruction's operand |
+| `pixelWriter` | `0xf3e04` | `...b8 ff ff ff ff` | the tail of `mov eax,-1` |
+| `dispatcher` | `0xf6ebc` | `...6a 07 e8 89 fc fe ff` | the tail of a `call` |
+
+**A CORRECTION TO THIS SECTION, from the walk that settles it.** Reading the bytes by eye suggested these
+addresses began mid-instruction. Checking them against `cfgwalk.js`, which walks from all 738 CALL targets, says
+otherwise for two of the three:
+
+```
+0xf3e04   boundary: true   CALL target: true   prologue: false   -> function head
+0xef4bb   boundary: false  CALL target: false  prologue: false   -> not a boundary at all
+0xe1c5c   boundary: true   CALL target: true   prologue: true    -> function head
+```
+
+**`0xf3e04` is called by something, so it is a function head with no frame pointer.** My byte-level reading was
+wrong because a cursor placed by hand lands wherever it lands, while the walk has 79,470 decoded instructions
+agreeing on where boundaries are. That is the same lesson as everywhere else in this project: prefer the
+instrument to the eyeball.
+
+**So the finding narrows to what it actually says.** The published addresses are function heads that were
+*identified* by a distinctive instruction, and the error that matters is smaller than "mid-instruction": it is
+that **three of three checked had no standard prologue**, and a hand search for `55 8b ec` would have missed two of
+them. An address being a CALL target is the reliable test, and the prologue is a convenience.
+
+**What this does not change.** The pre-correction claim below overstated the case, and the underlying point
+stands: a cited address is a citation of an identifying instruction, not proof of a boundary, and only the walk
+proves a boundary.
+
+*The superseded reading, kept because the reasoning error is instructive:* `ghidra-viability.md` records Ghidra agreeing on these addresses, and it is
+now consistent: Ghidra was asked to disassemble at a byte offset and did so, which is not the same as identifying a
+function entry.
+
+**What this does not invalidate.** The routines are real and their behaviour was read correctly. `randMod`,
+`randRange`, `renderer` and `counter` do have a real `push ebp` a short way before the cited address, so for those
+the citation is a body address inside a correctly located function.
+
+**What it does invalidate.** Any claim of the form "`0xf3e04` is the pixel writer" as a *function boundary*. The
+honest form is "the instruction at `0xf3e04` is how the pixel writer was identified". Those support different
+conclusions, and only the second has evidence.
+
 ## Why the frame pointer is often absent
 
 Three plain explanations, in order of likelihood, none yet tested:
