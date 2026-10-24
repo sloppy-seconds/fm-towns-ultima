@@ -121,6 +121,7 @@ nav:
       - High C negative result: highc-negative-result.md
       - The TownsOS hard disk: towns-hdd.md
       - A bootable build disk: bootable-build-disk.md
+      - The HDD build environment: hdd-build-environment.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
