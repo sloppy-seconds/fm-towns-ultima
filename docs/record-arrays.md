@@ -95,10 +95,31 @@ mov  dword [eax+ecx+0x749],0xffffffff  ; +69
 lea  eax,[eax+ecx+0x714]
 ```
 
-**This contradicts the 57-byte stride.** The constructor writes up to offset **+69**, which
-is 13 bytes past the end of a 57-byte record. So either the stride here is not 57, or these
-later writes belong to the next record, or the record is larger and 57 belongs to something
-else.
+**RESOLVED, by compiling rather than by reading.** The apparent contradiction is arithmetic that was
+never finished, and the answer is that **the 57-byte stride is correct and the fields span exactly 57 bytes**.
+
+The constructor's addressing is `[eax+ecx+disp]` with `eax = 0x7a7d0` fixed, `ecx = i*57` from the `lea` chain,
+and `disp` running `0x714` to `0x749`. Converting the displacements to record offsets means subtracting `0x700`:
+
+```
+record offset:  20, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65, 69, 73
+```
+
+**From +20 to +73 inclusive is 57 bytes.** So the fields do not overflow a 57-byte record. They fill one,
+measured from an origin 20 bytes into the slot.
+
+**That means two structures overlap, not that one is bigger.** Every slot is 57 bytes apart, and this constructor
+writes a 57-byte block starting 20 bytes into each slot. The low 20 bytes of a slot are written by something else.
+
+The `+69` that started the contradiction is real but it is offset +69 within a block whose first field is +20,
+not +69 within a record that began at 0.
+
+**How this was settled.** MetaWare High C 2.31 was compiled against `int f(int i){return i*20;}` and emitted
+`lea eax,[eax+eax*4]` then `shl eax,2`, which proves the `lea`-then-shift idiom is a multiply. With that proved,
+`lea edx,[edi+edi*2]` / `lea ecx,[edx+edx*8]` / `lea ecx,[edx+ecx*2]` reads unambiguously as `3i + 27i*2 = 57i`
+rather than being taken on trust. See [highc-spike.md](highc-spike.md).
+
+*The superseded reading, kept because the arithmetic step it skipped is the instructive part:*
 
 ### Arithmetic performed before the store
 
