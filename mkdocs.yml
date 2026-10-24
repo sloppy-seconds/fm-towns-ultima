@@ -116,6 +116,7 @@ nav:
       - High C code generation: highc-codegen.md
       - High C calibration spike: highc-spike.md
       - High C 3.04 installer: highc-v304-installer.md
+      - High C forensics: highc-forensics.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md
