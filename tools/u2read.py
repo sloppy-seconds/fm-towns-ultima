@@ -169,6 +169,133 @@ def cell_grid(img, y0, y1, x_start=TEXT_X, x_end=630):
     return cells
 
 
+# ---------------------------------------------------------------------------
+# glyph table: bitmap -> character
+# ---------------------------------------------------------------------------
+#
+# The font is fixed-pitch and the same everywhere, so one table serves every panel. It is keyed by the cell
+# bitmap rather than by position, so it does not care where on screen a character appears.
+#
+# SEEDED BY HAND from a screenshot whose text is known from the game's own display: the status bar reads
+# "P: 371" and the food field reads 37150, so P, :, space and the digits can be pinned without guessing.
+
+GLYPH_TABLE = {}
+GLYPH_FILE = Path(__file__).resolve().parent.parent / "tools" / "glyphs.json"
+
+
+def cell_key(rows):
+    """A stable string for a glyph bitmap, so the table survives font rendering changes in the reader.
+
+    Width is part of the key. Leaving it out made S and C collide, which showed up as INTELLIGENCE decoding to
+    "INTELLIGENCE" with two letters swapped, and WISDOM decoding to WICDOM. Trailing dots are trimmed because a
+    proportional glyph's bitmap is as wide as its ink, so the trimming is safe once width is recorded.
+    """
+    return "%d:%s" % (len(rows[0]) if rows else 0, "\n".join(rows))
+
+
+def load_glyphs():
+    if GLYPH_FILE.exists():
+        GLYPH_TABLE.update(json.loads(GLYPH_FILE.read_text()))
+    return GLYPH_TABLE
+
+
+def save_glyphs():
+    GLYPH_FILE.write_text(json.dumps(GLYPH_TABLE, indent=0, sort_keys=True))
+
+
+# THE STATUS BAR FONT IS PROPORTIONAL, NOT FIXED-PITCH. This was measured and it corrects the cell-grid
+# assumption the panel reader started with: on the status line the runs are 14, 1, 12, 11 and 12 px wide, so
+# "P" and ":" do not share a 16 px cell. Glyphs therefore have to be cut at ink boundaries, and the word space
+# has to be inferred from the gap width.
+#
+# So a glyph is identified by its bitmap AND is decoded without its width stored separately: the key includes
+# the bitmap only, and the character is whatever that shape is.
+#
+# A gap wider than this many blank columns is a space. Measured: the gap between words is 20 px, inside a word
+# it is 2 to 5 px.
+
+SPACE_GAP = 9
+
+
+def glyph_runs_ink(img, y0, y1, box=None):
+    """Split a text line at blank columns. Returns [(x_start, x_end, rows, width)]."""
+    box = box or PANELS["actions"]
+    x0, _, x1, _ = box
+    px = img.load()
+    ink = [any(px[x, y] == WHITE for y in range(y0, y1 + 1)) for x in range(x0, 640)]
+    out, cur = [], None
+    for i, on in enumerate(ink):
+        if on and cur is None:
+            cur = i
+        elif not on and cur is not None:
+            out.append((cur + x0, i - 1 + x0, i - cur))
+            cur = None
+    if cur is not None:
+        out.append((cur + x0, 639, len(ink) - cur))
+    glyphs = []
+    for a, b, w in out:
+        rows = []
+        for y in range(y0, y1 + 1):
+            rows.append("".join("#" if px[x, y] == WHITE else "." for x in range(a, b + 1)))
+        glyphs.append((a, b, rows, w))
+    return glyphs
+
+
+def read_line(img, y0, y1, box=None):
+    """Decode one text line to a string. Unrecognised glyphs become '?' and are counted."""
+    out, unknown = [], 0
+    prev_end = None
+    for a, b, rows, w in glyph_runs_ink(img, y0, y1, box):
+        if prev_end is not None and a - prev_end - 1 >= SPACE_GAP:
+            out.append(" ")
+        prev_end = b
+        ch = GLYPH_TABLE.get(cell_key(rows))
+        if ch is None:
+            out.append("?")
+            unknown += 1
+        else:
+            out.append(ch)
+    return "".join(out), unknown
+
+
+def read_panel(img, panel):
+    """Every text line in a panel, as strings."""
+    box = PANELS[panel]
+    lines = []
+    for y0, y1 in text_rows(img, box):
+        text, unknown = read_line(img, y0, y1, box)
+        if text.strip():
+            lines.append((text, unknown))
+    return lines
+
+
+def cmd_read(args):
+    load_glyphs()
+    box = PANELS[args.panel]
+    src = Path(args.image) if args.image else grab(args.port)
+    img = Image.open(src).convert("RGB")
+    for text, unknown in read_panel(img, args.panel):
+        print(text + ("   [%d unknown]" % unknown if unknown else ""))
+    if not GLYPH_TABLE:
+        print("\nthe glyph table is empty: seed it with `--teach <panel>`")
+
+
+def cmd_teach(args):
+    """Print each unknown cell's bitmap so it can be added to the table by hand."""
+    load_glyphs()
+    box = PANELS[args.teach]
+    src = Path(args.image) if args.image else grab(args.port)
+    img = Image.open(src).convert("RGB")
+    for y0, y1 in text_rows(img, box):
+        for a, b, rows, w in glyph_runs_ink(img, y0, y1, box):
+            k = cell_key(rows)
+            if k in GLYPH_TABLE:
+                continue
+            print(f"-- glyph at x={a}-{b} width {w}")
+            print("\n".join(rows))
+            print()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("image", nargs="?", help="screenshot to read; default is a fresh one from the API")
@@ -178,8 +305,18 @@ def main():
     ap.add_argument("--glyphs", metavar="PANEL", help="list the glyph runs in each line of a panel")
     ap.add_argument("--crop", metavar="PANEL", help="save a cropped PNG of a panel, for a vision model")
     ap.add_argument("--cells", metavar="PANEL", help="print each 16 px text cell as ascii art, for building a glyph table")
+    ap.add_argument("--read", metavar="PANEL", dest="panel", help="decode a panel to text using the glyph table")
+    ap.add_argument("--teach", metavar="PANEL", help="print unknown cells so they can be added to the table")
     ap.add_argument("--port", type=int, default=8080)
     args = ap.parse_args()
+
+    if args.panel:
+        cmd_read(args)
+        return
+
+    if args.teach:
+        cmd_teach(args)
+        return
 
     if args.panels:
         for name, box in PANELS.items():

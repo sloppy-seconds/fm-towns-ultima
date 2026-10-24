@@ -432,6 +432,373 @@ def cmd_discover(args):
     record("discover-done", str(res))
 
 
+# ---------------------------------------------------------------------------
+# behaviour modes
+# ---------------------------------------------------------------------------
+#
+# Two modes, both driven only by signals measured earlier in this project. Neither needs the screen read as
+# text and neither needs the map's live address, so both work today.
+#
+# WHAT THE BOT CAN SENSE, and nothing else:
+#
+#   hp / maxhp        a fall means something hit the party
+#   exp / gold        a rise means something was killed
+#   food              falls 15 every turn, so it is a clock that never stops
+#   px / py           position, so a refused step is visible
+#   try_step()        whether a neighbouring square is walkable
+#
+# That is enough for both modes. A monster is "adjacent and attackable" if `A` followed by a direction changes
+# hp, exp or gold, and "not there" if the action log says the pass found nothing. The bot does not need to read
+# the log: a killed monster shows up as exp or gold rising.
+#
+# THIS IS A DELIBERATE LIMITATION. The bot cannot read the action log as text, because the panel font is
+# proportional and the glyph table is only partly seeded. So it infers from effect rather than from words. That
+# makes it slower to notice a kill and it cannot report the monster's name. It cannot be wrong about the
+# arithmetic, which matters more.
+
+
+class Outcome:
+    """What one turn did, as far as the bot can tell."""
+
+    def __init__(self, before, after, moved=None):
+        self.before = before
+        self.after = after
+        self.moved = moved
+
+    hp_delta = property(lambda self: self.after["hp"] - self.before["hp"])
+    exp_delta = property(lambda self: self.after["exp"] - self.before["exp"])
+    gold_delta = property(lambda self: self.after["gold"] - self.before["gold"])
+    food_delta = property(lambda self: self.after["food"] - self.before["food"])
+
+    @property
+    def hit(self):
+        """Something damaged the party this turn."""
+        return self.hp_delta < 0
+
+    @property
+    def killed(self):
+        """Something died this turn. Experience is the reliable signal; gold can come from other sources."""
+        return self.exp_delta > 0
+
+    @property
+    def dead(self):
+        return self.after["hp"] <= 0
+
+    def __str__(self):
+        bits = []
+        if self.moved:
+            bits.append("moved")
+        if self.hit:
+            bits.append("hit %+d" % self.hp_delta)
+        if self.killed:
+            bits.append("KILL exp+%d gold+%d" % (self.exp_delta, self.gold_delta))
+        if self.dead:
+            bits.append("DEAD")
+        return ", ".join(bits) or "nothing"
+
+
+def turn(direction):
+    """One movement turn in `direction`, with the outcome classified."""
+    before = state()
+    press(direction)
+    after = state()
+    moved = (after["px"], after["py"]) != (before["px"], before["py"])
+    return Outcome(before, after, moved)
+
+
+def attack_turn(direction):
+    """One attack turn: A, then the direction. Classified the same way as movement."""
+    before = state()
+    press("a", settle=0.30, wait_for_prompt=True)
+    press(direction, settle=0.30, wait_for_prompt=True)
+    after = state()
+    return Outcome(before, after, None)
+
+
+# --- shared: keeping a party alive -------------------------------------------------------------
+
+
+def rest_if_hurt(threshold=0.5, rounds=40):
+    """Pass turns until HP stops improving, or the party is at full health.
+
+    A pass is a turn, so this costs food. It is still the only way the bot has of recovering, because healing
+    needs a town and the bot cannot find one without the map.
+
+    Stops early if HP is not rising, which is what an unrecoverable situation looks like.
+    """
+    total = state()
+    if total["hp"] >= total["maxhp"] * threshold:
+        return False
+    best = total["hp"]
+    for _ in range(rounds):
+        before = state()
+        press("p", settle=0.30)
+        after = state()
+        record("rest", "pass")
+        if after["hp"] <= before["hp"]:
+            return True
+        best = max(best, after["hp"])
+        if after["hp"] >= after["maxhp"]:
+            return True
+    return True
+
+
+# --- curiosity ---------------------------------------------------------------------------------
+#
+# Curiosity wanders and pokes at things. It walks to unexplored squares, tries every command letter that is
+# safe to try, and records what happened. It is the exploration mode: its product is a transcript of what the
+# world does when touched.
+#
+# THE SAFE COMMANDS. The command bar has 25 entries and the key is the letter before the ')'. Several of them
+# are dangerous: `Q)uit` ends the game without saving and would cost the session. The bot therefore works from
+# an allow list rather than by trying every letter.
+#
+#   E)nter  G)et  L)ook  T)alk  O)pen  S)earch  J)ump  K)limb  U)se  P)ass
+#
+# Each returns to the world screen on its own, which is what makes them usable unattended.
+
+CURIOUS_COMMANDS = ["l", "e", "g", "t", "o", "s", "j", "k", "u"]
+
+# Commands that must never be pressed without a human. Recorded here so the reason travels with the code.
+NEVER_PRESS = {
+    "q": "Quit ends the session without saving",
+    "n": "New character overwrites the roster",
+    "d": "Descend may drop the party somewhere unrecoverable",
+    "a": "Attack outside a fight wastes a turn and can start one",
+    "c": "Cast consumes reagents and can kill the party",
+}
+
+
+def curiosity(turns=60, poke_every=7, verbose=True):
+    """Wander, and poke at things. Records everything.
+
+    Deliberately has no map and no memory of where it has been beyond a local heuristic: prefer a direction it
+    has not recently used, and avoid the square it just came from. That is enough to avoid walking into the same
+    wall forever, which is the failure the first survey had.
+    """
+    history = []
+    last = None
+    pokes = 0
+    stats = {"turns": 0, "moved": 0, "blocked": 0, "pokes": 0, "attacked": 0, "kills": 0}
+
+    for i in range(turns):
+        st = state()
+
+        if st["hp"] <= 0:
+            if verbose:
+                print("  the party fell on turn %d" % i)
+            break
+
+        # Every so often, try a command. `poke_every` is small enough to find things and large enough that
+        # most turns are movement, so the party actually gets somewhere.
+        if i and i % poke_every == 0:
+            cmd = CURIOUS_COMMANDS[(i // poke_every) % len(CURIOUS_COMMANDS)]
+            before = state()
+            press(cmd, settle=0.40, wait_for_prompt=True)
+            after = state()
+            pokes += 1
+            stats["pokes"] += 1
+            label = "poke-" + cmd
+            record(label, "curiosity")
+            if verbose:
+                print("  poke %-2s  hp %+d exp %+d food %+d" %
+                      (cmd, after["hp"] - before["hp"], after["exp"] - before["exp"],
+                       after["food"] - before["food"]))
+            # Any command may have opened a submenu. A single pass clears the ones that only print a line.
+            press("p", settle=0.30)
+            continue
+
+        # Choose a direction: not the way we came, and prefer one that worked before.
+        back = {"up": "down", "down": "up", "left": "right", "right": "left"}.get(last)
+        order = [d for d in DIRECTION_ORDER if d != back]
+        if len(history) >= 2 and history[-2] in order:
+            order.remove(history[-2])
+            order.append(history[-2])
+
+        result = None
+        for d in order:
+            result = turn(d)
+            stats["turns"] += 1
+            if result.moved:
+                last = d
+                history.append(d)
+                stats["moved"] += 1
+                break
+            stats["blocked"] += 1
+            if result.dead:
+                break
+        record("curiosity", "%s %s" % (last, result))
+        if result is None:
+            continue
+
+        if result.dead:
+            if verbose:
+                print("  the party fell")
+            break
+        if result.killed:
+            stats["kills"] += 1
+        if result.hit:
+            stats["attacked"] += 1
+            if verbose:
+                print("  turn %3d  %s  hp %d/%d" % (i, result, result.after["hp"], result.after["maxhp"]))
+            # Something is adjacent and hostile. Curiosity does not fight: it records and moves on, which is
+            # the difference between this mode and berserker.
+        elif verbose and result.moved:
+            print("  turn %3d  %-5s  %2d/%2d  food %d" %
+                  (i, last, result.after["px"], result.after["py"], result.after["food_display"]))
+
+        if result.after["hp"] < result.after["maxhp"] * 0.4:
+            if verbose:
+                print("  hp low (%d/%d), resting" % (result.after["hp"], result.after["maxhp"]))
+            rest_if_hurt()
+
+    return stats
+
+
+def cmd_curiosity(args):
+    stats = curiosity(args.turns, args.poke_every)
+    print("\ncuriosity: %(turns)d turns, %(moved)d moved, %(blocked)d blocked, "
+          "%(pokes)d pokes, %(attacked)d attacked, %(kills)d kills" % stats)
+    record("curiosity-done", str(stats))
+
+
+# --- berserker ---------------------------------------------------------------------------------
+#
+# Berserker hunts. It probes for a target, attacks until nothing is left, and when the neighbourhood is empty
+# it goes looking for a town or a moongate.
+#
+# HOW IT FINDS A MONSTER. There is no monster table to read and the map is not addressable, so it uses the
+# cheapest reliable test: attack in a direction. If the attack changed hp, exp or gold, something was there.
+# If nothing changed, the pass found nothing and that direction is clear for now.
+#
+# That is one wasted turn per empty direction, which is why the search order matters: try the direction the
+# party is already facing, then the others, before moving.
+
+FACING = {"up": ["up", "left", "right", "down"],
+          "down": ["down", "left", "right", "up"],
+          "left": ["left", "up", "down", "right"],
+          "right": ["right", "up", "down", "left"]}
+
+
+def hunt(max_rounds=40, verbose=True):
+    """Attack everything adjacent until nothing responds. Returns the number of kills."""
+    kills = 0
+    misses = 0
+    for r in range(max_rounds):
+        found = False
+        for d in FACING["up"]:
+            res = attack_turn(d)
+            record("hunt", "dir=%s" % d)
+            if res.dead:
+                if verbose:
+                    print("  the party fell")
+                return kills
+            if res.killed:
+                kills += 1
+                misses = 0
+                found = True
+                if verbose:
+                    print("  KILL  round %2d %-5s  exp %d (%+d)  gold %d (%+d)  hp %d/%d"
+                          % (r, d, res.after["exp"], res.exp_delta, res.after["gold"],
+                             res.gold_delta, res.after["hp"], res.after["maxhp"]))
+                break
+            if res.hit:
+                # Something hit back, so it is alive and adjacent. Keep attacking it.
+                found = True
+                if verbose:
+                    print("  hit   round %2d %-5s  hp %d/%d (%+d)"
+                          % (r, d, res.after["hp"], res.after["maxhp"], res.hp_delta))
+                break
+        if not found:
+            misses += 1
+            if misses >= 2:
+                if verbose:
+                    print("  nothing adjacent for %d rounds: the fight is over" % misses)
+                return kills
+        if state()["hp"] < state()["maxhp"] * 0.35:
+            if verbose:
+                print("  hp low, resting")
+            rest_if_hurt()
+    return kills
+
+
+def seek(max_turns=80, verbose=True):
+    """Walk until something is adjacent. Returns the direction it found, or None.
+
+    This is the "no monsters left here" behaviour: move, probe, repeat. A town or moongate shows up as a
+    command succeeding where open ground gives nothing, which is why `E)nter` is part of the probe.
+    """
+    for t in range(max_turns):
+        for d in DIRECTION_ORDER:
+            res = turn(d)
+            record("seek", d)
+            if res.dead:
+                return None
+            if res.hit or res.killed:
+                if verbose:
+                    print("  turn %3d  found something in %s: %s  at %d/%d"
+                          % (t, d, res, res.after["px"], res.after["py"]))
+                return d
+            if res.moved:
+                if verbose:
+                    print("  turn %3d  %-5s to %d/%d  food %d"
+                          % (t, d, res.after["px"], res.after["py"], res.after["food_display"]))
+                break
+        # A town, a moongate or a shop announces itself by accepting a command. Try entering before moving on.
+        if t and t % 6 == 0:
+            before = state()
+            press("e", settle=0.40, wait_for_prompt=True)
+            after = state()
+            if after["map"] != before["map"]:
+                if verbose:
+                    print("  ENTERED something: map %d -> %d" % (before["map"], after["map"]))
+                return "enter"
+            press("p", settle=0.25)
+    return None
+
+
+def berserker(cycles=6, verbose=True):
+    """Hunt locally, then seek, then hunt again. Stops when the party falls."""
+    total = {"kills": 0, "cycles": 0}
+    for c in range(cycles):
+        print("\ncycle %d" % (c + 1))
+        kills = hunt(verbose=verbose)
+        total["kills"] += kills
+        total["cycles"] += 1
+        st = state()
+        if st["hp"] <= 0:
+            print("  the party fell")
+            break
+        if st["hp"] < st["maxhp"] * 0.5:
+            print("  hp %d/%d, resting before seeking" % (st["hp"], st["maxhp"]))
+            rest_if_hurt()
+        print("  seeking")
+        where = seek(verbose=verbose)
+        if where is None:
+            print("  found nothing and could not enter anywhere")
+            break
+        print("  seek result: %s" % where)
+    st = state()
+    print("\nberserker: %(kills)d kills over %(cycles)d cycles, hp %d/%d, exp %d, gold %d"
+          % dict(total, hp=st["hp"], maxhp=st["maxhp"], exp=st["exp"], gold=st["gold"]))
+    record("berserker-done", str(total))
+    return total
+
+
+def cmd_berserker(args):
+    berserker(args.cycles)
+
+
+def cmd_hunt(args):
+    kills = hunt(args.rounds)
+    print("\nhunt: %d kills" % kills)
+
+
+def cmd_seek(args):
+    where = seek(args.turns)
+    print("\nseek: %s" % (where or "nothing found"))
+
+
 def cmd_state(args):
     print(json.dumps(state(), indent=None if getattr(args, "compact", False) else 1))
 
@@ -500,6 +867,23 @@ def cmd_tail(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    cu = sub.add_parser("curiosity", help="wander and poke at things")
+    cu.add_argument("turns", type=int, nargs="?", default=60)
+    cu.add_argument("--poke-every", type=int, default=7)
+    cu.set_defaults(fn=cmd_curiosity)
+
+    be = sub.add_parser("berserker", help="hunt monsters, then seek a town or moongate")
+    be.add_argument("cycles", type=int, nargs="?", default=6)
+    be.set_defaults(fn=cmd_berserker)
+
+    hu = sub.add_parser("hunt", help="attack everything adjacent, then stop")
+    hu.add_argument("rounds", type=int, nargs="?", default=40)
+    hu.set_defaults(fn=cmd_hunt)
+
+    se = sub.add_parser("seek", help="walk until something is adjacent or somewhere is entered")
+    se.add_argument("turns", type=int, nargs="?", default=80)
+    se.set_defaults(fn=cmd_seek)
 
     dv = sub.add_parser("discover", help="probe which neighbouring squares are walkable")
     dv.set_defaults(fn=cmd_discover)

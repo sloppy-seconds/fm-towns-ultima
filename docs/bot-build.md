@@ -311,6 +311,75 @@ per turn for the fourth and fifth time.
 **The survey stops itself if HP falls**, so a monster encounter ends it rather than being walked into
 repeatedly. That is the safe default for unattended runs.
 
+## Two behaviour modes, both built and both run
+
+### Curiosity
+
+Wanders, pokes at things, records everything. Its product is a transcript of what the world does when touched.
+
+```
+$ python3 tools/u2bot.py curiosity 12 --poke-every 5
+  turn   0  right  34/22  food 368
+  turn   1  up     34/21  food 368
+  turn   4  right  35/19  food 368
+  poke e   hp +0 exp +0 food -15
+  turn   6  up     35/18  food 367
+  ...
+curiosity: 16 turns, 10 moved, 6 blocked, 2 pokes, 0 attacked, 0 kills
+```
+
+It works. 10 of 16 turns moved, it avoided walking into the wall it had just hit, and both pokes returned the
+game to the world screen without getting stuck.
+
+It works from an allow list, not from trying every key. The command bar has 25 entries and pressing the wrong one
+is expensive: `Q)uit` ends the session without saving. The safe set is the ten commands that act and return on
+their own, listed in `CURIOUS_COMMANDS`. The dangerous ones are recorded with their reasons in `NEVER_PRESS` so
+the reason travels with the code rather than with whoever remembers it.
+
+### Berserker
+
+Hunts, then seeks. It attacks in each direction until something responds, and when nothing does it walks until
+something is adjacent or somewhere accepts `E)nter`.
+
+```
+$ python3 tools/u2bot.py berserker 2
+cycle 1
+  nothing adjacent for 2 rounds: the fight is over
+  seeking
+  turn   0  up    to 35/10  food 362
+  ...
+  turn   6  down  to 36/7   food 361
+  ENTERED something: map 256 -> 257
+  seek result: enter
+```
+
+It entered a town. `map` went 256 to 257, which is the clearest signal the bot has that a transition happened, and
+it found it by walking rather than by knowing the map. That answers "find a town and go into it" without needing
+the map address, which `walk_to` still does not have.
+
+It has not yet killed anything. Two monsters were 8 tiles west of the starting square and the bot walked north
+instead, because the search order is fixed and does not remember where it saw one. So the kill loop is built and
+unproven, and the seeking loop is proven.
+
+### How the bot senses, and why this is a limitation rather than a design
+
+The bot infers from effect, not from words:
+
+| signal | meaning |
+|---|---|
+| `hp` falls | something hit the party, so it is adjacent and hostile |
+| `exp` rises | something died |
+| `gold` rises | something died, or money was found |
+| `px`/`py` unchanged | the step was refused |
+| `food` falls 15 | a turn passed, always |
+
+It does not read the action log as text. The panel font turned out to be proportional, not fixed-pitch, which
+invalidated the 16 px cell grid the reader started with, and the glyph table is only partly seeded.
+
+What that costs: the bot cannot report a monster's name, and it notices a kill by arithmetic rather than by the
+message. What it buys: it cannot be wrong about a number. Both modes work today, which reading the log would not
+have.
+
 ## Recording, which is the actual product
 
 **Every action writes a record.** Screenshot, fields, `CS:EIP`, and the action window text. That makes the bot
