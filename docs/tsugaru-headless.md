@@ -150,6 +150,36 @@ DEVICE=\SYS\GDS.SYS
 DEVICE=\SYS\MOUSE.SYS
 ```
 
+## The real blocker: the compiler needs a writable temp directory
+
+Every attempt to compile failed for a reason that has nothing to do with the shell, the drive letters or the CD's
+filesystem. `hc386.exe` **writes temporary files before it compiles anything**, and it needs somewhere writable to
+put them. The strings in the driver say so directly:
+
+```
+TMP.ZZZ
+SWAPTMP
+TMPPREFIX
+%sarg%-d.tmp
+\tmp.xxx
+```
+
+`TMPPREFIX` names the directory, and `%sarg%-d.tmp` is the per-pass temporary. With none set, and with every
+mounted volume read-only, the driver has nowhere to stage a pass and cannot start.
+
+**This explains every silent failure at once.** Running the compiler bare printed `No files specified.` because it
+rejected the arguments before it needed a temp file. Every attempt that *did* pass a source file produced nothing,
+because by then it needed scratch space and had none.
+
+**There is a flag for it.** The driver accepts `-Hbatchnotmp`, alongside `-Hbatch`, `-Hkeep`, `-Hnoswap=` and a
+`-Hon=`/`-Hoff=` toggle list. `-Hbatchnotmp` is the documented way to run without the temporary-file machinery, and
+it is the first thing the next attempt should pass.
+
+**What is still required regardless:** an output path that accepts a write. A CD is ISO9660, which is a read-only
+filesystem by design, so `Q:` cannot receive the `.OBJ` whatever the container mount says. The mount being read-only
+was a real mistake, but correcting it does not make ISO9660 writable, and the object has to land on a floppy, a ram
+disk or a hard disk.
+
 ## A mistake worth recording: the CD was mounted read-only
 
 The container mount was `(false)` on read-write, meaning **read-only**, so the guest could not have written to `Q:`
