@@ -77,7 +77,37 @@ version banner when invoked bare, so producing nothing at all is itself the clue
 whole kit is the FM Towns edition. DOSBox-X provides a generic DOS environment; the FM Towns extender may be
 probing for TownsOS services and waiting.
 
-**What has not been tried:** running the compiler under Tsugaru, which is the FM Towns emulator this project
+**The CD is not bootable on its own, and why is now known.** Its `config.sys` and `dos.bat` reference `C:\` and
+`D:\`:
+
+```
+SHELL=C:\COMMAND.COM C:\ /P
+DEVICE=\SYS\CTL.SYS
+DEVICE=\TBIOS\TBIOSLD.SYS
+...
+D:\run386 D:\hcopy\deldrv -all
+```
+
+and the CD carries **no `SYS\` and no `TBIOS\` directories**. So TownsOS is expected to come from a hard disk as
+`C:`, and the CD supplies only the compiler and tools.
+
+**How the CD is meant to be reached is in its own autoexec:**
+
+```
+C:MSCDEX /D:TOWNS_CD /M:8 /L:Q > NUL
+SET ICN=Q:\
+SET PATH=C:\;Q:\;Q:\HC386\BIN
+SET IPATH=Q:\INC\
+```
+
+`MSCDEX ... /L:Q` mounts the CD as **`Q:`**, which is exactly what `hc386.cnf`'s `NATIVERUN=q:\run386.exe` expects.
+The hardcoded `Q:` was never a mistake in the kit, it is the drive the CD always appears on under TownsOS.
+
+**What has not been tried:** booting TownsOS from a disk and then presenting this CD as `Q:`. That needs a hard
+disk image or a disk-swap, and the `fmtowns` container currently mounts the game disc.
+
+**Booting the compiler CD directly under Tsugaru was tried and does not work**, which the above explains: with no
+`SYS\` or `TBIOS\` on the CD there is no TownsOS to boot., which is the FM Towns emulator this project
 already uses and which boots TownsOS. The `fmtowns` container exists and boots TownsOS 2.1 L40. That is the
 obvious next move and it is a different container from the DOSBox one.
 
