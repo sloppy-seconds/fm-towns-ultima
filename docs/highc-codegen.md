@@ -168,6 +168,51 @@ image's data.
 **This is the single most useful result so far**, because it means a decompiler can type every call the same way.
 Had the byte count been believed, a third of all call sites would have been given the wrong stack adjustment.
 
+## The frame-pointer rule, measured across all 738 routines
+
+`tools/frameanalysis.js` decodes each routine from its CALL target to its first return and asks what predicts a
+frame. The frame pointer is emitted for **43.1 percent** of routines, close to the half that a whole-image byte
+count of `55 8b ec` suggested. The routine count itself is owned by [call-graph.md](call-graph.md).
+
+Four hypotheses, scored by how cleanly each separates framed from unframed:
+
+| hypothesis | has it | lacks it | separation |
+|---|---|---|---|
+| reads arguments at `[ebp+N]` | 77.2% framed | 21.2% framed | **56 points** |
+| has negative-offset locals | 72.9% framed | 35.9% framed | 37 points |
+| makes a call | 45.9% framed | 37.8% framed | 8 points |
+| (instruction count) | median 23 | median 12 | see below |
+
+**Calling something is nearly irrelevant**, at 8 points. Size is weakly associated and cannot be the rule, since
+unframed routines reach 401 instructions while the shortest framed one is 6.
+
+**The combination is the answer:**
+
+```
+ebp args AND locals      n= 65   framed  66.2%
+ebp args, NO locals      n=224   framed  80.4%
+no ebp args, locals      n= 79   framed  78.5%
+neither                  n=370   framed   8.9%
+esp-relative args only   n= 72   framed   0.0%
+```
+
+**A routine gets a frame pointer when it needs to address the stack through `ebp`, and not otherwise.** Every
+group that touches `[ebp]` is 66 to 80 percent framed. The group that touches neither is 9 percent, and the group
+that reads its arguments through `esp` instead is **zero percent, in all 72 cases**.
+
+That last row is the invariant worth having. **No routine is both framed and `esp`-argued, in any of 72 cases.**
+Stated as a prediction, "framed if and only if it touches `[ebp]`" is right **84.3 percent** of the time, with 33
+exceptions in each direction.
+
+**What the prediction is good for.** It lets a tool guess whether a candidate entry will have a prologue, which
+matters because a prologue scan misses more than half the routines. It is a heuristic at 84 percent, not a
+theorem, and the 33 exceptions in each direction are unexplained.
+
+**What the exceptions suggest.** A framed routine that never mentions `[ebp]` may store a local with a positive
+displacement, or pass a pointer to its own frame to something else. An unframed routine that does mention `[ebp]`
+is probably reading through a pointer that happens to live in `ebp`, not its own frame. Both are guesses and
+neither has been checked against the actual bytes of a single exception.
+
 ## What this changes about the experiment## What this changes about the experiment
 
 The plan was going to ask a compiler how it passes arguments. **That question is now answered from the bytes**, so
@@ -177,7 +222,7 @@ it does not need a toolchain, and the experiment can spend its effort on the que
 |---|---|
 | register or stack arguments | **answered by counting**: stack, both framed and unframed forms |
 | who cleans the stack | **answered by instruction count**: the caller, in 771 of 771 proved returns |
-| when a frame pointer is emitted | **open**, and the 50 50 split is the target to reproduce |
+| when a frame pointer is emitted | **rule found**: framed iff the routine addresses the stack through `ebp`, 84.3% accurate |
 | multiply-by-20 `lea`-then-shift sequence | **partly open**: three sites found, not proved to be the idiom |
 | how a `switch` is emitted | **open**: `jump-tables.md` has tables, no attribution to High C |
 
