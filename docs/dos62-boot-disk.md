@@ -105,6 +105,40 @@ from the hard disk. **On FM Towns, Microsoft's HIMEM is the wrong driver**; a Fu
 `HIMEM.SYS` cannot provide it, `CTL.SYS` is the candidate, and it is on the SDK CD at `sys/ctl.sys` alongside the Oak
 drivers that were copied across for the same reason.
 
+## The keyboard: `;` is the colon, and `\` renders as `¥`
+
+Two facts about typing into Japanese MS-DOS on Tsugaru, both established by experiment after a long series of
+failures, and both worth stating first in future work.
+
+**A colon must be sent as a plain semicolon.** `xdotool` typed into this machine arrives on a Japanese 106-key
+layout, where the physical key labelled `;` on a US board produces `:`. Sending any of these produces a **plus sign**
+instead:
+
+```
+/api/keys {"text":":"}      -> +
+/api/key  {"keys":"colon"}  -> +
+/api/key  {"keys":"Shift+semicolon"} -> +
+```
+
+while
+
+```
+/api/key  {"keys":"semicolon"} -> :
+```
+
+**This one substitution explains every failure in this line of work.** Every `Q:` typed as `Q+`, so:
+
+- `MSCDEX /D+TOWNS_CD` was rejected as `不正なオプションです` (invalid option), not because the device was missing
+- `DIR Q+` searched drive `A:` for a file called `Q` and reported `File not found`
+- every `Q+:\HC386\BIN\HC386.EXE` was `コマンドまたはファイル名が違います`, bad command or file name
+
+while the file sat at a **known extent on a known disc**, proved by walking the ISO directory tree on the host. Hours
+went into drivers, partition tables, container configurations, memory managers and boot images for what was one
+wrong keystroke.
+
+**A backslash displays as `¥`.** Japanese MS-DOS renders the path separator as the yen sign. A path on screen reading
+`Q:¥HC386¥BIN¥HC386.EXE` is correct and is not evidence of corruption.
+
 ## Two dead ends, recorded so they are not repeated
 
 **`CTL.SYS` hangs the boot.** Swapping Microsoft's `HIMEM.SYS` for the Fujitsu `CTL.SYS`, on the reasoning that the
