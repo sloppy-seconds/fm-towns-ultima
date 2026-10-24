@@ -70,6 +70,29 @@ POST /api/keys {text:"DIR"}      types D, I, R as characters
 POST /api/key  {keys:"Return"}   submits the line as a real keypress
 ```
 
+## The SDK disc is already bootable, and making it so was never the task
+
+A plan was proposed to copy `COMMAND.COM`, `IO.SYS` and `MSDOS.SYS` from an FM Towns DOS disk and rebuild the ISO as
+bootable. **That is unnecessary, and the reason is measurable.**
+
+The SDK disc's first sector carries the FM Towns boot loader, at exactly the same place as the Trilogy CD that
+already boots on this machine:
+
+```
+        offset 16:  49 50 4c 34 eb 55 06 20   "IPL4" then eb 55, a jump
+Trilogy header:     ... 00 00 00 0b 00 15 00 00 00 26 00 00 00
+SDK header:         ... 00 00 00 0b 00 1b 00 00 00 36 00 00 00
+```
+
+**Only two bytes differ** between the two, at offsets `0x30` and `0x34`, which are load and size fields. The boot
+scheme is identical.
+
+**And it boots.** The patched SDK disc reaches `Entering Interactive Mode.` and a `Q:\>` prompt with no GUI, which
+is proof that the loader runs and that TownsOS initialises from it.
+
+So there is nothing to rebuild. **The boot problem was solved by the three-line AUTOEXEC patch**, and the time spent
+on bootable-media plans was time spent on a solved problem.
+
 ## `console.exe` is the shell, not `COMMAND.COM`
 
 **The disc has no `COMMAND.COM`**, which made a build-a-boot-disk plan impossible as written. Verified absent:
