@@ -64,6 +64,30 @@ C:\HC386\BIN\HC386.EXE C:\TEST_DIV.C C:\TEST_DIV.OBJ
 
 And where a shell is wanted, `console.exe` is already running.
 
+## The last blocker is text entry, not configuration
+
+With the file's presence proved, the remaining failures are all the same shape:
+
+```
+Q:\>\Q:\HC386\BIN\HC386.EXE        <- a stray leading backslash
+Q:\>Q+\HC386\DEMOS\HELLO.C          <- a colon arriving as a plus
+```
+
+**A stray leading `\` makes `\Q:\...` a root-relative path rather than a drive-qualified one**, which DOS rejects
+identically to a missing file. And a `:` arriving as `+` corrupts the drive letter. Both produce
+`Wrong Command or File Name.` and neither says anything about the file.
+
+**This is a synthetic-input problem, and it is measurable.** A screenshot taken before Return shows exactly what the
+line contains, and that has now been done. The facts it settles:
+
+- the characters are legible and the font is crisp, so this is not an OCR ambiguity
+- the stray characters are real in the guest, not in the transcription
+- `Escape` followed by backspaces does not reliably clear a pending line
+
+**The cheap fixes, in order:** type the path without the drive letter at all by first changing to the directory,
+which needs a working `CD`; or accept the `Q:` prefix and send characters one at a time with a longer settle; or
+avoid the shell entirely by putting the command in an `AUTOEXEC.BAT`, which is what the disk-partition work was for.
+
 ## The compiler's exact location on the patched disc, read from the ISO
 
 The path `Q:\HC386\BIN\HC386.EXE` was queried rather than assumed, by walking the ISO9660 directory tree of the
