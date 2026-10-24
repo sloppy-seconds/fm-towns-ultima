@@ -111,7 +111,7 @@ Confirming the HP drain needs a few turns of play.
 
 ### P3. Fix the contradiction in `the-tick.md`
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 The page asserts "the tick is per TURN" and later "CONFIRMED AT RUNTIME: food is not consumed per move". Both
 cannot hold for the same field. Every bot run shows `-15` on every step including blocked ones, which supports
@@ -217,7 +217,7 @@ building it costs little.
 
 ### 1a. Read the 11x11 viewport, from memory if P4 succeeds, from the screen otherwise
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE for the screen route, OPEN for the memory route · **Autonomy:** AUTONOMOUS
 
 The map panel is measured at x1-361, y67-418, which is 360 by 351 pixels. Eleven tiles across 360 pixels is
 **32.7 pixels per tile**, which is a normal sprite size and matches what the art shows. The party is at the

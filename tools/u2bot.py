@@ -955,10 +955,120 @@ def blocked_path():
 # forest. Two squares with the same colour are, for the purposes of "can I walk here", the same bet. That is
 # exactly the generalisation the player described: learn one mountain, know all mountains.
 
-# The party's marker on the map panel. Measured earlier: the map occupies x1-361, y67-418, a 64x64 grid of
-# tiles, so each tile is about 5.6 px. The party is drawn as a figure at its own tile.
-MAP_BOX = (1, 67, 361, 418)
-PARTY_GLYPH_RADIUS = 3      # sample a small box around the tile centre
+# THE MAP PANEL GEOMETRY, MEASURED. This replaced a wrong assumption, so the numbers and how they were got are
+# both here.
+#
+# The panel carries a blue border with a white inner line. Measured on a live 1024x800 screenshot:
+#
+#   blue border      x 2-10 and x 368-370,  y 64-66 and y 419+
+#   white inner line x 1 and x 11 and x 371-372,  y 67 and y 418
+#   terrain interior x 12-367,  y 68-417        that is 356 by 350 pixels
+#
+# The grid is 11 by 11. That was NOT assumed from the reference documents: scanning the interior for the columns
+# with the most colour changes returned 59, 91, 123, 155, 187, 219, which is an exact arithmetic sequence with
+# step 32. A tile boundary is where the most colours change, so the pitch is 32 pixels and 11 tiles span 352.
+#
+# The party's own position was then found independently: counting white, red and magenta pixels per cell, the
+# densest cell is column 5, row 5, which is index 60 of 121 and the exact centre. So the party is at the centre,
+# as the player said, and that is now measured rather than taken on trust.
+
+MAP_INTERIOR = (12, 68, 367, 417)
+VIEW = 11
+VIEW_CENTRE = 5
+CENTRE_INDEX = VIEW_CENTRE * VIEW + VIEW_CENTRE      # 60
+
+# Sampling radius inside a tile. The tile is 32 pixels and its art is dithered, so sampling the centre avoids
+# the edge where one tile's border meets the next.
+SAMPLE_RADIUS = 6
+
+# The map's palette is flat: 13 distinct colours, no anti-aliasing, measured. So a tile sample can be exact
+# rather than fuzzy, and no colour-distance metric is needed.
+TERRAIN_COLOURS = {
+    (0, 255, 0): ".",        # green, open ground
+    (255, 255, 0): "y",      # yellow, sand or road
+    (0, 0, 0): " ",          # black, void or interior
+    (255, 255, 255): "W",    # white, structure edge
+    (0, 34, 238): "b",       # blue border
+    (0, 0, 255): "B",        # blue, water
+    (0, 255, 255): "C",      # cyan
+    (255, 0, 0): "R",        # red
+    (0, 128, 0): "f",        # dark green, forest
+    (128, 0, 0): "r",        # dark red
+    (128, 128, 128): "8",    # grey, stone
+    (0, 0, 128): "n",        # navy
+    (128, 0, 128): "M",      # magenta
+    (0, 128, 128): "c",      # teal
+}
+
+
+def cell_box(col, row):
+    """Pixel bounds of one viewport cell. Integer arithmetic so adjacent cells cannot overlap or leave a gap."""
+    x0, y0, x1, y1 = MAP_INTERIOR
+    w, h = x1 - x0, y1 - y0
+    return (x0 + col * w // VIEW, y0 + row * h // VIEW,
+            x0 + (col + 1) * w // VIEW, y0 + (row + 1) * h // VIEW)
+
+
+def sample_cell(px, col, row):
+    """The terrain symbol at one cell: the most common colour in a small box at its centre."""
+    bx0, by0, bx1, by1 = cell_box(col, row)
+    cx, cy = (bx0 + bx1) // 2, (by0 + by1) // 2
+    counts = {}
+    for y in range(cy - SAMPLE_RADIUS, cy + SAMPLE_RADIUS + 1):
+        for x in range(cx - SAMPLE_RADIUS, cx + SAMPLE_RADIUS + 1):
+            p = px[x, y]
+            counts[p] = counts.get(p, 0) + 1
+    if not counts:
+        return "?"
+    colour = max(counts, key=counts.get)
+    return TERRAIN_COLOURS.get(colour, "?")
+
+
+def viewport(shot=None):
+    """The 11 by 11 window around the party, as 121 symbols in row-major order.
+
+    Index 60 is the party's own cell. Returns a dict with the grid, a rendering, and how many cells came back
+    unknown, because a reading that is mostly unknown should never be presented as a result.
+    """
+    from PIL import Image
+    if shot is None:
+        info = api("/api/shot", {"name": "viewport"})
+        shot = ROOT / "saves" / info["file"].replace("/data/", "")
+    im = Image.open(shot).convert("RGB")
+    px = im.load()
+    if im.width <= MAP_INTERIOR[2] or im.height <= MAP_INTERIOR[3]:
+        raise RuntimeError("screenshot is %dx%d, too small for the measured map interior"
+                           % (im.width, im.height))
+    cells = []
+    for row in range(VIEW):
+        for col in range(VIEW):
+            cells.append(sample_cell(px, col, row))
+    unknown = sum(1 for c in cells if c == "?")
+    rows = ["".join(cells[r * VIEW:(r + 1) * VIEW]) for r in range(VIEW)]
+    return {"cells": cells, "rows": rows, "unknown": unknown, "shot": str(shot),
+            "party": cells[CENTRE_INDEX]}
+
+
+def render_viewport(v):
+    """The viewport as a string, with the party's own cell marked."""
+    out = []
+    for i, row in enumerate(v["rows"]):
+        if i == VIEW_CENTRE:
+            row = row[:VIEW_CENTRE] + "@" + row[VIEW_CENTRE + 1:]
+        out.append(row)
+    return "\n".join(out)
+
+
+def cmd_viewport(args):
+    v = viewport()
+    print(render_viewport(v))
+    print()
+    print("party cell %d (col %d, row %d) shows %r"
+          % (CENTRE_INDEX, VIEW_CENTRE, VIEW_CENTRE, v["party"]))
+    print("unknown cells: %d of %d" % (v["unknown"], VIEW * VIEW))
+    if args.json:
+        print(json.dumps({k: v[k] for k in ("cells", "unknown", "party")}))
+    record("viewport", "unknown=%d" % v["unknown"])
 
 
 class TerrainBook:
@@ -1014,68 +1124,30 @@ class TerrainBook:
 
 
 def tile_colour_at(x, y, shot=None):
-    """The colour signature at grid square (x, y), from one screenshot.
+    """The terrain symbol at world square (x, y), read from the viewport.
 
-    `shot` lets a caller take ONE screenshot and sample many squares, which is what the neighbourhood check wants.
-    Sampling one square per call is a curl and a PNG decode each time and is far too slow to use per step.
+    The viewport shows a world window centred on the party, so a world square maps to a viewport cell by its
+    offset from the party. A square outside the window returns "out-of-view" rather than a wrong answer.
+
+    This replaces a version that divided the panel into 64 columns. The panel is 11 tiles across, measured from
+    an exact 32-pixel boundary pitch, so that version sampled unrelated pixels.
     """
+    st = state()
+    col = VIEW_CENTRE + (x - st["px"])
+    row = VIEW_CENTRE + (y - st["py"])
+    if not (0 <= col < VIEW and 0 <= row < VIEW):
+        return "out-of-view"
     from PIL import Image
     if shot is None:
         info = api("/api/shot", {"name": "terrain-sig"})
         shot = ROOT / "saves" / info["file"].replace("/data/", "")
     im = Image.open(shot).convert("RGB")
-    px = im.load()
-    x0, y0, x1, y1 = MAP_BOX
-    tx = x0 + (x + 0.5) * (x1 - x0) / 64.0
-    ty = y0 + (y + 0.5) * (y1 - y0) / 64.0
-    r = g = b = n = 0
-    for yy in range(int(ty) - PARTY_GLYPH_RADIUS, int(ty) + PARTY_GLYPH_RADIUS + 1):
-        for xx in range(int(tx) - PARTY_GLYPH_RADIUS, int(tx) + PARTY_GLYPH_RADIUS + 1):
-            if 0 <= xx < im.width and 0 <= yy < im.height:
-                p = px[xx, yy]
-                r += p[0]
-                g += p[1]
-                b += p[2]
-                n += 1
-    if not n:
-        return "unknown"
-
-    def buck(v):
-        return v // 64
-    return "rgb%d%d%d" % (buck(r // n), buck(g // n), buck(b // n))
+    return sample_cell(im.load(), col, row)
 
 
 def tile_colour(sig_args=None):
-    """The colour of the party's own tile, as a compact signature.
-
-    Screenshot-based and deliberately coarse. The map is 64 tiles across 360 pixels, so a single tile is about
-    5.6 px and reading its exact art is not reliable. The colour AVERAGE over the tile is, and it is stable for a
-    terrain that fills its tile.
-    """
-    from PIL import Image
-    info = api("/api/shot", {"name": "terrain-sig"})
-    local = ROOT / "saves" / info["file"].replace("/data/", "")
-    im = Image.open(local).convert("RGB").resize((640, 496), Image.NEAREST)
-    px = im.load()
-    st = state()
-    x0, y0, x1, y1 = MAP_BOX
-    tx = x0 + (st["px"] + 0.5) * (x1 - x0) / 64.0
-    ty = y0 + (st["py"] + 0.5) * (y1 - y0) / 64.0
-    r = g = b = n = 0
-    for yy in range(int(ty) - PARTY_GLYPH_RADIUS, int(ty) + PARTY_GLYPH_RADIUS + 1):
-        for xx in range(int(tx) - PARTY_GLYPH_RADIUS, int(tx) + PARTY_GLYPH_RADIUS + 1):
-            if 0 <= xx < 640 and 0 <= yy < 496:
-                p = px[xx, yy]
-                r += p[0]
-                g += p[1]
-                b += p[2]
-                n += 1
-    if not n:
-        return "unknown"
-    # Coarse buckets, because exact colour is noisy and the classes need to be few.
-    def buck(v):
-        return v // 64
-    return "rgb%d%d%d" % (buck(r // n), buck(g // n), buck(b // n))
+    """The terrain symbol under the party, which is the viewport's centre cell."""
+    return viewport()["party"]
 
 
 class World:
@@ -2137,6 +2209,10 @@ def cmd_tail(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    vp = sub.add_parser("viewport", help="read the 11x11 window around the party")
+    vp.add_argument("--json", action="store_true")
+    vp.set_defaults(fn=cmd_viewport)
 
     pe = sub.add_parser("personality", help="show the current posture, or lock one")
     pe.add_argument("--set", choices=list(POSTURES) + ["auto"],

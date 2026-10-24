@@ -152,9 +152,35 @@ two named fields and none of them is a tick.
 > resolved, so the drain landed after it. That is the same trap as reading the character record while the game
 > was rewriting it, which is why pausing mattered there.
 >
-> **CONFIRMED AT RUNTIME: food is not consumed per move.** Measured live: `FOOD=235` before a step and
-> `FOOD=235` after. The static search below found only thresholds, a spend path and a display, and the
-> runtime agrees. See [live-session.md](live-session.md).
+> **SUPERSEDED, and withdrawn. This paragraph said the opposite of the one above it.**
+>
+> It read: *"CONFIRMED AT RUNTIME: food is not consumed per move. Measured live: `FOOD=235` before a step and
+> `FOOD=235` after."*
+>
+> **That reading is wrong and the measurement behind it was mistimed.** It sat directly below a paragraph
+> establishing that food falls 15 per turn, and both were allowed to stand. The two claims cannot both be true
+> of the same field, and nobody noticed for several sessions.
+>
+> What displaced it: every bot run has shown `-15` on **every** turn, including a step the game **refused** and
+> a `P)ass` that moved nothing. The original `235 -> 235` was taken before the turn resolved, the same trap as
+> reading the record while the game rewrote it.
+>
+> **Measured across the bot transcript: 320 consecutive samples show exactly `-15`.** Only 20 records exclude
+> summaries show a zero delta, and all 20 are the same artefact: a record taken after the first key of a
+> two-key action, before the turn resolved. The sequence is unmistakable:
+>
+> ```
+> tracker-explore  left    food=35815
+> tracker-attack   down    food=35815   <- captured between the two keys
+> tracker-explore  down    food=35800   <- the turn lands here
+> ```
+>
+> So the instrument occasionally samples mid-turn, which is a flaw in the recorder and not evidence about the
+> game. The claim is per turn, and no counter-example survives inspection.
+>
+> The lesson is not that a measurement was taken badly. It is that **a correction was written underneath the
+> claim it corrected and the contradiction was never checked for.** A page asserting both `X` and `not X` reads
+> as complete while being unusable.
 
 ## The honest state of item 1b
 

@@ -471,6 +471,74 @@ mountains impassable, bridges and grass passable, some monsters beyond a startin
 from the game** and the file says so in its first field. It exists so the first turn has something to reason with,
 and observation overwrites it.
 
+## The viewport, measured and working
+
+Item 1a of [bot-plan.md](bot-plan.md). This replaced an assumption that had been wrong since it was written.
+
+### The geometry, measured rather than assumed
+
+The panel carries a blue border with a white inner line. On a live 1024 by 800 screenshot:
+
+| | |
+|---|---|
+| blue border | x 2-10 and x 368-370, y 64-66 and y 419 onward |
+| white inner line | x 1, 11, 371-372, y 67 and 418 |
+| terrain interior | **x 12-367, y 68-417**, that is 356 by 350 pixels |
+
+### The grid is 11 by 11, and here is the proof
+
+Scanning the interior for the columns with the most colour changes returned:
+
+```
+59, 91, 123, 155, 187, 219
+```
+
+**That is an exact arithmetic sequence with step 32.** A tile boundary is where the most colours change, so the
+pitch is 32 pixels and eleven tiles span 352. No document said 11 by 11 for this panel. It was measured.
+
+The party's position was then found independently: counting white, red and magenta pixels per cell, the densest
+cell is **column 5, row 5**, which is index **60 of 121**, the exact centre. So the party is centred, which the
+player said, and is now tested.
+
+### What it reads
+
+```
+.          
+        ...
+         ..
+         ..
+        .. 
+.    @ ... 
+.      ... 
+        .  
+       .. .
+      ..  .
+........ ..
+```
+
+Zero unknown cells, and **the same hash on two reads with no turn between them**, which is the item's
+acceptance criterion. Terrain is coherent: open ground, water, and the black of building interiors.
+
+The map's palette is **flat: 13 distinct colours, no anti-aliasing**, so a cell sample can be exact rather than
+fuzzy. That is why this is not OCR and never was: it is a mode of a palette, not glyph matching.
+
+### Three bugs this removed
+
+**The panel was divided by 64.** `tile_colour_at()` computed `(x + 0.5) * 360 / 64`, sampling pixels that had
+nothing to do with the square it was asked about. It now maps a world square to a viewport cell by its offset
+from the party, and returns `out-of-view` for anything outside the window rather than a wrong answer.
+
+**`MAP_BOX` was wrong.** It said x 1-361, y 67-418. The real interior is x 12-367, y 68-417.
+
+**A share of the screenshot was assumed to be 640 by 496.** The live capture is 1024 by 800 with the game in the
+upper left. The viewport now refuses a screenshot too small for its measured interior instead of reading noise.
+
+### What is still coarse
+
+A cell reads as a **colour**, so two terrains sharing a colour are indistinguishable. Water and the blue border
+share a palette entry in one place, and the party sprite itself samples as `B` on its own cell. This is the
+limitation that P4 exists to remove: an exact cell value from the sector buffer settles what a colour cannot.
+
 ## Recording, which is the actual product
 
 **Every action writes a record.** Screenshot, fields, `CS:EIP`, and the action window text. That makes the bot
