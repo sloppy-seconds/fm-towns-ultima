@@ -64,6 +64,40 @@ C:\HC386\BIN\HC386.EXE C:\TEST_DIV.C C:\TEST_DIV.OBJ
 
 And where a shell is wanted, `console.exe` is already running.
 
+## Writing into the disk from the host: attempted, and it does not converge
+
+The durable version of the plan was to place the compile command in the `DEVELOPMENT` partition's own
+`AUTOEXEC.BAT`, from the host, with no guest interaction at all. That requires knowing where the partition begins.
+
+**The directory is findable and the volume is not.** A real FAT directory entry for the compiler is at
+`0x38b20e20`, preceded by a volume label:
+
+```
+DEVELOPMENT(          <- '(' is attribute 0x28, the volume-label bit
+HC386          attr=0x10  cluster 2
+AUTOEXEC.BAT   attr=0x20  cluster 3841  56 bytes
+386ASM         attr=0x10  cluster 3842
+FB386.EXP      attr=0x20  cluster 4062  419,952 bytes
+FB386M.EXP     attr=0x20  cluster 4165  611,216 bytes
+```
+
+**Every attempt to locate the owning boot sector failed, in five different ways:**
+
+- searching backwards for 2 GB finds nothing
+- searching for the `FAT16` signature finds one volume, which does **not** contain the directory
+- searching for `FAT12` finds three, none of them it
+- a general jump-instruction scan finds four plausible boot sectors, two of which "contain" the target by offset
+  arithmetic, and **both have garbage root directories** and no `HC386` entry
+
+**The reason is scale.** A 15.9 GB image contains an enormous number of byte sequences that satisfy a loose FAT
+boot-sector test. Every candidate that passes the signature check has to be discarded by reading its root
+directory, and the scan is finding coincidences in data rather than volumes.
+
+**So this route is parked rather than abandoned.** The information needed is known to exist, the entries are
+readable, and a proper approach would be to parse the FM Towns partition table at `0x200` correctly. That table was
+attempted several times and the layout is not the 16-byte record the documentation suggested, so it remains the
+unfinished piece.
+
 ## The HDD is invisible to the CD's DOS, and `config.sys` says why
 
 Attaching both media works, and the combination does what it was supposed to:
