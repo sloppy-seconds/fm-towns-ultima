@@ -64,6 +64,35 @@ C:\HC386\BIN\HC386.EXE C:\TEST_DIV.C C:\TEST_DIV.OBJ
 
 And where a shell is wanted, `console.exe` is already running.
 
+## `FM-DOSYS` does not exist, and the vision reads invented it
+
+The plan for reaching a DOS prompt was to double-click an icon the vision model read as **`FM-DOSYS`**. Clicking it
+produced:
+
+```
+FM-OASYS起動コマンドE03V014
+```
+
+which is FMR-OASYS reporting a startup failure. **The icon is `FMR-OASYS`**, a Japanese word processor, not a DOS
+launcher.
+
+**A byte search of the entire 15.9 GB disk finds no occurrence of `FM-DOSYS`, `FMDOSYS`, or `DOSYS`.** The name
+never existed on this machine. It was read from a screenshot, repeated across several vision transcriptions, and
+built into a plan without ever being checked against the image.
+
+**What is actually present** is a reference in a configuration structure:
+
+```
+Q:\RUN386.EXE
+Q:\CONSOLE.EXE
+```
+
+so the console shell runs from `Q:`, the CD, through Phar Lap's extender, exactly as on the SDK disc.
+
+**The lesson is about the instrument, and it is the sharpest instance yet.** A vision model reading a low-resolution
+Japanese screenshot produced a plausible Latin-sounding name, and every later step inherited it. The check that would
+have caught it is a byte search, and it takes one command.
+
 ## A container bug that invalidated every earlier observation
 
 **The `hcd` container never had its own display.** It was launched with `--network host`, so it tried to bind VNC on
