@@ -117,6 +117,7 @@ nav:
       - High C calibration spike: highc-spike.md
       - High C 3.04 installer: highc-v304-installer.md
       - High C forensics: highc-forensics.md
+      - High C V1.7 (FM Towns kit): highc-v17.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md
