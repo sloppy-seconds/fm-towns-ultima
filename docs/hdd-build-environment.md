@@ -64,6 +64,33 @@ C:\HC386\BIN\HC386.EXE C:\TEST_DIV.C C:\TEST_DIV.OBJ
 
 And where a shell is wanted, `console.exe` is already running.
 
+## The text-entry failures, diagnosed one by one
+
+Each failure looked like a missing file and was not. They were all input defects, and the sequence is worth
+recording because each one masked the next.
+
+**1. A stray leading backslash.** `\Q:\HC386\BIN\HC386.EXE` is a root-relative path, not a drive-qualified one.
+DOS rejects it identically to a missing file.
+
+**2. A colon arriving as a plus.** `Q+\HC386\DEMOS\HELLO.C`. The drive letter is corrupted, and the error is again
+`Wrong Command or File Name`.
+
+**3. A doubled line.** The most recent, and the cause of the longest confusion. `Escape` followed by backspaces did
+**not** clear the pending buffer, and a second `xdotool type` appended to text already there, producing:
+
+```
+Q:\>Q:\HC386\BIN\HC386.EXE Q:\HC386\BIN\HC386.EXE
+```
+
+Two identical commands joined by a space, which no shell will execute.
+
+**What actually clears a line: enough backspaces to exceed its length.** Fifty at 60 ms apiece is harmless on an
+empty line and reliably empties any line this shell can hold. `Escape` is not a substitute.
+
+**The general lesson, which applies to every one of these:** a synthetic-input harness must be verified by taking a
+screenshot **before** pressing Return. Reading the error afterwards cannot distinguish a bad path from a bad
+keystroke, and this session spent a long time assuming the first when it was always the second.
+
 ## The last blocker is text entry, not configuration
 
 With the file's presence proved, the remaining failures are all the same shape:
