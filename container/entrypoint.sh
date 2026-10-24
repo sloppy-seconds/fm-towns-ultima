@@ -16,6 +16,12 @@ log() { printf '[entrypoint] %s\n' "$*"; }
 # --- virtual display ---------------------------------------------------------
 
 log "starting Xvfb on ${DISPLAY} at ${RESOLUTION}"
+# A LOCK LEFT BY AN UNCLEAN SHUTDOWN BLOCKS EVERY LATER START. /tmp/.X99-lock survives a container restart
+# because it lives on the container's own filesystem, so "podman restart" reproduces the failure instead of
+# clearing it: Xvfb exits with "Server is already active for display 99" and the entrypoint gives up. That
+# happened repeatedly and looked like the emulator failing rather than a stale file. Removing the lock before
+# starting is safe, because a live X server on this display would have been cleaned up with it.
+rm -f "/tmp/.X${DISPLAY#:}-lock" "/tmp/.X11-unix/X${DISPLAY#:}" 2>/dev/null || true
 Xvfb "${DISPLAY}" -screen 0 "${RESOLUTION}" -nolisten tcp -ac +extension GLX +render -noreset &
 XVFB_PID=$!
 

@@ -509,6 +509,40 @@ where the data is dense, so it is a fit rather than a measurement. The arithmeti
 pixels is **352**, while the interior is **350** tall. A square grid does not fit the vertical interior exactly,
 so either the vertical pitch is fractional (about 31.8) or the grid is not 11 rows.
 
+### The vertical pitch, settled by autocorrelation
+
+The row test above failed because it counted colour changes, and the party was standing in **forest**. Forest
+texture repeats exactly at one tile, so every row held six or seven colours and the metric had no contrast to
+find.
+
+**The measurement that works is autocorrelation on a pure-texture region.** Mean absolute difference between the
+image and itself shifted by `dx` and by `dy`:
+
+```
+MAD = 1.1 at dx = 64 and at dy = 64     (of a possible 765)
+MAD ≈ 250 at every other shift from 2 to 80, in either axis
+```
+
+A value of 1.1 means the texture is **byte-identical to itself** at that shift, and 250 means nothing matches
+anywhere else. So the period is exactly 64 pixels in the 2x image, **in both axes**, which is **32 pixels actual
+in both directions**.
+
+Grid origin: boundaries fall at `x = 4 + 32k` and `y = 4 + 32k` in actual pixels.
+
+**So the grid is 11 by 11 at a 32-pixel pitch in both directions, and this is measured, not assumed.** The
+earlier arithmetic objection, that eleven tiles at 32 is 352 where the interior is 350 tall, is resolved: the
+interior is 696 by 700 pixels in the magnified capture, which is 10.875 by 10.94 cells, so **the outermost column
+and row are clipped by about five pixels at the frame** while still being present and countable. A clipped edge
+was mistaken for a contradiction.
+
+Party position confirmed independently: the sprite's bounding box centre is (353.5, 357.5) against a tile centre
+of (356, 356), an offset of about 2.5 pixels, which is 0.04 of a tile and is drawing slop rather than a grid
+offset.
+
+**The lesson is about the metric, not the data.** "Count colour changes" finds boundaries only where structure
+varies. "Correlate the image with itself" finds period wherever there is repetition, including in a texture that
+looks uniform to the naked eye.
+
 **What this means for the code.** `cell_box()` divides the interior evenly, so it is correct for any pitch and does
 not depend on the assumption. Sampling at cell centres is therefore safe. What is *not* safe is treating the cell
 ordinates as exactly 32 pixels, which nothing does.
