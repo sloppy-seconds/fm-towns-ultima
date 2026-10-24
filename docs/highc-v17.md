@@ -77,8 +77,16 @@ version banner when invoked bare, so producing nothing at all is itself the clue
 whole kit is the FM Towns edition. DOSBox-X provides a generic DOS environment; the FM Towns extender may be
 probing for TownsOS services and waiting.
 
-**The CD is not bootable on its own, and why is now known.** Its `config.sys` and `dos.bat` reference `C:\` and
-`D:\`:
+**CORRECTION: the CD *is* bootable, and booting it is the right move.** Booting it under Tsugaru reaches the
+**FM Towns OS graphical shell** with a file-manager window already open on `Q:\HC_MULTI_K`, which is the compiler
+CD's own directory. That is exactly the environment the kit expects, and it means no hard disk and no CD swap are
+needed.
+
+The `C:\` and `D:\` paths below are what the CD's own `config.sys` contains, and they do not prevent booting
+because the CD is already presented as `Q:` and the shell runs from the CD.
+
+*The superseded reading, kept because the reasoning error is instructive:* the `config.sys` and `dos.bat`
+reference `C:\` and `D:\`:
 
 ```
 SHELL=C:\COMMAND.COM C:\ /P
@@ -103,11 +111,19 @@ SET IPATH=Q:\INC\
 `MSCDEX ... /L:Q` mounts the CD as **`Q:`**, which is exactly what `hc386.cnf`'s `NATIVERUN=q:\run386.exe` expects.
 The hardcoded `Q:` was never a mistake in the kit, it is the drive the CD always appears on under TownsOS.
 
-**What has not been tried:** booting TownsOS from a disk and then presenting this CD as `Q:`. That needs a hard
-disk image or a disk-swap, and the `fmtowns` container currently mounts the game disc.
+**Booting the CD under Tsugaru works, and that is the environment to use.** It reaches the FM Towns OS graphical
+shell with a file-manager window already showing `Q:\HC_MULTI_K`, the compiler CD's own root. No hard disk and no CD
+swap are needed.
 
-**Booting the compiler CD directly under Tsugaru was tried and does not work**, which the above explains: with no
-`SYS\` or `TBIOS\` on the CD there is no TownsOS to boot., which is the FM Towns emulator this project
+**What remains is getting from the GUI to a DOS prompt.** TownsOS offers a `コマンドモード` (Command Mode) icon in the
+file manager, and the CD also carries `console.exe` and `control.exe`. Clicking inside the emulator window requires
+pixel coordinates that xdotool can see only as one window, since TownsOS draws everything inside the Tsugaru
+surface and exposes no child windows. So each click has to be aimed from a screen read rather than from a window
+list.
+
+**Two container details that cost time and are worth keeping.** Tsugaru's supervisor hardcodes API port 8080, so a
+second instance needs `--network host` and a different `API_PORT` rather than a port mapping. And a `.ccd` made by
+hand for a single-track CD works, provided the TocEntries count and the TOC entries agree with the track list., which is the FM Towns emulator this project
 already uses and which boots TownsOS. The `fmtowns` container exists and boots TownsOS 2.1 L40. That is the
 obvious next move and it is a different container from the DOSBox one.
 
