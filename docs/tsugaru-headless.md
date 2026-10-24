@@ -105,6 +105,58 @@ is not present: TownsOS brings its own.
 
 So the shell is not the problem, and **no MS-DOS boot disk is needed**. The problem is writable storage.
 
+## What this `Q:\>` shell actually is, established by testing it
+
+The prompt is **not** a DOS command interpreter with a few missing utilities. It is a TownsOS boot shell with a
+very small built-in set, and each of these was tested rather than assumed:
+
+| command | result |
+|---|---|
+| `CLS` | `Wrong Command or File Name.` |
+| `A:` (drive switch) | `Wrong Command or File Name.` |
+| `DIR` | rejected |
+| `COPY` | **`COPY to be implemented`** |
+| `ECHO HELLO > FILE` | `Sorry, redirection and pipe are not supported yet.` |
+| `Q:\HC386\BIN\HC386.EXE` | **runs, prints `No files specified.`** |
+
+**Two conclusions follow.**
+
+**The shell cannot write files.** No redirection, and `COPY` is a stub. So nothing can be produced in the guest by
+shell means at all. Every plan that involved capturing output to a file, or creating a source file with `COPY CON`,
+is dead on this interpreter.
+
+**A full path to an `.EXE` does run.** So the compiler is reachable, and can write its own output if it is given a
+writable destination. That makes the compiler itself the only writer in this environment.
+
+**There are no drive letters beyond the CD.** The SRAM drive table was read from the host with `CMOSSAVE`, and it
+holds three letters at fixed offsets:
+
+```
+0x569 = 'C'    0x573 = 'Z'    0x57e = 'X'
+```
+
+**No `A`, and no `Q`.** `Q:` is assigned at runtime by `MSCDEX /L:Q`, not by SRAM. `FD0LOAD` reports
+`Loaded FD image:/data/workspace2.hdm` and then **changes no byte of the SRAM drive table**, so inserting a floppy
+gives it no drive letter, because `config.sys` has no floppy driver in it:
+
+```
+DEVICE=\SYS\CTL.SYS
+DEVICE=\TBIOS\TBIOSLD.SYS
+DEVICE=TOWNS.SYS
+DEVICE=\SYS\OAK0.SYS
+DEVICE=\SYS\OAK1.SYS /S0 /H1 /K0 /R0 /M3 /B1
+DEVICE=\SYS\T_KANJI.SYS
+DEVICE=\SYS\GDS.SYS
+DEVICE=\SYS\MOUSE.SYS
+```
+
+## A mistake worth recording: the CD was mounted read-only
+
+The container mount was `(false)` on read-write, meaning **read-only**, so the guest could not have written to `Q:`
+even if the shell allowed it. Every write attempt was therefore testing two things at once and could not succeed.
+The image is now mounted read-write. This is the same class of error as the earlier ones: a configuration detail
+assumed rather than checked, in a situation where the failure looks identical to a more interesting cause.
+
 ## The remaining constraint: the CD is read-only
 
 A compile needs somewhere to write the `.obj`, and `Q:` is the CD. A writable floppy can be attached with
