@@ -122,6 +122,7 @@ nav:
       - The TownsOS hard disk: towns-hdd.md
       - A bootable build disk: bootable-build-disk.md
       - The HDD build environment: hdd-build-environment.md
+      - The MS-DOS 6.2 boot disk: dos62-boot-disk.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
