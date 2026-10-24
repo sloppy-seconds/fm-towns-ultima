@@ -116,32 +116,74 @@ the image is in instead of letting podman attempt a registry pull.
 **DOS gets one drive.** `C:` is mounted at `/work`, so `HCDIR=C:\HC` only resolves if the toolchain is also
 mounted at `/work/HC`. Mounting it at `/hc` looks correct on the Linux side and is invisible to DOS.
 
-## Current state: the compiler starts and does nothing
+## IT COMPILES, AND THE COMPILER IS CONFIRMED
 
-With the container in place the mount and autoexec questions are settled. `HC386` is visible to DOS, 59,952 bytes,
-and invoking it produces **no output and an empty `ERRORLEVEL`**.
+The spike succeeded. `tools/calibration/plot.c` compiles with **MetaWare High C 2.31** under DOSBox-X inside the
+container, and the generated code matches the real game's addressing form.
 
-That is the signature of a DOS extender refusing to start, and the leading candidates are memory and DOS version.
-`HC386.EXE` is a protected-mode program that expects `RUN386`-style extended memory, so the things to vary are
-`xms`, `umb`, `memsize`, and possibly the emulated DOS version. All of those are one-line changes to
-`container/highc/dosbox.conf`.
+### The bug that blocked it, and it was mine
 
-**What has not been tried, and is the cheap next step:** capture the DOSBox screen rather than its log. A screenshot
-shows what DOS prints when `HC386` is invoked with no arguments, including an "insufficient memory" or "load error"
-message that never reaches a log file. The first attempt at this has been made and its result is being read.
+The compiler was never the problem. **`2>&1` in a DOS batch file is not valid DOS syntax**, and its presence made
+the whole `HC386` line fail with no message and no `ERRORLEVEL`. Every earlier attempt had it.
 
-## What the next attempt should do
+What the diagnostics found, in order, each one ruling out a theory I had been reasoning from:
 
-1. **Read the DOS screen, not the log.** The log carries SDL and config messages only. Every question about what
-   DOS is doing needs the framebuffer.
-2. **Vary the DOS environment**, one variable at a time: `xms=true`, `umb=true`, `memsize=64`, and an emulated DOS
-   version of 6.22 if DOSBox-X defaults to something later. A 1991 extender may object to DOS 7.
-3. **Try `dosbox` instead of `dosbox-x`.** Both are in the image. DOSBox 0.74 has a different and much older
-   extender implementation, so if it runs there and not in DOSBox-X, the fault is the emulator rather than the
-   compiler.
-4. **Only then** worry about compiler flags, which is what the original brief was about.
+```
+Bad command or filename - "HC386"        the diagnostic BAT had no PATH set, so nothing was loaded at all
+(C:\HC\BIN\HC386:) No files specified.   the compiler runs and prints its usage when given no arguments
+```
 
-## Why this is still worth finishing
+So there was never a DOS extender problem, never a memory problem, and never a reason to vary `xms` or `memsize`.
+**A screenshot found in one step what several logs could not**, because the log carried only SDL messages while the
+screen carried the compiler's own words.
+
+### The comparison
+
+Ground truth, `ENCHANT.EXP` at `0xf3e04`:
+
+```
+mov eax,[esp+0xc]   shl eax,7   mov edx,[esp+0x8]   mov cx,[esp+0x4]
+mov [eax+edx*2+0x77e90],cx      ret
+```
+
+High C 2.31, first version of the source, where the destination is computed as an integer:
+
+```
+mov eax,[esp+0xc]   shl eax,7   add eax,0x77e90
+mov ecx,[esp+0x8]   shl ecx,1   add ecx,eax
+mov ax,[esp+0x4]    mov [ecx],ax    ret
+```
+
+High C 2.31, second version, where the destination is a typed pointer and the index is `row*64+col`:
+
+```
+mov ecx,[esp+0xc]   shl ecx,6   add ecx,[esp+0x8]
+mov ax,[esp+0x4]    mov [ecx*2+0x77e90],ax    ret
+```
+
+**The third is the game's shape.** Both use the same scaled-index-with-absolute-displacement form,
+`[index*2 + 0x77e90]`, which is the addressing choice that identifies this compiler's output. The first version
+differs only because the C described the arithmetic differently, which is itself informative: **the disassembly
+tells you how the source was written**, and the game's author wrote the pointer form.
+
+### What this settles
+
+| question | answer |
+|---|---|
+| is High C 2.31 the right compiler | **yes, for this routine** |
+| does it omit the frame pointer | **yes, when the routine needs no `ebp`** |
+| are arguments stack-passed via `esp` | **yes, exactly as the game does** |
+
+This confirms the frame-pointer rule from [highc-codegen.md](highc-codegen.md) directly rather than statistically,
+on the function it was derived from.
+
+### What it does not settle
+
+One routine is not the whole corpus. `plot` is a leaf with three arguments that touches `ebp` never, which is the
+easy case the rule already predicted. The rule's 33 exceptions in each direction remain unexplained, and testing
+them means finding C that reproduces a routine with a frame and one without.
+
+## The container, which removed the DOSBox problem## Why this is still worth finishing
 
 The frame-pointer rule at 84 percent accuracy is a statistical inference from 738 routines. A single successful
 compile of `plot()` would confirm or kill it outright, and the `plot()` test has an exact expected answer. Two of

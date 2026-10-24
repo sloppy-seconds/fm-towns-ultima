@@ -77,10 +77,13 @@ set INCLUDE=C:\HC\INC
 echo --- environment --- > BUILD.LOG
 set >> BUILD.LOG
 echo --- compile --- >> BUILD.LOG
-rem Hard-coded rather than passed in. A %VAR% in a BAT expands from the DOS environment, and exporting one from
-rem the podman run line does not reach DOS, so a placeholder here silently compiles nothing. The file is generated
-rem per run with the right name written in, which cannot go stale.
-HC386 PLOT.C >> BUILD.LOG 2>&1
+rem DO NOT USE 2>&1. It is not DOS syntax, and its presence made the whole HC386 line fail with no output and no
+rem ERRORLEVEL, which read as "the compiler did not run" and cost several hours spent on the wrong theories
+rem including DOS extender memory. DOS redirects stdout only, and that is enough.
+rem
+rem The file name is hard-coded rather than passed in: a %VAR% in a BAT expands from the DOS environment, and a
+rem variable exported on the podman run line does not reach DOS, so a placeholder silently compiles nothing.
+HC386 PLOT.C >> BUILD.LOG
 echo --- finished, errorlevel %ERRORLEVEL% --- >> BUILD.LOG
 echo FINISHED > FINISHED.TXT
 BAT
@@ -137,8 +140,24 @@ build)
 	$PODMAN exec "$NAME" chown -R 1000:1000 /work 2>/dev/null || true
 	if [ -f "$WORK/PLOT.OBJ" ]; then
 		note "--- PLOT.OBJ is $(stat -c%s "$WORK/PLOT.OBJ") bytes"
-		note "--- disassembly (first 40 instructions)"
-		ndisasm -b32 "$WORK/PLOT.OBJ" | head -40
+		# AN OMF OBJECT IS NOT A FLAT IMAGE. Disassembling the file from offset 0 decodes the record headers and
+		# produces nonsense such as "insd" and "arpl". The code segment has to be located first. The _TEXT record
+		# names the segment, and the code follows the last header before it, so the search starts from the first
+		# esp-relative load, which is how every function with stack arguments begins.
+		note "--- disassembly of the code segment"
+		node -e '
+			const fs = require("fs");
+			const d = fs.readFileSync(process.argv[1]);
+			let at = -1;
+			for (let i = 0; i < d.length - 4; i++) {
+				// 8b 44/4c/54/5c/64/6c/74/7c 24  disp   = mov reg,[esp+disp]
+				if (d[i] === 0x8b && (d[i + 1] & 0xc7) === 0x44 && d[i + 2] === 0x24) { at = i; break; }
+			}
+			if (at < 0) { console.log("  (no code found: no esp-relative load in the object)"); process.exit(0); }
+			fs.writeFileSync("/var/tmp/calib-code.bin", d.subarray(at, at + 96));
+			console.log("  code at object offset 0x" + at.toString(16));
+		' "$WORK/PLOT.OBJ"
+		[ -f /var/tmp/calib-code.bin ] && ndisasm -b32 /var/tmp/calib-code.bin | head -20
 	fi
 	;;
 shell) $PODMAN exec -it "$NAME" bash ;;
