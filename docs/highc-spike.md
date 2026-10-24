@@ -110,6 +110,39 @@ its entries are offsets within the segment rather than absolute virtual addresse
 switch, and this one does not at six. Where the threshold lies has not been found, and it matters because it decides
 whether a short comparison chain in the image could be a two-case switch.
 
+## Optimisation flags do not change the output for this routine
+
+The v3.04 control turned out to be expensive to obtain, so the version-sensitivity question was answered a
+cheaper way: **vary the flags instead**. `plot.c` compiled at five optimisation levels:
+
+```
+F_DEF  mov shl add mov shl add mov mov ret
+F_O0   mov shl add mov shl add mov mov ret
+F_O2   mov shl add mov shl add mov mov ret
+F_O4   mov shl add mov shl add mov mov ret
+F_O6   mov shl add mov shl add mov mov ret
+```
+
+and byte-identical:
+
+```
+8b 44 24 0c  c1 e0 07  05 90 7e 07 00  8b 4c 24 08  d1 e1  03 c8  66 8b 44 24 04  66 89 01  c3
+```
+
+**Identical at every level, including `-O0`.** For this routine the code generator's output does not depend on the
+optimisation setting at all.
+
+**What that means and does not mean.** It is a real answer about `plot`, which is a leaf with no locals, no loops
+and no calls: there is nothing for an optimiser to do, so every level produces the same thing. **It is not evidence
+that flags never matter**, and it should not be generalised to routines with loops or inlining candidates.
+
+What it does support is a narrower claim, which is the one that was needed: **the match on `plot` is not an
+artefact of choosing the right `-O` level.** Any level reproduces it, so the match is about the compiler and the
+calling convention rather than about a lucky flag.
+
+The version question therefore remains formally open, but with less riding on it than before. A later compiler
+that changed only its optimiser would produce the same code here.
+
 ## The container, which removed the DOSBox problem
 
 A container was built for this, and the reason is not convenience. **The three Flatpak traps that cost several
