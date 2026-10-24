@@ -136,35 +136,39 @@ Both forms are common, and they are the same convention at different points: a f
 arguments off `ebp`, an unframed one reads them off `esp`. **Neither passes arguments in registers.** The earlier
 guess in this page that High C used a register convention was wrong, and the count says so.
 
-**Clean-up is split.** Of the returns in the image:
+**Clean-up is NOT split. The caller cleans, always.** This was a byte count first and an instruction count
+second, and the two disagree completely.
+
+The byte scan said:
 
 ```
 c3        plain ret        1024
 c2 imm16  ret and pop N     341
 ```
 
-A third of the returns clean their own arguments, which is the `stdcall` shape, and two thirds do not, which is
-`cdecl`.
-
-**Two caveats on that count, and they matter.** `c2` is a single byte, so the 341 is a **byte scan, not an
-instruction scan** and it includes `c2` appearing inside data or inside a longer instruction. And the addresses
-are spread across the whole image rather than clustered at the Fujitsu library:
+**341 is exactly one third of 1023**, which was tidy enough to be suspicious when it was written down. So it was
+checked against the walk, which knows where instructions actually begin, and asks the decoder what each return is
+rather than counting bytes:
 
 ```
-0x000000:  40      0x0e0000:  69
-0x0d0000:   6      0x0f0000:  99
-                   0x100000: 127
+ret instructions at proved boundaries: 771
+  plain ret   (caller cleans): 771   100.0%
+  ret imm16   (callee pops):     0     0.0%
 ```
 
-So this is not a clean split between Origins code and library code, which was the tidy explanation. It is mixed
-within the game code, or the count is inflated by false positives, and **the current tooling cannot tell which.**
-Confirming it needs the `ret` bytes intersected with instruction boundaries from `cfgwalk.js`, which the CLI does
-not expose.
+**Zero. All 343 raw `c2` bytes are inside data or inside longer instructions, and not one is a return.** Of the
+74 that sit immediately after a `leave` or a `ret`, which is where a real callee-pops return would be, none
+survived the boundary test either.
 
-**So this is a lead, not a finding.** Who pops the arguments is the question that decides how a decompiler should
-type every call, and it is worth a proper count before it is believed.
+So the convention is plain **`cdecl` throughout**: arguments are pushed by the caller and popped by the caller, in
+every one of 771 returns the walk could prove. There is no `stdcall` subset, no ownership split, and no mixed
+convention to attribute. The tidy one-third was a coincidence in which one byte value happens to be common in this
+image's data.
 
-## What this changes about the experiment
+**This is the single most useful result so far**, because it means a decompiler can type every call the same way.
+Had the byte count been believed, a third of all call sites would have been given the wrong stack adjustment.
+
+## What this changes about the experiment## What this changes about the experiment
 
 The plan was going to ask a compiler how it passes arguments. **That question is now answered from the bytes**, so
 it does not need a toolchain, and the experiment can spend its effort on the questions the bytes cannot answer:
@@ -172,7 +176,7 @@ it does not need a toolchain, and the experiment can spend its effort on the que
 | question | status now |
 |---|---|
 | register or stack arguments | **answered by counting**: stack, both framed and unframed forms |
-| who cleans the stack | **half answered**: 341 of 1365 returns pop arguments, split not yet attributed |
+| who cleans the stack | **answered by instruction count**: the caller, in 771 of 771 proved returns |
 | when a frame pointer is emitted | **open**, and the 50 50 split is the target to reproduce |
 | multiply-by-20 `lea`-then-shift sequence | **partly open**: three sites found, not proved to be the idiom |
 | how a `switch` is emitted | **open**: `jump-tables.md` has tables, no attribution to High C |

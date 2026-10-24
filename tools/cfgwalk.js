@@ -32,6 +32,7 @@
 //   node tools/cfgwalk.js                 run the walk, report coverage
 //   node tools/cfgwalk.js --check 0xef4bb is this an instruction boundary per the walk
 //   node tools/cfgwalk.js --at 0xe3904    show the walk from one entry
+//   node tools/cfgwalk.js --retmap        who pops arguments: plain ret against ret imm16
 
 'use strict';
 
@@ -284,6 +285,67 @@ function main() {
 			console.log('           A claim that this address names a function must restate as "the instruction');
 			console.log('           that identifies it", not "where it starts".');
 		}
+		return;
+	}
+
+	if (args.includes('--retmap')) {
+		// WHO POPS THE ARGUMENTS. Two conventions look identical in a byte scan and different in an instruction
+		// stream: `c3` returns plainly and the caller cleans, `c2 imm16` returns and pops the arguments itself.
+		// A byte count of `c2` overestimates the second, because 0xc2 turns up inside data and inside longer
+		// instructions. 341 of 1365 looked like a tidy one-third split, which is exactly why it needed checking
+		// rather than quoting.
+		//
+		// So this counts only where the walk has PROVED an instruction starts, and asks ndisasm what the
+		// instruction at that boundary actually is.
+		const seeds = callTargets(img);
+		const r = walk(img, seeds);
+		console.log(`walk from ${seeds.size} CALL targets`);
+		console.log(`  instructions decoded: ${r.decoded}`);
+		console.log(`  distinct boundaries:  ${r.boundary.size}`);
+
+		const bounds = [...r.boundary].sort((a, b) => a - b);
+		let plain = 0;
+		let pops = 0;
+		const popSizes = new Map();
+		const popAt = [];
+		for (const addr of bounds) {
+			const ins = decodeOne(img, addr);
+			if (!ins) continue;
+			const text = (ins.text || '').trim().toLowerCase();
+			if (!/^ret/.test(text)) continue;
+			const m = /^ret\s+(?:0x)?([0-9a-f]+)/.exec(text);
+			if (m) {
+				pops++;
+				const n = parseInt(m[1], 16);
+				popSizes.set(n, (popSizes.get(n) || 0) + 1);
+				popAt.push(addr);
+			} else {
+				plain++;
+			}
+		}
+		const total = plain + pops;
+		console.log('');
+		console.log('  ret instructions at proved boundaries: ' + total);
+		console.log('    plain ret   (caller cleans): ' + plain + '  ' + (total ? (100 * plain / total).toFixed(1) : '0') + '%');
+		console.log('    ret imm16   (callee pops):   ' + pops + '  ' + (total ? (100 * pops / total).toFixed(1) : '0') + '%');
+		if (popSizes.size) {
+			const sizes = [...popSizes.entries()].sort((a, b) => b[1] - a[1]);
+			console.log('    argument bytes popped, commonest first: ' + sizes.slice(0, 10).map(([n, c]) => n + 'x' + c).join(' '));
+		}
+		// Cluster the callee-pops sites by 64K region, so a split that follows ownership shows up.
+		const regions = new Map();
+		for (const a of popAt) {
+			const k = (a >> 16) << 16;
+			regions.set(k, (regions.get(k) || 0) + 1);
+		}
+		console.log('');
+		console.log('  callee-pops sites by 64K region:');
+		for (const k of [...regions.keys()].sort((a, b) => a - b)) {
+			console.log('    0x' + k.toString(16).padStart(6, '0') + ': ' + regions.get(k));
+		}
+		console.log('');
+		console.log('  A split that follows ownership would cluster in the library regions. One that spreads');
+		console.log('  through the game code is a compiler choice, not two codebases.');
 		return;
 	}
 
