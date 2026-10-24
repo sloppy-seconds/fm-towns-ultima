@@ -55,8 +55,25 @@ SMARTDrive cannot load: HIMEM.SYS not loaded.
 `A:`. Every `DEVICE=\DOS\...` line that had a `D:` prefix therefore failed, including `HIMEM.SYS`, which cascaded
 into the XMS and SMARTDrive complaints.
 
-**Rewriting `D:\DOS\` to `\DOS\`** is the whole fix, and it is a one-line substitution on a copy of the image, never
-on the archive.
+**Rewriting `D:\DOS\` to `A:\DOS\`** is the whole fix, and it is a one-line substitution on a copy of the image,
+never on the archive.
+
+## The drivers the disk was missing
+
+The disk ships `CDDRV.SYS`, `CDISC.SYS` and `MSCDEX.EXE`, but **not `OAK0.SYS` or `OAK1.SYS`**, so the Oak CD driver
+chain has a hole in it and `MSCDEX` has no device to mount. Its own `config.sys` expects them.
+
+**They are on the SDK CD**, at `sys/oak0.sys` and `sys/oak1.sys`, 76,880 and 70,978 bytes. Copying them into the
+disk's `DOS\` directory closes the chain.
+
+**A 1,232 KB floppy is tight.** With MS-DOS 6.2 already on it there was 66 KB free and the two drivers need 128 KB,
+so the copy failed with `No space left on device`. Removing `SETUP2.EXE` (213 KB, an installer for the full DOS, not
+needed to boot) and `DBLSPACE.BIN` (64 KB, compression, not needed either) leaves 197 KB free and room for both.
+
+**Path form matters at boot.** `DEVICE=\DOS\OAK0.SYS` with a leading backslash and no drive letter left the drivers
+unloaded with `Bad or not found: :\DOS\OAK0.SYS`, note the empty drive, meaning the path resolved with no drive letter at all. An explicit `DEVICE=A:\DOS\OAK0.SYS` is
+what a boot floppy needs, and the original disk used `D:\DOS\` for the same reason: an explicit letter rather than
+a relative root.
 
 ## Why this matters
 
