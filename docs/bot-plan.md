@@ -70,7 +70,15 @@ U2 constant or is labelled a policy.
 
 ## Prerequisites, which block everything else
 
-These two are measurement, not code. Every later item keys on them, so they come first.
+These five are measurement, not code. Every later item keys on them, so they come first.
+
+The two that matter most are **P4** and **P1**, because between them they decide how the bot knows where it is
+and where it is not. P4 finds the sector in memory, which the player chose over screen sampling because a cell
+value is exact and a colour class is a guess. P1 finds the `ERA` and `WORLD` offsets, without which a map memory
+cannot distinguish a town square from an overworld square at the same coordinates.
+
+P2, P3 and P5 unblock items rather than phases: a starvation rate for the hunger policy, a corrected tick page,
+and a measured choice of per-turn OBSERVE.
 
 ### P1. Live offsets for `ERA` and `WORLD`
 
@@ -121,7 +129,93 @@ that superseded claims are marked, not removed.
 The bot cannot presently answer "what is around me". It knows which squares refused it and which it has stood
 on. That is not a viewport.
 
-### 1a. Read the 11x11 viewport from the screen
+### P4. Find the sector buffer's live address
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+The bot needs to know what is around it. There are two ways to observe: a screenshot with colour sampling, or a
+memory read of the loaded sector. **The player's decision is to find the memory and use that**, because it gives
+true cell values rather than coarse colour classes, and because the tile alphabet problem disappears when the
+value is exact.
+
+**The buffer is known to exist and its shape is measured.** `map-geometry.md`: a 32,768-byte buffer, exactly
+256 by 128. The file supplies the last 31,232 bytes and the first 1,536 (`128 x 12`, twelve rows) are generated
+at load. That is one sector, which matches the player's reading that only the current sector is resident.
+
+**It has already been found once, by the method that should now be repeated.** `assets-and-graphics.md` §5.2.1
+located the loaded payload in a savestate, matched **100 percent** of all 31,232 bytes, and confirmed it with
+twelve independent high-entropy slices. So the buffer is real and locatable. What is missing is a **live flat
+address**, because savestate offsets and flat addresses have different bases.
+
+**Every earlier failure was inference, not measurement.** Those attempts are recorded and must not be repeated:
+
+the bit-3-clear signature search, which returned about 120 false candidates because any page with the right
+value distribution matches
+
+a flat address guessed as a fixed offset from the record base, which ignores that the two live in different
+segments
+
+a 16-byte `FIND` probe, which missed
+
+**The method, which is a SHAPE match and not a signature match:**
+
+1. capture a live `SAVESTATE` while the party stands at a known position, with terrain visible on screen
+2. read the 11 by 11 window of terrain off the screenshot
+3. for each candidate 32,768-byte region, read the cell at the party's `(px, py)` and its neighbours, and compare
+the resulting shape against the screen
+4. one region should match. A shape match anchored on the party's own position is far stronger than a value
+signature, because it uses where the party actually is as the discriminator
+
+`SAVESTATE` writes a live state, so this needs no pause and no per-address `MD`. It is a 7.6 MB file, which is
+fine for a one-off hunt and far too heavy per turn.
+
+**The first question is not the address but the mapping.** The viewport shows 11 tiles and the buffer holds 256
+by 128 cells, so the viewport cannot be the buffer at one-to-one scale. Either the viewport samples every nth
+cell, or the buffer is not what the viewport reads. That has to be settled before any shape comparison, or the
+comparison is against the wrong shape.
+
+| | |
+|---|---|
+| done when | a live flat address (or the segment and offset pair) for the 32,768-byte sector buffer is confirmed by reading it while the party is at a known position and finding the expected terrain at the expected cell, and the address survives two separate sessions |
+| failure case | an address whose bytes are merely plausible. A region of 32,768 bytes with the right value distribution is easy to find and is not evidence. The address must predict what is on screen at a position chosen before the read |
+
+### P5. Choose the per-turn OBSERVE, once P4 lands
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS · **depends on** P4
+
+Finding the address is a one-off. Using it every turn is a different cost, and the choice should be measured
+rather than assumed.
+
+The candidates, with what is known:
+
+| route | gives | measured cost |
+|---|---|---|
+| screenshot and colour sampling | 121 colour classes | a curl and a PNG decode, about 0.3 s |
+| `MD` the known region | exact cell values | 32,768 bytes is 2,048 dwords, which is 16 calls of `MD 128:` |
+| `SAVESTATE` per turn | everything | 7.6 MB a turn. Rejected before measuring |
+
+**The pause question is not settled and matters.** `live-session.md` records that reading the record without
+`PAU` gives `FF` about one sample in six, because the game rewrites it mid-read. A map buffer would be worse,
+since the game scrolls it. So an `MD` route probably needs `PAU` before and `RUN` after, and that has its own
+cost.
+
+| | |
+|---|---|
+| done when | both routes are timed on the same 20 turns and the numbers are written down, and one is chosen with the reason |
+| failure case | choosing `MD` without measuring the pause cost, or choosing the screenshot without measuring whether its classes can distinguish the terrains the bot must tell apart |
+
+
+## Phase 1: perception
+
+The bot cannot presently answer "what is around me". It knows which squares refused it and which it has stood
+on. That is not a viewport.
+
+Phase 1 is ordered so that the **fallback comes first**. If P4 succeeds, item 1a and item 1b are largely replaced
+by reading the buffer, and what remains is the small amount of work that maps a cell value to a symbol. Planning
+the screen route first is deliberate: it is available today, it is the fallback if the address hunt fails, and
+building it costs little.
+
+### 1a. Read the 11x11 viewport, from memory if P4 succeeds, from the screen otherwise
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
@@ -132,30 +226,31 @@ centre cell, `(5, 5)`.
 The current `tile_colour_at()` divides the panel by **64**, which is wrong and has been wrong since it was
 written. That is the bug this item starts by removing.
 
-**Why the screen and not memory:** the map buffer was found in savestates at `0xb06c2` and renders as real
-terrain, but its live address is unknown, and three attempts to infer it produced answers that were later
-disproved. The screen is what a player uses and it is available now.
+**Two sources, one interface.** `viewport()` returns 121 cells either way. Which source fills it is P5's
+remaining choice. Building the screenshot reader first means the bot is not blocked while P4 is open, and it
+means the fallback is tested rather than imagined.
 
 | | |
 |---|---|
-| done when | a function returns a 121-cell grid of symbols for a live screenshot, with the party's cell at index 60, and the symbols are stable across two screenshots taken without a turn between them |
-| failure case | a grid that changes when the party does not move. That means the sampling is straddling tile boundaries |
+| done when | a function returns a 121-cell grid for a live game, with the party's cell at index 60, and the symbols are stable across two samples taken without a turn between them |
+| failure case | a grid that changes when the party does not move. That means the sampling is straddling tile boundaries, or the buffer is being read while the game is rewriting it |
 
-### 1b. Earn the tile alphabet by observation
+### 1b. Earn the tile alphabet
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
 `cell-fields.md` establishes the **structure** of a map cell, 8 groups by 8 flags, and states plainly that the
 **meaning** of the eight group values is not established. So a lookup table today would map `g0` to `?`.
 
-This item does not decode the map file. It earns names by experiment: walk into a square, watch whether the
-step is refused, and label the neighbouring cell accordingly. The alphabet is whatever can be distinguished
-this way, and no more.
+**If P4 lands, this becomes cheap and certain.** The cell value is exact, so the alphabet is earned by walking
+and recording which values refused the step. No colour class is involved and no guessing from artwork.
+
+If P4 does not land, the same experiment runs against colour classes instead, and the alphabet is coarser.
 
 | | |
 |---|---|
-| done when | every symbol the viewport can produce has either a walkable or a blocked observation behind it, or is explicitly listed as unseen, and the table is committed as data with the counts that produced it |
-| failure case | a symbol named "mountain" from its appearance alone. The bot can observe passability and cannot observe geology |
+| done when | every value or class the viewport can produce has either a walkable or a blocked observation behind it, or is explicitly listed as unseen, and the table is committed as data with the counts that produced it |
+| failure case | a value named "mountain" from its appearance alone. The bot can observe passability and cannot observe geology |
 
 ### 1c. Distinguish terrain from overlay
 
