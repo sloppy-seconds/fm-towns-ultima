@@ -1,0 +1,77 @@
+# MetaWare High C calibration environment.
+#
+# WHY THIS EXISTS. The High C spike has to run a 1991 DOS compiler to compare its output against
+# ENCHANT.EXP. Doing that on the host means fighting three Flatpak traps at once: the sandbox cannot see
+# /var/home, the working directory is not the invocation directory so a relative config path silently loads the
+# DEFAULT config, and DOSBox-X needs a DISPLAY even with -nogui because SDL initialises video regardless.
+#
+# A container removes all three. Real paths, no sandbox, and this file owns the display.
+#
+# THE TOOLCHAIN IS NOT BAKED IN AND MUST NOT BE. The compiler is redistributable in its own right but this
+# repository's rule is that nothing copyrighted is committed, and a vendored 1991 commercial compiler is a
+# judgement call that does not need making. It is bind-mounted from references/ at run time instead, the same
+# posture container/Containerfile takes with the ROMs and the emulator.
+#
+# WHAT IS SHARED AS AN ARTEFACT. Everything about getting a DOS compiler to build reproducibly under a modern
+# LTS: the sandboxed paths, the DOSBox config that actually runs an autoexec, the marker-file handshake instead of
+# a sleep, and the disassembly step. That is the part worth copying for another decompilation project, and none of
+# it is specific to this game.
+#
+# build:  podman build -t highc -f container/Containerfile.highc .
+# run:    ./tools/calib-run.sh            (or read that script for the podman run line)
+# browse: http://<host>:6080/vnc.html      to watch the compile happen in DOS
+
+FROM docker.io/library/ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+# DISPLAY must be set for SDL even when DOSBox is asked not to show a window, so the X server is not optional.
+ENV DISPLAY=:99
+ENV RESOLUTION=1024x768x24
+# DOSBox-X is the target. DOSBox 0.74 is installed as a fallback because it is smaller and, if the autoexec
+# problem turns out to be specific to DOSBox-X's newer config parser, it is the fastest way to find out.
+ENV DBX=dosbox-x
+# Where the compiler is expected inside the container.
+ENV HCDIR=/hc
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xvfb \
+        x11vnc \
+        novnc \
+        websockify \
+        x11-utils \
+        xauth \
+        openbox \
+        xterm \
+        imagemagick \
+        dosbox \
+        dosbox-x \
+        mtools \
+        nasm \
+        p7zip-full \
+        binutils \
+        file \
+        less \
+        procps \
+        ca-certificates \
+        curl \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# novnc ships its web root here on Ubuntu.
+RUN test -d /usr/share/novnc && ln -sfn /usr/share/novnc /opt/novnc
+
+# A DOSBox config that is known to work, with the autoexec as its own file so it can be edited without touching
+# the rest. Absolute paths only: a relative -conf path is the trap that cost an afternoon.
+COPY container/highc/dosbox.conf /opt/dosbox.conf
+
+COPY container/highc/entrypoint.sh /usr/local/bin/highc-entrypoint.sh
+RUN chmod +x /usr/local/bin/highc-entrypoint.sh
+
+# Xvfb + VNC + noVNC on the same ports the emulator container uses, so the same browser URL works.
+EXPOSE 6080 5900
+
+# /work  the C source and the object files
+# /hc    the extracted High C toolchain, bind-mounted read-only from references/
+VOLUME ["/work"]
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/highc-entrypoint.sh"]

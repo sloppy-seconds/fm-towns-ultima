@@ -53,39 +53,86 @@ runtime first.
 **`tools/calibrate.sh` exists and is correct as far as it goes.** It merges the disks, writes a DOSBox-X config with
 absolute paths, borrows Xwayland, waits for a completion marker rather than sleeping, and disassembles the object.
 
-## Where it stops: DOSBox-X runs but its autoexec does not
+## The container, which removed the DOSBox problem
 
-Three Flatpak traps were found and fixed, and a fourth remains:
+A container was built for this, and the reason is not convenience. **The three Flatpak traps that cost several
+hours were all artefacts of running a sandboxed GUI application from a headless shell**, and a container removes
+each of them by construction.
 
-**Fixed.** The Flatpak working directory is `/var/home/paul`, not where the script was invoked, so a relative
-`-conf` path fails with `Can't open specified config file` and DOSBox-X then **silently loads the default config**,
-which has no autoexec. Every path is now absolute and the log confirms the config is read.
+| trap | container |
+|---|---|
+| sandbox cannot see `/var/home` | no sandbox, real paths |
+| working directory is not the invocation directory | absolute paths, ours to set |
+| no `DISPLAY` for SDL | the entrypoint owns Xvfb |
 
-**Fixed.** The sandbox cannot see `/var/home` without `--filesystem=home`, so the `C:` mount silently fails and
-every DOS command writes nowhere.
+**`container/Containerfile.highc`** is the artefact worth sharing, and it is deliberately generic. Nothing in it is
+specific to Ultima II. It carries the pieces that make a 1991 DOS compiler build reproducibly under a modern LTS:
+`dosbox-x` and `dosbox` from apt, `mtools` for floppy images, `ndisasm` for disassembly, and `xterm` inside Xvfb so
+a DOS session can be driven by hand over VNC when automation is not working.
 
-**Fixed.** DOSBox-X needs a `DISPLAY` even with `-nogui`, because SDL initialises video regardless. Over SSH that
-means borrowing Xwayland's socket and auth file, which `tools/debug-session.sh` already does for the emulator.
+**The toolchain is bind-mounted, not baked in.** `references/` holds the extracted compiler and the image never
+does. Same posture as `container/Containerfile` takes with the ROMs: a 1991 commercial compiler is someone else's
+copyright and does not belong in an image that might be published.
 
-**Not fixed.** With the config confirmed loaded and the display working, **no file appears in the mounted
-directory, not even the `echo MOUNTED > STARTED.TXT` the autoexec runs before the compiler.** So the failure is
-before High C and before any file write. Either the `mount c` command fails inside DOSBox-X, or autoexec is
-consumed before those lines run.
+**`tools/calib-run.sh`** drives it: `start`, `build`, `shell`, `logs`, `stop`, `status`.
 
-**What has not been tried, and would settle it:** capture the DOSBox-X screen rather than its log. A screenshot
-shows whether the DOS prompt appears at all, what `mount` reports, and whether autoexec ran. The log only carries
-SDL and config messages, so it cannot answer this. Every attempt so far raced the process exit and produced an
-empty log.
+### What the container proved, and what it did not
+
+Working, verified inside the container:
+
+```
+--- environment ---
+HCDIR=C:\HC
+PATH=C:\HC\BIN
+INCLUDE=C:\HC\INC
+--- compile ---
+```
+
+**The mount works, `BUILD.BAT` runs, the environment is set, and DOS can see the compiler**:
+
+```
+Directory of C:\HC\BIN
+HC386    EXE             59,952 10/24/2026  9:45a
+```
+
+**So the autoexec and mount problems are solved.** What remains is narrower: `HC386` invoked with no arguments
+prints nothing and returns immediately, where a DOS program of that era would normally print a usage banner. A
+compiler that is a DOS extender will refuse to start without extended memory, and doing nothing is what that looks
+like from the shell.
+
+Two more traps found here and worth recording:
+
+**Podman has two image stores on this host and they do not share.** The image was built with sudo, so a plain
+`podman images` finds nothing and podman then tries to **pull** `localhost/highc` from a registry, failing with a
+certificate error that says nothing about the cause. The script now asks each store whether it has the image.
+
+**DOS gets one drive.** `C:` is mounted at `/work`, so `HCDIR=C:\HC` only resolves if the toolchain is also
+mounted at `/work/HC`. Mounting it at `/hc` looks correct on the Linux side and is invisible to DOS.
+
+## Current state: the compiler starts and does nothing
+
+With the container in place the mount and autoexec questions are settled. `HC386` is visible to DOS, 59,952 bytes,
+and invoking it produces **no output and an empty `ERRORLEVEL`**.
+
+That is the signature of a DOS extender refusing to start, and the leading candidates are memory and DOS version.
+`HC386.EXE` is a protected-mode program that expects `RUN386`-style extended memory, so the things to vary are
+`xms`, `umb`, `memsize`, and possibly the emulated DOS version. All of those are one-line changes to
+`container/highc/dosbox.conf`.
+
+**What has not been tried, and is the cheap next step:** capture the DOSBox screen rather than its log. A screenshot
+shows what DOS prints when `HC386` is invoked with no arguments, including an "insufficient memory" or "load error"
+message that never reaches a log file. The first attempt at this has been made and its result is being read.
 
 ## What the next attempt should do
 
-1. **Run DOSBox-X without `-nogui` and with the screen visible**, or capture the framebuffer, so the DOS prompt is
-   observable. Guessing at a black box cost more turns than it saved.
-2. **Test the mount alone**, with an autoexec containing only `mount c <abs path>` and `c:` and nothing else, before
-   adding the compiler back.
-3. **Check whether this DOSBox-X version needs the autoexec in a different form**, such as a separate `.bat` the
-   config calls, since `[autoexec]` parsing changed between versions.
-4. Only then add `HC386`.
+1. **Read the DOS screen, not the log.** The log carries SDL and config messages only. Every question about what
+   DOS is doing needs the framebuffer.
+2. **Vary the DOS environment**, one variable at a time: `xms=true`, `umb=true`, `memsize=64`, and an emulated DOS
+   version of 6.22 if DOSBox-X defaults to something later. A 1991 extender may object to DOS 7.
+3. **Try `dosbox` instead of `dosbox-x`.** Both are in the image. DOSBox 0.74 has a different and much older
+   extender implementation, so if it runs there and not in DOSBox-X, the fault is the emulator rather than the
+   compiler.
+4. **Only then** worry about compiler flags, which is what the original brief was about.
 
 ## Why this is still worth finishing
 
