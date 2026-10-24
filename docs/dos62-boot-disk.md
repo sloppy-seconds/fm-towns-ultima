@@ -105,6 +105,53 @@ from the hard disk. **On FM Towns, Microsoft's HIMEM is the wrong driver**; a Fu
 `HIMEM.SYS` cannot provide it, `CTL.SYS` is the candidate, and it is on the SDK CD at `sys/ctl.sys` alongside the Oak
 drivers that were copied across for the same reason.
 
+## Two dead ends, recorded so they are not repeated
+
+**`CTL.SYS` hangs the boot.** Swapping Microsoft's `HIMEM.SYS` for the Fujitsu `CTL.SYS`, on the reasoning that the
+SDK's own `config.sys` uses it, produces a machine that prints
+
+```
+Starting MS-DOS...
+日本語 MS-DOS(R) V6.2 L1.0 +3
+COPYRIGHT FUJITSU LIMITED 1985-1994.
+```
+
+and then **stops before any prompt**. No error, no banner from the driver, no further output. That is worse than
+`HIMEM.SYS` failing silently-then-visibly, because there is nothing to act on. `saves/dos62v5.hdm` is kept so the
+attempt is traceable, but `saves/dos62v4.hdm` is the disk that boots.
+
+**`DIR Q:` lists drive A: and says File not found.** Not `Invalid drive specification`. That distinction matters:
+
+```
+A:\>DIR Q:
+Volume in drive A is D62P3
+Directory of A:\
+File not found
+```
+
+**`Q:` is not a drive.** DOS read `Q` as a filename pattern on the current drive and searched for it. So `MSCDEX`
+did not mount the CD, and the drive letter in the disk's own `AUTOEXEC.BAT` was never created.
+
+**And the disk's `AUTOEXEC.BAT` pipes `MSCDEX` output to `NUL`**, which is why the failure was invisible:
+
+```
+\DOS\MSCDEX /D:TOWNS_CD /K /M:8 /L:Q > NUL
+```
+
+The redirection hides exactly the message that would have explained it. Running `MSCDEX` bare reports what it
+mounted, and that is the diagnostic to use.
+
+**The device-name pairing does look right**, which makes the failure more interesting than a typo:
+
+```
+DEVICE=A:\DOS\OAK1.SYS /O1 /S0 /H1 /K0 /R1 /M2 /B1 /D:      <- declares device ":"
+DEVICE=A:\DOS\CDDRV.SYS /D:TOWNS_CD /U0:0                    <- declares "TOWNS_CD"
+MSCDEX /D:TOWNS_CD                                            <- looks for "TOWNS_CD"
+```
+
+`CDDRV.SYS` provides `TOWNS_CD` and `MSCDEX` asks for it, so the pair is consistent. `OAK1.SYS` declaring an empty
+device name is suspicious and is the first thing to check.
+
 ## Why this matters
 
 Every previous route to a scriptable shell failed:
