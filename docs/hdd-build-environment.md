@@ -64,6 +64,34 @@ C:\HC386\BIN\HC386.EXE C:\TEST_DIV.C C:\TEST_DIV.OBJ
 
 And where a shell is wanted, `console.exe` is already running.
 
+## A container bug that invalidated every earlier observation
+
+**The `hcd` container never had its own display.** It was launched with `--network host`, so it tried to bind VNC on
+5900 and noVNC on 6080, both of which `fmtowns` already held. Xvfb then failed:
+
+```
+_XSERVTransMakeAllCOTSServerListeners: server already running
+Fatal server error:
+Cannot establish any listening sockets - Make sure an X server isn't already running
+```
+
+**Every screenshot taken from that container was of the game emulator's display, not the TownsOS hard disk.** The
+desktop and windows read from those captures were `fmtowns`, and the conclusions drawn from them about drives and
+icons were about the wrong machine.
+
+**The same mistake in a second form:** `podman run ... >/dev/null 2>&1` swallowed
+
+```
+Error: pasta failed with exit code 1:
+Listen failed for HOST TCP port */8090: Address already in use
+```
+
+so the container never started and produced no log, which read as a silent emulator failure. Redirecting a command's
+output to /dev/null while debugging is how a clear error becomes a mystery.
+
+**Fixed by** using port mappings rather than host networking, on ports confirmed free, and checking `X display
+ready` in the log before trusting any capture.
+
 ## What is still unproven
 
 **A compile has not been completed on this environment.** The pieces are all present and independently verified:
