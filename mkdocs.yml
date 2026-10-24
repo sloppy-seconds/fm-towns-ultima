@@ -113,6 +113,7 @@ nav:
       - The control-flow walk: cfgwalk.md
       - The indirect branches: indirect-branches.md
       - Ghidra viability: ghidra-viability.md
+      - High C code generation: highc-codegen.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
       - Addressing limits: addressing-limits.md
