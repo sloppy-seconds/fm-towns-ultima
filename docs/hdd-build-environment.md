@@ -64,6 +64,57 @@ C:\HC386\BIN\HC386.EXE C:\TEST_DIV.C C:\TEST_DIV.OBJ
 
 And where a shell is wanted, `console.exe` is already running.
 
+## The HDD is invisible to the CD's DOS, and `config.sys` says why
+
+Attaching both media works, and the combination does what it was supposed to:
+
+```
+Tsugaru_CUI /roms -CD /disc/hc.ccd -CMOS /data/CMOS_HDD.bin -BOOTKEY CD -HD0 /disk/TownsHDD_V1.HDM
+```
+
+boots to a `Q:\>` prompt with the 15.9 GB disk attached underneath. **But no drive letter on that disk exists**,
+and every attempt to reach one fails identically:
+
+```
+Q:\>C:
+Wrong Command or File Name.
+Q:\>E:
+Wrong Command or File Name.
+```
+
+**The cause is in the CD's own `config.sys`.** It loads no hard disk driver at all:
+
+```
+SHELL=C:\COMMAND.COM C:\ /P
+DEVICE=\SYS\CTL.SYS
+DEVICE=\TBIOS\TBIOSLD.SYS
+DEVICE=TOWNS.SYS
+DEVICE=\SYS\OAK0.SYS
+DEVICE=\SYS\OAK1.SYS /S0 /H1 /K0 /R0 /M3 /B1
+DEVICE=\SYS\T_KANJI.SYS
+DEVICE=\SYS\GDS.SYS
+DEVICE=\SYS\MOUSE.SYS
+```
+
+There is nothing for SASI, SCSI or a hard disk, and none of the nine `.sys` files on the disc mentions them either.
+`TOWNS.SYS` is the BIOS driver that would service them, and on the CD it is loaded bare with no drive assignment.
+
+**So the disk is attached to the emulator and unknown to the operating system.** A drive letter cannot be switched
+to because it was never assigned. This also explains why the earlier SRAM dump showed `C`, `Z`, `X` on one boot and
+`E`, `Z` on another: those are BIOS defaults, not the presence of a usable volume.
+
+**`MSCDEX ... /L:Q` works because the CD driver is separate**, and that is the only drive the patched boot
+successfully provides.
+
+## What this means for the plan
+
+The combination of "prompt from the CD" and "storage from the HDD" needs one more thing than both media: **a DOS on
+the hard disk itself**, where `config.sys` can assign the drives. The CD boot cannot be made to see a disk it has no
+driver for.
+
+That points back at the TownsOS hard disk boot, which does see its own partitions, and at the conclusion that a
+savestate taken at its prompt is the way to use it.
+
 ## `FM-DOSYS` does not exist, and the vision reads invented it
 
 The plan for reaching a DOS prompt was to double-click an icon the vision model read as **`FM-DOSYS`**. Clicking it
