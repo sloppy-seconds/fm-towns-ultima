@@ -123,6 +123,7 @@ nav:
       - A bootable build disk: bootable-build-disk.md
       - The HDD build environment: hdd-build-environment.md
       - The MS-DOS 6.2 boot disk: dos62-boot-disk.md
+      - Two floppies instead of a CD: two-floppy-toolchain.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
