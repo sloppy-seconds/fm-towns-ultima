@@ -115,6 +115,11 @@ The hardcoded `Q:` was never a mistake in the kit, it is the drive the CD always
 shell with a file-manager window already showing `Q:\HC_MULTI_K`, the compiler CD's own root. No hard disk and no CD
 swap are needed.
 
+**The emulator's geometry, which matters for any future attempt.** The Tsugaru window is **640x496 at screen
+position (2,40)**, and the FM Towns desktop draws into the top-left **640x520** of a 1024x768 root capture. So a
+coordinate read from a screenshot is very nearly a window coordinate, offset by the window origin. A 1024x768
+screenshot is not a 1024x768 desktop, and treating it as one aims every click at the wrong pixel.
+
 **What remains is getting from the GUI to a DOS prompt.** TownsOS offers a `コマンドモード` (Command Mode) icon in the
 file manager, and the CD also carries `console.exe` and `control.exe`. Clicking inside the emulator window requires
 pixel coordinates that xdotool can see only as one window, since TownsOS draws everything inside the Tsugaru
