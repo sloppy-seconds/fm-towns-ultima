@@ -125,6 +125,7 @@ nav:
       - The MS-DOS 6.2 boot disk: dos62-boot-disk.md
       - Two floppies instead of a CD: two-floppy-toolchain.md
       - A bootable DOS hard disk: bootable-dos-hdd.md
+      - The working C drive: working-c-drive.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
