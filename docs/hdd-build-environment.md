@@ -64,6 +64,31 @@ C:\HC386\BIN\HC386.EXE C:\TEST_DIV.C C:\TEST_DIV.OBJ
 
 And where a shell is wanted, `console.exe` is already running.
 
+## The compiler's exact location on the patched disc, read from the ISO
+
+The path `Q:\HC386\BIN\HC386.EXE` was queried rather than assumed, by walking the ISO9660 directory tree of the
+image the emulator is actually booting, `saves/hc.img`. ISO9660 directories are readable on the host with no guest
+involvement at all.
+
+Volume `HC_MULTI_K`, root at extent 26. The chain resolves completely:
+
+```
+root  -> HC386            DIR   extent 23713
+HC386 -> BIN              DIR   extent 23768
+BIN   -> HC386.EXE;1      file  extent 24073   61,888 bytes
+         HCD386.EXE;1     file  extent 24110  698,816 bytes   the code generator
+         HC386.CNF;1      file  extent 24032   82,392 bytes   the driver config
+         386LINK.EXE;1    file  extent 23769  192,192 bytes
+         HCD386P.EXP;1    file  extent 24452  670,437 bytes
+```
+
+**So the file is on the disc, at that path, at that size.** Any `Wrong Command or File Name` from the guest is not a
+missing file. It is either the guest's text entry corrupting the line, or the shell failing to resolve a
+full path.
+
+**Also worth recording, because it was not noticed before:** `RUN386.EXE` is at the **root** of the disc, extent 527,
+alongside `CONSOLE.EXE` at 374. The extender the compiler needs is not buried in a subdirectory.
+
 ## Writing into the disk from the host: attempted, and it does not converge
 
 The durable version of the plan was to place the compile command in the `DEVELOPMENT` partition's own
