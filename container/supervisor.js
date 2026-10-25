@@ -662,6 +662,16 @@ function xkey(ch) {
 	const named = {
 		' ': 'space', '\n': 'Return', '\r': 'Return', '\t': 'Tab',
 		'\x1b': 'Escape', '\x08': 'BackSpace',
+		// The guest keyboard is a Japanese 106 layout. `xdotool type` resolves
+		// characters through that layout's keymap, and several ASCII characters have
+		// no direct key there: the colon needs `semicolon` and the backslash needs
+		// `backslash`, which on the JP layout is printed as the yen sign. Sending them
+		// as named keys is the only way they reach the guest. Without this, every path
+		// typed into the guest silently loses its separators.
+		// `backslash` on a JP 106 layout is the yen key and yields \u00a5, not \
+		// (that substitution was observed directly in the guest). `intl_backslash` is the
+		// X keysym whose purpose is to emit a real 0x5C on a Japanese keyboard.
+		'\\': 'intl_backslash', ':': 'semicolon', '|': 'bar', '~': 'asciitilde',
 	};
 	try {
 		if (named[ch]) {
