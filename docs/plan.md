@@ -10,6 +10,21 @@ question and the linker-as-calibration-step. See
 Consequence for this plan: **routines are ranked by whether a player can observe them.** Anything not
 reachable from create, move, town, fight, buy, cast, save is a lower priority than it was.
 
+**And byte matching is conditional, not assumed.** It is a *diagnostic*, not a goal. A match says the
+source is right for this compiler at these settings. A mismatch says one of four things, and only one of
+them is "the C is wrong":
+
+| what a mismatch means | how to tell |
+|---|---|
+| the C is wrong | varies with source shape, reachable by rewriting |
+| a relocation placeholder | displacement is `00 00 00 00`, `FIXUPP` in the object |
+| the address is not a function start | `node tools/preflight.js <addr>` |
+| **the toolchain or settings are not the originals** | no source shape matches, over many routines |
+
+That last row is the one to watch. If byte matching stops working across a *population* of routines rather
+than a single stubborn one, the conclusion is that this High C build is not the one that made the game,
+and the honest response is to stop byte matching and rely on behavioural evidence. It is not to grind.
+
 This replaces an earlier version that was a list of open items with no sequencing. A list says what is
 unfinished. A plan says what to do next and how to know it worked.
 
@@ -63,6 +78,7 @@ from the items below rather than maintained separately.
 | 4c `WORLD*.UT2` layout | BLOCKED ON HUMAN | no, needs a save taken mid-game |
 | 4d `.SND` playback rate | BLOCKED ON HUMAN | no, needs the running game |
 | 4e Confirm the U2 palette in-game | BLOCKED ON HUMAN | no, needs a coloured screen |
+| 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports four of eleven startable now: 1a, 1b, 2a and 4b, with 4a and 2b held back by item order. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
@@ -402,6 +418,33 @@ file. Small item, and it is the last unknown in audio extraction.
 
 **Ranked low under behavioural faithfulness.** Nothing about how the game plays depends on it, so it
 should not be picked up before the rules work in Phase 4b.
+
+### 4f. Measure the byte-match rate across a population of leaves
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended via `tools/cserve.js` and `tools/preflight.js` |
+| done when | at least 25 of the 103 leaves are attempted and the match rate is recorded, or the run stops on the trigger below |
+| blocked by | nothing |
+
+**Why this is a plan item and not just tooling.** The whole question of whether High C 1.73 is the
+compiler that built this game is currently answered by two routines. Two is not a population. A
+mismatch on one routine has four possible causes; a mismatch on *most* of twenty-five has one.
+
+The measurement: attempt 25 leaves smallest-first, record match or cord per routine, and report the rate.
+
+**The stop condition, which is the real content of this item.** If fewer than 30 percent match, the
+conclusion is that this toolchain is not the original and no amount of source-shape search will fix it.
+At that point byte matching is abandoned as a verification method, the result is written up as a negative,
+and the rules work proceeds on behavioural evidence only.
+
+That outcome is a success, not a failure: it answers a question the corpus has been carrying since the
+first calibration, and it costs a few hours rather than the months a wrong-toolchain assumption would.
+
+**Known shape levers to try before calling a mismatch, from the experiment:** pointer type (byte versus
+int), operand order in a `&&`, and `return p + 1` versus `p++; return p`. All three changed the output.
 
 ### 4e. Confirm the U2 palette in-game
 

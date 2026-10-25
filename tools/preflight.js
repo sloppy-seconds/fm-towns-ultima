@@ -38,7 +38,11 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const IMAGE = path.join(ROOT, 'ENCHANT.EXP');
-const BASE = 0;
+// ADDRESS BASE. Every address here is a RAW FILE OFFSET, which is what docs/ quote
+// and what the pixel-writer correction established (0xf3e24 in the file). funcs.js
+// works internally on the 0x20-byte-stripped image but now reports raw offsets, so
+// the two agree. Before that fix they disagreed by 0x20 and the call counts this
+// tool printed were attached to the wrong routines.
 
 // Opcodes that mean "this routine depends on something outside itself".
 const CALL_REL32 = 0xe8;
@@ -122,10 +126,12 @@ function boundaryOk(addr) {
 }
 
 function callCounts() {
-	const out = execFileSync('node', [path.join(__dirname, 'funcs.js')], { encoding: 'utf8', stdio: 'pipe' });
+	// --list is required: the summary output only prints the top 25 and formats them
+	// differently, so call counts for most targets would be missing.
+	const out = execFileSync('node', [path.join(__dirname, 'funcs.js'), '--list'], { encoding: 'utf8', stdio: 'pipe' });
 	const counts = new Map();
 	for (const line of out.split('\n')) {
-		const m = line.match(/^\s+(0x[0-9a-f]+)\t(\d+) calls/);
+		const m = line.match(/^(0x[0-9a-f]+)\t(\d+)/);
 		if (m) counts.set(parseInt(m[1], 16), Number(m[2]));
 	}
 	return counts;

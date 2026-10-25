@@ -96,9 +96,10 @@ Applied to all 738:
 | | count |
 |---|---|
 | `E8` targets | 738 |
-| start with `55 8b ec` (framed) | 318 |
-| preceded by a `ret` within 8 bytes after stripping padding | 454 |
-| **real starts that are also leaves** | **103** |
+| `55 8b ec` (framed) | 318 |
+| real starts (preceded by `ret`, after stripping padding) | 454 |
+| **interior addresses, not function starts** | **284** |
+| real starts that are also leaves | 103 |
 
 103 leaves is the honest experiment queue. The 103 are also, by construction,
 the routines whose `OBJ` carries no `EXTDEF` and no `FIXUPP`, so Trigger 1
@@ -123,16 +124,63 @@ the same property as "is a function start".
 **Both tests are required.** The pre-flight gate in `tools/preflight.js` asks
 both and only then reports a candidate.
 
-## Correction to the project's own data
+## Correction: an address base mismatch, not a wrong address
 
-`funcs.js` lists `0xf3e04` as the pixel writer, called 104 times. The real
-function is at **`0xf3e24`** (documented in
-[pixel-writer-address-correction.md](pixel-writer-address-correction.md)).
-`0xf3e04` is an interior address. The call-target list has not been regenerated
-since that correction, so any count derived from it inherits the error.
+`funcs.js` and the docs disagreed about the pixel writer by exactly `0x20`:
+`funcs.js` said `0xf3e04`, the docs said `0xf3e24`. Both were right.
 
-This is the second time an uncorrected address has cost time. It is worth fixing
-in `funcs.js`'s output rather than noting it again.
+`funcs.js` strips the 32-byte MP header and works on the remainder, so it reports
+**stripped** offsets. Every doc quotes **raw file** offsets. The pixel writer is
+at stripped `0xf3e04` and raw `0xf3e24`. Verified directly:
+
+```
+target bytes 8b 44 24 0c c1 e0 07   found at raw 0xf3e24
+                                    found at stripped 0xf3e04
+```
+
+`funcs.js` now converts to raw offsets on output and labels the base in a comment.
+This is the second address defect to cost time, and unlike the first it was not
+wrong data: it was two tools using different frames without saying so.
+
+## Result 5: a 21-byte routine with 91 callers, matched
+
+The strongest result of the run. `0xe9e2c` is a `strlen`-to-`=` scanner:
+
+```
+0xE9E2C  8B4C2404   mov ecx,[esp+0x4]
+0xE9E30  8A01       mov al,[ecx]
+0xE9E32  3C3D       cmp al,0x3d          <- '=' tested FIRST
+0xE9E34  7407       jz 0xE9E3D
+0xE9E36  22C0       and al,al            <- then NUL
+0xE9E38  7403       jz 0xE9E3D
+0xE9E3A  41         inc ecx
+0xE9E3B  EBF3       jmp 0xE9E30
+0xE9E3D  41         inc ecx
+0xE9E3E  8BC1       mov eax,ecx
+0xE9E40  C3         ret
+```
+
+Target: `8b 4c 24 04 8a 01 3c 3d 74 07 22 c0 74 03 41 eb f3 41 8b c1 c3`
+
+| candidate | result |
+|---|---|
+| `while (*p && *p != '=') p++; return p + 1;` | `22 c0 74 07 3c 3d` (tests NUL first) |
+| `while (*p != '=' && *p) p++; p++; return p;` | **MATCH** |
+| `for(;;){ if(*p=='=')break; if(!*p)break; p++; } p++; return p;` | **MATCH** |
+| `while(1){ if(*p=='='||!*p) break; p++; } return ++p;` | **MATCH** |
+| explicit `goto` | **MATCH** |
+
+**Two independent source-shape levers, both confirmed:**
+
+1. **Operand order in a `&&` determines branch order.** The game tests `'='`
+   before NUL. Writing `*p && *p != '='` produces the opposite and does not
+   match. This is a *semantic* lever, not a stylistic one.
+2. **`return p + 1` versus `p++; return p` changes the epilogue.**
+   `lea eax,[ecx+1]` versus `inc ecx; mov eax,ecx`. The game uses the latter.
+
+Four source forms converge on the same 21 bytes, so the bytes do not uniquely
+determine the source. That is worth knowing for the loop: a match confirms the
+instruction selection, not the exact text.
 
 ## What the experiment proves about the loop
 

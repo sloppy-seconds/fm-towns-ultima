@@ -28,6 +28,15 @@ const { execFileSync } = require('child_process');
 const { Disc, defaultDisc } = require('./cd.js');
 
 const ROOT = path.join(__dirname, '..');
+// ENCHANT.EXP is a Phar Lap MP image whose header is 0x20 bytes. Code offsets in
+// docs/ are RAW FILE OFFSETS (the pixel writer is at 0xf3e24 in the file), so every
+// address this tool prints must be converted back to a raw offset before it is
+// compared with a doc.
+//
+// This was a real and costly confusion: funcs.js works on stripped bytes and
+// reports the pixel writer at 0xf3e04, which is the STRIPPED offset. The raw
+// offset is 0xf3e24 and that is what docs/ quotes. Both numbers were correct in
+// their own frame of reference, and the mismatch made three docs look wrong.
 const HEADER = 0x20;
 
 function loadImage() {
@@ -101,7 +110,32 @@ function main() {
 		return;
 	}
 
-	const { calls, jumps } = collectCalls(buf);
+	// Is this address the START of a function, rather than an interior address that
+// happens to be a CALL target?
+//
+// This distinction was missing and it caused real damage. `distinct CALL targets`
+// counts 738, but some are interior addresses: 0xf3e04 is called 104 times and
+// docs called it "the pixel writer" for weeks, while the actual function begins
+// at 0xf3e24. 0xe6b1c is called 240 times and disassembles to `push ebp` then
+// garbage, because the containing instruction is `89 94 08 41 07 00 00` and the
+// target lands inside its displacement.
+//
+// The test: work backwards, strip alignment padding (`8b c0` = mov eax,eax, `90`
+// nop, `cc` int3), and require a ret before it. A real entry follows the previous
+// function's return.
+//
+// Measured: 454 of 738 targets pass. cfgwalk --check answers a different
+// question and returns true for interior addresses too, so both are needed.
+function isRealEntry(buf, addr, width = 8) {
+	const tail = buf.slice(Math.max(0, addr - width), addr);
+	let i = tail.length;
+	while (i >= 2 && tail[i - 2] === 0x8b && tail[i - 1] === 0xc0) i -= 2;
+	while (i >= 1 && (tail[i - 1] === 0x90 || tail[i - 1] === 0xcc)) i -= 1;
+	if (i === 0) return false;
+	return tail[i - 1] === 0xc3 || tail[i - 1] === 0xc2;
+}
+
+const { calls, jumps } = collectCalls(buf);
 
 	// A target called from many distinct places is overwhelmingly likely to be a real
 	// function. A target called once could be a coincidental byte. Report the counts so
@@ -121,16 +155,26 @@ function main() {
 	console.log(`targets called once: ${weak.length}`);
 	console.log();
 
+	// Report RAW FILE OFFSETS so the numbers match docs/. Internally everything is
+	// in stripped space; add HEADER back on the way out.
+	const raw = (t) => '0x' + (t + HEADER).toString(16);
+
 	if (args[0] === '--list') {
 		for (const [t, n] of byCount) {
-			console.log(`0x${t.toString(16)}\t${n}`);
+			console.log(`${raw(t)}\t${n}`);
 		}
 		return;
 	}
 
+	const realEntries = byCount.filter(([t]) => isRealEntry(buf, t));
+	const interior = byCount.filter(([t]) => !isRealEntry(buf, t));
+	console.log(`targets that are real function starts: ${realEntries.length}`);
+	console.log(`targets that are INTERIOR addresses:   ${interior.length}`);
+	console.log();
 	console.log('most-called targets:');
 	for (const [t, n] of byCount.slice(0, 25)) {
-		console.log(`  0x${t.toString(16)}\t${n} calls`);
+		const mark = isRealEntry(buf, t) ? ' ' : '  <- interior, not a function start';
+		console.log(`  ${raw(t)}\t${n} calls${mark}`);
 	}
 
 	// A real function entry very often has the bytes of a prologue or a distinctive

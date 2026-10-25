@@ -2,6 +2,14 @@
 
 **Two documentation errors corrected, one calibration question narrowed.**
 
+> **Base note, added later.** Every address on this page is a **raw file offset**.
+> `funcs.js` works on the 0x20-byte-header-stripped image and reports the same
+> function at `0xf3e04`, which is the **stripped** offset. Both are correct in
+> their own frame. The two tools disagreed by 0x20 for weeks without either
+> saying which base it used, which is what made three docs look wrong.
+> `funcs.js` now converts to raw offsets on output. If you see `0xf3e04` in a
+> tool's output, check which base it is reporting before concluding anything.
+
 This page records a correction to `docs/core-routines.md` and to the
 "expected bytes" this project had been comparing compilers against since the
 first High C calibration. Both were wrong about *which function* is the pixel
