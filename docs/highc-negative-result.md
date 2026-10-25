@@ -1,5 +1,11 @@
 # The High C escalation: a negative result, recorded
 
+> **Superseded.** "None of them has produced a usable object file" is no longer
+> true: the FM Towns High C 1.7 kit does compile, and the recipe is
+> [compiling-on-fm-towns.md](compiling-on-fm-towns.md). The calibration result
+> in [highc-plot-calibration.md](highc-plot-calibration.md) reopened the version
+> question. This page stays as the record of what failed.
+
 Three compilers were obtained and one was made to run. **None of them has produced a usable object file**, and the
 reasons are now all known. This page is the conclusion of that line of work, so it is not repeated.
 

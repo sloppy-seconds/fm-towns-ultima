@@ -1,5 +1,10 @@
 # High C V1.7 L13: the FM Towns kit, and what it is
 
+> **Solved since this page was written.** This kit does compile. The recipe is
+> [compiling-on-fm-towns.md](compiling-on-fm-towns.md) and the result is
+> [highc-compile-success.md](highc-compile-success.md). This page stays as the
+> identity evidence.
+
 The strongest compiler candidate found so far, on identity rather than on output. It has not yet been made to
 produce an object file, and this page records both halves.
 

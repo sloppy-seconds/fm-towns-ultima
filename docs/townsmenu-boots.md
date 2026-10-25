@@ -1,5 +1,9 @@
 # TownsMENU boots from the SDK CD, and that is why RUN386 was silent
 
+> **Context for later readers.** Everything here is accurate, but the compiler
+> does not need TownsMENU at all: the kit ships `HCD386.EXE`, a plain DOS
+> generator. See [compiling-on-fm-towns.md](compiling-on-fm-towns.md).
+
 This closes the question left open by `docs/highc-dos-negative.md`. `RUN386.EXE` was
 never broken. It launches programs into a Towns window, and with no Towns window system
 running it has nowhere to put anything, so it exits silently.

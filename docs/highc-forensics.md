@@ -83,6 +83,14 @@ almost never with the strength-reduced form. High C 2.31 produces that form *by 
 **Conclusion: v2.31 is not the compiler that built this code**, or not at the settings used. The difference is not
 a flag, because `-O0` already shows it.
 
+**Confirmed, later, against the FM Towns kit.** High C 1.7 from the SDK CD was
+tested on exactly this discriminator and **does** emit hardware `idiv` and the
+naive `cdq`/`sub`/`sar` halving chain, matching the game. So the family is
+right, the version is not 2.31, and the FM Towns 1.7 kit is the leading
+candidate. See [highc-plot-calibration.md](highc-plot-calibration.md) for the
+side-by-side and [compiling-on-fm-towns.md](compiling-on-fm-towns.md) for the
+recipe.
+
 ## What a usable compiler would have to do
 
 **It must emit `idiv` for division by a constant power of two.** That is the single discriminating test, and it is

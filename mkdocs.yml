@@ -151,6 +151,7 @@ nav:
   - Colour:
       - The palette: palette.md
   - Toolchain:
+      - Compiling on FM Towns: compiling-on-fm-towns.md
       - Compiling with High C: highc-compile-success.md
       - The plot calibration: highc-plot-calibration.md
   - Where it stands:

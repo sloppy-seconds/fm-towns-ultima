@@ -1,5 +1,10 @@
 # Two floppies instead of a CD: DOS on A:, the compiler on B:
 
+> **Superseded.** `Q:` does work, when the disc is seated at power-on so
+> `MSCDEX` finds media. The working recipe is
+> [compiling-on-fm-towns.md](compiling-on-fm-towns.md), and it needs one floppy
+> and the CD, not two floppies.
+
 `Q:` never works on the MS-DOS 6.2 boot disk, so the CD is not a usable place for the kit. **The replacement is a
 second floppy.**
 
