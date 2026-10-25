@@ -155,6 +155,7 @@ nav:
       - Compiling with High C: highc-compile-success.md
       - The plot calibration: highc-plot-calibration.md
       - Pixel writer address correction: pixel-writer-address-correction.md
+      - AGENTS.md audit: agents-md-audit.md
   - Where it stands:
       - Reading the code: code-analysis.md
       - The consumable function: consumable-function.md

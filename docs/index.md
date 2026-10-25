@@ -89,6 +89,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Compiling with High C](highc-compile-success.md) | The SDK CD's own compiler building an object file inside the emulator, and the TownsMENU detour it did not need. |
 | [The plot calibration](highc-plot-calibration.md) | Compiling a known function, twice getting the answer wrong, and what the corrected comparison shows. |
 | [Pixel writer address correction](pixel-writer-address-correction.md) | The pixel writer is at 0xf3e24, not 0xf3e04, and the "expected bytes" were a paraphrase. |
+| [AGENTS.md audit](agents-md-audit.md) | Measured cost and effectiveness of the agent operating document: what works, what is stale, what to cut. |
 | [Open questions](open-questions.md) | What is still unknown, ordered by cost to resolve. |
 
 ## Reading order, if you want one
