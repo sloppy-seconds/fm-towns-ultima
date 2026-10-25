@@ -105,6 +105,19 @@ Applied to all 738:
 the routines whose `OBJ` carries no `EXTDEF` and no `FIXUPP`, so Trigger 1
 cannot fire on them.
 
+**They are not equally worth reconstructing, and the ordering matters.** Sorted
+by caller count the top of the list is the pixel writer at `0xf3e24` (104
+callers) and the `=` scanner at `0xe9e2c` (91). Sorted by size the top is a row
+of 5-byte accessors with one caller each. The second list is easier and worth
+far less: those routines sit on no player-visible path.
+
+`node tools/preflight.js --scan N` takes highest-caller first. `--by size` gives
+the other order, which is the right one only for a pure toolchain probe where
+minimising degrees of freedom is the point.
+
+Both listed routines have now been matched byte for byte, so the harder
+ordering is also the productive one.
+
 Smallest candidates, all under 10 bytes:
 
 | address | bytes |

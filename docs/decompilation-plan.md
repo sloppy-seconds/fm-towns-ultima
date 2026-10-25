@@ -36,7 +36,7 @@ derived. One record per candidate:
 ## The loop
 
 ```
-1. select     next pending candidate, smallest first
+1. select     next pending candidate, highest caller count first
 2. disassemble  read the bytes, decode to instructions
 3. draft      write C that would produce those instructions
 4. compile    POST /api/compile
@@ -104,7 +104,13 @@ The loop should stop and ask rather than guess in three situations:
   what any of them does. Naming is separate work and the call graph already
   provides the tooling.
 - **It does not reach the game.** 103 matched leaves is a demonstration that the
-  method works, not progress toward a playable reimplementation. The rules work
+  method works, not progress toward a playable reimplementation.
+
+**Ordering note.** Candidates are taken highest-caller-count first, not smallest.
+The original plan said smallest-first, which minimises the search space per
+routine but spends the run on 5-byte accessors called once. A higher-caller leaf
+is on a player-visible path, so reconstructing it is worth more even though it
+is harder. `--by size` remains available for a pure toolchain probe. The rules work
   in [plan.md](plan.md) Phase 4 is where the game comes from.
 
 ## Why do the leaves at all, if they are not the game

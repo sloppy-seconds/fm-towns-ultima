@@ -433,7 +433,16 @@ should not be picked up before the rules work in Phase 4b.
 compiler that built this game is currently answered by two routines. Two is not a population. A
 mismatch on one routine has four possible causes; a mismatch on *most* of twenty-five has one.
 
-The measurement: attempt 25 leaves smallest-first, record match or cord per routine, and report the rate.
+The measurement: attempt 25 leaves, record match or cord per routine, and report the rate.
+
+**Ordering, corrected.** The first version said smallest-first, which is the wrong choice for this
+question. Smallest-first minimises degrees of freedom, which is right for a *toolchain check* but wrong
+for a *useful* run: it spends the budget on 5-byte accessors called once. Order by caller count instead
+(`tools/preflight.js --scan 25`), so the routines reconstructed are the ones a player can observe.
+`0xf3e24` has 104 callers, `0xe9e2c` has 91, and both are now matched.
+
+If the purpose ever narrows to "is this the right compiler at all", use `--by size` for a pure toolchain
+probe where a 5-byte routine has almost no room to diverge.
 
 **The stop condition, which is the real content of this item.** If fewer than 30 percent match, the
 conclusion is that this toolchain is not the original and no amount of source-shape search will fix it.

@@ -29,7 +29,8 @@
 //
 // Usage:
 //   node tools/preflight.js 0xf3e24
-//   node tools/preflight.js --scan 40        first 40 leaves by call count
+//   node tools/preflight.js --scan 40               40 leaves, highest callers first
+//   node tools/preflight.js --scan 40 --by size     smallest first, for a toolchain check
 //   node tools/preflight.js --scan 40 --json
 
 const fs = require('fs');
@@ -167,21 +168,40 @@ function main() {
 
 	if (args.includes('--scan')) {
 		const n = Number(args[args.indexOf('--scan') + 1] || 20);
+
+		// ORDERING MATTERS, and both directions have a use.
+		//
+		// --by callers (default): highest call count first. These are the routines
+		// on a player-visible path, so reconstructing one is worth more than
+		// reconstructing ten 5-byte accessors. They are also harder, which is why
+		// the size ordering exists.
+		//
+		// --by size: smallest first. The original plan said this, and it is the
+		// right choice for a first run whose purpose is to measure whether the
+		// toolchain matches at all, because a 5-byte routine has the fewest
+		// degrees of freedom. Use it for a toolchain check, not for the corpus.
+		const order = args.includes('--by') ? args[args.indexOf('--by') + 1] : 'callers';
 		const targets = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-		const leaves = [];
+
+		// Walk every target, not just the first n, so the totals are honest.
+		const allLeaves = [];
 		for (const [addr, callers] of targets) {
 			if (!cleanEntry(buf, addr)) continue;
 			const r = scanRoutine(buf, addr);
 			if (r.calls === 0 && r.indirectCall === 0) {
-				leaves.push({ addr, callers, size: r.length });
+				allLeaves.push({ addr, callers, size: r.length });
 			}
-			if (leaves.length >= n) break;
 		}
+		const leaves = order === 'size'
+			? allLeaves.slice().sort((a, b) => a.size - b.size || b.callers - a.callers).slice(0, n)
+			: allLeaves.slice(0, n);
+
 		if (args.includes('--json')) {
 			console.log(JSON.stringify(leaves, null, 2));
 			return;
 		}
-		console.log(`${leaves.length} leaf routines among the most-called targets, by callers:\n`);
+		console.log(`${allLeaves.length} leaves total among real function starts.`);
+		console.log(`showing ${leaves.length}, ordered by ${order}.\n`);
 		console.log('addr        callers  bytes');
 		for (const l of leaves) {
 			console.log(`0x${l.addr.toString(16).padEnd(9)} ${String(l.callers).padStart(6)}  ${String(l.size).padStart(5)}`);
