@@ -62,27 +62,40 @@ function load() {
 // short/near jumps within the routine. Crude by design: this classifies leaves,
 // it does not reconstruct control flow. cfgwalk.js is the authority on
 // boundaries and this tool defers to it for that question.
+//
+// THIS USES NDISASM, NOT A BYTE-WISE SCAN. A byte-wise scan that stops at the
+// first 0xc3 is wrong twice over, and both were measured:
+//
+//   - it counts any 0xe8 byte as a call, including bytes inside operands. It
+//     reported 0xe44d0 as calling out when the routine contains no call at all,
+//     which disqualified the one routine that had already matched byte for byte.
+//   - 0xe30a0's tenth byte is 0xc3 but it is the middle of `83 c3 04`.
+//
+// ndisasm is correct from a known entry because the entry supplies alignment.
+// decompile-run.js was fixed the same way for the same reasons.
 function scanRoutine(buf, entry) {
+	const chunk = buf.slice(entry, Math.min(entry + 4096, buf.length));
+	const tmp = '/var/tmp/pf-' + process.pid + '.bin';
+	fs.writeFileSync(tmp, chunk);
+	let text;
+	try {
+		text = execFileSync('ndisasm', ['-b32', '-o', '0x' + entry.toString(16), tmp], {
+			encoding: 'utf8', stdio: 'pipe',
+		});
+	} finally {
+		fs.unlinkSync(tmp);
+	}
 	const bytes = [];
-	let i = entry;
-	let calls = 0;
-	let indirectCall = 0;
-	let rets = 0;
-	// Generous cap: the longest routine measured is a few hundred instructions.
-	while (i < buf.length && bytes.length < 4096) {
-		const b = buf[i];
-		bytes.push(b);
-		if (b === CALL_REL32 || b === CALL_REL16) calls++;
-		if (b === 0xff) {
-			const modrm = buf[i + 1];
-			const reg = (modrm >> 3) & 7;
-			if (reg === 2 || reg === 3) indirectCall++;
-		}
-		if (b === 0xc3 || b === 0xc2) {
-			rets++;
-			break;
-		}
-		i++;
+	let calls = 0, indirectCall = 0, rets = 0;
+	for (const line of text.split('\n')) {
+		if (!line.trim()) continue;
+		const m = line.match(/^[0-9A-F]+\s+([0-9A-F]+)\s+(.*)$/);
+		if (!m) continue;
+		for (let i = 0; i < m[1].length; i += 2) bytes.push(parseInt(m[1].slice(i, i + 2), 16));
+		const asm = m[2].trim();
+		if (/^call\b/.test(asm)) calls++;
+		if (/^ret/.test(asm)) { rets++; break; }
+		if (bytes.length > 4096) break;
 	}
 	return { bytes, calls, indirectCall, rets, length: bytes.length };
 }

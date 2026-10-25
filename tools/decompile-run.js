@@ -39,6 +39,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { execFileSync } = require('child_process');
+const { classifyMismatch, CLASSES } = require('./cordclass.js');
 
 const ROOT = path.join(__dirname, '..');
 const IMAGE = path.join(ROOT, 'ENCHANT.EXP');
@@ -114,6 +115,23 @@ function scanRoutine(buf, entry) {
 	return { bytes, calls, indirect };
 }
 
+// Same test as preflight.js: a disp32 that looks like a data address means the
+// object will carry FIXUPP and the LEDATA is not final.
+function referencesAbsolute(buf, addr, len) {
+	const end = addr + len;
+	for (let i = addr; i + 4 <= end; i++) {
+		const v = buf.readUInt32LE(i);
+		if (v < 0x10000 || v > 0x200000) continue;
+		const prev = buf[i - 1];
+		if (prev !== undefined && (prev >> 6) === 2) return v;
+		const modrm = buf[i - 2];
+		if (prev !== undefined && modrm !== undefined && (modrm >> 6) === 2 && (modrm & 7) === 4) return v;
+		const op = buf[i - 5];
+		if (op === 0xa1 || op === 0xa3) return v;
+	}
+	return null;
+}
+
 function callCounts() {
 	const out = execFileSync('node', [path.join(__dirname, 'funcs.js'), '--list'], {
 		encoding: 'utf8', stdio: 'pipe',
@@ -136,6 +154,25 @@ function disasm(buf, addr, len) {
 	} finally {
 		fs.unlinkSync(tmp);
 	}
+}
+
+// POST with no body, for control endpoints.
+function postJson(pathname, body) {
+	const data = JSON.stringify(body || {});
+	return new Promise((resolve, reject) => {
+		const req = http.request('http://127.0.0.1:8097' + pathname, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) },
+			timeout: 240000,
+		}, (res) => {
+			let d = '';
+			res.on('data', (c) => (d += c));
+			res.on('end', () => resolve(d));
+		});
+		req.on('timeout', () => req.destroy(new Error('timeout')));
+		req.on('error', reject);
+		req.end(data);
+	});
 }
 
 function compile(source) {
@@ -198,6 +235,7 @@ async function main() {
 			length: r.bytes.length,
 			target,
 			state: 'pending',
+			absRef: referencesAbsolute(buf, addr, r.bytes.length),
 		};
 
 		rec.attempts = [];
@@ -230,8 +268,18 @@ async function main() {
 				if (process.env.DCR_DEBUG) {
 					console.error('  DEBUG', key, t.label, '->', JSON.stringify(out).slice(0, 300));
 				}
-				rec.attempts.push({ label: t.label, error: rec.lastError });
-				continue;
+				// A corrupt image poisons every later routine, so recover once and
+				// retry rather than recording a false "transient" for everything.
+				if (/corrupt FAT|unreadable/i.test(rec.lastError)) {
+					console.error('  image corrupt, resetting');
+					await postJson('/api/reset', {});
+					await new Promise((r) => setTimeout(r, Number(process.env.DCR_BOOTWAIT || 50000)));
+					out = await compile(t.source);
+					if (!out || !out.ok) { rec.attempts.push({ label: t.label, error: rec.lastError }); continue; }
+				} else {
+					rec.attempts.push({ label: t.label, error: rec.lastError });
+					continue;
+				}
 			}
 			if (out.code === target) {
 				rec.state = 'matched';
@@ -245,15 +293,19 @@ async function main() {
 		if (rec.state === 'matched') {
 			matched++;
 		} else {
-			// Diagnosis, so a cord pull records why rather than just failing.
-			const closest = rec.closest && rec.closest.code ? rec.closest.code.split(' ') : [];
-			if (closest.includes('00') && /00 00 00 00/.test(rec.closest.code)) {
-				rec.state = 'cord-relocation';
-				rec.diagnosis = 'displacement is 00 00 00 00: a linker placeholder (Trigger 1)';
+			// Every cord pull gets a class, so failures can be correlated later
+			// rather than re-read one at a time. See tools/cordclass.js.
+			const got = rec.closest ? rec.closest.code : (rec.lastError || '');
+			if (!rec.closest && rec.lastError) {
+				rec.cordClass = 'transient';
+			} else if (rec.absRef) {
+				rec.cordClass = 'base-fold';
 			} else {
-				rec.state = 'cord-unmatched';
-				rec.diagnosis = 'no candidate matched; target and closest recorded';
+				rec.cordClass = classifyMismatch(target, got);
 			}
+			rec.state = 'cord';
+			rec.diagnosis = (CLASSES[rec.cordClass] || {}).summary || rec.cordClass;
+			rec.cordRemedy = (CLASSES[rec.cordClass] || {}).remedy;
 			cord++;
 		}
 
@@ -290,6 +342,20 @@ async function main() {
 		console.log(matched / attempted < 0.3
 			? 'BELOW THRESHOLD: plan item 4f says the toolchain is not the original. Record as a negative.'
 			: 'At or above threshold: the loop is measuring the queue, not a broken toolchain.');
+	}
+	// Failure classes, so a run is correlatable without reading every record.
+	const byClass = {};
+	for (const r of results) {
+		if (r.state !== 'cord') continue;
+		(byClass[r.cordClass] = byClass[r.cordClass] || []).push(r.addr);
+	}
+	if (Object.keys(byClass).length) {
+		console.log();
+		console.log('cord pulls by class:');
+		for (const [k, v] of Object.entries(byClass).sort((a, b) => b[1].length - a[1].length)) {
+			const sev = (CLASSES[k] || {}).severity || '-';
+			console.log(`  ${String(v.length).padStart(2)}  ${k.padEnd(24)} ${sev.padEnd(12)} ${v.slice(0, 5).join(' ')}${v.length > 5 ? ' ...' : ''}`);
+		}
 	}
 	console.log(`written to ${outPath}`);
 

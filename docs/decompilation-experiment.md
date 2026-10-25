@@ -506,3 +506,67 @@ would be. Both bugs were found by testing it against routines of known verdict.
 Both are recorded because the pattern is now unmistakable: **every tool in this
 repo that touches an address needs to state which base it uses, and every
 consumer needs to convert.** Three separate tools have now had this bug.
+
+## Result 9: rescored against the corrected pool, with failure classes
+
+The `--scan` queue and the earlier runs were measuring different things. Rescored
+against the corrected 33-routine pool, on the five attempted routines that are
+actually in it:
+
+| routine | bytes | callers | result |
+|---|---|---|---|
+| `0xe9e2c` | 21 | 91 | **matched** |
+| `0xe44d0` | 49 | 85 | **matched** |
+| `0xe662c` | 9 | 2 | **matched** |
+| `0xe1c24` | 46 | 11 | cord, `relocation-placeholder` |
+| `0xe1bf4` | 46 | 11 | cord, `frame-decision` |
+
+**60 percent.** Three matched, two pulled the cord, and each cord has a distinct
+class rather than "did not match".
+
+Two routines previously counted as failures are now excluded from the pool
+entirely: `0xf3e24` (absolute address) and `0xefaf4` (absolute address). They
+were never attemptable at Level 1 and their cord pulls were miscounted as
+compiler disagreements.
+
+### The taxonomy
+
+`tools/cordclass.js` defines twelve classes, each with a cause and a remedy. The
+sorting that matters is by remedy, not by symptom:
+
+| severity | classes | meaning |
+|---|---|---|
+| structural | `base-fold`, `relocation-placeholder`, `not-a-boundary` | no source form fixes these. Stop attempting them. |
+| addressable | `frame-decision`, `register-choice`, `pointer-type`, `operand-order`, `associativity`, `idiom` | a known lever may fix these. Worth a pass. |
+| instrument | `transient` | not the routine's fault. Retry. |
+| unknown | `unexplained`, `needs-source` | leads. This set should shrink. |
+
+The classification is conservative on purpose: anything not confidently matched
+lands in `unexplained` rather than being forced into a class, because a wrong
+class is worse than no class and would send someone chasing the wrong lever.
+
+### Why classes and not just pass/fail
+
+A cord pull that says "did not match" is a dead end. One that says
+`frame-decision` is a lead, and **`0xe1bf4` and `0xe1c24` are the same shape as
+each other** so cracking one likely cracks both. Six more routines in the pool
+share the framed-with-six-arguments shape.
+
+`node tools/cordclass.js --explain frame-decision` gives the cause, the remedy
+and what solving it would unblock, without re-reading a transcript.
+
+### Two more tool bugs, both the same shape as before
+
+**Byte-wise scanning counted `0xe8` bytes inside operands.** `preflight.js`
+reported `0xe44d0` as calling out when the routine contains no call at all,
+which disqualified the routine that had already matched byte for byte. Fixed by
+using `ndisasm`, which is what `decompile-run.js` had already been changed to.
+
+**The floppy corrupted again mid-run**, this time under rapid mtools operations
+rather than low space, and turned every remaining routine into `transient`. The
+runner now detects a corrupt image, calls `/api/reset`, waits for the reboot and
+retries the routine. Verified: the run printed `image corrupt, resetting` and
+then completed, with `0xe662c` matching after the reset that would otherwise
+have been recorded as a failure.
+
+The reset endpoint earned its place on its first real use.
