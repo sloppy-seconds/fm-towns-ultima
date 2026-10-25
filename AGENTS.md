@@ -217,6 +217,53 @@ Each looked convincing. Each was wrong. So:
 is a process defect rather than a knowledge one.** It has now cost three wrong
 conclusions on one six-instruction function.
 
+### Guard the disk images: they are not recoverable
+
+**`saves/` contains irreplaceable state and none of it is in git.** It is
+gitignored on purpose, because the images are disc-derived. That means **there is
+no history, no revert, and no backup unless someone made one.**
+
+This has already gone wrong. A hand-run test wrote a test `AUTOEXEC.BAT` and
+test files directly into `saves/dos62v6.hdm`, the working boot floppy. The image
+survived only because `saves/dos62v5.hdm` happened to still exist to compare
+against. There was no backup. The next one may not be so lucky.
+
+**The rule: never hand-test against a named image. Copy it first.**
+
+```
+cp saves/dos62v6.hdm saves/scratch-$(date +%s).hdm
+```
+
+`tools/compile-proof.sh` and `tools/plot-proof.sh` already do this: they work on
+a copy and never touch the source image. Hand testing is where the discipline
+got dropped, and it is exactly where a mistake is unrecoverable.
+
+Specifically:
+
+- **Never rewrite `AUTOEXEC.BAT` or `CONFIG.SYS` on a named image.** Those two
+  files decide whether it boots at all. Edit them on a copy.
+- **Never delete from a named image.** My own cleanup logic treated the
+  extension column as part of a filename and removed `BF0` and `BH1`, which are
+  legitimate DOS boot files with no extension. Use
+  `tools/clean_floppy.py`, whose keep-list is explicit for that reason.
+- **`mdel` and `mcopy -o` are instant and unlogged.** There is no undo and no
+  prompt. Treat every one against a named image as a destructive operation.
+- **When an image seems broken, check whether the harness is broken instead.**
+  The dos62v6 scare was a typing failure: the image was fine, AUTOEXEC ran, and
+  the compiler worked, all confirmed after the fact. Before concluding an image
+  is lost, verify with a batch file rather than typed input.
+
+What is recoverable and what is not:
+
+| file | recoverable from |
+|---|---|
+| anything in `git` | `git checkout` |
+| `saves/dos62v6.hdm` | **nothing.** Rebuild from the DOS 6.2 floppy plus the CD drivers |
+| `saves/hc.img`, `hc.ccd` | re-extract from the archive.org zip |
+| `saves/CMOS_HDD.bin` | `disk/CMOS.DAT` in the TownsOS release |
+| the U2 save disks | a fresh blank 1232 KB image |
+
+
 ### What happened, precisely
 
 The pixel writer in `ENCHANT.EXP` was cited as being at `0xf3e04` and as being
