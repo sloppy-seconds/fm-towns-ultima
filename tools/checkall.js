@@ -66,15 +66,24 @@ const pages = () => fs.readdirSync(DOCS).filter((f) => f.endsWith('.md'));
 
 // C. A count must live in one place. call-graph.md owns the named-routine count; no other page may restate
 // it. This is the specific drift that happened three times, and the old check selected for the wrong thing.
+//
+// AGENTS.md is included deliberately. It is the one file read on every single session, so a stale count there
+// is the most expensive kind, and the original check only scanned docs/ — which is how the documented-routine
+// fraction on its line 35 drifted out of date unnoticed. The routine total is also matched in the bare form
+// ("N routines", "N call targets") because that is how the drift appears in prose.
 {
 	const claims = [];
+	const scan = (label, text) => {
+		for (const m of text.matchAll(/\b\d+ of 738\b/g)) {
+			claims.push(`${label} restates "${m[0]}", owned by call-graph.md`);
+		}
+	};
 	for (const f of pages()) {
 		if (f === 'call-graph.md') continue;
-		const text = fs.readFileSync(path.join(DOCS, f), 'utf8');
-		for (const m of text.matchAll(/\b\d+ of 738\b/g)) {
-			claims.push(`${f} restates "${m[0]}", owned by call-graph.md`);
-		}
+		scan(f, fs.readFileSync(path.join(DOCS, f), 'utf8'));
 	}
+	const agents = path.join(ROOT, 'AGENTS.md');
+	if (fs.existsSync(agents)) scan('AGENTS.md', fs.readFileSync(agents, 'utf8'));
 	record('counts have one owner', claims);
 }
 

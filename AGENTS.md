@@ -31,8 +31,9 @@ reimplementation is a translation exercise rather than a guess.
 
 Extraction is therefore **in service of** reimplementation, not an endpoint.
 That distinction has been wrong in this file for a long time and it mattered:
-it licensed reading code only where extraction was blocked, which is why 26 of
-the game's 738 routines are documented and the rest are not.
+it licensed reading code only where extraction was blocked, which is why most
+of the game's routines are still undocumented. The current fraction is owned by
+`docs/call-graph.md`; do not restate it here.
 
 What the corpus needs to contain:
 
@@ -140,26 +141,32 @@ so the report is read from facts rather than recalled, then state five things: w
 done, what was claimed and which check proved it, what is outstanding by plan item, and what this made stale
 elsewhere. Full form: `docs/plan-process.md` Part 8.
 
-**A claim without a check is a guess and must be labelled one.** This project's characteristic defect is
-confidently wrong sentences that read fluently: "four of seven checks" when it was six and two, "`0xcfe14` is
-the attack message" when it was zero padding, "both jump tables" when it was one of two. Each was a number or
-attribution a single command would have settled. If the report contains a count, a comparison or a claim that
-something does not exist, either a command produced it or the sentence says "unverified".
-
-**And the check must have been run in this session, not recalled.** See "Never quote bytes, addresses or counts
-from memory" below. A sequence copied out of an earlier `docs/` page has not been checked, even if that page
-cites a command, because the transcription between the command and here is where the errors appear. Re-run it.
-
-**Before trusting a check, break something it should catch and confirm it fails.** Four of the six checks in
-`docs/plan-process.md` Part 7 cannot fail at all, and two of those report failure when clean. A check that has
-never been seen to fail is a comment.
-
 Currently duplicated and easy to let drift: the archive.org link, the editor and
 docs URLs, the scope paragraph, and the untested-platform caveat. If you touch
 one, grep for the others.
 
 A fact stated in the README but not in `docs/` is fine. The same fact stated
 differently in two places is a bug waiting to be found.
+
+### Three rules about evidence
+
+These are the ones that decide whether a report is worth anything. They apply to every
+answer, commit message and doc edit, not just to formal reports.
+
+**A claim without a check is a guess and must be labelled one.** This project's characteristic defect is
+confidently wrong sentences that read fluently: "four of seven checks" when it was six and two, "`0xcfe14` is
+the attack message" when it was zero padding, "both jump tables" when it was one of two. Each was a number or
+attribution a single command would have settled. If the report contains a count, a comparison or a claim that
+something does not exist, either a command produced it or the sentence says "unverified".
+
+**The check must have been run in this session, not recalled.** See "Never quote bytes, addresses or counts
+from memory" below. A value copied out of an earlier `docs/` page has not been checked, even if that page
+cites a command, because the transcription between the command and here is where the errors appear. Re-run it.
+
+**Before trusting a check, break something it should catch and confirm it fails.** Several of the checks in
+`docs/plan-process.md` Part 7 could not fail at all when they were written, and two reported failure when
+clean. A check that has never been seen to fail is a comment. `tools/checkquoted.js` was tested this way
+before being trusted and failed correctly on a fabricated sequence.
 
 ### Do not claim more platform support than has been tested
 
@@ -451,20 +458,15 @@ dump, not something produced in an earlier conversation. If a script needs an
 intermediate, it builds it from the disc each run.
 - **No result may depend on manual steps.** If a human had to hand-edit a byte,
   that edit must become code.
-- **Every extraction is checksummed.** `tools/verify.js` records expected
-  SHA-256 sums for every output. A mismatch means either the disc is a different
-  rip or a decoder changed, and both need to be known.
-- **Assertions replace prose where possible.** "`MAP2_1` is 33,280 bytes" is a
-  claim. `assert(size === 33280)` in `verify.js` is a fact that stays true or
-  fails loudly.
+- **Every output is checksummed and asserted.** `tools/verify.js` records expected
+  SHA-256 sums for every extraction, and prefers assertions to prose: "`MAP2_1` is
+  33,280 bytes" is a claim, `assert(size === 33280)` is a fact that stays true or
+  fails loudly. It also checks source file sizes, MD5 sums and the ISO volume
+  label, so a different rip is detected rather than silently producing different
+  results.
 
 If something cannot yet be reproduced from the zip alone, it is not a finding.
 Write it in `docs/` as OPEN and say what is missing.
-
-A second person should be able to reproduce the disc identity independently.
-`verify.js` therefore checks file sizes, MD5 sums of the source files, and the
-ISO volume label, so a different rip of the same game is detected rather than
-silently producing different results.
 
 ### Scripts
 
@@ -509,6 +511,8 @@ Do not re-derive these. Everything here is backed by a measurement in
 | 8-track disc: track 1 MODE1 data, tracks 2-8 CD-DA | High |
 | Use `.ccd` not `.cue` (PREGAP ambiguity, documented by Tsugaru's author) | High |
 | Written in C, MetaWare High C, Phar Lap extender | High |
+| The FM Towns High C 1.73 kit **compiles** in Tsugaru. `docs/compiling-on-fm-towns.md` is the recipe | High |
+| High C 1.73 emits the game's `idiv` and its naive `sar`/`sub` halving chain. 2.31 does not | High |
 | `DARKNESS`/`ENCHANT`/`EXODUS` are `MP` flat images, header parses exactly | High |
 | `TMENU.EXP` is `P3` extended format, not `MP` | High |
 | `ENEMY2` = 65 tiles of 32x32 4bpp packed at 512 B | High |
@@ -572,29 +576,18 @@ and the search is on U2's data. If it is one shared table, U2 gets its colours
 for free from a table that is not U2's. Either way U2 ends up in colour, but
 the search is different, so resolve this before hunting.
 
-## Open problems, cheapest first
+## Open problems
 
-All of these are U2 extraction work. Some are marked *(validates)*, meaning
-they use the other binaries as a cross-check rather than as separate work.
+**`docs/plan.md` is the only tracker. Do not list work here.** Every item there
+carries a State and an Autonomy, `node tools/plancheck.js --todo` reports what
+is startable now, and `node tools/checkall.js` fails if an item loses its
+metadata. A second list in this file was 80 percent duplicate and 20 percent the
+only record of a live question, which is the worst of both.
 
-1. **Confirm the palette in-game.** `PRI PALETTE` now works headless
-   (`docs/palette.md` 6.15) and gave a 16-colour table from the running machine. Those
-   values were captured about 15 seconds into boot and look like the BIOS
-   default set. Re-run `tools/debug-session.sh` once U2 is showing a coloured
-   screen and compare. If the palette changes, that is U2's real table and the
-   index mapping is solved. If it does not, use `BRKON MEMW` or a breakpoint at
-   `EGB_palette` (`0x103c84` in `ENCHANT.EXP`) to catch `[edi+8]` when the game
-   installs its own. Everything needed to do this is now vendored and scripted.
-2. **Monster and animation table.** `ENEMY2` holds 65 tiles in pairs. Find the
-   table indexing `SPID` so each creature can be named and its frames grouped.
-   *(validates)* compare the corresponding table shape in `EXODUS`.
-3. **U2 map format.** `MAP2_1/2/3` is character data. Establish the cell
-   geometry and how `\UT2\MAP.MP2` relates to it.
-4. **U2 roster and save format.** `ROSTER1.UT2` and `WORLD1-4.UT2`. The format
-   string in `ENCHANT.EXP` lists every field, so the schema is already known,
-   the byte layout is not.
-5. **Strings.** `ENCHANT.EXP` holds the game text including the Japanese and
-   English dialogue tables. Not yet extracted in usable form.
+What this file should tell you that the plan does not: **the cheapest things are
+already tried.** Read `docs/` before proposing an investigation. Five palette
+approaches are documented as failed, and `## What not to do` below is a list of
+probes that cost a session each.
 
 ## What not to do
 

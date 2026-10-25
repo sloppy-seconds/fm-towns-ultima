@@ -54,6 +54,7 @@ from the items below rather than maintained separately.
 | 4b Combat formulas | BLOCKED ON HUMAN | no, neither half closed |
 | 4c `WORLD*.UT2` layout | BLOCKED ON HUMAN | no, needs a save taken mid-game |
 | 4d `.SND` playback rate | BLOCKED ON HUMAN | no, needs the running game |
+| 4e Confirm the U2 palette in-game | BLOCKED ON HUMAN | no, needs a coloured screen |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports four of eleven startable now: 1a, 1b, 2a and 4b, with 4a and 2b held back by item order. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
@@ -390,6 +391,32 @@ should not stay listed as merely "unread".
 
 Whether 1960 Hz is real. The header layout is established ([sound.md](sound.md)), the rate is not in the
 file. Small item, and it is the last unknown in audio extraction.
+
+### 4e. Confirm the U2 palette in-game
+
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | `PRI PALETTE` works headless, but a person has to get U2 to a coloured screen first |
+| done when | the palette read from the running game on a coloured screen is recorded, and either matches `docs/palette.md` 6.15 or is recorded as the real U2 table. Or the page states the 6.15 values are final |
+| blocked by | a savestate of U2 showing a coloured screen, or a person driving the CD browser once |
+
+**Why this is here and not in prose.** It was tracked only inside `AGENTS.md` and in two sections of
+[palette.md](palette.md), using none of this plan's vocabulary, so nothing checked whether it was
+live, stale or abandoned. Moving it here gives it a state and a checkable finish.
+
+**What is already done.** `PRI PALETTE` was captured headless (`tools/debug-session.sh`) and returned a
+16-colour table, recorded in [palette.md](palette.md) 6.15. Those values were read about 15 seconds into
+boot and look like the BIOS default set rather than the game's own install.
+
+**What remains, and it is one measurement.** Re-run `PRI PALETTE` once U2 is showing a coloured screen and
+compare. If the table changes, that is U2's real palette and the index mapping is solved. If it does not,
+the alternative is a breakpoint at `EGB_palette` (`0x103c84` in `ENCHANT.EXP`) catching `[edi+8]` when the
+game installs its own. Everything needed is vendored and scripted.
+
+**Why it matters for the corpus.** All current output is greyscale. Until this lands, every rendered asset
+in `extracted/` is a documented limitation rather than a decoder bug.
 
 ## What is closed and should not be reopened
 
