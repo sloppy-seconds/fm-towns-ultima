@@ -115,9 +115,16 @@ function cleanEntry(buf, addr, width = 8) {
 	return tail[i - 1] === 0xc3 || tail[i - 1] === 0xc2;
 }
 
-function boundaryOk(addr) {
+// cfgwalk.js works on the 0x20-byte-stripped image, so it must be asked about
+// the stripped address. This tool reports raw file offsets. Passing a raw address
+// straight through makes every routine look like a non-boundary, which silently
+// disqualified the entire queue before this was found.
+const HEADER = 0x20;
+
+function boundaryOk(rawAddr) {
 	try {
-		const out = execFileSync('node', [path.join(__dirname, 'cfgwalk.js'), '--check', '0x' + addr.toString(16)], {
+		const stripped = rawAddr - HEADER;
+		const out = execFileSync('node', [path.join(__dirname, 'cfgwalk.js'), '--check', '0x' + stripped.toString(16)], {
 			encoding: 'utf8', stdio: 'pipe',
 		});
 		return /is 0x[0-9a-f]+ a boundary:\s+true/i.test(out);
@@ -138,15 +145,58 @@ function callCounts() {
 	return counts;
 }
 
+// Does this routine load or store through an absolute address?
+//
+// This is the question that was missing, and its absence produced two cord pulls
+// that looked like compiler disagreements and were not. A constant address in a
+// memory operand is a relocation: the OBJ carries FIXUPP and the displacement is
+// 00000000 until the linker fills it. Measured by probe: an `extern` buffer folds
+// to `0f b6 80 00000000` at compile time and `0f b6 80 b0 44 00 00` after linking,
+// and the game's own routine has the same folded shape with a real address.
+//
+// Heuristic: look for a 4-byte little-endian value in a plausible data range
+// (0x10000..0x200000) immediately after an instruction that can carry a disp32.
+function referencesAbsolute(buf, addr, len) {
+	const end = addr + len;
+	for (let i = addr; i + 4 <= end; i++) {
+		const v = buf.readUInt32LE(i);
+		// Data addresses in this image live around 0x70000 to 0x110000. A floor of
+		// 0x10000 excludes plausible immediates and small constants.
+		if (v < 0x10000 || v > 0x200000) continue;
+
+		// The byte immediately before a disp32 is the ModRM **unless** the ModRM
+		// selected a SIB, in which case the SIB comes between them. Checking only
+		// buf[i-1] missed `66 89 8c 50 90 7e 07 00`: ModRM 0x8c (mod=10, rm=100 =
+		// SIB), SIB 0x50, then the displacement. That is the pixel writer, and
+		// missing it made the gate offer a routine that can never match.
+		const prev = buf[i - 1];
+		if (prev !== undefined && (prev >> 6) === 2) return v;      // disp32, no SIB
+		// With a SIB, the layout is [ModRM][SIB][disp32]. Only the ModRM carries the
+		// mod bits; the SIB's top two bits are the scale, which is why requiring
+		// both to look like mod=10 rejected the pixel writer.
+		const modrm = buf[i - 2];
+		if (prev !== undefined && modrm !== undefined
+			&& (modrm >> 6) === 2 && (modrm & 7) === 4) return v;
+		// a1/a3 moffs form: opcode then a full 32-bit address, no ModRM.
+		const op = buf[i - 5];
+		if (op === 0xa1 || op === 0xa3) return v;
+	}
+	return null;
+}
+
 function classify(buf, addr, counts) {
 	const r = scanRoutine(buf, addr);
 	const isLeaf = r.calls === 0 && r.indirectCall === 0;
 	const realEntry = cleanEntry(buf, addr);
+	const absRef = referencesAbsolute(buf, addr, r.bytes.length);
 	let verdict;
 	if (!realEntry) {
 		verdict = 'NOT ATTEMPTABLE: interior address, not a function start. It follows other instructions, so no C can produce it.';
+	} else if (absRef !== null) {
+		verdict = `NOT ATTEMPTABLE AT LEVEL 1: references absolute address 0x${absRef.toString(16)}. `
+			+ 'The disp32 is a relocation, so LEDATA is 00000000 until linked.';
 	} else if (isLeaf) {
-		verdict = 'LEVEL-1 CANDIDATE: real entry, leaf, no external refs, OBJ will have no EXTDEF';
+		verdict = 'LEVEL-1 CANDIDATE: real entry, leaf, no external refs, no absolute address';
 	} else {
 		verdict = 'TRIGGER 1 RISK: calls out, so the OBJ carries EXTDEF and its LEDATA is not final';
 	}
@@ -156,6 +206,7 @@ function classify(buf, addr, counts) {
 		bytes: r.length,
 		callers: counts.get(addr) ?? 0,
 		realEntry,
+		absRef: absRef === null ? null : '0x' + absRef.toString(16),
 		leaf: isLeaf,
 		verdict,
 	};
@@ -188,9 +239,11 @@ function main() {
 		for (const [addr, callers] of targets) {
 			if (!cleanEntry(buf, addr)) continue;
 			const r = scanRoutine(buf, addr);
-			if (r.calls === 0 && r.indirectCall === 0) {
-				allLeaves.push({ addr, callers, size: r.length });
-			}
+			if (r.calls !== 0 || r.indirectCall !== 0) continue;
+			// Skip routines that touch an absolute address: their LEDATA is not
+			// final, so a Level-1 comparison can never succeed.
+			if (referencesAbsolute(buf, addr, r.bytes.length) !== null) continue;
+			allLeaves.push({ addr, callers, size: r.length });
 		}
 		const leaves = order === 'size'
 			? allLeaves.slice().sort((a, b) => a.size - b.size || b.callers - a.callers).slice(0, n)
@@ -228,6 +281,7 @@ function main() {
 	console.log(`routine ${c.addr}`);
 	console.log(`  instruction boundary: ${boundary === null ? 'unknown' : boundary}`);
 	console.log(`  real function start:  ${c.realEntry}`);
+	console.log(`  absolute data ref:    ${c.absRef ?? 'none'}`);
 	console.log(`  bytes to first ret:   ${c.bytes}`);
 	console.log(`  calls out:            ${c.callsInRoutine}`);
 	console.log(`  callers:              ${c.callers}`);

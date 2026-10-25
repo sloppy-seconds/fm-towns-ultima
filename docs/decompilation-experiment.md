@@ -379,3 +379,130 @@ only in codegen choices, which is consistent with a compiler that is the right
 family but perhaps not the identical build, or with source forms not yet found.
 
 The experiment cannot distinguish those two explanations, and does not claim to.
+
+## Result 8: base folding is a LINK-time phenomenon, and that reclassifies a third of the failures
+
+This settles the question the level-1 loop kept hitting. Three probes, in order.
+
+### Probe 1: a literal address never folds
+
+```c
+int f(int i){ return *(unsigned char *)(0xbd578 + i); }
+```
+
+```
+8b 44 24 04   mov eax,[esp+4]
+05 78 d5 0b 00 add eax,0xbd578     <- added into a register
+0f b6 00      movzx eax,byte [eax] <- no displacement
+c3            ret
+```
+
+The compiler treats `0xbd578` as a constant, so it adds it. No relocation, no
+fold, no way to ask for the fold from source.
+
+### Probe 2: an `extern` declaration folds, but leaves a placeholder
+
+```c
+extern unsigned char buf[];
+int f(int i){ return buf[i]; }
+```
+
+```
+8b 44 24 04      mov eax,[esp+4]
+0f b6 80 00 00 00 00  movzx eax,byte [eax+0x00000000]   <- FOLDED, placeholder
+c3               ret
+```
+
+The object carries `EXTDEF` and `FIXUPP`. The instruction shape is now right,
+and the displacement is the linker's to fill.
+
+### Probe 3: linking fills the displacement, and the shape matches the game
+
+Compiled a small program defining `unsigned char buf[0x100]` and linked it with
+`386LINK BF.OBJ -lib Q:\HC386\SMALL\HCE`. The linked `BF.EXP` contains:
+
+```
+00000200  8B442404            mov eax,[esp+0x4]
+00000204  0FB680B0440000      movzx eax,byte [eax+0x44b0]   <- REAL disp, folded
+0000020B  C3                  ret
+```
+
+Compare the game's `0xefaf4` first three instructions:
+
+```
+000EFAF4  8B442408            mov eax,[esp+0x8]
+000EFAF8  C1E006              shl eax,byte 0x6
+000EFAFB  03442404            add eax,[esp+0x4]
+000EFAFF  0FB68878D50B00      movzx ecx,byte [eax+0xbd578]  <- identical shape
+```
+
+**Same encoding family.** The differences are the buffer address (mine vs theirs)
+and which register holds the result.
+
+### What this means, and it is the important part
+
+**Level-1 byte matching is structurally blind to any routine that touches a
+global through a symbol.** The fold only happens when the address is a relocation
+the linker resolves, and a `.OBJ` compared before linking has `00000000` there.
+
+That is not a source-form problem and no C will fix it. It is a classification
+problem, and it reclassifies the failures:
+
+| failure | cause | Level 1 possible? |
+|---|---|---|
+| `0xefaf4` | base folding | **no**, until linked |
+| `0xf3e24` pixel writer | base folding | **no**, until linked |
+| `0xe1c24`, `0xe1bf4` | frame + register choice | unknown, Trigger 2 |
+| `0xe9e2c`, `0xe44d0` | nothing | **yes**, matched |
+
+So the four non-matches split cleanly: two are link-time and should never have
+been attempted at Level 1, and two are the genuine Trigger 2 case.
+
+### The consequence for the queue
+
+The 103 leaves were selected because they contain no `E8` call, which was taken
+to mean "self-contained". That was too weak: a leaf can still reference a global,
+and doing so makes its `LEDATA` non-final exactly as a call would.
+
+**The pre-flight gate now asks a third question: does the routine reference an
+absolute address?** A routine that does cannot be matched until it is linked, so
+the honest verdict is "not attemptable at Level 1" rather than a cord pull that
+looks like a compiler disagreement.
+
+Implemented, and the effect on the queue is large:
+
+| | count |
+|---|---|
+| `E8` call targets | 738 |
+| real function starts | 454 |
+| leaves (no calls) | 103 |
+| **leaves with no absolute address reference** | **40** |
+
+**The real Level-1 pool is 40 routines, not 103.** Two thirds of the leaf set was
+never attemptable, and every cord pull among them was the gate's fault rather
+than the compiler's.
+
+`0xf3e24`, the pixel writer with 104 callers, is now correctly excluded. It was
+the highest-value candidate in the queue and it was structurally impossible the
+whole time.
+
+### The detector, and two bugs in it
+
+It looks for a 4-byte value in a plausible data range sitting where a `disp32`
+would be. Both bugs were found by testing it against routines of known verdict.
+
+1. **It required both the byte before the displacement and the byte before that
+   to look like `mod=10`.** With a SIB the layout is `[ModRM][SIB][disp32]`, and
+   only the ModRM carries the mod bits. The SIB's top two bits are the scale.
+   This rejected `0xf3e24`, whose `66 89 8c 50 <disp32>` has ModRM `0x8c`
+   (`mod=10, rm=SIB`) and SIB `0x50` (`scale=1, index=edx, base=eax`).
+
+2. **`boundaryOk` passed a raw address to `cfgwalk.js`, which works on stripped
+   offsets.** Every routine came back "not an instruction boundary", which
+   silently disqualified the entire queue. This is the same 0x20 base mismatch
+   that caused the pixel-writer confusion, appearing a third time in a third
+   tool.
+
+Both are recorded because the pattern is now unmistakable: **every tool in this
+repo that touches an address needs to state which base it uses, and every
+consumer needs to convert.** Three separate tools have now had this bug.
