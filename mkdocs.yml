@@ -150,6 +150,9 @@ nav:
       - World save format: world-format.md
   - Colour:
       - The palette: palette.md
+  - Toolchain:
+      - Compiling with High C: highc-compile-success.md
+      - The plot calibration: highc-plot-calibration.md
   - Where it stands:
       - Reading the code: code-analysis.md
       - The consumable function: consumable-function.md

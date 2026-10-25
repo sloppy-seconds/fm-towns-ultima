@@ -1,5 +1,10 @@
 # The High C compiler does not run under DOS on this emulator
 
+**Correction: the title is wrong.** `RUN386` is silent under DOS, and that part
+stands, but the compiler does run under DOS. The kit's DOS-native generator
+`HCD386.EXE` compiled `HELLO.C` to a real 80386 OMF object on this very
+emulator. See [highc-compile-success.md](highc-compile-success.md).
+
 **Status: not solved.** Two working environments were built and both were reached. In
 both of them `RUN386.EXE` produces no output. This page records what works, what was
 measured, and why the compiler question is now a finding rather than an open

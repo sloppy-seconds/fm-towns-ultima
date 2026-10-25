@@ -1,5 +1,10 @@
 # The compile blocker: TownsMENU and a writable volume are mutually exclusive
 
+**Correction, later the same day: this page is accurate but no longer load-
+bearing.** The compiler was proven to work without TownsMENU at all, through the
+kit's DOS-native generator `HCD386.EXE`. See [highc-compile-success.md](highc-compile-success.md).
+The trilemma below only blocks the driver-plus-RUN386 route.
+
 **Goal:** compile `HELLO.C` to a `.OBJ` with the SDK CD's own HC386, inside Tsugaru, with
 TownsMENU running, writing output to a writable volume.
 

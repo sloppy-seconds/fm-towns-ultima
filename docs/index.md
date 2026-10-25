@@ -85,6 +85,8 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Sound](sound.md) | The `.SND` effect format. |
 | [Save files](save-files.md) | The roster format, and the measured race, sex and profession modifiers. |
 | [The palette](palette.md) | Five failed static approaches before the palette was read from the machine. |
+| [Compiling with High C](highc-compile-success.md) | The SDK CD's own compiler building an object file inside the emulator, and the TownsMENU detour it did not need. |
+| [The plot calibration](highc-plot-calibration.md) | Compiling a known function and finding the bytes are close but not identical, which reopens the compiler version. |
 | [Open questions](open-questions.md) | What is still unknown, ordered by cost to resolve. |
 
 ## Reading order, if you want one
