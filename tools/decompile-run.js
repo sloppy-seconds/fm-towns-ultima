@@ -200,6 +200,7 @@ async function main() {
 			state: 'pending',
 		};
 
+		rec.attempts = [];
 		const tries = attempts[key] || [];
 		if (!tries.length) {
 			rec.state = 'needs-source';
@@ -210,9 +211,26 @@ async function main() {
 		}
 
 		for (const t of tries) {
-			const out = await compile(t.source);
-			if (!out.ok) {
-				rec.lastError = out.error;
+			// Up to three attempts: a "compile did not finish" from the API is
+			// usually the guest being slow after a reload, not a bad source.
+			let out = null;
+			for (let attempt = 0; attempt < 5; attempt++) {
+				out = await compile(t.source);
+				if (out.ok) break;
+				// Both failure modes are transient: the API reporting "did not
+				// finish", and the guest producing no object. Measured: the same
+				// source compiles cleanly when run alone and fails with "no object
+				// file produced" after several compiles in a row, which is the
+				// emulator's compile pipeline losing state, not the C being wrong.
+				if (!/did not finish|timeout|no object file/i.test(out.error || '')) break;
+				if (attempt < 4) await new Promise((r) => setTimeout(r, 5000));
+			}
+			if (!out || !out.ok) {
+				rec.lastError = out ? out.error : 'no reply';
+				if (process.env.DCR_DEBUG) {
+					console.error('  DEBUG', key, t.label, '->', JSON.stringify(out).slice(0, 300));
+				}
+				rec.attempts.push({ label: t.label, error: rec.lastError });
 				continue;
 			}
 			if (out.code === target) {
@@ -240,6 +258,10 @@ async function main() {
 		}
 
 		results.push(rec);
+		// Let the guest settle between routines. Measured: back-to-back compiles
+		// start failing with "no object file produced" after about four, and a few
+		// seconds of idle recovers it.
+		await new Promise((r) => setTimeout(r, 3000));
 		if (!flag('quiet')) {
 			console.log(`${key}  ${String(rec.length).padStart(3)}B  ${String(rec.callers).padStart(4)} callers  ${rec.state}`);
 		}

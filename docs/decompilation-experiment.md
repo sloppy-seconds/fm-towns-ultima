@@ -302,3 +302,80 @@ scaled index is also needed. That combination was not reachable from any C tried
 
 This is recorded as an open source-shape question, not a toolchain one, because
 the same compiler matched three other routines in the same run.
+
+## Result 7: the honest population number is 2 of 6, and the tooling lied twice
+
+Widening the run to six attempted routines from the top of the queue:
+
+| routine | bytes | callers | result |
+|---|---|---|---|
+| `0xe9e2c` | 21 | 91 | **matched** |
+| `0xe44d0` | 49 | 85 | **matched** |
+| `0xf3e24` | 25 | 104 | unmatched, source shape |
+| `0xe1c24` | 46 | 11 | unmatched, relocation |
+| `0xe1bf4` | 46 | 11 | unmatched, frame decision |
+| `0xefaf4` | 41 | 7 | unmatched, near miss |
+
+**33 percent, not the 75 percent reported earlier.** That earlier figure came from
+a four-routine set that was not the real queue and included two routines already
+known to match.
+
+### The transient that made the number wrong three times
+
+The compile API intermittently returns `no object file produced` or `compile did
+not finish` for a source that compiles cleanly when tried alone. Measured: the
+same `while (*p != '=' && *p)` source matched on a standalone call and failed
+inside a run, which turned a match into a cord pull and reported 17 percent.
+
+Two causes, both real:
+
+- **Back-to-back compiles degrade the guest.** After about four compiles in
+  sequence the object stops being written. A three-second pause between routines
+  and up to five retries recovers it.
+- **The retry predicate was too narrow.** It matched `did not finish` but not
+  `no object file produced`, so half the transient failures passed straight
+  through as cord pulls.
+
+**A measurement tool that reports the instrument's flakiness as the subject's
+behaviour is worse than no tool.** The number moved 17, 33, 75, 33 across runs of
+the same code. Any figure from this loop needs the retry logic in place and the
+run repeated before it is quoted.
+
+### What the four non-matches actually are
+
+**`0xe1c24` and `0xe1bf4` are the same shape**: six `int` arguments stored into a
+fixed struct at `0xe3f4`, fields at `+0x24` and `+0x3c`. The target is framed
+(`55 8b ec`) and loads each argument into `edx` before storing via an `eax` base
+loaded once. The compiler produces a frameless version that reads `[esp+N]` and
+uses `ecx` as the base.
+
+A local variable **does** force the frame, confirmed by experiment: adding an
+unused local produced `55 8b ec`. But the register choice still differed. This
+is Trigger 2 territory and it was left there rather than chased further.
+
+**`0xefaf4` is a near miss worth naming.** The structure matches exactly
+(`row*64+col`, byte load, two range tests, then `== 0xa`), and the difference is
+one instruction: the target folds `0xbd578` into the load's displacement
+(`0f b6 88 78 d5 0b 00`), the compiler adds it into the address first
+(`05 78 d5 0b 00` then `0f b6 08`). The same folding difference as the pixel
+writer.
+
+### The pattern across all non-matches
+
+Every failure so far is one of **two** things, never a semantic disagreement:
+
+1. **Base folding.** Whether a constant address goes into the disp32 of an
+   operand or is added into a register first.
+2. **Frame and register selection.** Whether `ebp` is used, and which register
+   holds a pointer.
+
+Neither is "the C computes the wrong thing". Both are the compiler making a
+different choice than the original build did, and neither has been cracked by
+source shape alone.
+
+**That is the finding that matters for the toolchain question.** Two of six match
+byte for byte, which rules out "this is the wrong compiler". Four of six differ
+only in codegen choices, which is consistent with a compiler that is the right
+family but perhaps not the identical build, or with source forms not yet found.
+
+The experiment cannot distinguish those two explanations, and does not claim to.
