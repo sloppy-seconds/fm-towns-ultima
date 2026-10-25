@@ -227,3 +227,78 @@ another reason the leaf pool is the right place to work.
   amendments this experiment forced
 - [decompilation-plan.md](decompilation-plan.md): the agentic loop built on it
 - [compiler-api.md](compiler-api.md): the instrument
+
+## Result 6: the loop scored, 3 of 4, and the tool had to be fixed twice
+
+`tools/decompile-run.js` runs the loop over a queue and records every outcome.
+Scored against four routines:
+
+| routine | bytes | callers | result |
+|---|---|---|---|
+| `0xe9e2c` | 21 | 91 | **matched** |
+| `0xe44d0` | 49 | 85 | **matched** |
+| `0xe662c` | 9 | 2 | **matched** |
+| `0xf3e24` | 25 | 104 | unmatched |
+
+**75 percent.** Above the 30 percent threshold in plan item 4f, so the toolchain
+is not ruled out and the loop is measuring the queue rather than a broken build.
+
+### `0xe44d0` is an `atoi` and it matched
+
+49 bytes, 85 callers:
+
+```c
+int f(char *s) {
+    int n = 0;
+    while (*s == ' ' || *s == '\t') s++;
+    while (*s >= '0' && *s <= '9') { n = n * 10 + (*s - '0'); s++; }
+    return n;
+}
+```
+
+A third source-shape lever, found here: **`n * 10 + (*s - '0')` and
+`v*10 + *s - '0'` differ.** The first gives `83 e8 30 03 c1` (subtract then add),
+the second gives `03 c1 83 e8 30` (add then subtract), and only the first
+matches. Operator associativity in the accumulation decides the instruction
+order.
+
+### Two tool bugs, both caught by the routine lengths being wrong
+
+Writing the runner exposed defects in my own code that had already produced
+wrong answers. Both are worth recording because both were silent.
+
+**Bug 1: a byte-wise scan stopped at a `0xc3` inside an operand.** `0xe30a0`
+begins `53 56 57 bb 0c 9f 07 00 83 c3 04`, and the `0xc3` at byte 9 is the
+middle of `add ebx,4`. The scan cut the routine at 10 bytes and produced a target
+ending `83 c3` that no C can emit. Fix: instruction-aware decoding.
+
+**Bug 2: my hand-written length table could not decode `66`-prefixed
+instructions with a displacement.** `66 89 8c 50 90 7e 07 00` is 8 bytes;
+recursing on the `89` after the prefix gave 3 and desynchronised everything
+after it, which is why the pixel writer reported 2879 bytes.
+
+**The fix for both was to stop hand-writing a decoder and shell out to
+`ndisasm`**, which the project already depends on and which is correct from a
+known entry because the entry supplies alignment. Slower, and worth it: a wrong
+routine length silently invalidates every comparison downstream of it.
+
+The general lesson, which this project keeps relearning: **check the routine
+length against `ndisasm` before trusting any result derived from it.** A wrong
+length looks exactly like a source-form mismatch.
+
+### `0xf3e24` still does not match, and that is now informative
+
+Four source forms were tried, including both array shapes and a local pointer.
+None produce the target, because the target keeps `0x77e90` as a disp32 inside
+the store and uses `[eax+edx*2]` as a scaled index:
+
+```
+66 89 8c 50 90 7e 07 00     mov [eax+edx*2+0x77e90],cx
+```
+
+The compiler will fold a *constant* address into a store displacement when the
+index is a plain register, but it materialises the base into a register when a
+scaled index is also needed. That combination was not reachable from any C tried.
+
+This is recorded as an open source-shape question, not a toolchain one, because
+the same compiler matched three other routines in the same run.
