@@ -141,6 +141,50 @@ const runNode = (script, args = []) => {
 	record('quoted bytes are real', r.ok ? [] : r.out.split('\n').filter((l) => /not found in any binary/.test(l)));
 }
 
+// E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
+// places, which is exactly why it keeps happening: the doc says it, the agent does not read that doc while
+// writing a batch on autopilot.
+//
+// What it does: DOS has no fd 2, so a shell-style stderr merge on a DOS command line is parsed as the
+// argument "2" and then "&1". 386LINK
+// read it as a library name and answered `Cannot open object input file -- File not found "2.lib"`, which
+// looks like a missing-library problem rather than a syntax one. In the earlier compile spike the same text
+// made the whole HC386 line fail with no output at all.
+//
+// This scans every heredoc/string in tools/ that is clearly DOS batch content, plus any .bat/.BAT file, and
+// flags `2>&1` or `2>` near a DOS command. It does not flag shell `2>&1`, which is everywhere and correct.
+{
+	const bad = [];
+	const dosish = /\b(?:Q:|A:|C:)\\|HCD386|386LINK|MSCDEX|autoexec|\.BAT\b/i;
+	const walk = (dir) => {
+		for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+			const full = path.join(dir, e.name);
+			// Only local scripts. node_modules and vendor are not ours to police.
+			if (e.isDirectory()) {
+				if (['node_modules', 'vendor', '.git'].includes(e.name)) continue;
+				walk(full);
+			} else if (/\.(sh|js|py|bat|BAT|md)$/.test(e.name)) {
+				// Docs explain the rule; they are allowed to contain the string.
+				if (full.endsWith('.md')) continue;
+				const text = fs.readFileSync(full, 'utf8');
+				const lines = text.split('\n');
+				lines.forEach((line, i) => {
+					if (!/2>&1|2>\s/.test(line)) return;
+					// A shell redirect is fine. Only flag when the same line looks like DOS.
+					if (dosish.test(line)) {
+						bad.push(`${path.relative(ROOT, full)}:${i + 1} 2>&1 in DOS context`);
+					}
+				});
+			}
+		}
+	};
+	for (const d of ['tools', 'container']) {
+		const p = path.join(ROOT, d);
+		if (fs.existsSync(p)) walk(p);
+	}
+	record('no 2>&1 in DOS batches', bad);
+}
+
 // F. The site builds strict. Needs mkdocs, which is not always installed, so it reports skipped rather than
 // passing silently.
 if (NO_BUILD) {

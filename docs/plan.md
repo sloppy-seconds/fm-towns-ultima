@@ -2,6 +2,14 @@
 
 Where the project is, what order the remaining work goes in, and how each piece of it finishes.
 
+**The goal is behavioural faithfulness, not byte-identical reconstruction.** A game that plays like
+Ultima II, from rules stated as arithmetic. That retires whole-image byte matching, the MP/P3 container
+question and the linker-as-calibration-step. See
+[goal-behavioural-faithfulness.md](goal-behavioural-faithfulness.md) for what that rules in and out.
+
+Consequence for this plan: **routines are ranked by whether a player can observe them.** Anything not
+reachable from create, move, town, fight, buy, cast, save is a lower priority than it was.
+
 This replaces an earlier version that was a list of open items with no sequencing. A list says what is
 unfinished. A plan says what to do next and how to know it worked.
 
@@ -391,6 +399,9 @@ should not stay listed as merely "unread".
 
 Whether 1960 Hz is real. The header layout is established ([sound.md](sound.md)), the rate is not in the
 file. Small item, and it is the last unknown in audio extraction.
+
+**Ranked low under behavioural faithfulness.** Nothing about how the game plays depends on it, so it
+should not be picked up before the rules work in Phase 4b.
 
 ### 4e. Confirm the U2 palette in-game
 

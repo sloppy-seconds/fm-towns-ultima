@@ -3,6 +3,11 @@
 The goal is reimplementation. Extraction exists to build the strongest possible corpus of data, assets
 and rules first, so that reimplementation is a translation exercise rather than a guess.
 
+**And the target is behavioural faithfulness, not a byte-identical rebuild of `ENCHANT.EXP`.** That
+decision is recorded in [goal-behavioural-faithfulness.md](goal-behavioural-faithfulness.md). It retires
+whole-image byte matching, the MP/P3 container question and the linker as a calibration step, and it
+makes the four remaining categories below the actual work rather than the preamble to it.
+
 This page measures the gap honestly. It was written because the stated goal in `AGENTS.md` had drifted
 into extraction-as-endpoint, and the drift was hiding the fact that **the corpus is nowhere near ready.**
 
