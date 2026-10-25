@@ -463,7 +463,7 @@ sudo -v
 ./tools/container-run.sh start
 sleep 45
 ./tools/compile-proof.sh              # expect PASS
-./tools/plot-proof.sh                 # expect NOT byte-identical
+./tools/plot-proof.sh                 # expect NOT byte-identical, see calibration.md
 ```
 
 Both scripts are self contained: they copy the floppy, place everything,

@@ -87,7 +87,8 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [The palette](palette.md) | Five failed static approaches before the palette was read from the machine. |
 | [Compiling on FM Towns](compiling-on-fm-towns.md) | The whole recipe, frozen: discs, BIOS, container, batch file, every input trap. Start here to compile anything. |
 | [Compiling with High C](highc-compile-success.md) | The SDK CD's own compiler building an object file inside the emulator, and the TownsMENU detour it did not need. |
-| [The plot calibration](highc-plot-calibration.md) | Compiling a known function and finding the bytes are close but not identical, which reopens the compiler version. |
+| [The plot calibration](highc-plot-calibration.md) | Compiling a known function, twice getting the answer wrong, and what the corrected comparison shows. |
+| [Pixel writer address correction](pixel-writer-address-correction.md) | The pixel writer is at 0xf3e24, not 0xf3e04, and the "expected bytes" were a paraphrase. |
 | [Open questions](open-questions.md) | What is still unknown, ordered by cost to resolve. |
 
 ## Reading order, if you want one

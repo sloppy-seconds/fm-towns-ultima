@@ -22,7 +22,14 @@ It compiles. That much is settled and reproducible.
 The method was compile-and-diff on a real routine. Two were tried, and they disagree in a way that identifies the
 problem.
 
-### `plot`, a leaf with a multiply: MATCHES
+### `plot`, a leaf with a multiply: the bytes below are a paraphrase, not the image
+
+> **Corrected.** The sequence quoted here does not exist in `ENCHANT.EXP`.
+> The real pixel writer is at `0xf3e24`, is six instructions, and keeps the
+> base in the store's displacement with a scaled index. See
+> [pixel-writer-address-correction.md](pixel-writer-address-correction.md).
+> The conclusion of this section (2.31 matches) was reached against the
+> paraphrase and is not evidence either way.
 
 ```
 game       mov ecx,[esp+0xc]  shl ecx,6  add ecx,[esp+0x8]
@@ -31,8 +38,9 @@ compiled   mov ecx,[esp+0xc]  shl ecx,6  add ecx,[esp+0x8]
            mov ax,[esp+0x4]   mov [ecx*2+0x77e90],ax  ret
 ```
 
-Byte-identical, and identical at `-O0`, `-O1`, `-O2`, `-O4` and `-O6`. The addressing form, the calling convention
-and the no-frame decision all agree.
+Byte-identical *to each other*, and identical at `-O0`, `-O1`, `-O2`, `-O4`
+and `-O6`. But both sides are the same hand-written paraphrase, so this
+compares the compiler against itself.
 
 ### `0xe6a58`, a framed routine with division: DOES NOT MATCH
 

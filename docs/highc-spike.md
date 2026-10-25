@@ -6,13 +6,20 @@ bytes are known from `ENCHANT.EXP`. That turns the statistical frame-pointer rul
 
 ## The ground-truth target
 
-`pixelWriter` at `0xf3e04` is the best available test, because its seven instructions are read completely and it
+> **Address corrected: the pixel writer is at `0xf3e24`, not `0xf3e04`, and it
+> is six instructions, not seven.** The instruction list below is correct in
+> content but its addresses are off by `0x20`. Everything in this page was
+> therefore calibrated against a paraphrase rather than the image, and its
+> "MATCHES" verdict is not evidence. See
+> [pixel-writer-address-correction.md](pixel-writer-address-correction.md).
+
+`pixelWriter` at `0xf3e24` is the best available test, because its instructions are read completely and it
 has no frame pointer:
 
 ```
-0xf3e04  mov eax,[esp+0xc]     ; arg3
-0xf3e08  shl eax,7             ; * 128
-0xf3e0b  mov edx,[esp+0x8]     ; arg2
+0xf3e24  mov eax,[esp+0xc]     ; arg3
+0xf3e28  shl eax,7             ; * 128
+0xf3e2b  mov edx,[esp+0x8]     ; arg2
 0xf3e0f  mov cx,[esp+0x4]      ; arg1
 0xf3e14  mov [eax+edx*2+0x77e90],cx
 0xf3e1c  ret
@@ -284,7 +291,7 @@ screen carried the compiler's own words.
 
 ### The comparison
 
-Ground truth, `ENCHANT.EXP` at `0xf3e04`:
+Ground truth, `ENCHANT.EXP` at `0xf3e24` (corrected address):
 
 ```
 mov eax,[esp+0xc]   shl eax,7   mov edx,[esp+0x8]   mov cx,[esp+0x4]

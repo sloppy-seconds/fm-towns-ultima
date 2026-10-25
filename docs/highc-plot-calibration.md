@@ -1,13 +1,31 @@
-# The plot calibration: my first negative result was wrong, and the correction reverses it
+# The plot calibration: the ground truth was wrong, and the corrected comparison is much closer
 
-**Verdict, corrected: High C 1.7 reproduces the game's division codegen exactly,
-and 2.31 does not.** The FM Towns SDK's own compiler passes the discriminating
-test that the DOSBox spike failed. The negative result this page originally
-carried was an artefact of the source form I chose, not a property of the
-compiler.
+**Corrected verdict: High C 1.73 reproduces the game's pixel writer in every
+architectural respect except folding the absolute base into the store's
+displacement and its frame-pointer decision.** The two earlier verdicts on this
+page ("not byte-identical, so not 1.7" and then "not byte-identical for a
+source-form reason") were both reached against a **paraphrased** byte sequence
+that does not exist in the image. See
+[pixel-writer-address-correction.md](pixel-writer-address-correction.md) for the
+hex evidence.
 
-This page keeps the wrong conclusion visible, because the mistake is
-instructive and would otherwise be repeated.
+This page keeps the whole history, because two wrong conclusions in a row is
+worth more as a warning than as a tidy answer.
+
+## The corrected ground truth
+
+The pixel writer is at **`0xf3e24`**, six instructions, 25 bytes, frameless:
+
+```
+0x0F3E24  8B44240C          mov  eax,[esp+0xc]       ; row
+0x0F3E28  C1E007            shl  eax,byte 0x7        ; row * 128
+0x0F3E2B  8B542408          mov  edx,[esp+0x8]       ; col
+0x0F3E2F  668B4C2404        mov  cx,[esp+0x4]        ; value
+0x0F3E34  66898C50907E0700  mov  [eax+edx*2+0x77e90],cx
+0x0F3E3C  C3                ret
+```
+
+Everything below now compares against **that**.
 
 ## What I got wrong first
 
@@ -18,9 +36,14 @@ destination as integer arithmetic:
 *(unsigned short *)(0x77e90 + row * 128 + col * 2) = value;
 ```
 
-High C 1.7 produced `edx` / `add edx,edx` / `mov [edx],ax`, which does not
-match the game's `ecx` / `shl` / `mov [ecx],ax`. I concluded that the game was
-not built by 1.7.
+High C 1.73 produced `edx` / `add edx,edx` / `mov [edx],ax`. I compared that
+against the paraphrased "expected bytes" and concluded the game was not built
+by 1.73.
+
+**Three separate things were wrong with that comparison.** The address was
+wrong (`0xf3e04` instead of `0xf3e24`). The expected sequence was a hand-written
+paraphrase, not the image's bytes. And the source form used pointer arithmetic,
+which gives the compiler no reason to form a scaled index at all.
 
 **That conclusion was unsound**, because `highc-spike.md` already recorded that
 High C **2.31 also fails** on that same source form. I had tested the one
@@ -106,120 +129,115 @@ sar eax,1
 31-instance pattern, and 1.7 emits it in the same form as the game where 2.31
 emits the modern reciprocal.
 
-## The plot probe, re-run on the pointer form
+## The probe that works: a typed 2-D array
 
-Using the formulation the spike doc records as the game's, and with no local
-variable:
+Pointer-plus-arithmetic was the wrong shape. A **typed 2-D array** is what gives
+a compiler a reason to form `[base + index*2 + disp32]`: the scale comes from
+the element type and the stride from the second dimension.
 
 ```c
-void plot2(unsigned short value, int col, int row) {
-    *(unsigned short *)(0x77e90 + row * 64 + col) = value;
-}
+typedef unsigned short row_t[64];
+void r2(unsigned short v, int c, int r) { ((row_t *)0x77e90)[r][c] = v; }
 ```
 
-High C 1.7, measured, identical at default, `-v-`, `-O`, and `-v- -O`:
+High C 1.73 (banner: `MetaWare High C Compiler 1.73`, parser `14-Oct-91`):
 
 ```
-8B44240C      mov eax,[esp+0xc]
-C1E006        shl eax,byte 0x6
-05907E0700    add eax,0x77e90
-03442408      add eax,[esp+0x8]
-668B542404    mov dx,[esp+0x4]
-668910        mov [eax],dx
-C3            ret
+55                push ebp
+8BEC              mov  ebp,esp
+56                push esi
+8B4510            mov  eax,[ebp+0x10]
+C1E007            shl  eax,byte 0x7
+8B550C            mov  edx,[ebp+0xc]
+668B4D08          mov  cx,[ebp+0x8]
+BE907E0700        mov  esi,0x77e90
+03C6              add  eax,esi
+66890C50          mov  [eax+edx*2],cx
+5E                pop  esi
+C9                leave
+C3                ret
 ```
 
-The game:
+**`66 89 0c 50` is `mov [eax+edx*2],cx`.** That is the scaled-index store I
+had previously reported as unreachable. It is reachable; my earlier probes were
+simply the wrong shape.
 
-```
-8b 44 24 0c   mov eax,[esp+0xc]
-c1 e0 07      shl eax,7
-05 90 7e 07 00 add eax,0x77e90
-8b 4c 24 08   mov ecx,[esp+0x8]
-d1 e1         shl ecx,1
-03 c8         add ecx,eax
-66 8b 44 24 04 mov ax,[esp+0x4]
-66 89 01      mov [ecx],ax
-c3            ret
-```
+### What matches
 
-**Still not byte-identical**, but for a mundane reason now visible: the game's
-source used a scaled index `[eax+edx*2]`, and 1.7 does not fold the `col * 2`
-into a scaled index on this formulation. It emits `add edx,edx` (or `shl`,
-depending on formulation) and then `[edx]` with no scale.
+| feature | game | High C 1.73 |
+|---|---|---|
+| scaled index `[reg+reg*2]` | yes | **yes**, `66 89 0c 50` |
+| `shl r,7` for row \* 128 | yes | **yes** |
+| 16-bit `mov cx` from the argument | yes | **yes** |
+| 16-bit word store | yes | **yes** |
+| argument order row, col, value | yes | **yes** |
 
-`row * 128` was also tried, and it produces the same result:
+### What does not match
 
-```
-8b 44 24 0c c1 e0 07 05 90 7e 07 00 8b 54 24 08 03 d2 03 d0 66 8b 44 24 04 66 89 02 c3
-```
+| feature | game | High C 1.73 |
+|---|---|---|
+| frame pointer | none | `push ebp` / `mov ebp,esp` / `leave` |
+| argument addressing | `[esp+N]` | `[ebp+N]` |
+| `0x77e90` | folded into the store's disp32 | materialised into `esi`, then `add` |
+| callee-saved register | none used | `push esi` / `pop esi` |
+| length | 25 bytes | 31 bytes |
 
-That is identical to the game in 22 of 29 bytes, including the whole
-`shl eax,7` / `add eax,0x77e90` prologue and the 16-bit `mov ax` / `mov [reg],ax`
-epilogue. The only divergence is the middle four instructions:
+Four formulations were tried in total. All four that compiled produced the
+scaled index once the array type was present, and all four added a frame. Two
+variants that used a local pointer variable produced a *worse* result, adding
+both a frame and a stack slot.
 
-| | bytes |
-|---|---|
-| game | `8b 4c 24 08` `d1 e1` `03 c8` (load `ecx`, `shl ecx,1`, `add ecx,eax`) |
-| High C 1.7 | `8b 54 24 08` `03 d2` `03 d0` (load `edx`, `add edx,edx`, `add edx,eax`) |
+**The frame appears to follow the `esi`.** `docs/highc-codegen.md` measured that
+only 43.1 percent of the game's 738 routines carry a frame, which is consistent
+with a rule of this kind: push a callee-saved register and you get a frame,
+otherwise not.
 
-Both compute `eax + col * 2` into a register. The game's compiler chose `ecx`
-and `shl`, 1.7 chose `edx` and `add`. That is a register-allocation and
-instruction-selection difference on a two-instruction idiom, not a
-convention, calling-shape or addressing-family difference.
+### What this probe can and cannot conclude
 
-Two further formulations were tried and both are worse than this one. Giving
-the pointer a local variable adds a frame. Using a `short *` base and a scaled
-index also adds a frame:
+It cannot produce a byte match, because 1.73 declines to fold an absolute
+address into a store displacement on any formulation tried.
 
-```
-55 8b ec 50 b8 90 7e 07 00 89 45 fc 8b 55 10 c1 e2 06 03 55 0c
-66 8b 4d 08 66 89 0c 50 c9 c3
-```
-
-**Any future calibration must avoid locals**, or the frame-pointer comparison
-is measuring the wrong thing.
-
-### What the plot probe can and cannot conclude
-
-It **cannot** separate 1.7 from 2.31, because the spike doc records 2.31
-matching the game's shape on a slightly different pointer formulation again.
-One leaf function with no division is too weak a probe. This is the mistake the
-first version of this page made.
-
-The division probes, below, are what actually discriminate.
-
+It does establish that the instruction *family* is identical: the scaled index,
+the shift, the width handling and the argument order all agree. That is a much
+stronger identification than the paraphrased comparison ever supported.
 ## Corrected summary of the compiler question
 
 | question | before | after |
 |---|---|---|
-| does High C 1.7 emit `idiv` for `/16` | unknown | **yes, exactly as the game** |
-| does High C 1.7 emit the naive `/2` halving chain | unknown | **yes, exactly as the game** |
-| does High C 2.31 emit either | no | no, it emits a reciprocal at every level |
-| is 1.7 the compiler that built the game | "no", from a bad probe | **consistent with yes.** No measured contradiction remains |
-| is 2.31 the compiler | "yes, for this routine" | **no.** It fails the division test that 1.7 passes |
+| does High C 1.73 emit `idiv` for `/16` | unknown | **yes, exactly as the game** |
+| does High C 1.73 emit the naive `/2` halving chain | unknown | **yes, exactly as the game** |
+| does High C 1.73 emit the scaled index `[reg+reg*2]` | unknown | **yes**, with a typed 2-D array |
+| does High C 2.31 emit any of these | no | no, it emits a reciprocal at every level |
+| is 1.73 the compiler that built the game | "no", from a bad probe | **consistent with yes.** No measured contradiction remains |
+| is 2.31 the compiler | "yes, for this routine" | **no.** It fails the division test that 1.73 passes |
 
-The FM Towns High C 1.7 kit is now the leading candidate, and it is the one
-that runs on the actual target platform with the vendor's own toolchain.
+The FM Towns High C 1.73 kit is the leading candidate, it runs on the actual
+target platform with the vendor's own toolchain, and every discriminating test
+run so far agrees with it.
 
 ## What is still not established
 
-- **No whole-function byte match yet.** `plot` is 22 of 29 bytes, with a
-  register-allocation difference on one idiom. The division probes match the
-  *semantics and instruction choice* exactly but isolate one expression rather
-  than a whole function.
-- **The 33 frame-pointer exceptions** in each direction from
-  `highc-codegen.md` are still unexplained.
-- **Whether any source formulation makes 1.7 emit `[eax+edx*2]`** rather than
-  the two-instruction `add reg,reg` then `[reg]`. Four formulations were tried
-  and none did. This may be a genuine codegen difference between the game's
-  build and 1.7, which would reopen the version question again on firmer ground
-  than the original bad probe.
+- **No whole-function byte match yet**, for a specific and now-understood
+  reason: 1.73 materialises an absolute base into a register and adds it,
+  where the game folds it into the store's displacement. The scaled index,
+  shift, width handling and argument order all agree. What differs is one
+  address-folding decision plus the frame pointer.
+- **The frame-pointer rule.** 1.73 frames every formulation that pushed
+  `esi`, and the game frames only 43.1 percent of routines. Whether those are
+  the same 43.1 percent is untested.
+- **Whether a source shape exists** that keeps the base in the displacement
+  and avoids the callee-saved push. Four formulations were tried and none did.
+  A routine in the image that is frameless *and* uses an absolute displacement
+  in a store would be the probe to design against.
 
 ## Reproducing
 
-The probes are two-line C files. The recipe is
+The probes are small C files. The recipe is
 [compiling-on-fm-towns.md](compiling-on-fm-towns.md), and the mechanism is
 [highc-compile-success.md](highc-compile-success.md). `./tools/plot-proof.sh`
-runs the plot variant. The division probes are one `mcopy` and one batch line
-each, exactly as shown above.
+runs the original plot variant.
+
+**The ground truth is now a hex search, not a quoted sequence:** find the
+`0x77e90` immediate in `ENCHANT.EXP`, disassemble the enclosing function, and
+compare against that. Quoting bytes from memory is how this page went wrong
+twice.

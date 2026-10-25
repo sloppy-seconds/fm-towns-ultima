@@ -49,16 +49,25 @@ Fujitsu library, which the game does not ship.
 
 ## `0xf3e04`: the pixel writer
 
+> **Address corrected: the pixel writer is at `0xf3e24`, not `0xf3e04`.**
+> `0xf3e04` is not a function entry at all, and the function starting at
+> `0xf3e0c` is a *byte* writer at stride 64 into a different buffer at
+> `0xbd578`, not the 16-bit writer into the tile grid.
+>
+> The 128-stride arithmetic below is correct, but it belongs to `0xf3e24`.
+> The instruction count is six, not four. Measured bytes and the full
+> correction: [pixel-writer-address-correction.md](pixel-writer-address-correction.md).
+
 ```asm
-0x0F3E04  mov  eax,[esp+0xc]        ; arg3 = row
-0x0F3E08  shl  eax,7                ; * 128
-0x0F3E0B  mov  edx,[esp+0x8]        ; arg2 = column
-0x0F3E0F  mov  cx,[esp+0x4]         ; arg1 = value
-0x0F3E14  mov  [eax+edx*2+0x77e90],cx
-0x0F3E1C  ret
+0x0F3E24  mov  eax,[esp+0xc]        ; arg3 = row
+0x0F3E28  shl  eax,7                ; * 128
+0x0F3E2B  mov  edx,[esp+0x8]        ; arg2 = column
+0x0F3E2F  mov  cx,[esp+0x4]         ; arg1 = value
+0x0F3E34  mov  [eax+edx*2+0x77e90],cx
+0x0F3E3C  ret
 ```
 
-A four-instruction leaf function that writes one 16-bit value into a plane at `0x77e90`.
+A six-instruction leaf function that writes one 16-bit value into a plane at `0x77e90`.
 
 **The arithmetic is the interesting part.** The row is multiplied by **128**, and the column
 is scaled by **2** because the destination is 16-bit. So a row is 128 sixteen-bit words.

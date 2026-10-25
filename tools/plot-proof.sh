@@ -8,12 +8,13 @@
 #   8b 44 24 0c c1 e0 07 05 90 7e 07 00 8b 4c 24 08 d1 e1 03 c8
 #   66 8b 44 24 04 66 89 01 c3
 #
-# Result on High C 1.7 (measured, see docs/highc-plot-calibration.md):
-# NOT byte-identical. 1.7 emits the same 9 instructions with the same
-# semantics but allocates edx where the game build used ecx, and doubles
-# with add instead of shl. Bare -O, -O1..-O9 and the -on/-off optimizer
-# toggles the driver knows about all produce byte-identical output to the
-# default, so no flag combination closes the gap.
+# Result on High C 1.73 (measured, see docs/highc-plot-calibration.md):
+# NOT byte-identical, but for a specific reason: 1.73 materialises the absolute
+# base into a register and adds it, where the game folds it into the store's
+# displacement. The scaled index, the shift, the width handling and the
+# argument order all agree. The EXPECT target below is a paraphrase and does
+# not exist in the image - the real pixel writer is at 0xf3e24, not 0xf3e04.
+# See docs/pixel-writer-address-correction.md.
 #
 # Mechanism is the same as tools/compile-proof.sh: files go into a copy of
 # the DOS 6.2 floppy BEFORE FD0LOAD, the compile runs from AUTOEXEC.BAT so
