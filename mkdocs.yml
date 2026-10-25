@@ -129,6 +129,7 @@ nav:
       - The working set: working-set.md
       - High C does not run under DOS: highc-dos-negative.md
       - TownsMENU boots from the SDK CD: townsmenu-boots.md
+      - Why the compile has not run: compile-blocker.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
