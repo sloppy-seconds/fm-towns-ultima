@@ -170,8 +170,21 @@ cannot: it must also read `docs/plan-process.md`, which is longer still.
    own short section, or into `README.md` where platform support is actually
    claimed to users.
 
-That is roughly 600 words saved with no loss of enforceable content, and more
-importantly it leaves **one** process authority instead of three.
+**Measured, after applying 1 to 4: the saving is about 100 words, not the 600
+this section originally estimated.** `Open problems` fell from 222 to 110, but
+extracting the three verification rules into their own section moved words
+rather than removing them, and the collapsed `verify.js` paragraphs saved less
+than expected. The restructure is worth doing because it leaves **one** process
+authority instead of three and because the open question is now under a check,
+but the token saving was overstated here and is corrected rather than quietly
+left wrong.
+
+The honest lesson is in the numbers: **prose about process is not where the
+context cost is.** 4,100 of the 5,400 words are domain knowledge (copyright,
+constraints, findings, environment) that an agent genuinely cannot infer. The
+recoverable overhead was always small. The real win this session was
+`tools/checkquoted.js`, which converted 548 words of rule into a command that
+fails loudly, and even that cost tokens rather than saving them.
 
 ## What I would not change
 
