@@ -127,6 +127,7 @@ nav:
       - A bootable DOS hard disk: bootable-dos-hdd.md
       - The working C drive: working-c-drive.md
       - The working set: working-set.md
+      - High C does not run under DOS: highc-dos-negative.md
       - Tsugaru headless harness: tsugaru-headless.md
       - Record arrays: record-arrays.md
       - The EB glyph set: eb-glyphs.md
