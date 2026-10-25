@@ -146,6 +146,10 @@ the attack message" when it was zero padding, "both jump tables" when it was one
 attribution a single command would have settled. If the report contains a count, a comparison or a claim that
 something does not exist, either a command produced it or the sentence says "unverified".
 
+**And the check must have been run in this session, not recalled.** See "Never quote bytes, addresses or counts
+from memory" below. A sequence copied out of an earlier `docs/` page has not been checked, even if that page
+cites a command, because the transcription between the command and here is where the errors appear. Re-run it.
+
 **Before trusting a check, break something it should catch and confirm it fails.** Four of the six checks in
 `docs/plan-process.md` Part 7 cannot fail at all, and two of those report failure when clean. A check that has
 never been seen to fail is a comment.
@@ -199,6 +203,72 @@ Each looked convincing. Each was wrong. So:
   Plausible-looking images and plausible-looking statistics are not.
 - Record failures. A failed probe is worth as much as a success, because it
   stops the next person repeating it. `docs/` exists for this.
+
+## Never quote bytes, addresses or counts from memory
+
+**This is the single most expensive defect in this repository's history, and it
+is a process defect rather than a knowledge one.** It has now cost three wrong
+conclusions on one six-instruction function.
+
+### What happened, precisely
+
+The pixel writer in `ENCHANT.EXP` was cited as being at `0xf3e04` and as being
+the 29-byte sequence
+
+```
+8b 44 24 0c c1 e0 07 05 90 7e 07 00 8b 4c 24 08 d1 e1 03 c8
+66 8b 44 24 04 66 89 01 c3
+```
+
+That sequence **does not exist in the image**. It is a paraphrase written in an
+earlier session, and two High C compilers were calibrated against it. The real
+function is at `0xf3e24`, is six instructions rather than seven, and keeps the
+base in the store's displacement where the paraphrase put it in an `add`.
+Because both sides of the "comparison" were the same paraphrase, the result was
+meaningless and was reported twice as a real finding.
+
+The cost: two wrong verdicts in `docs/`, several hours of probe design aimed at
+a sequence that does not exist, and a compiler nearly ruled out on fabricated
+evidence. One `xxd` and one `ndisasm` would have prevented all of it.
+
+### The rule
+
+**Any byte sequence, address, instruction, size or count that enters a doc, a
+report or a comparison must come from a command run in this session, and the
+command goes in the write-up.** Not from an earlier doc, not from a summary, not
+from a plausible reconstruction, not from memory of what the disassembly
+"looked like".
+
+Concretely:
+
+- **Quote the command, not just the bytes.** `xxd -s 0xf3e24 -l 32 ENCHANT.EXP`
+  followed by its actual output. A sequence with no command beside it is
+  indistinguishable from an invented one, which is exactly the failure here.
+- **Re-derive before re-using.** An earlier doc is evidence that someone once
+  measured something, not the measurement itself. If a number matters to a new
+  argument, re-run it. Docs go stale, addresses shift, and transcriptions
+  acquire errors.
+- **A paraphrase is not data.** If you find yourself writing "equivalent to" or
+  "the same shape as" and comparing against it, stop: either read the image or
+  say the comparison was not made. Paraphrasing is legitimate in prose for a
+  human reader and never legitimate as the expected value in a test.
+- **Trust the transcript over the recollection.** The compiler banner, the error
+  message, the `DIR` listing and the exit code are all in captured output
+  somewhere. Read that file. Do not reconstruct it.
+- **When you catch yourself uncertain, measure instead of qualifying.** "I
+  believe the sequence is" is a signal to run the command, not to add a hedge.
+
+### What memory is for
+
+Use it to know **what to check and where to look**, which is genuinely useful and
+is what the `docs/` index is for. Never to supply the value itself.
+
+"The pixel writer has a scaled-index store, so search for the `0x77e90`
+immediate" is a memory of *how to find it*. That is fine and it worked: the
+immediate occurs exactly once, in the leaf store at `0xf3e38`.
+
+"The pixel writer is 29 bytes starting `8b 44 24 0c`" is a memory of *the
+answer*. That is the failure mode this rule exists to stop.
 
 ## Hard-won technical constraints
 

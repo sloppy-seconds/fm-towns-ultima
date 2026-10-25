@@ -123,6 +123,15 @@ const runNode = (script, args = []) => {
 	record('verify', r.ok ? [] : r.out.split('\n').filter((l) => /^  [a-z0-9]/i.test(l)));
 }
 
+// E2. Quoted bytes must be findable. This is the check for the defect that cost two wrong verdicts and
+// nearly ruled out the right compiler: a hand-written byte sequence quoted into docs/ as ground truth, which
+// did not exist in the image, and which two compilers were then calibrated against. A sequence with no
+// command beside it is indistinguishable from an invented one, so this makes the distinction mechanical.
+{
+	const r = runNode('checkquoted.js');
+	record('quoted bytes are real', r.ok ? [] : r.out.split('\n').filter((l) => /not found in any binary/.test(l)));
+}
+
 // F. The site builds strict. Needs mkdocs, which is not always installed, so it reports skipped rather than
 // passing silently.
 if (NO_BUILD) {

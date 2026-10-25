@@ -224,7 +224,7 @@ One command, and it returns a real exit code:
 node tools/checkall.js
 ```
 
-Eight checks. **Each was tested by breaking something it should catch and confirming it fails**, because a
+Nine checks. **Each was tested by breaking something it should catch and confirming it fails**, because a
 check that has never been seen to fail is a comment.
 
 | check | what it catches |
@@ -236,7 +236,31 @@ check that has never been seen to fail is a comment.
 | plan items | an item missing State, Autonomy, done-when or blocked-by, or outside the vocabulary |
 | plan format | a planning document not converted to the item format |
 | verify | an established fact that stopped being true |
+| quoted bytes are real | a byte sequence quoted into `docs/` that is not in any binary, and not marked as a paraphrase or as compiler output |
 | site build | `mkdocs --strict` warnings |
+
+### Why `quoted bytes are real` exists
+
+The most expensive defect in this repository's history was not a wrong number. It was a **fabricated byte
+sequence**. The pixel writer was quoted into three pages as being at `0xf3e04` and as being
+
+```
+8b 44 24 0c c1 e0 07 05 90 7e 07 00 8b 4c 24 08 d1 e1 03 c8 66 8b 44 24 04 66 89 01 c3
+```
+
+That sequence appears nowhere in `ENCHANT.EXP`. It is a paraphrase written from memory. Two compilers were
+calibrated against it, and because both sides of each comparison were the same paraphrase, the results were
+meaningless and were written up twice as findings. The real function is at `0xf3e24`, is six instructions, and
+keeps the base in the store's displacement where the paraphrase put it in an `add`.
+
+The check makes the distinction mechanical: every quoted sequence is searched for in the game binaries. A hit
+passes. A miss fails unless the surrounding text marks the block as a paraphrase or as a compiler's output, and
+those exemptions have to be written deliberately. It caught a second, smaller transcription error in
+`highc-codegen.md` on its first run, where two `mov` instructions were shown adjacent when the image has a
+`shl` between them.
+
+Proven to fail: appending `de ad be ef 12 34 56 78 9a bc` to any page makes `checkall.js` return non-zero with
+that page and line number.
 
 ### What this replaced, and why the old list was worthless
 

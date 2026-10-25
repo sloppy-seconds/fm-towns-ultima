@@ -14,15 +14,15 @@ are a different function. Measured, with `ENCHANT.EXP` being an `MP` flat image
 at base 0 so file offset equals virtual address:
 
 ```
-$ xxd -s 0xf3e04 -l 32 ENCHANT.EXP
+$ xxd -s 0xf3e04 -l 30 ENCHANT.EXP
 000f3e04: c414 5f5e c366 8bc0 8b44 240c c1e0 0603
 000f3e14: 4424 088a 5424 0488 9078 d50b 00c3 8bc0
 ```
 
-Disassembled from `0xf3e04`:
+Disassembled from `0xf3e04` (contiguous, every byte accounted for):
 
 ```
-0xF3E04  C4145F            les edx,[edi+ebx*2]     <- not a function entry
+0xF3E04  C4145F            les edx,[edi+ebx*2]     <- mid-instruction, not an entry
 0xF3E07  5E                pop esi
 0xF3E08  C3                ret
 0xF3E09  668BC0            mov ax,ax               <- alignment padding
@@ -33,6 +33,9 @@ Disassembled from `0xf3e04`:
 0xF3E1B  889078D50B00      mov [eax+0xbd578],dl    <- 0xbd578, not 0x77e90
 0xF3E21  C3                ret
 ```
+
+Those bytes, in order, are `c4 14 5f 5e c3 66 8b c0 8b 44 24 0c c1 e0 06 03 44 24 08
+8a 54 24 04 88 90 78 d5 0b 00 c3`, which is exactly `xxd -s 0xf3e04 -l 30 ENCHANT.EXP`.
 
 `0xf3e04` is mid-instruction or mid-padding relative to the real function, and
 the function that does start at `0xf3e0c` is a **byte** writer to a different

@@ -118,12 +118,20 @@ conclusions, and only the second has evidence.
 
 Two counts that settle questions the plan was going to ask a compiler, and both contradict what I had assumed.
 
-**Arguments go on the stack, not in registers.** `pixelWriter` at `0xf3e04` reads its arguments with
+**Arguments go on the stack, not in registers.** `pixelWriter` at `0xf3e24` reads its arguments with
 
 ```
-8b 44 24 0c   mov eax,[esp+0xc]   ; arg3
-8b 54 24 08   mov edx,[esp+0x8]   ; arg2
+8B44240C          mov eax,[esp+0xc]       ; arg3 = row
+C1E007            shl eax,byte 0x7        ; row * 128
+8B542408          mov edx,[esp+0x8]       ; arg2 = col
+668B4C2404        mov cx,[esp+0x4]        ; arg1 = value
 ```
+
+> These four lines are not adjacent in the image. `shl eax,7` sits between the
+> first `mov` and the second, and the real function is contiguous as
+> `8b 44 24 0c c1 e0 07 8b 54 24 08 66 8b 4c 24 04`. An earlier version of this
+> block omitted the `shl`, which made the two `mov`s look adjacent and was wrong
+> about the byte layout even though the `esp`-relative conclusion was right.
 
 which is `esp`-relative, with no frame pointer at all. Image-wide:
 
