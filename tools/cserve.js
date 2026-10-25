@@ -55,6 +55,9 @@ const IMAGE_HOST = path.resolve(ROOT, opt('image', 'saves/dos62v6.hdm'));
 const CONTAINER = opt('container', 'dosboot');
 const DISPLAY = opt('display', ':99');
 const COMPILE_TIMEOUT_MS = Number(opt('timeout', 90000));
+// The image a reset restores from. Never written to by the API, so it stays
+// pristine no matter what happens to the working copy.
+const PRISTINE = path.resolve(ROOT, opt('pristine', 'saves/dos62v6.pristine.hdm'));
 
 // The guest sees the image at /data because the container mounts saves/ there.
 function guestImagePath() {
@@ -225,6 +228,63 @@ async function reloadFloppy() {
 	await attachFloppy();
 }
 
+// --- free space, and the refusal that prevents corruption -------------------
+//
+// A full FAT12 volume does not fail cleanly. Measured: 155 leaked files left
+// 41,984 bytes free, and after that `mdel` itself started writing back a zeroed
+// media byte, so the image read as "Bad media types 00/fe, probably non-MSDOS
+// disk" and mtools could not open it at all. Retrying did not help; it needed a
+// byte-level repair of the FAT.
+//
+// So the API refuses to write when space is low, rather than discovering the
+// problem after the filesystem is already damaged.
+const MIN_FREE_BYTES = 24 * 1024;   // a compile needs about 1 KB; this is headroom
+
+function freeBytes() {
+	try {
+		const out = mrun('mdir', ['-a', '-i', IMAGE_HOST]).toString('latin1');
+		const m = out.match(/([\d\s,]+)\s*bytes free/i);
+		if (!m) return null;
+		return Number(m[1].replace(/[^0-9]/g, ''));
+	} catch {
+		return null;
+	}
+}
+
+// Is the image readable at all? A corrupt FAT makes every mtools call fail.
+function imageHealthy() {
+	let out;
+	try {
+		out = execFileSync('mdir', ['-a', '-i', IMAGE_HOST], { stdio: 'pipe', encoding: 'latin1' });
+	} catch (e) {
+		out = String(e.stderr || e.message || '');
+	}
+	return !/Bad media types|Cannot initialize|Error reading FAT/i.test(out);
+}
+
+// needBytes is the size of the write being attempted. A write bigger than the
+// free space fails inside mtools with "Disk full" after it has already started,
+// which is exactly the half-written state that damages a FAT12 volume.
+function assertWritable(needBytes = 0) {
+	if (!imageHealthy()) {
+		const err = new Error('floppy image is unreadable (corrupt FAT). POST /api/reset to restore it.');
+		err.status = 503;
+		throw err;
+	}
+	const free = freeBytes();
+	if (free === null) return;
+	// FAT12 allocates in 1 KB clusters, so round the need up.
+	const need = Math.ceil(needBytes / 1024) * 1024;
+	if (free - need < MIN_FREE_BYTES) {
+		const err = new Error(
+			`need ${need} bytes for this write and only ${free} are free; refusing, ` +
+			`because running out mid-write corrupts a FAT12 volume. ` +
+			`POST /api/reset to restore the floppy.`);
+		err.status = 507;
+		throw err;
+	}
+}
+
 // --- OMF: High C 1.73 80386 OMF, record size is 3 + length ----------------
 // Measured on HELLO.OBJ: this walk consumes the file exactly and every type is
 // a valid OMF id. LEDATA in this dialect is index u16, offset u16, group u8,
@@ -312,7 +372,14 @@ async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_T
 		`DIR A:\\${genObj}.OBJ > A:\\${doneFile}`,
 	].join('\r\n') + '\r\n';
 
+	assertWritable();
 	const t0 = Date.now();
+	const cleanup = [doneFile, logFile, `${genObj}.OBJ`, `${srcName}.OBJ`, `${srcName}.C`, batFile];
+	const rmAll = () => {
+		for (const f of cleanup) {
+			try { deleteImageFile(f); } catch { /* already gone */ }
+		}
+	};
 
 	// Order matters, and getting it wrong produced a wrong answer rather than an
 	// error. The emulator holds the image in memory, so:
@@ -367,22 +434,28 @@ async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_T
 	try { log = readImageFile(logFile).toString('latin1'); } catch { /* none */ }
 
 	if (!done) {
+		rmAll();
 		return { ok: false, error: 'compile did not finish', elapsedMs: Date.now() - t0, log };
 	}
 
 	let obj;
 	try { obj = readImageFile(`${genObj}.OBJ`); } catch {
+		rmAll();
 		return { ok: false, error: 'no object file produced', elapsedMs: Date.now() - t0, log };
 	}
 
 	const parsed = parseOmf(obj);
 	const sha = require('crypto').createHash('sha256').update(obj).digest('hex');
 
-	// Clean the batch's own bookkeeping; leave the .C and .OBJ for inspection.
-	for (const f of [doneFile, logFile, `${genObj}.OBJ`]) {
-		try { deleteImageFile(f); } catch { /* gone */ }
-	}
+	// Remove everything this request created. This runs on the success path and
+	// the failure paths both, via the finally block below, because a compile that
+	// times out still leaves three files behind and enough of those fill the
+	// volume. Measured failure: 155 leaked files, 41,984 bytes free, and the FAT
+	// then came back with a zeroed media byte so mtools could not read the image
+	// at all. The whole response is already in hand, so nothing here is worth
+	// keeping on disk.
 
+	rmAll();
 	return {
 		ok: true,
 		name: srcName,
@@ -393,6 +466,55 @@ async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_T
 		code: parsed.code.map((b) => b.toString(16).padStart(2, '0')).join(' '),
 		elapsedMs: Date.now() - t0,
 		log: log.trim() || undefined,
+	};
+}
+
+// --- reset ------------------------------------------------------------------
+//
+// Restores the working image from the pristine master and re-attaches it, so the
+// guest boots from a known-good floppy. This is the recovery path for the two
+// failure modes above: a full volume, and a corrupt FAT.
+//
+// It does NOT restart the emulator process. Measured: FD0EJECT + FD0LOAD is
+// enough for the guest to pick up a completely replaced image, because the eject
+// is what makes the emulator drop its in-memory copy. A full container restart
+// costs about a minute and is only needed if the guest itself has wedged.
+async function resetFloppy() {
+	if (!fs.existsSync(PRISTINE)) {
+		throw new Error(`pristine master missing: ${PRISTINE}. It is not regenerable; see docs/compiling-on-fm-towns.md.`);
+	}
+	const t0 = Date.now();
+	// Eject FIRST: otherwise the guest writes its in-memory copy back over the
+	// file we are about to replace.
+	try { await apiCmd('FD0EJECT'); } catch { /* may already be ejected */ }
+	await sleep(400);
+
+	const master = fs.readFileSync(PRISTINE);
+	fs.writeFileSync(IMAGE_HOST, master);
+
+	await apiCmd('FD0UP');
+	await sleep(100);
+	await apiCmd(`FD0LOAD ${guestImagePath()}`);
+	await sleep(800);
+	await apiCmd('FD0UP');
+	await sleep(200);
+	// Reboot. Re-attaching alone leaves the guest holding its previous in-memory
+	// state: measured, compiles kept failing with "did not finish" until a
+	// RESET F0 made it boot from the restored image.
+	await apiCmd('RESET F0');
+	// Give DOS time to reach a prompt. 45 seconds is the measured boot time; the
+	// caller can poll /api/health or simply retry.
+	await sleep(Number(opt('bootwait', 45000)));
+
+	return {
+		ok: true,
+		restoredFrom: PRISTINE,
+		bytes: master.length,
+		sha256: require('crypto').createHash('sha256').update(master).digest('hex'),
+		free: freeBytes(),
+		healthy: imageHealthy(),
+		rebooted: true,
+		elapsedMs: Date.now() - t0,
 	};
 }
 
@@ -429,6 +551,8 @@ const server = http.createServer(async (req, res) => {
 					'PUT    /api/fs/file?path=/X.C&reload=1   body: raw file bytes',
 					'DELETE /api/fs/file?path=/X.C',
 					'POST   /api/fs/reload',
+					'GET    /api/health                      space, health, canWrite',
+					'POST   /api/reset                       restore floppy from pristine master',
 					'POST   /api/compile                     {"source":"...","name":"CAL","flags":"-O"}',
 				],
 			});
@@ -451,6 +575,7 @@ const server = http.createServer(async (req, res) => {
 			if (!f) return json(res, 400, { error: 'path required' });
 			const buf = await readBody(req);
 			if (!buf.length) return json(res, 400, { error: 'empty body; PUT needs raw file bytes' });
+			assertWritable(buf.length);
 			writeImageFile(f, Buffer.from(buf, 'latin1'));
 			// Default reload:1, because a write the guest cannot see is a trap.
 			const doReload = url.searchParams.get('reload') !== '0';
@@ -464,6 +589,21 @@ const server = http.createServer(async (req, res) => {
 			if (fileSize(f) === null) return json(res, 404, { error: 'not found', path: f });
 			deleteImageFile(f);
 			return json(res, 200, { ok: true, deleted: f });
+		}
+
+		if (p === '/api/health' && req.method === 'GET') {
+			return json(res, 200, {
+				image: IMAGE_HOST,
+				healthy: imageHealthy(),
+				freeBytes: freeBytes(),
+				minFreeBytes: MIN_FREE_BYTES,
+				canWrite: imageHealthy() && (freeBytes() ?? 0) >= MIN_FREE_BYTES,
+				pristine: fs.existsSync(PRISTINE),
+			});
+		}
+
+		if (p === '/api/reset' && req.method === 'POST') {
+			return json(res, 200, await resetFloppy());
 		}
 
 		if (p === '/api/fs/reload' && req.method === 'POST') {
@@ -490,7 +630,12 @@ const server = http.createServer(async (req, res) => {
 		const notFound = /not found|no such file|File .* not found/i.test(err);
 		// 4xx for caller error, 5xx for anything else.
 		const callerError = /8\.3 violation|path must|required|invalid/i.test(err);
-		json(res, notFound ? 404 : callerError ? 400 : 500, {
+		// `e.status` from execFileSync is a process exit code (1), not an HTTP
+		// status. Only our own errors set a deliberate HTTP code.
+		const httpStatus = Number.isInteger(e.status) && e.status >= 400 && e.status <= 599
+			? e.status
+			: (notFound ? 404 : callerError ? 400 : 500);
+		json(res, httpStatus, {
 			error: notFound ? 'not found' : err.slice(0, 400),
 			stderr: e.stderr ? String(e.stderr).trim().slice(0, 800) : undefined,
 		});

@@ -27,6 +27,40 @@ from the floppy and the host-written file was still invisible.
 
 ## The two APIs
 
+### Health, and recovery from a full disk
+
+```
+GET  /api/health    healthy, freeBytes, minFreeBytes, canWrite, pristine
+POST /api/reset     restore the floppy from the pristine master and reboot
+```
+
+**A full FAT12 volume corrupts itself.** Measured: 155 leaked files left 41,984
+bytes free, and after that `mdel` began writing back a zeroed media byte. The
+image then read as `Bad media types 00/fe, probably non-MSDOS disk` and every
+mtools call failed. Retrying did not help; it needed a byte-level repair of the
+FAT at offset `0x400`.
+
+Two protections now exist:
+
+- **The API refuses to write when space is low**, and the check accounts for the
+  size of the write being attempted. A 120 KB write against 53 KB free returns
+  `507` rather than failing half way, because running out mid-write is what
+  damages the volume.
+- **`/api/reset` restores from `saves/dos62v6.pristine.hdm`** and reboots the
+  guest. About 48 seconds.
+
+The pristine master is a copy of the working floppy taken when it was known good.
+**It is not regenerable from this repository**, because the image is built from
+the DOS 6.2 and SDK discs, so treat it as the only copy.
+
+Reset sequence, and why each step is there:
+
+1. `FD0EJECT` first, or the guest writes its in-memory copy back over the file
+2. overwrite the working image from the master
+3. `FD0UP` then `FD0LOAD`
+4. **`RESET F0`**: re-attaching alone leaves the guest holding its previous
+   state: measured, compiles kept failing with "did not finish" until the reboot
+
 ### Files, on the mounted image
 
 ```
@@ -101,7 +135,12 @@ through the supervisor's key path and mangles `:`. All redirection therefore
 lives in a batch file written host-side, and the client types only the batch
 name.
 
-**4. Files must be in the image before the attach.** Writing with `mtools` into
+**4. Cleanup ran only on the success path.** Every failed or timed-out compile
+left three files behind. After about 150 of them the volume filled and the FAT
+corrupted itself. Cleanup now runs on every exit path and removes the `.C` and
+`.OBJ` as well, because the response already carries everything they contained.
+
+**5. Files must be in the image before the attach.** Writing with `mtools` into
 an image the emulator already holds is lost on the next flush. The order is
 eject → delete → write → attach, and the server enforces it.
 
