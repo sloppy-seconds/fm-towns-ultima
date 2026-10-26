@@ -161,6 +161,43 @@ it, what is stale elsewhere. `node tools/sessionreport.js` first, then the repor
 **One page per lever or class-level cause. One row per routine in the queue list.** The queue
 list is the record of the grind. Prose about a single routine belongs in its queue row.
 
+## Pass 2 tally
+
+**Recovered: 27, up from 10.** Forty-six of the 76 base-fold routines have now been worked,
+and 34 remain unattempted. The table below is the state at the time of writing and
+`docs/routines.json` is authoritative if the two disagree.
+
+| class | count | meaning |
+|---|---|---|
+| `matched` | 10 | byte identical, the c-leaf set |
+| `base-fold` | 17 | recovered under the identical-except-disp32 standard |
+| `unresolved` | 14 | attempted, cause named, returns to the queue on unlock |
+| `not-c` | 24 | no C source produces it, with the reason |
+| `register-choice` | 1 | `0xe140c`, one lever from matching |
+
+**Three class causes account for most of the parks**, and each has its own page so it is
+recorded once rather than per routine:
+
+| class | page | routines |
+|---|---|---|
+| relocation | [nonleaf-relocation-ceiling.md](nonleaf-relocation-ceiling.md) | the whole non-leaf set, handled by `tools/cmpdisp.js` |
+| compiler generation | [compiler-generation.md](compiler-generation.md) | 3 parked, 29 routines affected |
+| nobase SIB | [nobase-sib.md](nobase-sib.md) | 3 parked |
+
+**The tool was the bottleneck, not the source.** `tools/cmpdisp.js` is what made this pass
+possible, because `cc.sh --want` can only test byte equality and every routine with a
+relocation read as a mismatch. Two defects in the tool were found by using it, and both are
+the same shape as this project's documented failure mode:
+
+- it masked only when base and index were both null, so `89 82 <disp32>` was reported as
+differing in three bytes that are a relocation.
+- it did not mask the byte-moffs opcodes `a0` and `a2`, so `0x100307` was wrongly classed as
+  parked, and briefly appeared in a class page on the strength of it. With that fixed it is
+  `identical except disp32`.
+
+A mask that is too narrow invents parks. That is worth remembering before any future
+conclusion is drawn from a park count.
+
 ## Pass 2 first results
 
 Six base-fold routines recovered under the `identical except disp32` standard, from 10

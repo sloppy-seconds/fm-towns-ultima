@@ -120,7 +120,8 @@
       "callers": 2,
       "bytes": 31,
       "class": "unresolved",
-      "what": "No prologue, arg in al, returns ax/dx. Convention unexplained, may not be C."
+      "what": "No prologue, arg in al, returns ax/dx. Convention unexplained, may not be C.",
+      "evidence": "Determined by tools/preflight.js. docs/decompilation-experiment.md records that it has no prologue, returns in ax/dx and uses mul bx, and that it may be a register-based calling convention rather than a non-C construct. docs/highc-codegen.md measures that High C passes no arguments in registers. Left undecided rather than classified, because the experiment page warns that calling it not-C would be a stronger claim than the evidence."
     },
     {
       "addr": "ff9dd",
@@ -394,9 +395,9 @@
       "addr": "fea82",
       "callers": 1,
       "bytes": 33,
-      "class": "unresolved",
+      "class": "not-c",
       "what": "Zeroes 0xdee90 (word) then a 0x40-iteration loop clearing 6 bytes each at 0xdef45. Uses pushal/popal.",
-      "evidence": "Contains pushal/popal, which High C has no source construct for. Same not-c reason as the ten already classified, but it is a call target so it belongs in the register rather than outside the census."
+      "evidence": "Contains pushal and popal (60 and 61). High C has no source construct for either, which is the same reason the other not-c entries are excluded. It is a call target, so it belongs in the register rather than outside the census, but it cannot be reproduced by C source."
     },
     {
       "addr": "ffa44",
