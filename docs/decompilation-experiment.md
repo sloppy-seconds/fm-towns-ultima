@@ -1427,3 +1427,87 @@ same thing, and if that ever opens all three fall together.
 
 The `not-c` ten are not abandoned, they are deferred to a different method:
 reading and documenting the behaviour, since there is no C to match.
+
+## Result 22: TownsOS 1.1 carries TownsMENU on the disk, and that is the best starting point found
+
+`saves/tos11.hdm` had never been examined. It is the most useful image in the
+repository.
+
+### What is on it
+
+Volume label `123`, 1,232 KB floppy, `IPL4` boot sector, and a genuine TownsOS 1.1
+boot disk dated `1991-02-01`:
+
+| file | size | what it is |
+|---|---|---|
+| `TMENU.EXP` | 240,602 | **TownsMENU itself, on the disk** |
+| `RUN386.EXE` | 71,376 | the Phar Lap extender |
+| `CONTROL.EXE` | 41,140 | the TownsMENU launcher |
+| `IO.SYS` | 77,824 | TownsOS kernel |
+| `TBIOS.SYS` + `TBIOS.BIN` | 387 + 81,920 | Towns BIOS driver |
+| `DICUTY.COM` | 1,000 | dictionary utility |
+
+`CONFIG.SYS` is two lines:
+
+```
+SHELL=C:\COMMAND.COM C:\ /P
+DEVICE=TBIOS.SYS /TBIOS.BIN
+```
+
+`AUTOEXEC.BAT` launches `CONTROL` directly, in a restart loop.
+
+Four files are **ours, not Fujitsu's**: `TGDRV.COM`, `DPAT.EXG`, `HDUTY.EXG` and
+`FMT.EXP`, all dated `2026-10-25`. They were added in an earlier session and are
+not part of the original disk.
+
+### TownsMENU boots from it
+
+Booting the image with `-BOOTKEY F0` and the High C SDK CD attached produces a
+TownsMENU desktop, measured from the screen:
+
+```
+row 1-2   menu bar
+row 3     separator
+row 4-23  bordered panel, 27 percent white
+row 25    status line
+```
+
+That is a window layout, not a text prompt. **TownsMENU is reachable without the
+CD**, because `TMENU.EXP` is on the floppy. This is the first configuration where
+that is true.
+
+### But the guest cannot write to the floppy
+
+This is what blocked the next step, and it cost three attempts before being
+diagnosed.
+
+A traced `AUTOEXEC.BAT` that wrote `T.LOG` produced no file. A typed
+`ECHO ALIVE > A:\A.TXT` at the desktop produced no file. Re-issuing `FD0UP`
+first changed nothing.
+
+**So the desktop comes up and the volume is read-only.** Writing a probe to disk
+and reading it back, which is the method this project uses for every other
+bring-up, does not work here.
+
+`FD0UP` is documented in `container/entrypoint.sh` as re-arming write protection,
+and `docs/compiling-on-fm-towns.md` records that without it guest writes silently
+do nothing. Here it appears to be on regardless. That has not been explained.
+
+### Why this matters
+
+Gemini's description of a 1989 dev setup said developers ran a hard disk with the
+OS and toolchain on it. This disk is the closest thing in the repository to that:
+TownsMENU resident, `RUN386` present, no CD needed to boot.
+
+The remaining gap is writable storage. Three candidates, cheapest first:
+
+1. **Fix the floppy write problem.** If the guest can write to `scratch-tos11.hdm`
+   at all, then a compiled object has somewhere to land and the whole
+   `RUN386 HCD386P.EXP` question becomes testable on a floppy.
+2. **Attach the 64 MB `genhd2.img` as a second drive** and write there. Untested
+   with this boot configuration.
+3. **Boot the SDK CD and use `Q:` for the toolchain, with the floppy for output**,
+   which is the configuration the developers are said to have used in reverse.
+
+Not attempted here. The write-protection question has to be settled first,
+because every one of the three depends on it.
