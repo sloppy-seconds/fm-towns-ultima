@@ -67,6 +67,36 @@ function requirePython() {
 //   { type: 'reg', name }
 // `skips` are byte addresses Capstone could not decode, which in a region containing
 // data is normal and is reported rather than hidden.
+// Turn one worker record into an instruction object, or null for a skip/marker.
+// Shared by decode() and decodeMany() so the operand-shape rules cannot drift
+// between the single and batch paths.
+function recordToInsn(r) {
+	const operands = (r.o || []).map((o) => {
+		if (Array.isArray(o)) {
+			if (o[0] === 'mem') {
+				// ABSENT REGISTERS BECOME null, NOT EMPTY STRING. The Python worker emits ''
+				// for a missing base or index, and '' is falsy in JavaScript, so
+				// `op.base && op.index` silently produced 'absolute' for `[edx*4+disp]`,
+				// which has an index and NO base. That misfiled every jump table as a
+				// global and made globals.js disagree with globals_od.js on 7 routines.
+				// The shape of the bug is the same as every other one this session: a
+				// detector answering a slightly different question than the one asked.
+				return {
+					type: 'mem',
+					base: o[1] || null,
+					index: o[2] || null,
+					scale: o[3],
+					disp: o[4],
+				};
+			}
+			if (o[0] === 'imm') return { type: 'imm', value: o[1] };
+			if (o[0] === 'reg') return { type: 'reg', name: o[1] };
+		}
+		return { type: 'str', text: String(o) };
+	});
+	return { addr: r.a, size: r.s, mnemonic: r.m, operands };
+}
+
 function decode(lo, hi, opts = {}) {
 	const args = [
 		path.join(__dirname, 'decode_worker.py'),
@@ -92,32 +122,60 @@ function decode(lo, hi, opts = {}) {
 			skips.push(r.skip);
 			continue;
 		}
-		const operands = (r.o || []).map((o) => {
-			if (Array.isArray(o)) {
-				if (o[0] === 'mem') {
-					// ABSENT REGISTERS BECOME null, NOT EMPTY STRING. The Python worker emits ''
-					// for a missing base or index, and '' is falsy in JavaScript, so
-					// `op.base && op.index` silently produced 'absolute' for `[edx*4+disp]`,
-					// which has an index and NO base. That misfiled every jump table as a
-					// global and made globals.js disagree with globals_od.js on 7 routines.
-					// The shape of the bug is the same as every other one this session: a
-					// detector answering a slightly different question than the one asked.
-					return {
-						type: 'mem',
-						base: o[1] || null,
-						index: o[2] || null,
-						scale: o[3],
-						disp: o[4],
-					};
-				}
-				if (o[0] === 'imm') return { type: 'imm', value: o[1] };
-				if (o[0] === 'reg') return { type: 'reg', name: o[1] };
-			}
-			return { type: 'str', text: String(o) };
-		});
-		insns.push({ addr: r.a, size: r.s, mnemonic: r.m, operands });
+		insns.push(recordToInsn(r));
 	}
 	return { insns, skips };
+}
+
+// Decode MANY ranges in ONE worker process.
+//
+// WHY THIS EXISTS. Each decode() call spawns a Python interpreter and imports
+// Capstone, which costs about 120ms of pure startup. The base-fold scans ask for one
+// short window per routine, 76 of them, and paid that 76 times: `globals.js
+// --width-check` alone took 11s, almost all of it interpreter startup rather than
+// decoding. Batching the ranges into one process removes all but one import.
+//
+// Returns an array parallel to `ranges`, each entry { insns, skips }, so a caller can
+// drop it in where it previously looped decode() per address.
+function decodeMany(ranges, opts = {}) {
+	if (!ranges.length) return [];
+	const spec = ranges.map(([lo, hi]) =>
+		'0x' + lo.toString(16) + ':0x' + hi.toString(16)).join(',');
+	const args = [
+		path.join(__dirname, 'decode_worker.py'),
+		'--ranges', spec,
+	];
+	if (opts.detail !== false) args.push('--detail');
+	if (opts.image) args.push('--image', opts.image);
+
+	requirePython();
+	const out = execFileSync(pythonBin(), args, {
+		encoding: 'utf8',
+		stdio: 'pipe',
+		maxBuffer: 512 * 1024 * 1024,
+	});
+
+	const results = [];
+	let cur = null;
+	for (const line of out.split('\n')) {
+		if (!line) continue;
+		const r = JSON.parse(line);
+		if (r.range !== undefined) {
+			cur = { insns: [], skips: [] };
+			results.push(cur);
+			continue;
+		}
+		if (!cur) throw new Error('decodeMany: record before first range marker');
+		if (r.skip !== undefined) {
+			cur.skips.push(r.skip);
+			continue;
+		}
+		cur.insns.push(recordToInsn(r));
+	}
+	if (results.length !== ranges.length) {
+		throw new Error(`decodeMany: ${ranges.length} ranges requested, ${results.length} returned`);
+	}
+	return results;
 }
 
 // --- the questions the old text parsers were asking -----------------------
@@ -192,6 +250,7 @@ function directTarget(ins) {
 
 module.exports = {
 	decode,
+	decodeMany,
 	pythonAvailable,
 	pythonBin,
 	requirePython,

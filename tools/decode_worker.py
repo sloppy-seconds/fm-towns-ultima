@@ -37,53 +37,77 @@ import sys
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--lo', type=lambda s: int(s, 0), required=True)
-    ap.add_argument('--hi', type=lambda s: int(s, 0), required=True)
+    ap.add_argument('--lo', type=lambda s: int(s, 0))
+    ap.add_argument('--hi', type=lambda s: int(s, 0))
+    ap.add_argument('--ranges', default=None,
+                    help='comma-separated lo:hi pairs, decoded in one process so '
+                         'Capstone is imported once instead of once per range')
     ap.add_argument('--image', default=None)
     ap.add_argument('--detail', action='store_true',
                     help='include operand structure (slower, needed for memoryReference questions)')
     args = ap.parse_args()
 
+    # Batch mode: a caller that needs many short ranges (the base-fold scans ask for
+    # 76 one-routine windows) would otherwise pay the Python interpreter start and the
+    # Capstone import 76 times. Measured: 76 separate decode() calls took 11s, mostly
+    # interpreter startup. One process with 76 ranges skips all but one of those.
+    ranges = None
+    if args.ranges:
+        ranges = []
+        for part in args.ranges.split(','):
+            lo_s, hi_s = part.split(':')
+            ranges.append((int(lo_s, 0), int(hi_s, 0)))
+    elif args.lo is not None and args.hi is not None:
+        ranges = [(args.lo, args.hi)]
+    else:
+        ap.error('need either --ranges or both --lo and --hi')
+
     import capstone
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     path = args.image or os.path.join(root, 'ENCHANT.EXP')
-    with open(path, 'rb') as fh:
-        fh.seek(args.lo)
-        blob = fh.read(args.hi - args.lo)
 
     md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
     md.detail = args.detail
-
     out = sys.stdout
-    off = 0
-    n = len(blob)
-    while off < n:
-        progressed = False
-        for ins in md.disasm(blob[off:], args.lo + off):
-            rec = {'a': ins.address, 's': ins.size, 'm': ins.mnemonic}
-            if args.detail:
-                ops = []
-                for op in ins.operands:
-                    if op.type == capstone.x86.X86_OP_MEM:
-                        m = op.mem
-                        ops.append(['mem',
-                                    ins.reg_name(m.base) if m.base else '',
-                                    ins.reg_name(m.index) if m.index else '',
-                                    m.scale, m.disp])
-                    elif op.type == capstone.x86.X86_OP_IMM:
-                        ops.append(['imm', op.imm])
-                    elif op.type == capstone.x86.X86_OP_REG:
-                        ops.append(['reg', ins.reg_name(op.reg)])
-                rec['o'] = ops
-            else:
-                rec['o'] = ins.op_str
-            out.write(json.dumps(rec, separators=(',', ':')) + '\n')
-            off = ins.address - args.lo + ins.size
-            progressed = True
-        if not progressed:
-            out.write(json.dumps({'skip': args.lo + off}) + '\n')
-            off += 1
+
+    with open(path, 'rb') as fh:
+        for (lo, hi) in ranges:
+            fh.seek(lo)
+            blob = fh.read(hi - lo)
+            # A marker line makes the batch unambiguous when the caller splits the
+            # stream back into ranges: instruction records and skip records can
+            # otherwise run together across a range boundary.
+            if args.ranges:
+                out.write(json.dumps({'range': lo}) + '\n')
+            off = 0
+            n = len(blob)
+            while off < n:
+                progressed = False
+                for ins in md.disasm(blob[off:], lo + off):
+                    rec = {'a': ins.address, 's': ins.size, 'm': ins.mnemonic}
+                    if args.detail:
+                        ops = []
+                        for op in ins.operands:
+                            if op.type == capstone.x86.X86_OP_MEM:
+                                m = op.mem
+                                ops.append(['mem',
+                                            ins.reg_name(m.base) if m.base else '',
+                                            ins.reg_name(m.index) if m.index else '',
+                                            m.scale, m.disp])
+                            elif op.type == capstone.x86.X86_OP_IMM:
+                                ops.append(['imm', op.imm])
+                            elif op.type == capstone.x86.X86_OP_REG:
+                                ops.append(['reg', ins.reg_name(op.reg)])
+                        rec['o'] = ops
+                    else:
+                        rec['o'] = ins.op_str
+                    out.write(json.dumps(rec, separators=(',', ':')) + '\n')
+                    off = ins.address - lo + ins.size
+                    progressed = True
+                if not progressed:
+                    out.write(json.dumps({'skip': lo + off}) + '\n')
+                    off += 1
 
 
 if __name__ == '__main__':

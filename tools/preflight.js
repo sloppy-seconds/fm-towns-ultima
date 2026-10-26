@@ -135,13 +135,29 @@ function cleanEntry(buf, addr, width = 8) {
 // because this is the fourth tool to get the 0x20 relationship wrong.
 const { rawToStripped } = require('./imgbase.js');
 
+// ONE WALK, MANY QUESTIONS.
+//
+// This used to spawn `cfgwalk.js --check <addr>` per address, and a full call-graph
+// walk costs about 1.4s, so a caller asking about seven addresses paid ten seconds for
+// the same walk seven times. The walk is deterministic and depends only on the image,
+// so it is built once per process and the boundary set is queried in memory. The verdict
+// is identical: `walk()` returns the same `boundary` Set that --check tests membership
+// against.
+let _walkCache = null;
+function boundarySet() {
+	if (_walkCache) return _walkCache;
+	const cw = require('./cfgwalk.js');
+	const img = cw.loadImage();
+	const seeds = cw.callTargets(img);
+	const r = cw.walk(img, seeds);
+	_walkCache = r.boundary;
+	return _walkCache;
+}
+
 function boundaryOk(rawAddr) {
 	try {
 		const stripped = rawToStripped(rawAddr);
-		const out = execFileSync('node', [path.join(__dirname, 'cfgwalk.js'), '--check', '0x' + stripped.toString(16)], {
-			encoding: 'utf8', stdio: 'pipe',
-		});
-		return /is 0x[0-9a-f]+ a boundary:\s+true/i.test(out);
+		return boundarySet().has(stripped);
 	} catch {
 		return null;
 	}
@@ -417,4 +433,6 @@ function main() {
 	console.log(`  ${c.verdict}`);
 }
 
-main();
+module.exports = { classify, boundaryOk, callCounts, load };
+
+if (require.main === module) main();

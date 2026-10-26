@@ -400,4 +400,11 @@ function main() {
 	}
 }
 
+// Exported so a caller that asks about many addresses can build the walk once.
+// `preflight.js` used to spawn this tool per address to answer "is this a boundary",
+// and a full call-graph walk costs ~1.4s, so seven questions cost ten seconds. The
+// walk is identical every time, so it is built once and the boundary set is queried
+// in memory.
+module.exports = { loadImage, callTargets, walk, startsWithPrologue };
+
 if (require.main === module) main();

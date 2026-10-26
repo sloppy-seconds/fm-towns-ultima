@@ -75,12 +75,34 @@ function auditAddressSpace() {
 // expected address is read independently from the disassembly below, not from
 // the detector, so agreement means two methods agree.
 
+// IN-PROCESS. This used to spawn `preflight.js` per address, and preflight builds a full
+// call-graph walk (~1.5s) on every start, so seven assertions cost ten seconds. The
+// classification is a pure function of the image, so it runs here instead. The value
+// returned is the same `absRef` field the CLI prints as "absolute data ref: ...".
+let _pre = null;
 function preflight(addr) {
-	const out = execFileSync('node', [path.join(ROOT, 'tools', 'preflight.js'), '0x' + addr.toString(16)],
-		{ encoding: 'utf8', stdio: 'pipe' });
-	const m = out.match(/absolute data ref:\s+(0x[0-9a-f]+|none)/i);
-	if (!m) return 'PARSE-FAILED';
-	return m[1].toLowerCase();
+	try {
+		if (!_pre) {
+			const p = require('./preflight.js');
+			_pre = { p, buf: p.load(), counts: p.callCounts() };
+		}
+		const c = _pre.p.classify(_pre.buf, addr, _pre.counts);
+		return c.absRef ? c.absRef.toLowerCase() : 'none';
+	} catch {
+		return 'PARSE-FAILED';
+	}
+}
+
+function preflightBoundary(addr) {
+	try {
+		if (!_pre) {
+			const p = require('./preflight.js');
+			_pre = { p, buf: p.load(), counts: p.callCounts() };
+		}
+		return _pre.p.boundaryOk(addr) === true;
+	} catch {
+		return null;
+	}
 }
 
 function auditPreflight() {
@@ -117,9 +139,8 @@ function auditPreflight() {
 	// boundary there whether it is given the raw or the stripped address, so the
 	// assertion passed with the offset deliberately broken. 0xe9e2c does
 	// distinguish: raw gives false, stripped gives true. Measured, not assumed.
-	const verdict = execFileSync('node', [path.join(ROOT, 'tools', 'preflight.js'), '0xe9e2c'],
-		{ encoding: 'utf8', stdio: 'pipe' });
-	const boundaryTrue = /instruction boundary:\s+true/i.test(verdict);
+	const verdict = preflightBoundary(0xe9e2c);
+	const boundaryTrue = verdict === true;
 	if (boundaryTrue) ok('preflight converts to stripped before asking cfgwalk (0xe9e2c discriminates)');
 	else fail('preflight converts to stripped before asking cfgwalk (0xe9e2c discriminates)',
 		'reported not-a-boundary; boundaryOk is passing a raw address to cfgwalk.js');

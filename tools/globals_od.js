@@ -112,6 +112,42 @@ function nextStart(addr) {
 	return addr + 1024;
 }
 
+// ONE OBJDUMP FOR THE WHOLE CODE REGION.
+//
+// disasm() is called once per routine by --compare, and each call spawned objdump for a
+// ~50-byte window. Measured: 76 spawns of a short window took ~24s, while one objdump
+// over the whole 0xe0000-0x105000 region takes ~35ms and contains every window. So the
+// full region is disassembled once, indexed by address, and each routine slices its rows
+// out of it. The rows are identical: objdump is deterministic over a fixed byte range and
+// the later rows do not depend on where the start-address fell.
+let _rowCache = null;
+let _rowAddrs = null;
+function allRows() {
+	if (_rowCache) return _rowCache;
+	// Cover exactly the image. Asking objdump to disassemble a range larger than the file
+	// makes it pad or complain, and 0x200000 was twice the file size, which doubled the
+	// cost of building this cache. The image length is the true upper bound.
+	const hiBound = fs.statSync(imagePath()).size;
+	const rows = disasm(0x0, hiBound);
+	_rowCache = rows;
+	_rowAddrs = rows.map((r) => r.addr);
+	return _rowCache;
+}
+
+// The rows in [lo, hi), taken from the single cached disassembly.
+function rowsIn(lo, hi) {
+	const all = allRows();
+	// Lower bound: first row with addr >= lo. Rows are in ascending address order.
+	let a = 0, b = _rowAddrs.length;
+	while (a < b) {
+		const mid = (a + b) >> 1;
+		if (_rowAddrs[mid] < lo) a = mid + 1; else b = mid;
+	}
+	const out = [];
+	for (let i = a; i < all.length && all[i].addr < hi; i++) out.push(all[i]);
+	return out;
+}
+
 function refs(addr) {
 	// BOUND BY THE FIRST RET, not by the next corpus entry.
 	//
@@ -123,7 +159,7 @@ function refs(addr) {
 	// fault. `shouldStop` now ends the scan at the first ret, which is what the routine
 	// boundary actually is here.
 	const hi = Math.min(nextStart(addr), addr + 4096);
-	const rows = disasm(addr, hi);
+	const rows = rowsIn(addr, hi);
 	const out = [];
 	for (const r of rows) {
 		// THE RET TEST MUST COME FIRST. Every other branch in this loop is a `continue`,
@@ -161,25 +197,29 @@ function main() {
 		const addrs = baseFoldAddrs();
 		let agree = 0;
 		const disagree = [];
-		for (const a of addrs) {
+		// IN-PROCESS, ONE DECODE. This loop used to shell out to `node globals.js <addr>`
+		// per routine, which is ~140ms of Node startup each and made --compare take 25s.
+		// The comparison is the same either way: globals.js exports scanRoutine, so the
+		// identical code runs here with no subprocess. The reference set is built from the
+		// same 'data' classification the CLI prints.
+		const gj = require('./globals.js');
+		const buf = fs.readFileSync(imagePath());
+		const decoded = require('./decode.js').decodeMany(
+			addrs.map((a) => [a, gj.nextBoundary(a)]), { image: imagePath() });
+		for (let i = 0; i < addrs.length; i++) {
+			const a = addrs[i];
 			const mine = refs(a);
 			const mineGlobals = new Set(mine.filter((r) => r.kind !== 'relative').map((r) => r.disp));
-			let theirs = '';
+			// The 'data' references globals.js would print, taken from the same routine
+			// scan rather than from parsing its stdout. This is the section the old code
+			// extracted with `split('code references excluded')[0]`, kept equivalent.
+			let theirsGlobals;
 			try {
-				theirs = execFileSync('node', [path.join(__dirname, 'globals.js'), '0x' + a.toString(16)], {
-					cwd: ROOT, encoding: 'utf8', stdio: 'pipe',
-				});
-			} catch { /* none */ }
-			// Parse ONLY the data-reference lines. The first version of this comparison
-			// matched every `-> 0x...` in the output, including the section headed
-			// "code references excluded", and so reported 53 disagreements that were
-			// entirely its own fault: globals.js was right and had already excluded
-			// every branch target the comparison was counting as a global.
-			// A comparison that reads the wrong section of its input is the same
-			// defect class as the tools it is checking.
-			const dataSection = theirs.split('code references excluded')[0];
-			const theirsGlobals = new Set(
-				[...dataSection.matchAll(/->\s+0x([0-9a-f]+)/g)].map((m) => parseInt(m[1], 16)));
+				const theirs = gj.scanRoutine(buf, a, decoded[i].insns);
+				theirsGlobals = new Set(theirs.filter((r) => r.kind === 'data').map((r) => r.value));
+			} catch {
+				theirsGlobals = new Set();
+			}
 			const same = mineGlobals.size === theirsGlobals.size
 				&& [...mineGlobals].every((v) => theirsGlobals.has(v));
 			if (same) agree++;

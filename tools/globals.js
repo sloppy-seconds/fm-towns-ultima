@@ -113,8 +113,16 @@ function classify(mnemonic, text) {
 // reads text to compare access WIDTHS. The reference scan itself now goes through
 // tools/decode.js and reads operand TYPES, because inferring them from text produced
 // two bugs in one session and both are unexpressible with a typed operand model.
-function scanRoutine(buf, addr) {
-	const { insns } = require('./decode.js').decode(addr, nextBoundary(addr));
+function scanRoutine(buf, addr, predecoded = null) {
+	// `predecoded` lets a caller that has already batched the decode hand the instructions
+	// in, instead of this function spawning a decoder per routine. globals_od.js --compare
+	// scans all 76 base-fold routines and used to pay one interpreter start each.
+	let insns;
+	if (predecoded) {
+		insns = predecoded;
+	} else {
+		insns = require('./decode.js').decode(addr, nextBoundary(addr)).insns;
+	}
 	const stop = require('./decode.js').toFirstRet(insns);
 	const refs = [];
 	for (const ins of stop) {
@@ -204,7 +212,6 @@ function baseFoldAddrs() {
 function main() {
 	const args = process.argv.slice(2);
 	const buf = load();
-
 	// --width-check: a global must be accessed at ONE width across all its users.
 	//
 	// WHY THIS IS A SUBCOMMAND AND NOT A SCRATCH SCRIPT. It was a scratch script, and
@@ -254,8 +261,16 @@ function main() {
 			return null;
 		}
 		const uses = new Map();
-		for (const addr of baseFoldAddrs()) {
-			const { insns } = require('./decode.js').decode(addr, nextBoundary(addr), { image: imagePath() });
+		// ONE worker process for every routine, not one per routine. Measured: 76 separate
+		// decode() calls took 11s, nearly all Python interpreter startup. Batched, the
+		// same work is a fraction of a second. The per-routine { insns, skips } shape is
+		// identical, so the loop body does not change.
+		const addrs = baseFoldAddrs();
+		const decoded = require('./decode.js').decodeMany(
+			addrs.map((addr) => [addr, nextBoundary(addr)]), { image: imagePath() });
+		for (let i = 0; i < addrs.length; i++) {
+			const addr = addrs[i];
+			const { insns } = decoded[i];
 			const stop = require('./decode.js').toFirstRet(insns);
 			for (const ins of stop) {
 				if (!/^mov$/i.test(ins.mnemonic)) continue;
@@ -348,4 +363,9 @@ function main() {
 	for (const r of code) console.log(`    at 0x${r.at.toString(16)}  -> 0x${r.value.toString(16)}   ${r.text}`);
 }
 
-main();
+module.exports = { scanRoutine, baseFoldAddrs, nextBoundary, describe };
+
+// Only run the CLI when invoked directly. globals_od.js --compare requires this module
+// to call scanRoutine in-process, and without this guard that require would execute the
+// whole CLI as a side effect.
+if (require.main === module) main();
