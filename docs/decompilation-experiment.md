@@ -1185,3 +1185,86 @@ trusting a heuristic because it looks right.
 
 The correct count is now 24 candidates, three matched, and the earlier "60 percent
 of five" figure stands on routines that are all still in this list.
+
+## Result 19: four defences against the defect pattern, and each one proved it can fail
+
+Four defects in `tools/preflight.js` and one in `tools/trycands.py` reached
+commits. All five were silent, all five produced a plausible wrong answer, and
+`node tools/checkall.js` passed every time because its nine checks inspect
+documents and not tool logic.
+
+Four changes, in order of leverage.
+
+### 1. `tools/imgaudit.js`, asserted against known verdicts
+
+23 assertions, wired into `checkall.js` as a tenth check. Four groups:
+
+- **the address space**: the `MP` header arithmetic reproduces the file size
+  (1,072,398), `rawToStripped` and `strippedToRaw` round trip, and a raw offset
+  below the header throws rather than wrapping
+- **the absolute-reference detector**: the `[ModRM][SIB][disp32]` form
+  (`0xf3e24` -> `0x77e90`), the `mov [abs],imm` form (`0xef548` -> `0xd6e60`), a
+  plain folded base (`0xefaf4` -> `0xbd578`), and three matched routines that must
+  report `none` so the detector cannot be fixed by over-reporting
+- **the matched routines' bytes**, which pin the ground truth the byte matching
+  rests on
+- **a scan that no tool hands a disassembler a fixed `/var/tmp` path**
+
+**Every assertion was deliberately broken and watched to fail.** Measured:
+
+| broken | assertion that fired |
+|---|---|
+| removed `mod=00 rm=101` | `preflight detects mov [abs],imm (0xef548)` |
+| removed the SIB case | `preflight detects the SIB form (0xf3e24)` |
+| `boundaryOk` given a raw address | `preflight converts to stripped (0xe9e2c)` |
+| fixed temp path reintroduced | `no tool disassembles a fixed /var/tmp path` |
+
+### The near miss, which is the useful part
+
+The offset assertion was first written against `0xe9940`. With the conversion
+deliberately broken, **it still passed**: `cfgwalk` reports a boundary at
+`0xe9940` whether it is given the raw or the stripped address. The check would
+have been decoration.
+
+`0xe9e2c` discriminates, measured by asking `cfgwalk` both ways:
+
+```
+0xe9e2c raw:      boundary: false
+0xe9e2c stripped: boundary: true
+```
+
+So the assertion moved to `0xe9e2c` and now fails when it should.
+
+**The rule: write the assertion against a case where the wrong answer and the
+right answer differ.** A test that cannot distinguish them buys confidence it has
+not earned, which is exactly the failure mode the other five defects shared.
+
+### 2. Tools print what they read
+
+`tools/imgbase.js` is now the only place that converts between raw and stripped,
+and `readRoutine` returns the bytes with their source path, raw offset, stripped
+offset and leading 16 bytes. `tools/trycands.py` prints that provenance line
+before any comparison, so a misaligned read is visible before it is trusted.
+
+The defect this guards was invisible precisely because the output looked normal.
+
+### 3. No shared temp paths
+
+`tools/trycands.py` and `tools/funcs.js` both handed `ndisasm` a fixed file path.
+Both now pass bytes on stdin. A stale `/var/tmp/funcs-at.bin` was found on disk
+during this work, 32 bytes, left over from an earlier run, which is the hazard
+made concrete rather than theoretical.
+
+### 4. One offset convention, enforced
+
+`tools/imgbase.js` owns the relationship. `tools/preflight.js` calls
+`rawToStripped()` instead of doing the arithmetic inline. `tools/imgaudit.js`
+asserts the round trip and the guard.
+
+### What is still not covered
+
+`tools/cfgwalk.js` and `tools/funcs.js` still do their own header arithmetic
+internally rather than importing the helper. They are consistent today and the
+audit pins their observable behaviour, but the unification is incomplete. That is
+a deliberate stopping point: `cfgwalk.js` has its own test surface and changing
+its internals risks more than it gains right now.

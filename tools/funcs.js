@@ -90,8 +90,11 @@ function main() {
 		// sits at stripped 0xe1c5c and raw 0xe1c7c.
 		const entry = Number(args[1]);
 		const len = args[2] ? Number(args[2]) : 0x200;
-		const out = '/var/tmp/funcs-at.bin';
-		fs.writeFileSync(out, buf.subarray(entry, entry + len));
+		// Bytes go to ndisasm on STDIN, not through a file. A fixed path here is the
+		// exact hazard that produced a fabricated disassembly in tools/trycands.py:
+		// when the write did not happen, ndisasm disassembled a stale file and the
+		// output looked completely normal. tools/imgaudit.js asserts that no tool
+		// disassembles a fixed /var/tmp path.
 		// Label the origin as the STRIPPED address, which is the address space the whole
 		// project uses (base 0 over the header-stripped image).
 		//
@@ -103,7 +106,8 @@ function main() {
 		//
 		// Measured, not assumed: the randMod prologue is at stripped 0xe1c5c and raw
 		// 0xe1c7c.
-		const text = execFileSync('ndisasm', ['-b32', '-o' + entry, out], {
+		const text = execFileSync('ndisasm', ['-b32', '-o' + entry, '-'], {
+			input: buf.subarray(entry, entry + len),
 			encoding: 'utf8',
 		});
 		process.stdout.write(text);

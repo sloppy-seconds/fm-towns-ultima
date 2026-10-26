@@ -132,11 +132,14 @@ function cleanEntry(buf, addr, width = 8) {
 // the stripped address. This tool reports raw file offsets. Passing a raw address
 // straight through makes every routine look like a non-boundary, which silently
 // disqualified the entire queue before this was found.
-const HEADER = 0x20;
+//
+// The conversion lives in tools/imgbase.js and is asserted in tools/imgaudit.js,
+// because this is the fourth tool to get the 0x20 relationship wrong.
+const { rawToStripped } = require('./imgbase.js');
 
 function boundaryOk(rawAddr) {
 	try {
-		const stripped = rawAddr - HEADER;
+		const stripped = rawToStripped(rawAddr);
 		const out = execFileSync('node', [path.join(__dirname, 'cfgwalk.js'), '--check', '0x' + stripped.toString(16)], {
 			encoding: 'utf8', stdio: 'pipe',
 		});

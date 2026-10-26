@@ -49,6 +49,11 @@ def target_bytes(addr):
         blob = fh.read(4096)
     if not blob:
         raise SystemExit('no bytes at %s' % hex(addr))
+    # ndisasm reads the bytes from stdin. Deliberately NOT a temp file: an earlier
+    # version wrote /var/tmp/r.bin and disassembled that path, so when the write
+    # did not happen ndisasm disassembled the PREVIOUS routine and reported it as
+    # the target with no error. Nothing in this file may route bytes through a
+    # shared path. tools/imgaudit.js asserts this.
     out = subprocess.run(['ndisasm', '-b32', '-o', hex(addr), '-'],
                          input=blob, capture_output=True)
     text = out.stdout.decode('latin1')
@@ -121,6 +126,12 @@ def main():
     want = target_bytes(addr)
     if args.limit:
         want = want[:args.limit]
+    # Provenance first. The defect this guards against produced a *plausible*
+    # disassembly of the wrong routine, so the fix is that every run states which
+    # file and offset the bytes came from and shows the leading bytes. If those do
+    # not match the address named on the command line, it is visible before any
+    # comparison happens.
+    print('source %s  raw 0x%x' % (os.path.basename(IMAGE), addr))
     print('target %s  %d bytes' % (args.addr, len(want)))
     print('       %s' % ' '.join('%02x' % b for b in want))
     print()

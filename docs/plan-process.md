@@ -224,7 +224,7 @@ One command, and it returns a real exit code:
 node tools/checkall.js
 ```
 
-Nine checks. **Each was tested by breaking something it should catch and confirming it fails**, because a
+Ten checks. **Each was tested by breaking something it should catch and confirming it fails**, because a
 check that has never been seen to fail is a comment.
 
 | check | what it catches |
@@ -237,7 +237,42 @@ check that has never been seen to fail is a comment.
 | plan format | a planning document not converted to the item format |
 | verify | an established fact that stopped being true |
 | quoted bytes are real | a byte sequence quoted into `docs/` that is not in any binary, and not marked as a paraphrase or as compiler output |
+| image tooling audit | the address and byte-derivation tools, against routines whose answer is known |
 | site build | `mkdocs --strict` warnings |
+
+### Why `image tooling audit` exists, and why it is a different kind of check
+
+Every other check in `checkall.js` inspects **documents**: the nav, the plan metadata, quoted bytes, the
+site build. Not one of them asks whether a tool derives a fact correctly.
+
+That gap was expensive. Four separate defects reached commits in `tools/preflight.js`, all silent, all
+producing a confident wrong answer rather than an error:
+
+1. only checking `buf[i-1]` for `mod=10`, which missed the `[ModRM][SIB][disp32]` layout entirely
+2. requiring **both** bytes before a displacement to look like `mod=10`, when only the ModRM carries the
+   mod bits and the SIB's top two are the scale
+3. `boundaryOk` passing a raw address to `cfgwalk.js`, which works on stripped offsets, so every routine
+   reported "not an instruction boundary" and the whole candidate queue was disqualified
+4. not handling `mod=00 rm=101`, so `mov dword [abs],imm` was invisible and nine routines were offered as
+   candidates while referencing absolute addresses
+
+A fifth, in `tools/trycands.py`, was worse: it disassembled a fixed `/var/tmp` path, so when the write did
+not happen `ndisasm` disassembled the **previous** routine and reported it as the target. Nothing threw.
+That produced a public claim that five pool entries were the same routine. They were not.
+
+**What actually caught each one was a human testing the detector against a routine whose verdict was
+already known.** `tools/imgaudit.js` makes those hand-checks permanent: 23 assertions over the address
+space, the absolute-reference detector, the matched routines' own bytes, and a scan that no tool hands a
+disassembler a fixed temp path.
+
+Four of those assertions are deliberately chosen because they *discriminate*: `0xe9e2c` reports a boundary
+when given the stripped address and not when given the raw one, so the offset assertion can fail. The
+first address tried for that check, `0xe9940`, reported a boundary either way and would have passed with
+the conversion deliberately broken. **A test that cannot fail is worse than no test**, because it buys
+confidence it has not earned.
+
+The rule this leaves behind: **when a tool derives something, the assertion should be written against a
+case where the wrong answer and the right answer differ.** Anything else is decoration.
 
 ### Why `quoted bytes are real` exists
 

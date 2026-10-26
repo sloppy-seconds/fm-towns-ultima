@@ -141,6 +141,25 @@ const runNode = (script, args = []) => {
 	record('quoted bytes are real', r.ok ? [] : r.out.split('\n').filter((l) => /not found in any binary/.test(l)));
 }
 
+// D2. The image tooling audit. Different in kind from every other check here,
+// and its absence is why four separate defects in `preflight.js` reached commits.
+//
+// Every other check in this file inspects *documents*: nav, plan metadata, byte
+// quotes, the site build. None of them looks at whether a tool derives a fact
+// correctly. So a detector that silently answered the wrong question passed every
+// gate, and the only thing that ever caught one was a human testing it against a
+// routine whose verdict was already known.
+//
+// `tools/imgaudit.js` makes those hand-checks permanent. Each case it asserts is
+// an encoding form that was once handled wrongly: the SIB layout, the
+// `mov [abs],imm` form, the raw-versus-stripped 0x20 offset, and the matched
+// routines' own bytes. Every assertion in it has been deliberately broken and
+// watched to fail, which is the standard the rest of this file is held to.
+{
+	const r = runNode('imgaudit.js');
+	record('image tooling audit', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
+}
+
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
 // places, which is exactly why it keeps happening: the doc says it, the agent does not read that doc while
 // writing a batch on autopilot.
