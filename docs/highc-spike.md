@@ -152,6 +152,13 @@ that changed only its optimiser would produce the same code here.
 
 ## The non-leaf test: matching does NOT scale, and the reason is the division
 
+> **SUPERSEDED on the division point, 2026-11.** This test used High C 2.31.
+> High C 1.73, now in the pipeline, emits the game's exact three-pair
+> `cdq/sub/sar` sequence for `(e-6)/2/2/2`, so the division blocker does not
+> apply to the compiler in use. The measurement below is accurate for 2.31
+> and the conclusion drawn from it no longer holds. See
+> `docs/nonleaf-reopened.md`.
+
 `plot` was the easy case. `0xe6a58` was chosen as its opposite: framed, eight arguments, callee-saved registers, a
 division and a clamp. The C was written from the disassembly twice, because the first version was optimised away.
 
