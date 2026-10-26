@@ -1268,3 +1268,66 @@ internally rather than importing the helper. They are consistent today and the
 audit pins their observable behaviour, but the unification is incomplete. That is
 a deliberate stopping point: `cfgwalk.js` has its own test surface and changing
 its internals risks more than it gains right now.
+
+## Result 20: the pool contains two code populations, and the byte match rate means nothing across both
+
+Working the queue found that **8 of the 24 routines are not C-compiled code at
+all.** They cannot match any C, and every attempt on them is wasted.
+
+### What they are
+
+| address | bytes | what it actually is |
+|---|---|---|
+| `0xff9dd` | 6 | `jmp; out dx,al; jmp; ret` |
+| `0xfe0f1` | 75 | `in`/`out` on ports 0x00 and 0x10 |
+| `0xffa72` | 29 | `cli`; `out` port 0xe77, 0xe74 |
+| `0xffa8f` | 18 | `out` port 0xe77, `in` port 0xe74 |
+| `0xffaa1` | 30 | `cli`; `out` ports 0xe77, 0xe75 |
+| `0xff0ba` | 11 | `pusha; mov ecx,0x19; nop; loop; popa; ret` |
+| `0x103f0d` | 7 | `fld`/`ret 8` |
+| `0x103ef3` | 7 | `fld`/`ret 4` |
+| `0x103e64` | 20 | `fnstsw ax`, x87 status inspection |
+| `0x103f6f` | 57 | `rep movsb` and x87, `ret 0xc` |
+| `0xfe95d` | 31 | no prologue, returns in `ax`/`dx`, `mul bx` |
+
+### Why they were in the pool
+
+`tools/preflight.js` selects a routine when it is a real function start, makes no
+calls, and references no absolute address. A BIOS stub satisfies all three: it is
+a leaf, it is reached by a call, and its ports are immediates rather than
+addresses. **The gate has no notion of what the code is**, only of what it does
+not do.
+
+### The address split, which is the useful part
+
+Every non-C routine sits above `0xff000`. The image is `0x105d0e` bytes, and the
+region from `0xff000` to EOF contains `cli`/`sti`, segment loads (`8e d0`) and
+`rep movsb`: 16-bit real-mode support code, the Fujitsu and Phar Lap layer, not
+Origins' C.
+
+```
+below 0xff000   15 routines    game code
+above 0xff000   11 routines    library, BIOS support, x87 helpers
+```
+
+Of the 15 below `0xff000`, seven now match. Of the 11 above, **zero can ever
+match**, and they should not have been in the queue.
+
+### The consequence for the rate
+
+The "60 percent" figure and its successors were computed over a pool that mixed
+two populations. That is not a measurement of compiler fidelity, it is a mixture.
+The honest denominator is the C-code population, and adding an address filter
+gives it for free.
+
+A candidate that references a `cli`-guarded port write or an x87 instruction is
+not a routine whose C we have not guessed yet. It is a routine that was never C.
+
+### What to do about it, and what was not done
+
+The gate should reject a routine containing privileged or x87 instructions, or
+above `0xff000`. **Neither was implemented here.** The classification above was
+done by hand over the 24 entries, which is enough to state the finding and not
+enough to keep the gate honest for the next 700 routines. That is the next piece
+of work, and it belongs in `tools/preflight.js` with assertions in
+`tools/imgaudit.js` the way the address detection now has.
