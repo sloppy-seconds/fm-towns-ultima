@@ -53,6 +53,17 @@ const PORT = Number(opt('port', 8097));
 const TSUGARU = opt('api', 'http://127.0.0.1:8096');
 const IMAGE_HOST = path.resolve(ROOT, opt('image', 'saves/dos62v6.hdm'));
 const CONTAINER = opt('container', 'dosboot');
+
+// This host needs `sudo podman`; a bare `podman exec` fails with "no such
+// container" even when the container is up, which reads like a missing container
+// rather than a permission problem. mtools does not need it because it edits the
+// image file directly. --podman lets a caller pass 'sudo podman' or just 'podman'.
+// execFileSync takes a binary name, not a shell string, so "sudo podman" has to
+// be split or it is looked up as a single executable named "sudo podman".
+const PODMAN_ARG = opt('podman', 'podman');
+const PODMAN_PARTS = PODMAN_ARG.split(/\s+/).filter(Boolean);
+const PODMAN = PODMAN_PARTS[0];
+const PODMAN_PREFIX = PODMAN_PARTS.slice(1);
 const DISPLAY = opt('display', ':99');
 const COMPILE_TIMEOUT_MS = Number(opt('timeout', 90000));
 // The image a reset restores from. Never written to by the API, so it stays
@@ -193,11 +204,11 @@ function apiCmd(line, timeoutMs = 15000) {
 }
 
 function xdoType(text) {
-	execFileSync('podman', ['exec', '-e', 'DISPLAY=' + DISPLAY, CONTAINER, 'xdotool', 'type', '--delay', '45', text], { stdio: 'pipe' });
+	execFileSync(PODMAN, [...PODMAN_PREFIX, 'exec', '-e', 'DISPLAY=' + DISPLAY, CONTAINER, 'xdotool', 'type', '--delay', '45', text], { stdio: 'pipe' });
 }
 
 function xdoKey(key) {
-	execFileSync('podman', ['exec', '-e', 'DISPLAY=' + DISPLAY, CONTAINER, 'xdotool', 'key', key], { stdio: 'pipe' });
+	execFileSync(PODMAN, [...PODMAN_PREFIX, 'exec', '-e', 'DISPLAY=' + DISPLAY, CONTAINER, 'xdotool', 'key', key], { stdio: 'pipe' });
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -322,6 +333,138 @@ function parseOmf(buf) {
 
 let busy = false;
 let gen = 0;
+
+// Compile a source, then link the object, and return the linked file's header.
+//
+// WHY THIS EXISTS. tools/preflight.js and the byte matching work need to know
+// whether 386LINK.EXE can emit the game's MP container, which is a different
+// question from whether the compiler can produce an object. The compile
+// endpoint stops at the OMF object on purpose, so linking had been done by hand
+// during the base-folding probe and was not repeatable.
+//
+// The returned `signature` is the first two bytes of the linked file: `MP` is
+// the game's flat format, `P3` is the packed extended format 386LINK emits by
+// default, and anything else means the link failed in a way worth reading.
+async function link({ source, name = 'LN', cflags = '', lflags = '', outName = null, timeoutMs = COMPILE_TIMEOUT_MS }) {
+	const srcName = name.slice(0, 8);
+	const objName = srcName.slice(0, 6) + 'O';
+	const expName = outName || (srcName.slice(0, 6) + 'X');
+	const batFile = 'LNK.BAT';
+	const logFile = 'LNK.LOG';
+	const doneFile = 'LNK.DON';
+	const crlf = (s) => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
+
+	const bat = [
+		'@ECHO OFF',
+		'CD \\',
+		'SET HCDIR=Q:\\HC386',
+		'SET TOOLSDIR=Q:\\HC386',
+		'SET INCLUDE=Q:\\HC386\\INC',
+		'SET LIB=Q:\\HC386\\SMALL',
+		`Q:\\HC386\\BIN\\HCD386.EXE A:\\${srcName}.C -obj A:\\${objName}.OBJ ${cflags} -dir Q:\\HC386\\INC > A:\\${logFile}`,
+		`Q:\\HC386\\BIN\\386LINK.EXE A:\\${objName}.OBJ -lib Q:\\HC386\\SMALL\\HCE ${lflags} > A:\\${doneFile}`,
+	].join('\r\n') + '\r\n';
+
+	assertWritable();
+	const t0 = Date.now();
+	const cleanup = [doneFile, logFile, `${objName}.OBJ`, `${srcName}.C`, batFile,
+		`${objName}.EXP`, `${objName}.EXE`, `${objName}.MAP`,
+		`${srcName}.EXP`, `${srcName}.EXE`, 'LN.EXP', 'LN.EXE'];
+
+	const rmAll = async () => {
+		try { await ejectFloppy(); } catch { /* already gone */ }
+		await sleep(400);
+		for (const f of cleanup) {
+			try { deleteImageFile(f); } catch { /* not present */ }
+		}
+	};
+
+	await ejectFloppy();
+	await sleep(700);
+	for (const f of [doneFile, logFile]) {
+		try { deleteImageFile(f); } catch { /* not present */ }
+	}
+	writeImageFile(`${srcName}.C`, Buffer.from(crlf(source), 'latin1'));
+	writeImageFile(batFile, Buffer.from(bat, 'latin1'));
+
+	await attachFloppy();
+	await xdoKey('Return');
+	await sleep(300);
+	xdoType(batFile);
+	await sleep(200);
+	await xdoKey('Return');
+
+	const deadline = Date.now() + timeoutMs;
+	let done = false;
+	while (Date.now() < deadline) {
+		await sleep(1200);
+		if (fileSize(doneFile) !== null) { done = true; break; }
+	}
+
+	let log = '';
+	try { log = readImageFile(logFile).toString('latin1'); } catch { /* none */ }
+
+	if (!done) {
+		await rmAll();
+		return { ok: false, error: 'link did not finish', elapsedMs: Date.now() - t0, log };
+	}
+
+	// The batch writes .DON after the linker returns, but DOS flushes lazily and
+	// the linker's own output file may still be in flight. Reading the image while
+	// the guest writes is what tore the FAT in the compile path, so settle first.
+	await sleep(1500);
+
+	// The linker names its output after the input object by default, so probe the
+	// plausible names rather than assuming one.
+	let produced = null;
+	for (const cand of [`${objName}.EXP`, `${objName}.EXE`, `${srcName}.EXP`, `${srcName}.EXE`, 'LN.EXP', 'LN.EXE']) {
+		try {
+			const buf = readImageFile(cand);
+			if (buf && buf.length) { produced = { name: cand, buf }; break; }
+		} catch { /* try the next */ }
+	}
+
+	if (!produced) {
+		// Read the linker's own output BEFORE rmAll deletes it. Reading after the
+		// cleanup always returned '', which hid every linker error message.
+		let dbg = '';
+		try { dbg = readImageFile(doneFile).toString('latin1'); } catch { /* none */ }
+		let present = '';
+		try {
+			const listing = mrun('mdir', ['-i', IMAGE_HOST, '-b', '::']).toString('latin1');
+			present = listing.split('\n').filter(Boolean).join(' ');
+		} catch { /* none */ }
+		await rmAll();
+		return { ok: false, error: 'no linked output produced', elapsedMs: Date.now() - t0,
+			log, batchOutput: dbg, filesPresent: present };
+	}
+
+	const b = produced.buf;
+	const head = b.subarray(0, 32);
+	const sig = b.subarray(0, 2).toString('latin1');
+	const result = {
+		ok: true,
+		file: produced.name,
+		size: b.length,
+		signature: sig,
+		headerHex: head.toString('hex'),
+		sha256: require('crypto').createHash('sha256').update(b).digest('hex'),
+		elapsedMs: Date.now() - t0,
+		log: log.trim() || undefined,
+	};
+	// Decode the MP fields when it is one, so the caller does not repeat the maths.
+	if (sig === 'MP') {
+		result.mp = {
+			lastPage: b.readUInt16LE(2),
+			pages: b.readUInt16LE(4),
+			relocCount: b.readUInt16LE(6),
+			computedSize: (b.readUInt16LE(4) - 1) * 512 + b.readUInt16LE(2),
+			actualSize: b.length,
+		};
+	}
+	await rmAll();
+	return result;
+}
 
 async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_TIMEOUT_MS }) {
 	if (typeof source !== 'string' || !source.trim()) throw new Error('source is required');
@@ -566,6 +709,7 @@ const server = http.createServer(async (req, res) => {
 					'GET    /api/health                      space, health, canWrite',
 					'POST   /api/reset                       restore floppy from pristine master',
 					'POST   /api/compile                     {"source":"...","name":"CAL","flags":"-O"}',
+					'POST   /api/link                        {"source":"...","lflags":"-NOPACK"}',
 				],
 			});
 		}
@@ -623,6 +767,11 @@ const server = http.createServer(async (req, res) => {
 			return json(res, 200, { ok: true, reloaded: guestImagePath() });
 		}
 
+		if (p === '/api/link' && req.method === 'POST') {
+			const body = JSON.parse(await readBody(req) || '{}');
+			return json(res, 200, await link(body));
+		}
+
 		if (p === '/api/compile' && req.method === 'POST') {
 			const body = JSON.parse(await readBody(req) || '{}');
 			if (busy) return json(res, 429, { error: 'one compile at a time; retry shortly' });
@@ -639,6 +788,7 @@ const server = http.createServer(async (req, res) => {
 		// mtools reports "Command failed: mdel ..." with the real reason on stderr.
 		// Surface that reason, because "Command failed" alone tells the caller nothing.
 		const err = String(e.stderr || '').trim() || e.message;
+		if (process.env.CSERVE_DEBUG) console.error('[cserve] error:', err);
 		const notFound = /not found|no such file|File .* not found/i.test(err);
 		// 4xx for caller error, 5xx for anything else.
 		const callerError = /8\.3 violation|path must|required|invalid/i.test(err);

@@ -967,3 +967,101 @@ What `RUN386` is actually required for is the protected-mode *compiler*
 If `386LINK.EXE -NOPACK` emits `MP`, then the container does not gate byte
 matching at all, and `frame-decision` stands alone as the remaining structural
 blocker.
+
+## Result 16: 386LINK.EXE cannot emit MP. The container is not selectable.
+
+Result 15 hypothesised that `386LINK.EXE -NOPACK` might produce the game's `MP`
+container, since `MP` is the unpacked flat form and the real-mode linker knows
+the `MP` signature. That was testable without an emulator session, so it was
+tested, through a new `/api/link` endpoint so the result is repeatable.
+
+### Measured
+
+The same source linked twice:
+
+| flags | result | size | signature |
+|---|---|---|---|
+| `-NOPACK` | ok | 528 | **`P3`** |
+| (none) | ok | 528 | **`P3`** |
+
+**Byte-identical.** `-NOPACK` changes nothing on a link with no large data, and
+neither invocation produces `MP`.
+
+The linker itself works. Its own output was captured:
+
+```
+386|LINK: 2.2dJ -- Copyright (C) 1986-90 Phar Lap Software, Inc.
+Warning: No stack segment.
+```
+
+Only a benign warning, and `LKTO.EXP` was produced. So the failure is not a
+linker error, it is that this linker does not write `MP`.
+
+### The full option list settles it
+
+`386LINK.EXE` exposes 101 option strings. The complete set that could plausibly
+select an output container is:
+
+```
+-EXE file                .EXE output file
+-RELEXE file             Reloc .EXE output file
+-NOPACK / -PACK          pack or do not pack an .EXP file
+-NOOUTPUT                no output file
+```
+
+**There is no `-MP` switch, and no switch that selects a native `EXP`
+container.** `.EXP` is what `-NOPACK`/`-PACK` govern, and on this test both gave
+the same 528 bytes.
+
+### Header fields confirm these are different formats, not variants
+
+```
+P3  (386LINK.EXE output): 50 33 | u16@2=1     u16@4=384    u16@6=528
+MP  (ENCHANT.EXP):        4d 50 | lastPage=270 pages=2095  relocs=0
+```
+
+`P3` carries a version number and a 384-byte header. `MP` carries a page count
+and a relocation count. They are separate containers, and `MP` is not a packing
+of `P3`.
+
+### One asymmetry worth recording
+
+Both linkers contain `cmp ax,0x504d` (compare against `'MP'`) exactly once. But
+`386LINKP.EXP` additionally contains the operand-size-prefixed form
+`66 3d 4d 50`, which `386LINK.EXE` lacks. That is 32-bit code the real-mode
+linker does not have, consistent with the protected-mode linker carrying extra
+container logic.
+
+### Verdict
+
+**NEGATIVE.** `386LINK.EXE` cannot produce an `MP` container, and no option it
+accepts will make it.
+
+This corrects result 15, which was a reasonable hypothesis and was wrong. It
+also restores the earlier conclusion that the protected-mode toolchain is
+required for the game's container, though for the **linker** as well as the
+compiler rather than the compiler alone.
+
+### The consequence for byte matching
+
+**`P3` versus `MP` gates 100 percent byte matching and it is not reachable with
+the toolchain that runs under plain DOS.** Any reconstruction we produce will be
+`P3`. A file-level comparison against `ENCHANT.EXP` can therefore only ever be
+done on the **code payload with the container stripped**, which is what
+`tools/funcs.js` and `tools/cfgwalk.js` already do by skipping the 32-byte `MP`
+header.
+
+So the practical answer is that this does not block the work, it bounds the
+claim. Routine-level byte matching (which is what the 60 percent figure
+measures) is unaffected, because it compares instruction bytes at an offset, not
+files. Whole-file identity was never attainable and is now known to be
+unattainable for a second, independent reason.
+
+### What the `/api/link` endpoint leaves behind
+
+It is kept, because the next question about linking should not need another
+round of hand-driving the linker. It also surfaced two real bugs, both recorded
+in the tool comments: the linker names its output after the **object** file
+(`LKTO.EXP`), not the source, which made an earlier probe report "no output"
+while the output existed; and reading the image while the guest was still
+writing tore the FAT, needing a settle delay after `.DON` appears.
