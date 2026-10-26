@@ -182,8 +182,15 @@ function referencesAbsolute(buf, addr, len) {
 		// buf[i-1] missed `66 89 8c 50 90 7e 07 00`: ModRM 0x8c (mod=10, rm=100 =
 		// SIB), SIB 0x50, then the displacement. That is the pixel writer, and
 		// missing it made the gate offer a routine that can never match.
+		// mod=10 means a 32-bit displacement. mod=00 with rm=101 is ALSO a
+		// 32-bit displacement, just with no base register (the "disp32 absolute"
+		// form the compiler uses for `mov dword [0xABCDE], imm`). Missing that
+		// second case meant 0xef548, whose body is
+		// `c7 05 60 6e 0d 00 30 00 00 00` (mov [0xd6e60],0x30), was reported as
+		// referencing no absolute address when it obviously does.
 		const prev = buf[i - 1];
-		if (prev !== undefined && (prev >> 6) === 2) return v;      // disp32, no SIB
+		if (prev !== undefined && (prev >> 6) === 2) return v;      // mod=10, disp32
+		if (prev !== undefined && (prev >> 6) === 0 && (prev & 7) === 5) return v; // mod=00 rm=101
 		// With a SIB, the layout is [ModRM][SIB][disp32]. Only the ModRM carries the
 		// mod bits; the SIB's top two bits are the scale, which is why requiring
 		// both to look like mod=10 rejected the pixel writer.

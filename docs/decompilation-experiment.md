@@ -1136,3 +1136,52 @@ structural class from result 10, so it joins `0xe1bf4` and `0xe1c24`.
 The target also reads its arguments in a reordered sequence (8, 12, 16, 28, 32,
 24), which none of the three candidates reproduced. That may be a separate lever
 worth trying on a framed routine where the frame problem does not apply.
+
+## Result 18: the absolute-reference detector had a second blind spot, and the pool is 24
+
+`0xef548` is nine bytes:
+
+```
+C705606E0D0030000000   mov dword [0xd6e60],0x30
+C3                     ret
+```
+
+It obviously references an absolute address. `tools/preflight.js` reported
+`absolute data ref: none`.
+
+**Cause.** The detector looked for a 32-bit displacement in a ModRM with `mod=10`,
+plus the `a1`/`a3` moffs forms. It did not handle **`mod=00` with `rm=101`**,
+which is the other encoding for a bare 32-bit address: `c7 05 <disp32> <imm32>`
+is `mov dword [abs], imm`, with no base register at all.
+
+Adding that case changes the pool:
+
+| | count |
+|---|---|
+| leaves, before the fix | 33 |
+| leaves, after | **24** |
+
+Nine more routines were being offered as Level-1 candidates while referencing
+absolute addresses, which means their `LEDATA` is a relocation and no amount of
+C would have matched them.
+
+### This is the fourth distinct defect in the same detector
+
+For the record, the absolute-reference test has now been wrong four ways:
+
+1. checking only `buf[i-1]` for `mod=10`, which missed the `[ModRM][SIB][disp32]`
+   layout entirely (`0xf3e24` slipped through)
+2. requiring **both** bytes before the displacement to look like `mod=10` when
+   only the ModRM carries the mod bits (the SIB's top two are the scale, which
+   rejected `0xf3e24` again)
+3. `boundaryOk` passing a raw address to `cfgwalk.js`, which works on stripped
+   offsets, so every routine reported "not an instruction boundary"
+4. `mod=00 rm=101` not handled, so `mov [abs],imm` was invisible
+
+Each was found by testing the detector against a routine whose verdict was known
+independently. **None was found by reading the code.** That is the argument for
+keeping a small set of hand-checked cases and asserting against them, rather than
+trusting a heuristic because it looks right.
+
+The correct count is now 24 candidates, three matched, and the earlier "60 percent
+of five" figure stands on routines that are all still in this list.
