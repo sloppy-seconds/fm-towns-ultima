@@ -547,6 +547,24 @@
       "class": "not-c",
       "what": "Adds a signed byte from 0xdef25[dl] to ax, folding by 0xc until the result is in 0..0x7f.",
       "evidence": "Same dl convention, value in ax. High C passes arguments on the stack: docs/highc-codegen.md measures that neither the framed nor the unframed convention uses registers, so no C source produces an entry that reads dl for an argument it never set. Same family as the already-recorded 0xfe95d."
+    },
+    {
+      "addr": "e3c20",
+      "callers": 2,
+      "bytes": 56,
+      "class": "base-fold",
+      "what": "Clears a 3D byte array: three nested loops, i < 0xe, j < 0x40, k < 0x40, writing 0 to arr[i*0x1000 + j*0x40 + k] at 0x40e90.",
+      "evidence": "tools/cmpdisp.js --addr 0xe3c20: identical except the single displacement of c6 82 <disp32> 00. Frameless source, three nested for loops, no flag needed.",
+      "c": "extern unsigned char arr[];\nvoid f(void) { int i, j, k; for (i = 0; i < 0xe; i++) for (j = 0; j < 0x40; j++) for (k = 0; k < 0x40; k++) arr[i*0x1000 + j*0x40 + k] = 0; }",
+      "flags": ""
+    },
+    {
+      "addr": "e3148",
+      "callers": 3,
+      "bytes": 55,
+      "class": "unresolved",
+      "what": "Stores three arguments into ints +0,+4,+8 of a 24-byte-stride record array at 0x40e88, indexed by the first argument.",
+      "evidence": "Seven source shapes tried. A plain struct declaration reproduces the prologue (55 8b ec 57 8b 7d 08), the base load (b8 <disp>), and both leas (8d 14 fd, 8d 14 52) exactly. The remaining difference is the store: target 89 8c 10 <disp> keeps the value in ecx with base+index+disp, High C 1.73 emits 89 0c 10 (no displacement) because it loads the value into edx instead of reusing ecx."
     }
   ],
   "globals_ref": {
