@@ -842,3 +842,82 @@ to a `CONFIG.SYS` line and is the obvious next attempt.
 half is true only with a `C:` present, and the page does not say so. That is the
 same class of defect this project keeps finding: a sentence that was true in the
 configuration it was measured in, written as if it were a property of the image.
+
+## Result 14: the boot works, the shell cannot read the CD
+
+Result 13 said the combined image could not be booted because `SHELL=C:` has no
+`C:` on a floppy. That was the first of four defects, and fixing all four gets
+the batch to run end to end. The fifth is a wall.
+
+### The four defects, in the order they were found
+
+**1. `SHELL=C:\COMMAND.COM C:\ /P` on a floppy-only boot.** No `C:` exists, so the
+shell never starts, the screen freezes at 1,087 colours and keystrokes do
+nothing. Changed to `SHELL=A:\COMMAND.COM A:\ /P`. After this the whole batch
+ran from `G1_START` to `G8_DONE`.
+
+**2. No `CDDRV.SYS` or `CDISC.SYS` on `tos21-console.hdm` at all.** The image's
+`CONFIG.SYS` lists `CTL.SYS`, `TBIOSLD.SYS`, `TOWNS.SYS`, `OAK0`, `OAK1`,
+`T_KANJI` and `TICM`, and no CD driver of any kind. Both copied from
+`towns62.hdm` into `::/SYS` with the donor's arguments,
+`/D:TOWNS_CD /U0:0`.
+
+**3. No `MSCDEX.EXE` on `tos21-console.hdm` either.** This is the one that made
+the earlier negative results uninterpretable: the stock `AUTOEXEC.BAT` calls
+`MSCDEX /D:TOWNS_CD /M:8 /L:Q`, and with no `MSCDEX.EXE` anywhere on the volume
+that line does nothing. **`Q:` never existed on this image.** A `RUN386
+Q:\HC386\BIN\HCD386P.EXP` there was running against a drive that was not
+mounted, which is why it produced nothing and reported nothing.
+
+**4. The probe called `MSCDEX` by bare name.** Changed to the full path
+`A:\SYS\MSCDEX.EXE`.
+
+### What the fixes bought, and where it stops
+
+With 1 to 4 fixed, `Q:` exists. `DIR Q:\` now prints a directory header instead
+of failing outright. But every read of it reports:
+
+```
+FCB access not supported.
+  drive Q: has no volume label
+  directory is Q:\
+```
+
+`DIR A:\` reports the same for the floppy. So this `COMMAND.COM` cannot list any
+directory, local or remote. `docs/compile-blocker.md` records the same wall for
+the CD's own `console.exe` ("cannot write files, has no redirection, stubbed
+`COPY`").
+
+`COPY Q:\HC386\BIN\HCD386P.EXP A:\HCD.EXP` uses handle-based opens rather than
+FCB, so it was tried as the way past that. **It produced no file and no error.**
+`RUN386` with stderr redirected produced an empty log.
+
+### Verdict
+
+**NEGATIVE at this layer, and the reason is now specific.** The TownsOS-console
+image plus GDS plus CD drivers plus MSCDEX reaches a live `A:\>` and a mounted
+`Q:`, and the shell that comes with it cannot read files from either. The
+combination hypothesis was never actually tested, because the test needs a
+shell that can open a file and this one cannot.
+
+This is a genuinely different failure from the ones before it. Earlier results
+said "`RUN386` produces nothing", which was true and uninformative. This says why
+on this image: the drive was never mounted, and after mounting it the shell
+cannot read it.
+
+### What would move this forward
+
+Three candidates, cheapest first.
+
+1. **`COMMAND.COM` from DOS 6.2 in place of the TownsOS one.** The DOS 6.2 shell
+   on `dos62v6.hdm` has working `COPY`, redirection and directory listing. The
+   TownsOS `COMMAND.COM` on this image is 24,161 bytes and does not. Worth one
+   swap, since the shell is orthogonal to the drivers.
+2. **`console.exe` with the CD as the working drive**, which is the
+   `hdd-build-environment.md` route, and was abandoned there for the same class
+   of reason.
+3. **Give up the floppy and put DOS on the hard disk**, plan item 4g. That
+   removes the shell question and the media-rotation question together.
+
+None of the three is tried here. Each is a change of configuration rather than a
+probe, and this experiment has now spent a long stretch on configuration.

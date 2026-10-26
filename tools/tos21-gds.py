@@ -76,7 +76,7 @@ BATCH = r"""@ECHO OFF
 PROMPT $P$G
 SET PATH=A:\BIN;A:\SYS;A:\T_TOOL
 ECHO G1_START > A:\T.LOG
-MSCDEX /D:TOWNS_CD /M:8 /L:Q > NUL
+A:\SYS\MSCDEX.EXE /D:TOWNS_CD /M:8 /L:Q > NUL
 ECHO G2_MSCDEX=%ERRORLEVEL% >> A:\T.LOG
 DIR Q:\HC386\BIN\HCD386P.EXP >> A:\T.LOG
 \HCOPY\COCO
@@ -89,6 +89,23 @@ IF ERRORLEVEL 1 GOTO END
 ECHO G5_COCOMEM=%ERRORLEVEL% >> A:\T.LOG
 IF ERRORLEVEL 1 GOTO END
 ECHO G6_TRY_RUN386 >> A:\T.LOG
+ECHO G6A_BARE >> A:\T.LOG
+Q:\RUN386.EXE
+ECHO G6B_BARE_RC=%ERRORLEVEL% >> A:\T.LOG
+ECHO G6C_LIST_Q >> A:\T.LOG
+DIR Q:\ >> A:\T.LOG
+ECHO G6D_LIST_HC >> A:\T.LOG
+DIR Q:\HC386\BIN\HCD386P.EXP >> A:\T.LOG
+ECHO G6E_TRY_OBJ >> A:\T.LOG
+REM Copy from the CD to A:. COPY uses handle-based opens, not FCB, so this
+REM tests file access where DIR cannot.
+COPY Q:\HC386\BIN\HCD386P.EXP A:\HCD.EXP
+ECHO G6F_COPY_RC=%ERRORLEVEL% >> A:\T.LOG
+REM Run the extender against a local copy, avoiding the CD path entirely.
+A:\RUN386 > A:\EXT.LOG
+ECHO G6G_EXT_RC=%ERRORLEVEL% >> A:\T.LOG
+TYPE A:\EXT.LOG >> A:\T.LOG
+ECHO G6H_DONE >> A:\T.LOG
 Q:\RUN386.EXE Q:\HC386\BIN\HCD386P.EXP Q:\HC386\DEMOS\HELLO.C -obj A:\H.OBJ -dir Q:\HC386\INC > A:\R.LOG
 ECHO G7_RC=%ERRORLEVEL% >> A:\T.LOG
 DIR A:\H.OBJ >> A:\T.LOG
@@ -152,6 +169,83 @@ def prepare():
         subprocess.run(['mcopy', '-o', '/var/tmp/cfg.sys', '-i', SCRATCH, '::CONFIG.SYS'],
                        check=True)
         print('added DEVICE line: %s' % GDS_DEVICE_LINE)
+
+    # CD drivers. tos21-console.hdm has neither CDDRV.SYS nor CDISC.SYS, so
+    # MSCDEX starts and binds to nothing: Q: reports "no volume label" and
+    # every read of the CD silently does nothing. The stock AUTOEXEC calls
+    # MSCDEX anyway, so this image has never been able to read the disc. Copy
+    # the pair from the donor, where the same disc does mount.
+    for name in ('CDDRV.SYS', 'CDISC.SYS'):
+        srcd = '::DOS/' + name
+        tmp = '/var/tmp/' + name
+        r = subprocess.run(['mdir', '-i', SCRATCH, '::SYS/' + name], capture_output=True)
+        if name.encode() in r.stdout.upper():
+            print('%s already present' % name)
+            continue
+        subprocess.run(['mcopy', '-o', '-i', GDS_DONOR, srcd, tmp], check=True)
+        subprocess.run(['mcopy', '-o', tmp, '-i', SCRATCH, '::SYS/' + name], check=True)
+        print('copied %s (%d bytes) ::DOS -> ::SYS' % (name, os.path.getsize(tmp)))
+
+    # MSCDEX itself. This image has no MSCDEX.EXE anywhere on it, so the stock
+    # AUTOEXEC's MSCDEX line does nothing at all and Q: never exists. That is
+    # why the CD was unreadable on this image before any of this work.
+    r = subprocess.run(['mdir', '-i', SCRATCH, '::SYS/MSCDEX.EXE'], capture_output=True)
+    if b'MSCDEX' not in r.stdout:
+        subprocess.run(['mcopy', '-o', '-i', GDS_DONOR, '::DOS/MSCDEX.EXE',
+                        '/var/tmp/MSCDEX.EXE'], check=True)
+        subprocess.run(['mcopy', '-o', '/var/tmp/MSCDEX.EXE', '-i', SCRATCH,
+                        '::SYS/MSCDEX.EXE'], check=True)
+        print('copied MSCDEX.EXE (%d bytes) ::DOS -> ::SYS'
+              % os.path.getsize('/var/tmp/MSCDEX.EXE'))
+
+    # CONFIG.SYS lines for them, matching the donor's arguments.
+    out = subprocess.run(['mtype', '-i', SCRATCH, '::CONFIG.SYS'], capture_output=True)
+    cfg = out.stdout.decode('latin1')
+    if 'CDDRV' not in cfg.upper():
+        add = ('DEVICE=\\SYS\\CDDRV.SYS /D:TOWNS_CD /U0:0\r\n'
+               'DEVICE=\\SYS\\CDISC.SYS\r\n')
+        newcfg = []
+        for line in cfg.split('\r\n'):
+            newcfg.append(line)
+            if line.upper().startswith('DEVICE=\\SYS\\GDS.SYS'):
+                newcfg.append(add.rstrip('\r\n'))
+        cfg = '\r\n'.join(newcfg)
+        with open('/var/tmp/cfg3.sys', 'w', newline='\r\n') as fh:
+            fh.write(cfg)
+        subprocess.run(['mcopy', '-o', '/var/tmp/cfg3.sys', '-i', SCRATCH, '::CONFIG.SYS'],
+                       check=True)
+        print('added CDDRV.SYS and CDISC.SYS device lines')
+
+    # CONFIG.SYS SHELL line. The image ships SHELL=C:\COMMAND.COM C:\ /P, which
+    # cannot start on a floppy-only boot because there is no C:. High C's own docs
+    # treat this image as one that "boots to a DOS prompt", which is only true when
+    # a C: exists (an 8 MB hard disk supplied it during that earlier work). Point
+    # it at A: so the shell has somewhere to live, and copy COMMAND.COM there.
+    out = subprocess.run(['mtype', '-i', SCRATCH, '::CONFIG.SYS'], capture_output=True)
+    cfg = out.stdout.decode('latin1')
+    newcfg = []
+    changed = False
+    for line in cfg.split('\r\n'):
+        if line.upper().startswith('SHELL='):
+            newcfg.append(r'SHELL=A:\COMMAND.COM A:\ /P')
+            changed = True
+        else:
+            newcfg.append(line)
+    if changed:
+        with open('/var/tmp/cfg2.sys', 'w', newline='\r\n') as fh:
+            fh.write('\r\n'.join(newcfg))
+        subprocess.run(['mcopy', '-o', '/var/tmp/cfg2.sys', '-i', SCRATCH, '::CONFIG.SYS'],
+                       check=True)
+        print(r'changed SHELL= to A:\COMMAND.COM A:\ /P')
+
+    # COMMAND.COM must be reachable at A:\ for that shell to start.
+    cmd_out = subprocess.run(['mdir', '-i', SCRATCH, '::COMMAND.COM'], capture_output=True)
+    if b'COMMAND' not in cmd_out.stdout:
+        subprocess.run(['mcopy', '-o', '-i', SCRATCH, '::COMMAND.COM', '/var/tmp/command.com'],
+                       check=True)
+        subprocess.run(['mcopy', '-o', '/var/tmp/command.com', '-i', SCRATCH, '::COMMAND.COM'],
+                       check=True)
+        print('copied COMMAND.COM to the root of A:')
 
     # AUTOEXEC probe.
     with open('/var/tmp/tos21-gds.bat', 'w', newline='\r\n') as fh:
