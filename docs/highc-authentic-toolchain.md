@@ -153,10 +153,66 @@ Three stored statements are wrong or superseded.
 3. `frame-decision` is not blocked on the protected-mode compiler. The protected
    mode path runs, and the remaining gap is one option.
 
+## The toggle is named, and the obstacle is the front-end tokenizer
+
+The frame decision is controlled by a documented compiler toggle, `Remove_BP`.
+
+Evidence, three independent sources agreeing:
+
+- `doc/hc17um.doc` lists `Remove_BP` in its toggle table with a default, and
+  its description is about whether parameters are addressed through `ebp` or
+  `esp`. That is precisely the measured difference.
+- `doc/hc17um.doc` also lists `Remove_BP` among the optimisation toggles,
+  beside `Optimize_FP`, `Align_routines` and `Use_short_calls`.
+- `hcd386.exe` contains the symbol `REMOVE_BP` in that same table, and a
+  function `remove_bp_refs` positioned between `PROLOG` and `EPILOG`. So the
+  prologue emits the frame and a later pass strips it when the toggle is on.
+
+So `0xe52c8` was built with `Remove_BP` off, and the default build has it on.
+
+### Why it cannot be passed yet
+
+The front-end tokenises on the underscore. Both spellings fail:
+
+```
+hc386 -Hoff=Remove_BP f1.c
+  Erroneous parameter '-off=Remove' ignored.
+  Erroneous parameter 'BP' ignored.
+hc386 -off Remove_BP f1.c
+  Unknown option -off will be passed to the linker.
+  Fatal error: Missing value to command switch "--off"
+  Info: Error in switch "--off" on line 7 of file "5cdf0000.tmp".
+```
+
+The second message is the useful one. It shows the front-end builds an answer
+file, `5cdf0000.tmp`, and passes it to the backend with `@`. The same answer
+file appears in the linker map as `@5cdf0000.tmp`. `-off` is a backend switch
+and the front-end forwards unknown switches, so the toggle is reachable through
+the answer file even though `-Hoff=` cannot express it.
+
+`#pragma Off(Remove_BP);` and `#pragma On(Remove_BP);` were both tried and both
+fail with `(syntactic) unexpected symbol: <DONE>` at the end of file, so the
+pragma spelling in the manual does not work as written in this build.
+
+Note on method: a quoted form was attempted and appeared to fail, but the quotes
+were typed as `*` because the guest keyboard is Japanese layout. That test was
+invalid, not negative.
+
+### Status of frame-decision
+
+Not blocked, and not solved. The cause is identified and named, the remaining
+gap is one flag, and the flag cannot currently be expressed on the command line.
+Three routes remain, none tried:
+
+1. Capture the answer file before the front-end deletes it, edit in
+   `-off Remove_BP`, and invoke the backend directly with `@`.
+2. Set the toggle in `hc386.cnf` or `hc386set.cnf`, which the manual shows can
+   carry `ARGS=` lines with toggle names.
+3. Find the correct pragma spelling. `hc386.hlp` is a compiled help file and
+   has not been read.
+
 ## Open
 
-- Which `HC386` option forces frame-pointer addressing. `hc386 -?` and
-  `docs/cl21r.doc` are the two places to look, and the compiler is reachable.
 - Whether `HC386.EXE` invokes `HCD386P.EXP`. The codegen proves an optimising
   pass ran, but which binary ran is unverified.
 - `0xe552c`, `0xe5304` and `0xfe95d` remain `unresolved` and have not been

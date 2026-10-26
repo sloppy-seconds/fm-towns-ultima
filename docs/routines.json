@@ -55,8 +55,8 @@
    "callers": 4,
    "bytes": 58,
    "class": "frame-decision",
-   "what": "7-field struct init. Sequence, field order, zeroed field and return all agree. Only the argument base register differs, and the size arithmetic proves that is the whole gap. Framed with no locals is a compiler option, not a source shape.",
-   "evidence": "result 17, measured further in docs/highc-authentic-toolchain.md"
+   "what": "7-field struct init. Sequence, field order, zeroed field and return all agree. Only the argument base register differs, and the size arithmetic proves that is the whole gap. Cause identified: the Remove_BP toggle is on by default and this routine was built with it off.",
+   "evidence": "result 17, cause named in docs/highc-authentic-toolchain.md"
   },
   {
    "addr": "e5304",
