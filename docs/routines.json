@@ -66,9 +66,10 @@
    "addr": "e5304",
    "callers": 3,
    "bytes": 189,
-   "class": "unresolved",
-   "what": "189B. Writes a 132-byte record: byte at +0, bounded 64-byte copy at +0x42, another at +0x1, byte at +0x83, returns the base pointer. Eight source shapes tried. All now agree with the target except that the build emits push eax, one byte of local storage, where the target has none. That is a frame-layout difference, not a flag or a type difference, and -off optimize_fp does not change it.",
-   "evidence": "docs/compile-route-dos.md, candidates A-F tried 2026-11"
+   "class": "matched",
+   "what": "Writes a 132-byte record: byte at +0, bounded 64-byte copy at +0x42, another at +0x1, byte at +0x83, returns the base pointer. Byte-identical with no flags. The lever is term order in the index expression: row*132+i+0x42 matches, row*132+0x42+i does not. Putting the constant last lets the compiler fold 0x42 into a lea displacement and shorten the store, which changes 7 bytes.",
+   "evidence": "docs/compile-route-dos.md, candidate C_offfirst",
+   "c": "char *f(char *base, int row, char a, char *s1, char *s2, char b)\n{\n int i;\n base[row*132] = a;\n for (i = 0; i < 0x40; i++) { if (!s1[i]) break; base[row*132+i+0x42] = s1[i]; }\n base[row*132+i+0x42] = 0;\n for (i = 0; i < 0x40; i++) { if (!s2[i]) break; base[row*132+i+1] = s2[i]; }\n base[row*132+i+1] = 0;\n base[row*132+0x83] = b;\n return base;\n}"
   },
   {
    "addr": "e07e8",

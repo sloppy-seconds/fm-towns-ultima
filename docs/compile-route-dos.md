@@ -169,6 +169,29 @@ The first pass at this table reported seven of seven matching. The check was
 above is from a comparison of the compiled hex against the target hex in code,
 not a substring search. Any future verdict check must not be a substring grep.
 
+## Term order, the lever that matched `0xe5304`
+
+`0xe5304` writes a 132-byte record. Eight source shapes failed on one byte: the
+build emitted `push eax`, one byte of local storage the target does not have.
+The cause was not a local and not a flag. It was the order of terms in an index
+expression.
+
+| written as | `lea` produced | store produced |
+|---|---|---|
+| `base[row*132+0x42+i]` | `lea ecx,[edx+ecx*4+0x42]` | `mov [edi+ecx],al` |
+| `base[row*132+i+0x42]` | `lea ecx,[edx+ecx*4]` | `mov [edi+ecx+0x42],al` |
+
+With the constant last, the compiler folds `0x42` into the `lea` displacement and
+the store loses it. With the constant in the middle, the `lea` stays pure and the
+store carries it. The target uses the second form, so the source had the constant
+last. Seven bytes differ in total, which is what made it look like a storage
+allocation rather than an addressing choice.
+
+This is the same class of lever as the ones already recorded in
+`docs/decompilation-experiment.md`: operand order decides which register the
+allocator picks and which operand absorbs a constant. It is worth checking on any
+routine that disagrees only at a prologue byte.
+
 ## Correcting a claim made on this project's own evidence
 
 `docs/highc-authentic-toolchain.md` first reported that the TownsOS route
