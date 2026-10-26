@@ -173,3 +173,7 @@ references/
 *.Env
 !.env.example
 __pycache__/
+
+# Python venv for the Capstone decoder (tools/decode.js). Machine-local, not
+# reproducible content: tools/decode-requirements.txt is the source of truth.
+tools/.venv/

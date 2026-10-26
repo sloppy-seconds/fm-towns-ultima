@@ -131,7 +131,12 @@ function refs(addr) {
 		// hit `if (!op) continue` and never reached the break. The scan then ran to the
 		// end of the disassembly window and attributed neighbouring routines' globals to
 		// this one: 0xfdecc reported 0xdea48 from the routine that starts 28 bytes later.
-		if (/^ret\b/i.test(r.text)) break;
+		//
+		// It must also cover `retf` and `retn`. `retf 0xf30` is a far return with an
+		// immediate, and an earlier /^ret\b/ matched it but a plain `ret` test did not, so
+		// 0xf329c ran past its own terminator into the next routine and reported a global
+		// it does not touch.
+		if (/^ret[nf]?\b/i.test(r.text)) break;
 		const mnemonic = (r.text.match(/^([a-z]+)/i) || [])[1] || '';
 		if (BRANCH.test(mnemonic)) continue;
 		const op = operand(r.text);

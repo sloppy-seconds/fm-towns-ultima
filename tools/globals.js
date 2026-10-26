@@ -113,48 +113,91 @@ function classify(mnemonic, text) {
 	return 'data';
 }
 
+// The classification above is retained only for the --width-check subcommand, which
+// reads text to compare access WIDTHS. The reference scan itself now goes through
+// tools/decode.js and reads operand TYPES, because inferring them from text produced
+// two bugs in one session and both are unexpressible with a typed operand model.
 function scanRoutine(buf, addr) {
-	const text = routineText(buf, addr);
+	const { insns } = require('./decode.js').decode(addr, nextBoundary(addr));
+	const stop = require('./decode.js').toFirstRet(insns);
 	const refs = [];
-	let instructions = 0;
-	for (const line of text.split('\n')) {
-		if (!line.trim()) continue;
-		const p = line.split(/\s+/);
-		if (p.length < 2) continue;
-		const at = parseInt(p[0], 16);
-		if (Number.isNaN(at)) continue;
-		// Rebuild the instruction text after the hex bytes column.
-		const rest = line.replace(/^\S+\s+\S+\s*/, '');
-		const mnemonic = (rest.match(/^([a-z]+)/i) || [])[1] || '';
-		instructions++;
-		for (const m of rest.matchAll(/\b0x([0-9a-f]{5,6})\b/gi)) {
-			const v = parseInt(m[1], 16);
-			if (v < 0x10000 || v > 0x200000) continue;
-			// AN IMMEDIATE IS NOT A REFERENCE, even when its value is an address.
+	for (const ins of stop) {
+		const mnemonic = ins.mnemonic;
+		for (const op of ins.operands) {
+			// A MEMORY OPERAND IS A REFERENCE. An IMMEDIATE is not, even when its value
+			// happens to be an address: `mov [0x7b374],0x7b274` accesses the first and
+			// stores the value of the second. That distinction is operand TYPE here, so
+			// the over-count that made 0xe5578 report 7 references instead of 5 cannot
+			// occur.
+			if (op.type !== 'mem') continue;
+			if (op.disp < 0x10000 || op.disp > 0x200000) continue;
+			// AN INDEX IS ENOUGH. `[edx*4+0xe2d29]` has an index and NO base, and the first
+			// version of this test required both, so it fell through to 'absolute'. That is
+			// the base-less indexed form the compiler emits for a jump table and for a flat
+			// array, and misclassifying it as absolute made every jump table look like a
+			// global: seven phantom globals, and a disagreement with globals_od.js on seven
+			// routines.
 			//
-			// `mov dword [0x7b374],0x7b274` accesses 0x7b374 and stores the VALUE
-			// 0x7b274 into it. Counting both made 0xe5578 report 7 references when it
-			// makes 5, and the phantom addresses were the stored constants.
+			// Three genuine shapes, and the condition must cover all three:
+			//   base+index+disp  struct field through a variable pointer
+			//   index+disp       jump table or flat array, no base register
+			//   base+disp        struct field through a fixed pointer
+			const kind = (op.index !== null) ? 'indexed-base'
+				: (op.base !== null) ? 'relative' : 'absolute';
+			// A JUMP TABLE IS NOT A GLOBAL. `jmp [edx*4+0xe2d29]` indexes a table of
+			// CODE addresses, and with no base register it has the same operand shape as
+			// an indexed array of data. The distinguishing fact is the mnemonic: a
+			// transfer of control to a computed address reaches code, while a data read
+			// reaches a structure. Counting jump tables added seven phantom globals and
+			// made globals.js disagree with globals_od.js on seven routines.
 			//
-			// The rule is positional and exact: a reference is a hex literal INSIDE
-			// brackets. `mov eax,0x7a7d0` loads an address into a register and is kept
-			// separately by operandKind, because there is a real distinction between
-			// "touches memory at X" and "computes the address X".
-			//
-			// A first attempt tested for a comma immediately before the literal, which
-			// wrongly dropped [edx+0xcde89] from `add dword [edx+0xcde89],eax` because
-			// the bracket closes before the comma. Position in brackets is the property
-			// that actually holds.
-			const before = rest.slice(0, m.index);
-			const inBrackets = before.includes('[') && !before.includes(']');
-			const isImmediateMove = /^mov\s+[a-z0-9]+\s*,\s*0x[0-9a-f]+$/i.test(rest.trim());
-			if (!inBrackets && !isImmediateMove) continue;
-			refs.push({ at, value: v, kind: classify(mnemonic, rest), text: rest.trim() });
+			// This is a genuine ambiguity in the operand model, unlike the earlier bugs:
+			// base/index/scale cannot tell a jump table from an array, so the mnemonic
+			// has to be consulted. Recorded rather than hidden.
+			if (kind === 'indexed-base' && /^(j[a-z]+|call)$/i.test(mnemonic)) continue;
+			refs.push({
+				at: ins.addr,
+				value: op.disp,
+				kind: kind === 'relative' ? 'relative' : 'data',
+				text: describe(ins),
+			});
 		}
-		if (/^(ret|retn)\b/.test(rest.trim())) break;
-		if (instructions > 2000) break;
+		// `mov reg,imm` computes an address without touching memory. It is a reference
+		// to a global but not an access, and it is kept because the distinction was a
+		// real one in the text parser too.
+		if (/^mov$/i.test(mnemonic) && ins.operands.length === 2
+			&& ins.operands[0].type === 'reg' && ins.operands[1].type === 'imm') {
+			const v = ins.operands[1].value;
+			if (v >= 0x10000 && v <= 0x200000) {
+				refs.push({ at: ins.addr, value: v, kind: 'data', text: describe(ins) });
+			}
+		}
 	}
 	return refs;
+}
+
+// Round-trip an instruction to a readable string for the CLI output. Not used for any
+// decision, only for display, which is why it can be lossy.
+function describe(ins) {
+	const parts = ins.operands.map((op) => {
+		if (op.type === 'mem') {
+			const inner = [op.base, op.index ? op.index + (op.scale > 1 ? '*' + op.scale : '') : '',
+				op.disp ? '0x' + op.disp.toString(16) : ''].filter(Boolean).join('+');
+			return '[' + inner + ']';
+		}
+		if (op.type === 'imm') return '0x' + op.value.toString(16);
+		if (op.type === 'reg') return op.name;
+		return String(op.text || '');
+	});
+	return ins.mnemonic + (parts.length ? ' ' + parts.join(',') : '');
+}
+
+// The decode bound. A routine ends at its first ret, but Capstone needs a region to
+// decode, and the next corpus entry is not a safe bound: 0xfdecc is 6 bytes while the
+// next call target is 28 bytes later, so scanning to it walked into neighbours. A
+// modest window plus toFirstRet is correct and cheap.
+function nextBoundary(addr) {
+	return addr + 1024;
 }
 
 function baseFoldAddrs() {
@@ -191,12 +234,53 @@ function main() {
 		return null;
 	}
 	if (args.includes('--width-check')) {
+		// WIDTH NOW COMES FROM THE OPERAND, NOT THE TEXT.
+		//
+		// This check used to parse `mov byte [..]` / `mov cl,[..]` out of a string, because
+		// ndisasm prints the size either as a keyword or in the register name. After the
+		// migration to tools/decode.js the reference text is the module's `describe()`
+		// output, which is a DISPLAY form and does not carry the size prefix, so every
+		// width came back null and the check silently found nothing. It reported 0
+		// conflicts on a deliberately corrupted image, which is the exact failure this
+		// check exists to catch, caught by itself.
+		//
+		// The register name is the authority: `mov eax,[x]` is 4 bytes and `mov al,[x]` is
+		// 1. That is available from the operand list without parsing anything.
+		const R8 = new Set(['al', 'bl', 'cl', 'dl', 'ah', 'bh', 'ch', 'dh']);
+		const R16 = new Set(['ax', 'bx', 'cx', 'dx', 'si', 'di', 'bp', 'sp']);
+		const R32 = new Set(['eax', 'ebx', 'ecx', 'edx', 'esi', 'edi', 'ebp', 'esp']);
+		function widthOfReg(name) {
+			if (!name) return null;
+			const n = name.toLowerCase();
+			if (R8.has(n)) return 1;
+			if (R16.has(n)) return 2;
+			if (R32.has(n)) return 4;
+			return null;
+		}
 		const uses = new Map();
 		for (const addr of baseFoldAddrs()) {
-			for (const r of scanRoutine(buf, addr)) {
-				if (r.kind !== 'data') continue;
-				if (!uses.has(r.value)) uses.set(r.value, []);
-				uses.get(r.value).push({ routine: addr, width: width(r.text), text: r.text });
+			const { insns } = require('./decode.js').decode(addr, nextBoundary(addr), { image: imagePath() });
+			const stop = require('./decode.js').toFirstRet(insns);
+			for (const ins of stop) {
+				if (!/^mov$/i.test(ins.mnemonic)) continue;
+				const mem = ins.operands.find((o) => o.type === 'mem');
+				if (!mem || mem.disp < 0x10000 || mem.disp > 0x200000) continue;
+				// THE SIZE IS THE REGISTER PAIRED WITH THE MEMORY OPERAND, not any register in
+				// the instruction. `mov [eax+edx*2+0x77e90],cx` stores a WORD, and taking the
+				// first register found in the operand list picked an unrelated one and produced
+				// a false conflict against a byte read of the same cell.
+				//
+				// So: if the register is the SOURCE (operands[1]) and memory is the
+				// destination (operands[0]), the register's width is the store width. If
+				// memory is the source, the same holds. Anything else, such as a register
+				// pair like `mov [x],eax` with an architectural width, is not measurable this
+				// way and is skipped rather than guessed.
+				let reg = null;
+				const other = ins.operands.find((o) => o !== mem);
+				if (other && other.type === 'reg') reg = other;
+				const w = reg ? widthOfReg(reg.name) : null;
+				if (!uses.has(mem.disp)) uses.set(mem.disp, []);
+				uses.get(mem.disp).push({ routine: addr, width: w, text: describe(ins) });
 			}
 		}
 		const conflicts = [];
