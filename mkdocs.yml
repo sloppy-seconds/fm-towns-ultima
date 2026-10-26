@@ -161,6 +161,7 @@ nav:
       - Naming by string reference does not scale: naming-negative.md
       - The ndisasm continuation trap: ndisasm-continuation.md
       - objdump as a second opinion: objdump-crosscheck.md
+      - Capstone as a replacement decoder: capstone-gate.md
       - The corpus census: corpus-census.md
       - The authentic toolchain reproduces seven routines: highc-authentic-toolchain.md
       - The plot calibration: highc-plot-calibration.md
