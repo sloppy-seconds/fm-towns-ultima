@@ -205,6 +205,22 @@ const runNode = (script, args = []) => {
 	record('corpus census is reproducible', problems);
 }
 
+// D4. The detector's own regression, kept because it has been wrong twice.
+//
+// `target_bytes` truncated at the first 0xc3 for a long time. ndisasm wraps the
+// `mov dword [disp32],imm` form onto a continuation line, and the old code required
+// a mnemonic on every line, so the tail of the immediate was dropped. An 11-byte
+// routine was reported as 9, and the missing bytes contained 0xc3, which is why it
+// looked like a short routine. That produced a false mismatch against a build that
+// was correct.
+//
+// The assertion is the specific routine that exposed it, plus the seven matched
+// ones as a no-regression guard.
+{
+	const r = runNode('checkglobals.js');
+	record('global tooling regression', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
+}
+
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
 // places, which is exactly why it keeps happening: the doc says it, the agent does not read that doc while
 // writing a batch on autopilot.

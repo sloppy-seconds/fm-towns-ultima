@@ -24,6 +24,7 @@ Requires cserve.js running and the guest healthy.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -61,13 +62,32 @@ def target_bytes(addr):
     for line in text.split('\n'):
         if not line.strip():
             continue
-        parts = line.split(None, 2)
-        if len(parts) < 2:
-            continue
-        hexpart = parts[1]
+        # ndisasm WRAPS a long instruction onto a continuation line that starts with
+        # '-' and carries hex but no mnemonic:
+        #     000EF548  C705606E0D003000  mov dword [0xd6e60],0x30
+        #              -0000
+        # The old version required parts[2] (the mnemonic) and silently dropped the
+        # continuation, so 0xef548 was reported as 9 bytes when it is 11. The two
+        # lost bytes were part of the immediate 30 00 00 00, one of which is 0xc3.
+        # That made the routine look like it used a 2-byte immediate, and comparing
+        # the truncated target against a correct build produced a false mismatch.
+        # Never drop a line because it does not look like the shape you expect.
+        if not line[0].isspace():
+            parts = line.split(None, 2)
+            if len(parts) < 2:
+                continue
+            hexpart = parts[1]
+            mnemonic = parts[2].strip() if len(parts) > 2 else ''
+        else:
+            # Continuation line: '  -0000' continues the previous instruction.
+            m = re.match(r'\s+-([0-9a-f]+)\s*$', line)
+            if not m:
+                continue
+            hexpart = m.group(1)
+            mnemonic = ''
         for i in range(0, len(hexpart), 2):
             bytes_.append(int(hexpart[i:i + 2], 16))
-        if parts[2].strip().startswith('ret'):
+        if mnemonic.startswith('ret'):
             break
         if len(bytes_) > 1024:
             break

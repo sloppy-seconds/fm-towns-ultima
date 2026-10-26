@@ -210,5 +210,14 @@
    "what": "Pixel writer. Source identified and 24 of 25 bytes match, so this is unmatched and not a near-match: only the disp32 of the store differs, because it references the global grid at 0x77e90. Grid is unsigned short[128][64], row stride 128 bytes, indexed [a][b], function takes (value, b, a).",
    "evidence": "docs/base-fold-negative.md"
   }
- ]
+ ],
+ "globals_ref": {
+  "file": "docs/globals.json",
+  "note": "Typed globals for the base-fold set, with the routines supporting each. Recovered routines are recorded on the global they use, not here, because a routine is only recoverable once its global is typed.",
+  "counts": {
+   "typed": 4,
+   "excluded_hardware": 2,
+   "recovered_routines": 1
+  }
+ }
 }

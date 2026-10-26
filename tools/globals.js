@@ -40,8 +40,17 @@ const ROOT = path.join(__dirname, '..');
 const IMAGE = path.join(ROOT, 'ENCHANT.EXP');
 const CORPUS = path.join(ROOT, 'docs', 'corpus.json');
 
+// --image lets a test point at a deliberately corrupted copy. Without it the
+// detectors can only be run against the real binary, and a check that has never
+// been seen to fail on bad input is a comment.
+function imagePath() {
+	const args = process.argv.slice(2);
+	const i = args.indexOf('--image');
+	return i >= 0 && args[i + 1] ? args[i + 1] : IMAGE;
+}
+
 function load() {
-	return fs.readFileSync(IMAGE);
+	return fs.readFileSync(imagePath());
 }
 
 // Refuse to guess a routine length. A wrong length silently changes which bytes
@@ -130,6 +139,53 @@ function baseFoldAddrs() {
 function main() {
 	const args = process.argv.slice(2);
 	const buf = load();
+
+	// --width-check: a global must be accessed at ONE width across all its users.
+	//
+	// WHY THIS IS A SUBCOMMAND AND NOT A SCRATCH SCRIPT. It was a scratch script, and
+	// its first version reported 0 conflicts across 436 globals while ALSO reporting
+	// 0 on deliberately contradictory input, so it was decoration. The bug was that
+	// `mov eax,[addr]` carries no size keyword and the width lives in the register
+	// name. Teaching it eax=4 and cl=1 makes it able to fail, which is the only
+	// reason the 0 it now reports on real data means anything.
+	//
+	// The register-name table is the whole check. Do not simplify it away.
+	const R8 = new Set(['al', 'bl', 'cl', 'dl', 'ah', 'bh', 'ch', 'dh']);
+	const R16 = new Set(['ax', 'bx', 'cx', 'dx', 'si', 'di', 'bp', 'sp']);
+	const R32 = new Set(['eax', 'ebx', 'ecx', 'edx', 'esi', 'edi', 'ebp', 'esp']);
+	function width(text) {
+		const sized = text.match(/mov\s+(byte|word|dword)\b/);
+		if (sized) return { byte: 1, word: 2, dword: 4 }[sized[1]];
+		const m = text.match(/mov\s+([a-z0-9]+)\s*,/);
+		if (m) {
+			if (R8.has(m[1])) return 1;
+			if (R16.has(m[1])) return 2;
+			if (R32.has(m[1])) return 4;
+		}
+		return null;
+	}
+	if (args.includes('--width-check')) {
+		const uses = new Map();
+		for (const addr of baseFoldAddrs()) {
+			for (const r of scanRoutine(buf, addr)) {
+				if (r.kind !== 'data') continue;
+				if (!uses.has(r.value)) uses.set(r.value, []);
+				uses.get(r.value).push({ routine: addr, width: width(r.text), text: r.text });
+			}
+		}
+		const conflicts = [];
+		for (const [value, list] of uses) {
+			const widths = new Set(list.map((u) => u.width).filter((w) => w !== null));
+			if (widths.size > 1) conflicts.push({ value, widths: [...widths].sort(), uses: list });
+		}
+		console.log(`globals checked: ${uses.size}`);
+		console.log(`conflicting access widths: ${conflicts.length}`);
+		for (const c of conflicts) {
+			console.log(`  0x${c.value.toString(16)} widths ${c.widths.join('/')}`);
+			for (const u of c.uses.slice(0, 4)) console.log(`    ${u.routine}: ${u.text}`);
+		}
+		return;
+	}
 
 	if (args.includes('--scan')) {
 		const addrs = baseFoldAddrs();
