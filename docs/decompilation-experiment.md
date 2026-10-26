@@ -921,3 +921,49 @@ Three candidates, cheapest first.
 
 None of the three is tried here. Each is a change of configuration rather than a
 probe, and this experiment has now spent a long stretch on configuration.
+
+## Result 15: the two linkers are different binaries with identical interfaces, and the real-mode one knows MP
+
+The question was whether `P3` versus `MP` gates byte matching, and the way to
+settle it was whether `386LINK.EXE` and `386LINKP.EXP` are the same program.
+
+They are not, and the difference is informative.
+
+| | `386LINK.EXE` | `386LINKP.EXP` |
+|---|---|---|
+| container | `MZ`, header parses exactly to 192,192 bytes | `P3`, 147,626 bytes |
+| shared 16-byte code windows | **0 in 7,703** | |
+| help and option table | identical, verbatim | identical, verbatim |
+| tests input for `P2`, `P3`, `MP` | yes | yes |
+
+Zero shared code with a byte-identical option table is the signature of one
+source built twice, real mode and protected mode. It is the same relationship
+`HC386.EXE` has to `HCD386P.EXP`. So `386LINKP.EXP` is not a wrapper around
+`386LINK.EXE` and cannot be treated as one.
+
+### The part that matters
+
+Both linkers carry `-PACK` and `-NOPACK` for `.EXP` output, and both decode a
+compare chain against `P2`, `P3` and `MP` (`66 3d 50 32` / `50 33` / `4d 50`).
+So the real-mode linker understands the `MP` signature.
+
+The earlier base-folding probe ran `386LINK BF.OBJ -lib Q:\HC386\SMALL\HCE` with
+no format switch and got a `P3` file. The default is the packed `.EXP`. `MP` is
+the **unpacked flat form**: 30-byte header, `relocCount = 0`, and
+`(pages-1)*512 + lastPage` reproducing the game's 1,072,398 bytes exactly, which
+`docs/ghidra-viability.md` already verified independently.
+
+So the plausible chain is `386LINK.EXE ... -NOPACK` producing an `MP`-shaped
+output, and that is a test which needs no emulator session, no `RUN386`, and no
+interactive desktop.
+
+### What this corrects
+
+An earlier note in this experiment concluded that reaching the protected-mode
+linker was required to produce the game's container. **That is now unsupported.**
+What `RUN386` is actually required for is the protected-mode *compiler*
+(`HCD386P.EXP`), not the container format.
+
+If `386LINK.EXE -NOPACK` emits `MP`, then the container does not gate byte
+matching at all, and `frame-decision` stands alone as the remaining structural
+blocker.
