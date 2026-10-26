@@ -57,17 +57,72 @@ source spelled the division as successive halvings.
 | `(e-6)/8` | `99 81 e2 07 00 00 00 03 c2 c1 f8 03` (bias-then-shift) |
 | `(e-6)/2/2/2` | `99 2b c2 d1 f8` x3 (naive halving, **matches the game**) |
 
-## What this means for the 307
+## Attempting `0xe6a58`: the arithmetic is solved, the allocation is not
 
-The specific blocker recorded against non-leaf routines is division, and it is
-gone for the compiler in use. What remains on `0xe6a58` is argument mapping and
-register allocation: the target uses `ebx`/`esi`/`edi` with arguments at
-`[ebp+8]`, `[ebp+0x14]`, `[ebp+0x20]`, while the candidate used `edi` with a
-different argument order.
+Three source shapes were written. None matched. Recording what is known, because
+most of it is now known and the remainder is one specific disagreement.
 
-That is ordinary work of the kind already solved ten times on leaves, not a
-code-generation wall. It is also not proof that non-leaf matching is now easy. One
-routine's divide sequence is one routine's divide sequence.
+### The record, solved
+
+The routine initialises one record of a struct array. Every store is
+`mov [eax+ecx+disp],reg` where `eax` is the literal `0x7a7d0` and `ecx` is
+`57*edi`, computed by `lea edx,[edi+edi*2]`, `lea ecx,[edx+edx*8]`,
+`lea ecx,[edx+ecx*2]`. So the record stride is **57 bytes** and record `i` starts
+at `0x7aee4 + 57*i`.
+
+| offset | field |
+|---|---|
+| 0 | byte `0xff` |
+| 1, 5, 9, 0xd | four dwords from arguments |
+| 0x11 | clamped value |
+| 0x15 | the min |
+| 0x19, 0x1d | 0 |
+| 0x21 | `-1` |
+| 0x25 | argument |
+| 0x29 | 0 |
+| 0x2d, 0x31 | arguments |
+| 0x35 | `-1` |
+
+Fields span 53 bytes, which fits inside the 57-byte stride. That is a
+self-consistency check the layout passes.
+
+### The two computations, solved
+
+```
+t = (c-6)/8      via lea eax,[esi-6] then cdq/sub/sar 1 three times
+if (t < e) e = t     e is [ebp+0x1c], written back to the stack slot
+u = (d-4)/16     via sub/ cdq / mov ecx,0x10 / idiv ecx
+if (u < f2) swap     cmp eax,ebx / jnl / xchg eax,ebx
+```
+
+The `xchg eax,ebx` is the interesting instruction: it swaps rather than moving,
+so after the clamp `ebx` holds the division result and `eax` holds the old `f2`.
+That is a swap, not a min.
+
+### The disagreement, and it is allocation not logic
+
+The target's prologue is `push ebp / mov ebp,esp / push ebx / push esi / push edi`
+with **no local storage**, then loads `edi=[ebp+8]`, `esi=[ebp+0x14]`,
+`ebx=[ebp+0x20]` up front and reuses `esi` for the first division.
+
+All three candidate shapes produce `push eax` and load `c` from the stack again
+later. So the target keeps `c` in `esi` and has no frame, while ours spills.
+That is the same class as the register-choice case `0xe140c`, not a logic error.
+
+The likely cause is that the source used the parameter fewer times than the
+candidates did, or the two divisions were written as separate statements feeding
+distinct variables. Not established.
+
+### What this does and does not change
+
+The division blocker is confirmed gone: both `cdq/sub/sar` and `idiv` are
+reproduced exactly by 1.73. What this routine adds is that non-leaf matching is
+**not** simply a matter of writing the same logic. Register allocation differs on
+routine shape, and 225 bytes with 15 stores and two divisions gives the allocator
+far more freedom than the 25-byte leaves did.
+
+One routine, one negative. It does not show the other 306 are unreachable, and it
+does show they are materially harder than the leaf set.
 
 ### The `idiv` test, which `docs/highc-forensics.md` asked for
 
