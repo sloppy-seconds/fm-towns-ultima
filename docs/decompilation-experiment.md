@@ -1493,6 +1493,26 @@ bring-up, does not work here.
 and `docs/compiling-on-fm-towns.md` records that without it guest writes silently
 do nothing. Here it appears to be on regardless. That has not been explained.
 
+### Correction to the section above, made the same day
+
+The conclusion "the volume is read-only" is **withdrawn**. It was built on two
+tests that could not have worked, and the third has two possible causes that were
+never separated.
+
+| test | what it was taken to show | what it actually shows |
+|---|---|---|
+| typed `ECHO ALIVE > A:\A.TXT` at the desktop | volume read-only | nothing. TownsMENU is a GUI with no command prompt, so the keystrokes went to a window manager, not a shell. There was no interpreter to create the file |
+| same again after `FD0UP` | volume read-only | nothing, for the same reason |
+| traced `AUTOEXEC.BAT` writing `T.LOG` | volume read-only | one of two things: either the volume is protected, or the trace line never ran. Both remain open |
+
+The screen was inspected directly afterwards and confirmed the point: TownsMENU
+V1.1L30 presents a menu bar, desk tabs, a drive window and a status strip, and
+**no prompt anywhere**. Anyone reading this should not repeat the keystroke test.
+
+What is actually established about `tos11.hdm` write access is only that a traced
+`AUTOEXEC.BAT` produced no file, with the cause unresolved. See result 23 for the
+measurement that supersedes this section entirely.
+
 ### Why this matters
 
 Gemini's description of a 1989 dev setup said developers ran a hard disk with the
@@ -1511,3 +1531,103 @@ The remaining gap is writable storage. Three candidates, cheapest first:
 
 Not attempted here. The write-protection question has to be settled first,
 because every one of the three depends on it.
+
+## Result 23: the pristine TownsOS pack was on disk all along, and it carries the matched MS-DOS 3.1 toolchain
+
+### Tried
+
+`saves/tos11.hdm` had been written to by an earlier session, and there is no
+pristine copy in git because `.gitignore:144` excludes `/saves/` entirely. The
+question was whether an unmodified original still existed anywhere.
+
+`docs/save-disk.md` names the source: `https://gekk.info/files/FMT%20ROMs.7z`,
+whose Towns images are `.HDM`. Searching the filesystem for that pack found it
+already extracted at `/var/tmp/fmtos/`.
+
+### Measured
+
+Five images, all 1,261,568 bytes, all intact:
+
+| file | sha256 prefix |
+|---|---|
+| `[OS] Towns System Software v1.1 L30 (boot disk).hdm` | `f547976db325c0a0` |
+| `[OS] Towns System Software v2.1 L51.hdm` | `63d5a292c4f38a81` |
+| `[OS] MS-DOS 3.1 L24 (Disk 1 - System).hdm` | `84e628cc4a919bfe` |
+| `[OS] MS-DOS 3.1 L24 (Disk 2 - Utility).hdm` | `9d671d3fd922a771` |
+| `[OS] MS-DOS 6.2 L10 (boot disk).hdm` | `9cd61c276a3c6e22` |
+
+The v1.1 image is the disk already known, and the damage to `saves/tos11.hdm` was
+**purely additive**. Pristine holds 9 files and 732,160 bytes free. The poisoned
+copy held 13 files and 70,656 free. The four added files total 659,053 bytes, and
+732,160 minus that is 73,107, which reconciles with 70,656 once root directory
+entries are counted. Nothing was overwritten, so deleting the four restores the
+original byte for byte. All five were copied into `saves/` as `*.pristine.hdm` and
+`sha256`-verified against the source, and `saves/tos11.hdm` was restored from it.
+
+**The clean disk has 732 KB free, not 70 KB.** The earlier reading of this disk as
+too full to compile into was an artefact of our own clutter.
+
+### The MS-DOS 3.1 disks will not mount, and why
+
+`mdir` refuses them: `diskette :: is Linux LILO, not DOS`. The boot sectors explain
+it.
+
+| image | media byte |
+|---|---|
+| MS-DOS 3.1 System and Utility | **`0x01`** |
+| TownsOS 1.1, TownsOS 2.1, MS-DOS 6.2 | `0xfe` |
+
+Everything else is identical and valid: 1024-byte sectors, 1 sector per cluster, 1
+reserved, 2 FATs, 192 root entries, 1232 total sectors, 2 sectors per FAT. `0x01`
+is not a legal FAT media descriptor, so `mtools` rejects the volume and guesses at
+a boot loader. Patching byte `0x15` to `0xfe` on a scratch copy mounts it cleanly.
+That is a read workaround for inspection only, not a fix to apply to a real disk.
+
+### What the MS-DOS 3.1 pair contains
+
+`SYSTEM-DISK` (Disk 1):
+
+| file | size | date | why it matters |
+|---|---|---|---|
+| `COMMAND.COM` | 24,161 | 1988-10-24 | the shell `tos11.hdm` has never had |
+| `GDS.SYS` | 32,347 | 1989-01-23 | the graphics driver `RUN386` needs |
+| `CTL.SYS` | 17,091 | 1988-12-09 | Towns control driver |
+| `MOUSE.SYS` | 2,394 | 1989-08-04 | mouse |
+| `EMM.SYS` | 11,665 | 1989-05-30 | expanded memory |
+| `OAK0.SYS`, `OAK1.SYS` | 36,242 / 32,109 | 1989 | FM Towns disk drivers |
+| `FORMAT.COM`, `DISKCOPY.COM`, `CHKDSK.EXE`, `LINK.EXE` | | | disk and build utilities |
+
+`UTY-DISK` (Disk 2):
+
+| file | size | date | why it matters |
+|---|---|---|---|
+| `MSCDEX.EXE` | 18,307 | 1988-06-02 | **version 2.00**, see below |
+| `CDDRV.SYS` | 5,461 | 1989-01-05 | CD device driver |
+| `CDISC.SYS` | 6,041 | 1989-09-01 | CD disc driver |
+| `HDUTY.EXE`, `HDIST.EXE`, `CLNDSK.EXE` | | | disk maintenance |
+| `XCOPY.EXE`, `EDLIN.EXE`, `FC.EXE`, `EXE2BIN.EXE` | | | file and build tools |
+
+`MSCDEX` self-identifies as `MSCDEX Version 2.00`. `docs/compile-blocker.md` records
+that `MSCDEX` 2.23 requires DOS 3.2 or later and that this is why the CD never
+mounted on the 3.1-era images. **2.00 predates that requirement**, so the version
+mismatch that closed several earlier routes may not apply here.
+
+`saves/tos21-console.hdm` carries a `COMMAND.COM` of exactly 24,161 bytes dated
+2026-10-25, so an earlier session had already taken this file from this disk. It
+was never put on `tos11.hdm`.
+
+### Verdict
+
+POSITIVE, and it reopens a route that three earlier results had closed.
+
+The repository now holds, in one place, a bootable TownsOS 1.1 with TownsMENU
+resident, and the matched MS-DOS 3.1 shell, CD drivers and `GDS.SYS` that every
+previous attempt was missing. The two facts that blocked them, no `COMMAND.COM`
+and an `MSCDEX` too new for the kernel, are both answered by this pack.
+
+Not yet done, and the obvious next test: put `COMMAND.COM` from `SYSTEM-DISK` on the
+restored `tos11.hdm`, which has 732 KB free, and see whether TownsMENU will then
+run `RUN386.EXE`. The `FMT.EXP` experiment showed TownsMENU does attempt to load
+`.EXP` files, reporting 「プログラムを読み込み中です」, *loading program*, and then
+hanging. `RUN386.EXE` reported 「TownsMENUを読み込み中です」, *loading TownsMENU*, and
+returned without running. Neither had a shell to run in.
