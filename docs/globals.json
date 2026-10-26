@@ -1,0 +1,97 @@
+{
+ "source": "ENCHANT.EXP, base 0",
+ "method": "node tools/globals.js --scan base-fold, then classify by signal per docs/globals-step2-plan.md",
+ "globals": [
+  {
+   "addr": "0x0ceca0",
+   "kind": "record index",
+   "type": "int",
+   "stride": 351,
+   "fields": {
+    "0xcde6e": "?",
+    "0xcde76": "?",
+    "0xcde7c": "?",
+    "0xcdf6b": "?"
+   },
+   "routines": [
+    "0xf5844",
+    "0xfbc20",
+    "0xe2efc",
+    "0xf329c",
+    "0xef248",
+    "0xe3af0",
+    "0xf8fd8",
+    "0xeff94"
+   ],
+   "evidence": "Every user loads it then computes 351*i via lea/lea/shl/sub. Same chain at 0xe1ca5. Fields span 253 bytes, inside one 351-byte record."
+  },
+  {
+   "addr": "0x0ce408",
+   "kind": "pointer table",
+   "type": "int[]",
+   "element": "int (4-byte, indexed by [reg*4])",
+   "routines": [
+    "0xfd96c",
+    "0xeed6c",
+    "0xf8fd8",
+    "0xeff94"
+   ],
+   "evidence": "Always [reg*4+0xce408]: mov/cmp/sub/add with a scaled index. Adjacent to 0xce488, which is the same table one field on."
+  },
+  {
+   "addr": "0x0ce488",
+   "kind": "pointer table",
+   "type": "int[]",
+   "element": "int (4-byte, indexed by [reg*4])",
+   "routines": [
+    "0xfd96c",
+    "0xeed6c",
+    "0xf8fd8",
+    "0xeff94"
+   ],
+   "evidence": "Same four users as 0xce408 and the same [reg*4+addr] form, 0x80 bytes higher. A pair of parallel per-id tables."
+  },
+  {
+   "addr": "0x0df0c7",
+   "kind": "hardware",
+   "excluded": true,
+   "routines": [
+    "0xfec70",
+    "0xff652",
+    "0xffcc6"
+   ],
+   "evidence": "All three users contain cli/out/in. 0xfec70 has pushfw, cli, in al,dx, out dx,al, popfw around the access. Not a game global."
+  },
+  {
+   "addr": "0x0df0c8",
+   "kind": "hardware",
+   "excluded": true,
+   "routines": [
+    "0xfec70",
+    "0xff652",
+    "0xffcc6"
+   ],
+   "evidence": "Same three hardware routines as 0xdf0c7, used as a latch byte cleared to 0 between port writes."
+  },
+  {
+   "addr": "0x0d6e60",
+   "kind": "plain scalar",
+   "type": "int",
+   "routines": [
+    "0xfabd0",
+    "0xef548",
+    "0xfabf8"
+   ],
+   "evidence": "mov dword [0xd6e60],0x30 initialises it; compared against 0 and decremented. No index chain, so it is a counter or mode word.",
+   "recovered_routines": [
+    {
+     "addr": "0xef548",
+     "bytes": 11,
+     "c": "int g;\nvoid f(void) { g = 0x30; }",
+     "status": "identical except disp32",
+     "diff": "bytes 2..5 only, the displacement of mov dword [0xd6e60],0x30"
+    }
+   ]
+  }
+ ]
+}

@@ -156,6 +156,7 @@ nav:
       - The DOS compile route is the default: compile-route-dos.md
       - Base-fold, source known and address not: base-fold-negative.md
       - Plan and execution for the globals: globals-plan.md
+      - Typing the top globals: globals-step2-plan.md
       - The corpus census: corpus-census.md
       - The authentic toolchain reproduces seven routines: highc-authentic-toolchain.md
       - The plot calibration: highc-plot-calibration.md
