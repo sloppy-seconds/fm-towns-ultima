@@ -1,18 +1,24 @@
 # The upper region may be a different compiler generation
 
-**Correction, later session. Two claims on this page have been tested and do not hold as
-written.** The `enter` cluster is not in "the upper region": it is confined to a **2,260-byte
-band**, 27 of 41 routines there and only 2 of 413 outside. And it **interleaves** with
-non-`enter` routines 13 times, which rules out the separately-built translation unit this
-page's title suggests. The `xor` corroboration below also does not carry the weight given to
-it: no routine in the band contains `sub eax,eax` at all, and most contain neither idiom, so
-`xor` says nothing about this cluster. Full measurements and what survives:
-[enter-cluster.md](enter-cluster.md).
+**REFUTED. Read [enter-is-platform.md](enter-is-platform.md).** The `enter` and `xor` idioms
+this page treated as evidence of a different compiler are present in `TMENU.EXP`, Fujitsu's own
+launcher, at the same rate: 80 `enter 0,0` against 283 `push ebp` forms, and it carries the
+identical `1983-1988` MetaWare runtime banner. The same toolchain emits both forms, so the
+signal is the platform, not the provenance.
 
-**Verdict: OPEN, and now strongly corroborated.** A cluster of routines in the upper
-part of the image uses two idioms High C 1.73 never emits, and both idioms cluster on the
-same address boundary. That does not yet identify the compiler, but it rules out the source
-shapes tried and it names exactly what would settle it.
+The page is kept rather than deleted because the error is instructive: it used clustering as
+evidence about provenance and never tested that signal on a binary whose provenance was known
+and different. Four counts and one extraction would have settled it.
+
+**Two earlier corrections also stand.** The cluster is a 2,260-byte band, not "the upper
+region". And the `xor` corroboration below does not hold per routine: no routine in the band
+contains `sub eax,eax`, so `xor` says nothing about this cluster.
+
+**What survives:** the interleaving in [enter-cluster.md](enter-cluster.md), which now reads as
+support for a code-generator selection rule inside one compiler rather than for two compilers.
+
+**Original verdict, superseded:** a cluster of routines in the upper part of the image uses two
+idioms High C 1.73 was believed never to emit.
 
 This came out of working the `base-fold` queue, not from looking for it. Recording it
 because the alternative is that every one of those routines gets parked separately with

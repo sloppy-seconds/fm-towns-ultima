@@ -285,7 +285,7 @@
       "bytes": 16,
       "class": "unresolved",
       "what": "Setter for the int global at 0xdea40, returns 0. Engine: 13 of 15 bytes agree; differs only in prologue and the zeroing idiom.",
-      "evidence": "target c8 00 00 00 ... 33 c0 c9 c3 (enter 0,0 / xor eax,eax); High C 1.73 emits 55 8b ec ... 2b c0 c9 c3 (push ebp;mov ebp,esp / sub eax,eax). Verified with tools/cmpdisp.js --addr 0xfdea0."
+      "evidence": "Target prologue is enter 0,0 (c8 00 00 00), our build emits push ebp; mov ebp, esp. REFUTED AS PROVENANCE: measured against TMENU.EXP, Fujitsu's own launcher, which uses enter 0,0 80 times against 283 push-ebp forms and carries the identical 1983-1988 MetaWare runtime banner. So the same toolchain emits both forms. The selection rule is unknown, not the compiler. See docs/enter-is-platform.md. Differs also in the zeroing idiom: 33 c0 (xor) against our 2b c0 (sub), same caveat. 13 of 15 bytes otherwise agree (tools/cmpdisp.js)."
     },
     {
       "addr": "fde90",
@@ -293,7 +293,7 @@
       "bytes": 16,
       "class": "unresolved",
       "what": "Setter for 0xdea3c, twin of 0xfdea0. Same two differences.",
-      "evidence": "Same prologue and zeroing-idiom difference as 0xfdea0."
+      "evidence": "Target prologue is enter 0,0 (c8 00 00 00), our build emits push ebp; mov ebp, esp. REFUTED AS PROVENANCE: measured against TMENU.EXP, Fujitsu's own launcher, which uses enter 0,0 80 times against 283 push-ebp forms and carries the identical 1983-1988 MetaWare runtime banner. So the same toolchain emits both forms. The selection rule is unknown, not the compiler. See docs/enter-is-platform.md. Differs also in the zeroing idiom: 33 c0 (xor) against our 2b c0 (sub), same caveat. 13 of 15 bytes otherwise agree (tools/cmpdisp.js)."
     },
     {
       "addr": "fdebc",
@@ -301,7 +301,7 @@
       "bytes": 16,
       "class": "unresolved",
       "what": "Setter for 0xdea44, third of the trio. Same two differences.",
-      "evidence": "Same prologue and zeroing-idiom difference as 0xfdea0."
+      "evidence": "Target prologue is enter 0,0 (c8 00 00 00), our build emits push ebp; mov ebp, esp. REFUTED AS PROVENANCE: measured against TMENU.EXP, Fujitsu's own launcher, which uses enter 0,0 80 times against 283 push-ebp forms and carries the identical 1983-1988 MetaWare runtime banner. So the same toolchain emits both forms. The selection rule is unknown, not the compiler. See docs/enter-is-platform.md. Differs also in the zeroing idiom: 33 c0 (xor) against our 2b c0 (sub), same caveat. 13 of 15 bytes otherwise agree (tools/cmpdisp.js)."
     },
     {
       "addr": "e779c",
