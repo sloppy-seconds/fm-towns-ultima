@@ -161,6 +161,42 @@ it, what is stale elsewhere. `node tools/sessionreport.js` first, then the repor
 **One page per lever or class-level cause. One row per routine in the queue list.** The queue
 list is the record of the grind. Prose about a single routine belongs in its queue row.
 
+## Pass 2 first results
+
+Six base-fold routines recovered under the `identical except disp32` standard, from 10
+matched to **16 recovered**. Each was compared with `tools/cmpdisp.js`, the new tool that
+masks relocation fields on both sides and requires everything else to be equal.
+
+| routine | what it is | difference |
+|---|---|---|
+| `0xfdeb6` | getter for the int global at `0xdea40` | disp32 only |
+| `0xfdeb0` | getter for `0xdea3c`, twin one dword lower | disp32 only |
+| `0xfdecc` | getter for `0xdea44`, third of the trio | disp32 only |
+| `0x104228` | `add dword [0xdfdf8],-12` | disp32 of `83 05 <disp32> f4` |
+| `0xe8860` | setter, stores arg into `0xcda70` | disp32 of `a3 <disp32>` |
+| `0xef548` | initialises `0xd6e60` to `0x30` | partial disp32 |
+
+**The three getters form a cluster.** `0xdea3c`, `0xdea40` and `0xdea44` are three
+adjacent int globals, each with a 6-byte getter. That is a typed-global finding as well as
+six recoveries: a plain `int` array or struct of three dwords at `0xdea3c`.
+
+## Parked, with causes
+
+| routine | cause |
+|---|---|
+| `0xfdea0`, `0xfde90`, `0xfdebc` | setter trio for the same globals. Target prologue is `enter 0,0` (`c8 00 00 00`), our build emits `push ebp; mov ebp, esp`. 29 routines in the image start with `enter`, so it is a real codegen form rather than noise, and no flag set tried produces it |
+| `0xe779c`, `0xe7784` | 57-byte-stride array getter and setter. The `lea` chain matches exactly (`i*3`, `*9`, `*57`), but the load is `[edx*1+disp32]` (nobase SIB) where ours is `[edx+disp32]` |
+| `0xfef97`, `0xfe9ae` | byte-array table lookups, one byte short of the padded window |
+| `0xff025` | three globals, multi-statement body, needs its own pass |
+
+## The unlock this produced
+
+`0xe779c` and `0xe7784` use **the same 57-byte stride as `0xe6a58`**. That is the record
+array at `0x7af05`, and it is now typed by two independent routines. When the nobase-SIB
+addressing form is found, `0xe6a58` and both of these recover together. This is the
+"a global typed elsewhere unblocks a parked routine" case the plan anticipated, and it
+arrived on the first pass.
+
 ## Outcomes of the first run under the old plan
 
 Recorded so the failure is not repeated. That run reached the README's Phase 2, made one

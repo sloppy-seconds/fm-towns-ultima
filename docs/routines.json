@@ -1,231 +1,291 @@
 {
- "routines": [
-  {
-   "addr": "e9e2c",
-   "callers": 91,
-   "bytes": 21,
-   "class": "matched",
-   "what": "\"=\"\" scanner, 91 callers. C matched byte-exact.",
-   "evidence": "result 7",
-   "c": "char *f(char *p) { while (*p != '=' && *p) p++; p++; return p; }\n"
-  },
-  {
-   "addr": "e44d0",
-   "callers": 85,
-   "bytes": 49,
-   "class": "matched",
-   "what": "atoi, 85 callers. C matched byte-exact.",
-   "evidence": "result 7",
-   "c": "int f(char *s) { int n = 0; while (*s == ' ' || *s == '\\t') s++; while (*s >= '0' && *s <= '9') { n = n * 10 + (*s - '0'); s++; } return n; }\n"
-  },
-  {
-   "addr": "e9940",
-   "callers": 84,
-   "bytes": 37,
-   "class": "matched",
-   "what": "count loop to a*5000, 84 callers. void, not int.",
-   "evidence": "result 17",
-   "c": "void f(int a){ int i; for(i=0; i<a*5000; i++); }"
-  },
-  {
-   "addr": "e1c24",
-   "callers": 11,
-   "bytes": 46,
-   "class": "base-fold",
-   "what": "six ints into struct+0x3c. Same shape as 0xe1bf4. Begins mov eax,0xe3f4, an absolute global address, so the four bytes are a relocation.",
-   "evidence": "result 10, reclassified by docs/highc-authentic-toolchain.md"
-  },
-  {
-   "addr": "e1bf4",
-   "callers": 11,
-   "bytes": 46,
-   "class": "base-fold",
-   "what": "six ints into struct+0x24. Begins mov eax,0xe3f4, an absolute global address, so the four bytes are a relocation and cannot agree in a standalone build. Not frame-decision.",
-   "evidence": "result 10, reclassified by docs/highc-authentic-toolchain.md"
-  },
-  {
-   "addr": "e552c",
-   "callers": 4,
-   "bytes": 76,
-   "class": "matched",
-   "what": "Linear search over a 132-byte-stride array: count at +4, base pointer at +0x1c, match on element byte +0, return the +0x83 byte through an out-pointer, else store -1 and return -1. Byte-identical with no flags. The parameter must be char, not int: the target compares cl against the argument byte, and int gives a 32-bit compare.",
-   "evidence": "docs/compile-route-dos.md, candidate B_struct_char",
-   "c": "struct E { char pad[0x83]; char last; };\nstruct S { int a, count; char pad[0x14]; struct E *base; };\nint f(struct S *s, char ch, char *out)\n{\n int i;\n for (i = 0; i < s->count; i++) {\n  if (s->base[i].pad[0] == ch) { *out = s->base[i].last; return i; }\n }\n *out = -1; return -1;\n}"
-  },
-  {
-   "addr": "e52c8",
-   "callers": 4,
-   "bytes": 58,
-   "class": "matched",
-   "what": "7-field struct init plus one zeroed field, returns the pointer. Byte-identical with the generator flag -off optimize_fp, which is what keeps the frame pointer. Field order is not source order: +0x14 takes the 5th argument after +0x10 took the 7th.",
-   "evidence": "docs/compile-route-dos.md, flag found via hc386set.cnf HCDEBUG",
-   "c": "struct S{int f0,f1,f2,f3,f4,f5,z,f6;};\nstruct S *f(struct S *p,int a,int b,int c,int d,int e,int g,int h)\n{\n p->f0=a;p->f1=b;p->f2=c;p->f3=e;p->f4=g;p->f5=d;p->f6=h;p->z=0;\n return p;\n}",
-   "flags": "-off optimize_fp"
-  },
-  {
-   "addr": "e5304",
-   "callers": 3,
-   "bytes": 189,
-   "class": "matched",
-   "what": "Writes a 132-byte record: byte at +0, bounded 64-byte copy at +0x42, another at +0x1, byte at +0x83, returns the base pointer. Byte-identical with no flags. The lever is term order in the index expression: row*132+i+0x42 matches, row*132+0x42+i does not. Putting the constant last lets the compiler fold 0x42 into a lea displacement and shorten the store, which changes 7 bytes.",
-   "evidence": "docs/compile-route-dos.md, candidate C_offfirst",
-   "c": "char *f(char *base, int row, char a, char *s1, char *s2, char b)\n{\n int i;\n base[row*132] = a;\n for (i = 0; i < 0x40; i++) { if (!s1[i]) break; base[row*132+i+0x42] = s1[i]; }\n base[row*132+i+0x42] = 0;\n for (i = 0; i < 0x40; i++) { if (!s2[i]) break; base[row*132+i+1] = s2[i]; }\n base[row*132+i+1] = 0;\n base[row*132+0x83] = b;\n return base;\n}"
-  },
-  {
-   "addr": "e07e8",
-   "callers": 2,
-   "bytes": 58,
-   "class": "matched",
-   "what": "3-byte counter decrement with borrow. signed char locals.",
-   "evidence": "result 20",
-   "c": "void f(char *p){ signed char a=p[0], b=p[1], c=p[2]; c--; if(c<0){ c=0x4a; if(--b<0) --a; } p[0]=a; p[1]=b; p[2]=c; }"
-  },
-  {
-   "addr": "e140c",
-   "callers": 2,
-   "bytes": 43,
-   "class": "register-choice",
-   "what": "scan for 0xf2 stepping 6. 12 candidates, all 43/43 bytes, one register pair differs.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "e65fc",
-   "callers": 2,
-   "bytes": 23,
-   "class": "matched",
-   "what": "copies two int fields out through two pointers.",
-   "evidence": "result 20",
-   "c": "struct S { char pad[0x1e]; int a; char pad2[8]; int b; };\nvoid f(struct S *s, int *pa, int *pb) { *pa = s->a; *pb = s->b; }"
-  },
-  {
-   "addr": "e662c",
-   "callers": 2,
-   "bytes": 9,
-   "class": "matched",
-   "what": "short field accessor at +0x36.",
-   "evidence": "analysis/attempts-2",
-   "c": "int f(char *p) { return *(short *)(p + 0x36); }\n"
-  },
-  {
-   "addr": "fd0ec",
-   "callers": 2,
-   "bytes": 29,
-   "class": "matched",
-   "what": "sign function. Negative tested first.",
-   "evidence": "result 20",
-   "c": "int f(int x){ if(x<0) return -1; if(x>0) return 1; return 0; }"
-  },
-  {
-   "addr": "fe95d",
-   "callers": 2,
-   "bytes": 31,
-   "class": "unresolved",
-   "what": "No prologue, arg in al, returns ax/dx. Convention unexplained, may not be C."
-  },
-  {
-   "addr": "ff9dd",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "fe0f1",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "ffa72",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "ff0ba",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "ffa8f",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "ffaa1",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "103f0d",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "103e64",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "103ef3",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "103f6f",
-   "class": "not-c",
-   "callers": 0,
-   "bytes": 0,
-   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
-   "evidence": "result 20"
-  },
-  {
-   "addr": "f3e24",
-   "callers": 104,
-   "bytes": 25,
-   "class": "base-fold",
-   "what": "Pixel writer. Source identified and 24 of 25 bytes match, so this is unmatched and not a near-match: only the disp32 of the store differs, because it references the global grid at 0x77e90. Grid is unsigned short[128][64], row stride 128 bytes, indexed [a][b], function takes (value, b, a).",
-   "evidence": "docs/base-fold-negative.md"
-  },
-  {
-   "addr": "e6a58",
-   "callers": 16,
-   "bytes": 225,
-   "class": "unresolved",
-   "what": "Record initialiser for a 57-byte struct at 0x7aee4, stride 57, fields byte@0 then dwords at 1,5,9,0xd,0x11,0x15,0x19,0x1d,0x21,0x25,0x29,0x2d,0x31,0x35. Three source shapes written; the arithmetic and all 15 stores are understood, but the register allocation does not match: the target hoists c into esi and has no local frame, our builds keep c on the stack and allocate one.",
-   "evidence": "docs/nonleaf-reopened.md, this session's three attempts"
+  "routines": [
+    {
+      "addr": "e9e2c",
+      "callers": 91,
+      "bytes": 21,
+      "class": "matched",
+      "what": "\"=\"\" scanner, 91 callers. C matched byte-exact.",
+      "evidence": "result 7",
+      "c": "char *f(char *p) { while (*p != '=' && *p) p++; p++; return p; }\n"
+    },
+    {
+      "addr": "e44d0",
+      "callers": 85,
+      "bytes": 49,
+      "class": "matched",
+      "what": "atoi, 85 callers. C matched byte-exact.",
+      "evidence": "result 7",
+      "c": "int f(char *s) { int n = 0; while (*s == ' ' || *s == '\\t') s++; while (*s >= '0' && *s <= '9') { n = n * 10 + (*s - '0'); s++; } return n; }\n"
+    },
+    {
+      "addr": "e9940",
+      "callers": 84,
+      "bytes": 37,
+      "class": "matched",
+      "what": "count loop to a*5000, 84 callers. void, not int.",
+      "evidence": "result 17",
+      "c": "void f(int a){ int i; for(i=0; i<a*5000; i++); }"
+    },
+    {
+      "addr": "e1c24",
+      "callers": 11,
+      "bytes": 46,
+      "class": "base-fold",
+      "what": "six ints into struct+0x3c. Same shape as 0xe1bf4. Begins mov eax,0xe3f4, an absolute global address, so the four bytes are a relocation.",
+      "evidence": "result 10, reclassified by docs/highc-authentic-toolchain.md"
+    },
+    {
+      "addr": "e1bf4",
+      "callers": 11,
+      "bytes": 46,
+      "class": "base-fold",
+      "what": "six ints into struct+0x24. Begins mov eax,0xe3f4, an absolute global address, so the four bytes are a relocation and cannot agree in a standalone build. Not frame-decision.",
+      "evidence": "result 10, reclassified by docs/highc-authentic-toolchain.md"
+    },
+    {
+      "addr": "e552c",
+      "callers": 4,
+      "bytes": 76,
+      "class": "matched",
+      "what": "Linear search over a 132-byte-stride array: count at +4, base pointer at +0x1c, match on element byte +0, return the +0x83 byte through an out-pointer, else store -1 and return -1. Byte-identical with no flags. The parameter must be char, not int: the target compares cl against the argument byte, and int gives a 32-bit compare.",
+      "evidence": "docs/compile-route-dos.md, candidate B_struct_char",
+      "c": "struct E { char pad[0x83]; char last; };\nstruct S { int a, count; char pad[0x14]; struct E *base; };\nint f(struct S *s, char ch, char *out)\n{\n int i;\n for (i = 0; i < s->count; i++) {\n  if (s->base[i].pad[0] == ch) { *out = s->base[i].last; return i; }\n }\n *out = -1; return -1;\n}"
+    },
+    {
+      "addr": "e52c8",
+      "callers": 4,
+      "bytes": 58,
+      "class": "matched",
+      "what": "7-field struct init plus one zeroed field, returns the pointer. Byte-identical with the generator flag -off optimize_fp, which is what keeps the frame pointer. Field order is not source order: +0x14 takes the 5th argument after +0x10 took the 7th.",
+      "evidence": "docs/compile-route-dos.md, flag found via hc386set.cnf HCDEBUG",
+      "c": "struct S{int f0,f1,f2,f3,f4,f5,z,f6;};\nstruct S *f(struct S *p,int a,int b,int c,int d,int e,int g,int h)\n{\n p->f0=a;p->f1=b;p->f2=c;p->f3=e;p->f4=g;p->f5=d;p->f6=h;p->z=0;\n return p;\n}",
+      "flags": "-off optimize_fp"
+    },
+    {
+      "addr": "e5304",
+      "callers": 3,
+      "bytes": 189,
+      "class": "matched",
+      "what": "Writes a 132-byte record: byte at +0, bounded 64-byte copy at +0x42, another at +0x1, byte at +0x83, returns the base pointer. Byte-identical with no flags. The lever is term order in the index expression: row*132+i+0x42 matches, row*132+0x42+i does not. Putting the constant last lets the compiler fold 0x42 into a lea displacement and shorten the store, which changes 7 bytes.",
+      "evidence": "docs/compile-route-dos.md, candidate C_offfirst",
+      "c": "char *f(char *base, int row, char a, char *s1, char *s2, char b)\n{\n int i;\n base[row*132] = a;\n for (i = 0; i < 0x40; i++) { if (!s1[i]) break; base[row*132+i+0x42] = s1[i]; }\n base[row*132+i+0x42] = 0;\n for (i = 0; i < 0x40; i++) { if (!s2[i]) break; base[row*132+i+1] = s2[i]; }\n base[row*132+i+1] = 0;\n base[row*132+0x83] = b;\n return base;\n}"
+    },
+    {
+      "addr": "e07e8",
+      "callers": 2,
+      "bytes": 58,
+      "class": "matched",
+      "what": "3-byte counter decrement with borrow. signed char locals.",
+      "evidence": "result 20",
+      "c": "void f(char *p){ signed char a=p[0], b=p[1], c=p[2]; c--; if(c<0){ c=0x4a; if(--b<0) --a; } p[0]=a; p[1]=b; p[2]=c; }"
+    },
+    {
+      "addr": "e140c",
+      "callers": 2,
+      "bytes": 43,
+      "class": "register-choice",
+      "what": "scan for 0xf2 stepping 6. 12 candidates, all 43/43 bytes, one register pair differs.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "e65fc",
+      "callers": 2,
+      "bytes": 23,
+      "class": "matched",
+      "what": "copies two int fields out through two pointers.",
+      "evidence": "result 20",
+      "c": "struct S { char pad[0x1e]; int a; char pad2[8]; int b; };\nvoid f(struct S *s, int *pa, int *pb) { *pa = s->a; *pb = s->b; }"
+    },
+    {
+      "addr": "e662c",
+      "callers": 2,
+      "bytes": 9,
+      "class": "matched",
+      "what": "short field accessor at +0x36.",
+      "evidence": "analysis/attempts-2",
+      "c": "int f(char *p) { return *(short *)(p + 0x36); }\n"
+    },
+    {
+      "addr": "fd0ec",
+      "callers": 2,
+      "bytes": 29,
+      "class": "matched",
+      "what": "sign function. Negative tested first.",
+      "evidence": "result 20",
+      "c": "int f(int x){ if(x<0) return -1; if(x>0) return 1; return 0; }"
+    },
+    {
+      "addr": "fe95d",
+      "callers": 2,
+      "bytes": 31,
+      "class": "unresolved",
+      "what": "No prologue, arg in al, returns ax/dx. Convention unexplained, may not be C."
+    },
+    {
+      "addr": "ff9dd",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "fe0f1",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "ffa72",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "ff0ba",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "ffa8f",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "ffaa1",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "103f0d",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "103e64",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "103ef3",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "103f6f",
+      "class": "not-c",
+      "callers": 0,
+      "bytes": 0,
+      "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+      "evidence": "result 20"
+    },
+    {
+      "addr": "f3e24",
+      "callers": 104,
+      "bytes": 25,
+      "class": "base-fold",
+      "what": "Pixel writer. Source identified and 24 of 25 bytes match, so this is unmatched and not a near-match: only the disp32 of the store differs, because it references the global grid at 0x77e90. Grid is unsigned short[128][64], row stride 128 bytes, indexed [a][b], function takes (value, b, a).",
+      "evidence": "docs/base-fold-negative.md"
+    },
+    {
+      "addr": "e6a58",
+      "callers": 16,
+      "bytes": 225,
+      "class": "unresolved",
+      "what": "Record initialiser for a 57-byte struct at 0x7aee4, stride 57, fields byte@0 then dwords at 1,5,9,0xd,0x11,0x15,0x19,0x1d,0x21,0x25,0x29,0x2d,0x31,0x35. Three source shapes written; the arithmetic and all 15 stores are understood, but the register allocation does not match: the target hoists c into esi and has no local frame, our builds keep c on the stack and allocate one.",
+      "evidence": "docs/nonleaf-reopened.md, this session's three attempts"
+    },
+    {
+      "addr": "fdeb6",
+      "callers": 1,
+      "bytes": 6,
+      "class": "base-fold",
+      "what": "Getter for the int global at 0xdea40. Pure load and return.",
+      "evidence": "tools/cmpdisp.js --addr 0xfdeb6: identical except the disp32 of mov eax,[0xdea40].",
+      "c": "int g;\nint f(void) { return g; }",
+      "flags": ""
+    },
+    {
+      "addr": "fdeb0",
+      "callers": 1,
+      "bytes": 6,
+      "class": "base-fold",
+      "what": "Getter for the int global at 0xdea3c, twin of 0xfdeb6 one dword lower.",
+      "evidence": "tools/cmpdisp.js --addr 0xfdeb0: identical except the disp32.",
+      "c": "int g;\nint f(void) { return g; }",
+      "flags": ""
+    },
+    {
+      "addr": "fdecc",
+      "callers": 1,
+      "bytes": 6,
+      "class": "base-fold",
+      "what": "Getter for the int global at 0xdea44, third of the trio 0xdea3c/0xdea40/0xdea44.",
+      "evidence": "tools/cmpdisp.js --addr 0xfdecc: identical except the disp32. This is the routine that exposed the ndisasm continuation bug.",
+      "c": "int g;\nint f(void) { return g; }",
+      "flags": ""
+    },
+    {
+      "addr": "104228",
+      "callers": 1,
+      "bytes": 8,
+      "class": "base-fold",
+      "what": "Decrements the int global at 0xdfdf8 by 12 via a single add-to-memory.",
+      "evidence": "tools/cmpdisp.js --addr 0x104228: identical except the disp32 of 83 05 <disp32> f4.",
+      "c": "int g;\nvoid f(void) { g += -12; }",
+      "flags": ""
+    },
+    {
+      "addr": "e8860",
+      "callers": 3,
+      "bytes": 10,
+      "class": "base-fold",
+      "what": "Setter: stores the first argument into the int global at 0xcda70, frameless.",
+      "evidence": "tools/cmpdisp.js --addr 0xe8860: identical except the disp32 of a3 <disp32>.",
+      "c": "int g;\nvoid f(int v) { g = v; }",
+      "flags": ""
+    },
+    {
+      "addr": "ef548",
+      "callers": 1,
+      "bytes": 11,
+      "class": "base-fold",
+      "what": "Initialises the int global at 0xd6e60 to 0x30. Already recorded in docs/globals.json.",
+      "evidence": "tools/cmpdisp.js --addr 0xef548: identical except the partial disp32 of c7 05 <disp32> 30 00 00 00.",
+      "c": "int g;\nvoid f(void) { g = 0x30; }",
+      "flags": ""
+    }
+  ],
+  "globals_ref": {
+    "file": "docs/globals.json",
+    "note": "Typed globals for the base-fold set, with the routines supporting each. Recovered routines are recorded on the global they use, not here, because a routine is only recoverable once its global is typed. See docs/objdump-crosscheck.md: the distinct global count is 120.",
+    "counts": {
+      "typed": 4,
+      "excluded_hardware": 2,
+      "recovered_routines": 2
+    }
   }
- ],
- "globals_ref": {
-  "file": "docs/globals.json",
-  "note": "Typed globals for the base-fold set, with the routines supporting each. Recovered routines are recorded on the global they use, not here, because a routine is only recoverable once its global is typed. See docs/objdump-crosscheck.md: the distinct global count is 120.",
-  "counts": {
-   "typed": 4,
-   "excluded_hardware": 2,
-   "recovered_routines": 2
-  }
- }
 }

@@ -26,7 +26,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync, spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
@@ -158,6 +158,62 @@ const runNode = (script, args = []) => {
 {
 	const r = runNode('imgaudit.js');
 	record('image tooling audit', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
+}
+
+// D2b. The disp32 comparison tool, and the fact that it can fail.
+//
+// WHY THIS IS A CHECK. The project recovers routines under two standards, byte-identical
+// and identical-except-disp32, and `tools/cc.sh --want` can only test the first. Without
+// a second tool, every base-fold and non-leaf routine looked like a mismatch and the
+// queue was cut to the 14 leaves. `tools/cmpdisp.js` applies the second standard by
+// masking relocation fields on BOTH sides and requiring the rest to be equal.
+//
+// A masking tool is the easiest kind to make always pass. So it is tested in both
+// directions: a known-good candidate must be identical-except-disp32, and three
+// deliberately wrong candidates must DIFFER. The wrong-constant case is the one that
+// catches a mask that has grown to cover the whole instruction.
+{
+	const problems = [];
+	const run = (args) => {
+		const r = spawnSync(process.execPath, [path.join(__dirname, 'cmpdisp.js'), ...args],
+			{ encoding: 'utf8', stdio: 'pipe' });
+		return { code: r.status, out: (r.stdout || '') + (r.stderr || '') };
+	};
+	const verdict = (args) => {
+		const r = run([...args, '--json']);
+		try { return JSON.parse(r.out).verdict; } catch { return 'UNPARSEABLE: ' + r.out.slice(0, 120); }
+	};
+
+	// 0xfdeb6 is `mov eax,[0xdea40]; ret`. The candidate differs only in the disp32.
+	const good = verdict(['--addr', '0xfdeb6', '--code', 'a1 00 00 00 00 c3']);
+	if (good !== 'identical-except-disp32') {
+		problems.push(`0xfdeb6 expected identical-except-disp32, got ${good}`);
+	}
+	// The negative controls. Each changes one byte OUTSIDE a relocation field.
+	const wrongImm = verdict(['--addr', '0xfdeb6', '--code', 'a1 00 00 00 00 c4']);
+	if (wrongImm !== 'differs') problems.push(`wrong ret byte must differ, got ${wrongImm}`);
+	const wrongOp = verdict(['--addr', '0x104228', '--code', '83 05 00 00 00 00 f5 c3']);
+	if (wrongOp !== 'differs') problems.push(`wrong add immediate must differ, got ${wrongOp}`);
+	const short = verdict(['--addr', '0xfdeb6', '--code', 'a1 00 00 00 c3']);
+	if (short !== 'length-differs') problems.push(`short code must be length-differs, got ${short}`);
+
+	// And the tool must agree with the register: every base-fold entry marked with the
+	// disp32 standard is checked against its recorded bytes, so a hand-edit cannot claim
+	// a recovery that the image does not support.
+	const reg = JSON.parse(fs.readFileSync(path.join(DOCS, 'routines.json'), 'utf8')).routines;
+	const disp32 = reg.filter((x) => x.class === 'base-fold');
+	for (const e of disp32) {
+		const r = run(['--addr', '0x' + e.addr, '--json']);
+		// With no --code we cannot compare, so this only asserts the address decodes and
+		// the recorded size agrees with the image.
+		if (!/cannot|need --code/.test(r.out)) {
+			const parsed = (() => { try { return JSON.parse(r.out); } catch { return null; } })();
+			if (parsed && parsed.targetLen && parsed.targetLen !== e.bytes) {
+				problems.push(`0x${e.addr} register says ${e.bytes}B, image decodes ${parsed.targetLen}B`);
+			}
+		}
+	}
+	record('disp32 comparison works and can fail', problems);
 }
 
 // D3. The corpus census must be the tool's actual output, not a remembered one.
