@@ -58,25 +58,33 @@ references to 7, and agreement to **73 of 76**.
 
 ### The consequence for the published count
 
-| figure | value |
-|---|---|
-| before this work | 118 distinct globals |
-| after the fix | **122** |
+| figure | value | why |
+|---|---|---|
+| originally published | 118 | missed four indexed-base globals |
+| after the scale fix | 122 | but over-counted two address immediates |
+| **after both fixes** | **120** | both tools now agree |
 
-`docs/globals-step2-plan.md` and `docs/globals.json` carry the old figure and are
-corrected here. The four recovered globals are a per-id table at `0x392c8` with
-four-byte fields, consistent with the pair at `0xce408` and `0xce488`.
+### Both disagreements fixed, and 76 of 76 now agree
 
-### Two remaining disagreements, both false positives in `globals.js`
+**`0xe5578` over-counted.** `mov dword [0x7b374],0x7b274` accesses `0x7b374` and
+stores the **value** `0x7b274` into it. `globals.js` counted both, so it reported 7
+references where the routine makes 5, and the two phantom addresses were stored
+constants. The rule is positional and exact: a reference is a hex literal **inside
+brackets**, plus the `mov reg,imm` form which loads an address into a register and
+is a real distinction.
 
-`0xe5578` has `mov dword [0x7b374],0x7b274`: a store to an absolute address whose
-**immediate** is also an address. `globals.js` counts both, objdump counts the
-destination. The immediate is data being written, not a reference the routine uses.
-That over-count is real and not yet fixed.
+A first attempt tested for a comma immediately before the literal. That was wrong:
+`add dword [edx+0xcde89],eax` has the bracket closing before the comma, so it dropped
+a genuine struct-field reference. Position in brackets is the property that holds.
 
-`0xfdecc` is the reverse and is not yet explained: objdump reports `0xdea48` and
-`globals.js` misses it, so there is still at least one false negative in the ndisasm
-path.
+**`0xfdecc` over-scanned.** `globals_od.js` tested for `ret` at the **bottom** of its
+loop body, after several `continue` statements. A `ret` has no operand, so it hit
+`if (!op) continue` and never reached the break. The scan then ran to the end of the
+disassembly window and attributed a neighbouring routine's global to it. Moving the
+ret test to the top of the loop fixed it.
+
+Both were found by the cross-check, and neither by any of the twelve assertions in
+`checkall.js`, because none of those compares a detector against anything.
 
 ## What this does not change
 

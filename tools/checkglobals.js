@@ -117,6 +117,46 @@ print(b.hex())
 	}
 }
 
+// --- 4. the two classification bugs found by the objdump cross-check ------
+//
+// Both were invisible to every other check, because no check compared the
+// classifier against anything. These pin the specific instructions.
+{
+	const run = (script, args) => execFileSync('node', [path.join(__dirname, script), ...args], {
+		cwd: ROOT, encoding: 'utf8', stdio: 'pipe',
+	});
+
+	// (a) base+index with an IMPLICIT scale of 1. `[eax+edx+0x392c8]` is printed by
+	// ndisasm with no `*1`, and requiring a printed scale made four globals in
+	// 0xe30a0 invisible. They must be found.
+	const a = run('globals.js', ['0xe30a0']);
+	for (const want of ['0x392c8', '0x392cc', '0x392d0', '0x392d4']) {
+		if (!a.includes('-> ' + want)) fail(`0xe30a0 lost indexed-base global ${want}`);
+	}
+
+	// (b) an address stored as an IMMEDIATE is not a reference. 0xe5578 has
+	// `mov dword [0x7b374],0x7b274`: the first is accessed, the second is the value
+	// written. Counting both reported 7 references where there are 5.
+	const b = run('globals.js', ['0xe5578']);
+	const count = Number((b.match(/data references:\s*(\d+)/) || [])[1]);
+	if (count !== 5) fail(`0xe5578 should report 5 data references, got ${count}`);
+	if (b.includes('-> 0x7b274')) fail('0xe5578 counted the stored immediate 0x7b274 as a reference');
+
+	// (c) a ret has no operand, so a ret test placed after `if (!op) continue` never
+	// fires. 0xfdecc is `mov eax,[0xdea44]; ret`, 6 bytes; scanning past it attributed
+	// 0xdea48 from a routine 28 bytes later.
+	const c = run('globals_od.js', ['0xfdecc']);
+	if (!c.includes('0xdea44')) fail('0xfdecc lost its own global 0xdea44');
+	if (c.includes('0xdea48')) fail('globals_od.js scanned past the ret into a neighbouring routine');
+
+	// (d) the two tools must agree over the whole base-fold set. This is the assertion
+	// that gives the rest meaning: it is the only check here that compares two
+	// independent implementations.
+	const cmp = run('globals_od.js', ['--compare']);
+	const bad = Number((cmp.match(/disagree:\s*(\d+)/) || [])[1]);
+	if (bad !== 0) fail(`globals.js and globals_od.js disagree on ${bad} base-fold routines`);
+}
+
 // --- report --------------------------------------------------------------
 if (problems.length) {
 	for (const p of problems) console.log(p);

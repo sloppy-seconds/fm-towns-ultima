@@ -106,5 +106,5 @@
    ]
   }
  ],
- "_note": "Counts corrected: 122 distinct globals, not 118. tools/globals_od.js found that the ndisasm classifier missed [eax+edx+0x392c8] forms (base+index with an implicit scale of 1, which ndisasm prints with no *1). Four globals at 0x392c8..0x392d4 were invisible. See docs/objdump-crosscheck.md."
+ "_note": "Counts corrected: 120 distinct globals. tools/globals_od.js (objdump, structured operands) cross-checked against tools/globals.js over all 76 base-fold routines and the two now agree on 76 of 76. The ndisasm classifier had been missing [eax+edx+0x392c8] forms (base+index with implicit scale 1, printed with no *1) and over-counting address immediates stored into memory. Both fixed. See docs/objdump-crosscheck.md."
 }

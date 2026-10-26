@@ -130,6 +130,25 @@ function scanRoutine(buf, addr) {
 		for (const m of rest.matchAll(/\b0x([0-9a-f]{5,6})\b/gi)) {
 			const v = parseInt(m[1], 16);
 			if (v < 0x10000 || v > 0x200000) continue;
+			// AN IMMEDIATE IS NOT A REFERENCE, even when its value is an address.
+			//
+			// `mov dword [0x7b374],0x7b274` accesses 0x7b374 and stores the VALUE
+			// 0x7b274 into it. Counting both made 0xe5578 report 7 references when it
+			// makes 5, and the phantom addresses were the stored constants.
+			//
+			// The rule is positional and exact: a reference is a hex literal INSIDE
+			// brackets. `mov eax,0x7a7d0` loads an address into a register and is kept
+			// separately by operandKind, because there is a real distinction between
+			// "touches memory at X" and "computes the address X".
+			//
+			// A first attempt tested for a comma immediately before the literal, which
+			// wrongly dropped [edx+0xcde89] from `add dword [edx+0xcde89],eax` because
+			// the bracket closes before the comma. Position in brackets is the property
+			// that actually holds.
+			const before = rest.slice(0, m.index);
+			const inBrackets = before.includes('[') && !before.includes(']');
+			const isImmediateMove = /^mov\s+[a-z0-9]+\s*,\s*0x[0-9a-f]+$/i.test(rest.trim());
+			if (!inBrackets && !isImmediateMove) continue;
 			refs.push({ at, value: v, kind: classify(mnemonic, rest), text: rest.trim() });
 		}
 		if (/^(ret|retn)\b/.test(rest.trim())) break;

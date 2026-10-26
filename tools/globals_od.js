@@ -113,17 +113,31 @@ function nextStart(addr) {
 }
 
 function refs(addr) {
-	const hi = nextStart(addr);
+	// BOUND BY THE FIRST RET, not by the next corpus entry.
+	//
+	// `nextStart` was derived from docs/corpus.json, which holds CALL targets only. A
+	// routine can end well before the next call target exists: 0xfdecc is `mov
+	// eax,[0xdea44]; ret` at 6 bytes, and the next corpus entry is 0xfdee8, 28 bytes
+	// later. Scanning to 0xfdee8 walked into two neighbouring routines and attributed
+	// their globals to 0xfdecc, producing a disagreement that was entirely this tool's
+	// fault. `shouldStop` now ends the scan at the first ret, which is what the routine
+	// boundary actually is here.
+	const hi = Math.min(nextStart(addr), addr + 4096);
 	const rows = disasm(addr, hi);
 	const out = [];
 	for (const r of rows) {
+		// THE RET TEST MUST COME FIRST. Every other branch in this loop is a `continue`,
+		// so testing for ret at the BOTTOM meant a ret instruction, which has no operand,
+		// hit `if (!op) continue` and never reached the break. The scan then ran to the
+		// end of the disassembly window and attributed neighbouring routines' globals to
+		// this one: 0xfdecc reported 0xdea48 from the routine that starts 28 bytes later.
+		if (/^ret\b/i.test(r.text)) break;
 		const mnemonic = (r.text.match(/^([a-z]+)/i) || [])[1] || '';
 		if (BRANCH.test(mnemonic)) continue;
 		const op = operand(r.text);
 		if (!op) continue;
 		if (op.disp === null || op.disp < 0x10000 || op.disp > 0x200000) continue;
 		out.push({ at: r.addr, ...op, text: r.text });
-		if (/^ret/i.test(r.text)) break;
 	}
 	return out;
 }
