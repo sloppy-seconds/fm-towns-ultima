@@ -160,6 +160,7 @@ nav:
       - The non-leaf blocker was the wrong compiler: nonleaf-reopened.md
       - The non-leaf ceiling is call relocations: nonleaf-relocation-ceiling.md
       - The upper region may be a different compiler: compiler-generation.md
+      - The enter cluster is one band, and it interleaves: enter-cluster.md
       - The nobase-SIB addressing class: nobase-sib.md
       - The base-register lea is not a flag: leasib-flags-negative.md
       - The kit's real toggle list: compiler-toggles.md

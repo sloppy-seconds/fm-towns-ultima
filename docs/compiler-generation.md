@@ -1,5 +1,14 @@
 # The upper region may be a different compiler generation
 
+**Correction, later session. Two claims on this page have been tested and do not hold as
+written.** The `enter` cluster is not in "the upper region": it is confined to a **2,260-byte
+band**, 27 of 41 routines there and only 2 of 413 outside. And it **interleaves** with
+non-`enter` routines 13 times, which rules out the separately-built translation unit this
+page's title suggests. The `xor` corroboration below also does not carry the weight given to
+it: no routine in the band contains `sub eax,eax` at all, and most contain neither idiom, so
+`xor` says nothing about this cluster. Full measurements and what survives:
+[enter-cluster.md](enter-cluster.md).
+
 **Verdict: OPEN, and now strongly corroborated.** A cluster of routines in the upper
 part of the image uses two idioms High C 1.73 never emits, and both idioms cluster on the
 same address boundary. That does not yet identify the compiler, but it rules out the source
@@ -89,6 +98,25 @@ co-occur, they partition the image along the same boundary.
 That is the corroboration the page asked for, and it is a stronger result than the
 prologue count on its own, because a single function's prologue is a local choice while
 the zeroing idiom is habitual across a whole translation unit.
+
+### Superseded: this corroboration does not hold per routine
+
+The counts above are correct and were re-measured. The **inference** from them is what
+failed. Counting per routine inside the `enter` band:
+
+| inside the 2,260-byte band | count |
+|---|---|
+| routines containing `33 c0` | 6 of 41 |
+| routines containing `2b c0` | **0 of 41** |
+| routines containing neither | 35 of 41 |
+
+**No routine in the band contains `sub eax,eax`, and 35 of 41 contain neither idiom.** So
+`xor` does not distinguish an `enter` routine from a non-`enter` routine inside the band:
+both groups are mostly silent about zeroing `eax`.
+
+The image-level concentration was real but it was the coincidence of two sparse signals in
+an overlapping range, not one cause producing both. Treating it as corroboration was the
+error; see [enter-cluster.md](enter-cluster.md).
 
 With that measured, the evidence is: two independent idioms, both clustered on the same
 address boundary, neither reproducible by High C 1.73 under any source shape or flag set
