@@ -79,6 +79,8 @@ from the items below rather than maintained separately.
 | 4d `.SND` playback rate | BLOCKED ON HUMAN | no, needs the running game |
 | 4e Confirm the U2 palette in-game | BLOCKED ON HUMAN | no, needs a coloured screen |
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
+| 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
+| 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports four of eleven startable now: 1a, 1b, 2a and 4b, with 4a and 2b held back by item order. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
@@ -544,42 +546,88 @@ takes no GL path at all.
 screenshot. The stdio client completes the handshake and `tools/list` but never gets a
 `tools/call` response, and that is a bug in `tools/mcp-geartowns.py`, not in Geartowns.
 
-### 4j. Finish 0xe6a58, the largest open question about non-leaf routines
+### 4j. Work the routine queue to empty
 
-**State:** DONE · **Autonomy:** AUTONOMOUS
+**State:** OPEN · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | runs unattended via `tools/cc.sh`; the only requirement is candidate source |
-| done when | the routine matches apart from disp32, or the register-allocation difference is shown to be structural and recorded as a negative |
+| autonomy | runs unattended via `tools/cc.sh`; no emulator interaction, no disc state |
+| done when | every routine in the queue carries a status, the statuses sum to 738, and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
 | blocked by | nothing |
 
-The record initialiser at `0xe6a58` is solved: 57-byte stride at `0x7aee4`, byte at 0 then
-fourteen dwords, `(c-6)/8` as three `cdq/sub/sar` pairs, `(d-4)/16` as `idiv`, and an
-`xchg eax,ebx` that is a **swap** rather than a min. Three source shapes written, none
-matched.
+**This replaces the earlier "finish `0xe6a58`" framing, which was the wrong unit of work.** One
+routine is not a plan. This item is the whole grind, and it exists because a previous run stopped at
+one routine and wrote about it instead of continuing.
 
-The failure is allocation, not logic. The target has no local frame, loads `esi=[ebp+0x14]`
-and `ebx=[ebp+0x20]` up front and reuses `esi` for the division; all three candidates emit
-`push eax` and reload `c`. Same class as the register-choice case `0xe140c`.
+**Two recovery standards, both counted.** `matched` (bytes identical) and `identical except disp32`
+(every byte agrees except the displacement of an absolute reference or a call `rel32`). The project
+already recovers under both: `0xef548` and `0xef248` are `identical except disp32`. Counting only
+byte-perfect matches excluded most of the queue by construction, because the non-leaf and base-fold
+sets are defined by the very relocations that standard tolerates.
 
-**Why this matters more than one routine.** The 307 `non-leaf` routines are 41.6% of the
-image and the whole method rests on one favourable data point. If allocation can be steered
-by source shape, that set becomes ordinary work. If it cannot, that is the real frontier and
-it should be known now rather than after 300 attempts.
+**The queue, worked in this order.**
 
-See [nonleaf-reopened.md](nonleaf-reopened.md).
+| pass | set | count | why here |
+|---|---|---|---|
+| 1 | `c-leaf` plus the register's `unresolved` and `register-choice` | 14 + 3 | cheapest recoveries, and their lever may unblock a park |
+| 2 | `base-fold`, smallest first | 76 | recoverable under the disp32 standard, wrongly treated as blocked before |
+| 3a | single-call wrappers | several | logic fully determined by the callee list |
+| 3b | `non-leaf` ≤64B | 118 | fewest degrees of freedom |
+| 3c | remaining `non-leaf`, by caller count descending | 189 | a recovered callee unblocks its callers |
+| 4 | globals, interleaved with the routines that use them | 120 (5 typed, 4 hardware) | each typed global feeds the unlock rule |
 
-**Resolution.** The question is answered, and the answer is not the one the item expected.
-`0xe6a58` is classified `base-fold` with `calls: 0`, not non-leaf, so it was never a valid test
-of non-leaf reachability, and its byte-match failure is the absolute-address blocker already
-recorded in `docs/base-fold-negative.md`. The real blocker for the genuine `non-leaf` set is
-that every call carries a link-time `rel32` relocation that single-file compile-and-diff cannot
-reproduce. Measured on four real wrappers (`0xe9430`, `0xf7bf0`, `0xe1068`, `0xe157c`), each of
-which compiles to the game's exact shape apart from the call displacement. Full write-up:
-[nonleaf-relocation-ceiling.md](nonleaf-relocation-ceiling.md). The consequence is that the
-byte-perfect method's ceiling is the call-free, absolute-free leaves, and past them the goal
-must shift from byte-matching to behavioural reconstruction.
+**Parking is a delay, not a verdict.** A routine that fails is parked with a named cause and re-enters
+the queue when any of these happens: a lever is found on another routine, a global it references is
+typed, a routine it calls is recovered, or the same cause parks three routines (which makes it a class
+to investigate, not a routine to grind). **At the end of the night every parked routine is re-attempted
+once** against the complete set of levers found during the night.
+
+**Failure case, stated.** If a whole pass recovers nothing under either standard, do not write a page
+about it and stop. Name the class, try the remaining angles listed in
+[overnight-run.md](overnight-run.md), and move to the next pass. A pass that stalls is a row in the
+queue summary, not a document.
+
+See [overnight-run.md](overnight-run.md) for the per-routine loop and the angle list.
+
+**Worked example, and the finding it produced.** `0xe6a58` was solved and its four differences from
+the candidate were measured: an absolute base (`0x7a7d0`), a register-held parameter, an unsplit frame,
+and split-store addressing. The first is the disp32 standard, so under this plan it is a recovery, not
+a negative. The other three are levers to re-run against parked routines. Under the old plan this was
+recorded as a closed negative and the queue stopped. See
+[nonleaf-relocation-ceiling.md](nonleaf-relocation-ceiling.md).
+
+### 4k. The unlock ledger
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended; a JSON file in `docs/` plus the re-attempt loop |
+| done when | `docs/queue.json` exists, every attempted routine has a status and a cause when parked, and the end-of-night re-attempt pass has run and its effect is recorded |
+| blocked by | nothing |
+
+Item 4j needs a place to keep the per-routine status, or the grind is not measurable and "did the
+unlock rule fire" is unanswerable. This item is that ledger.
+
+**What it holds.** One row per routine: address, class, size, callers, status (`matched`, `identical
+except disp32`, `parked`, `not-c`, `unattempted`), the differing bytes when recovered under the disp32
+standard, the named cause when parked, the levers tried, and which unlock event returned it to the
+queue.
+
+**Why a file and not a paragraph.** `docs/routines.json` is the register of what has been *concluded*.
+The ledger is the record of the *grind*, including the attempts that have not concluded. Separating
+them means a parked routine does not pollute the register and a conclusion does not get lost in a
+queue.
+
+**The check that makes it worth having.** A small tool reads the ledger and reports: routines per
+status, parked routines whose cause names a global or callee that has since been typed or recovered,
+and the count of `unattempted` remaining. That report is the answer to "what can be worked right now"
+for the decompilation track.
+
+**Failure case, stated.** If the ledger is maintained by hand and drifts from `corpus.json`, the
+counts will disagree and the unlock query will report false positives. The tool must derive class and
+size from `corpus.json` and only store what it alone knows.
 
 ### 4g. A bootable hard disk with the toolchain on it
 
