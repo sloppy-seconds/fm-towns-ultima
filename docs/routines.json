@@ -277,6 +277,46 @@
       "evidence": "tools/cmpdisp.js --addr 0xef548: identical except the partial disp32 of c7 05 <disp32> 30 00 00 00.",
       "c": "int g;\nvoid f(void) { g = 0x30; }",
       "flags": ""
+    },
+    {
+      "addr": "fdea0",
+      "callers": 1,
+      "bytes": 16,
+      "class": "unresolved",
+      "what": "Setter for the int global at 0xdea40, returns 0. Engine: 13 of 15 bytes agree; differs only in prologue and the zeroing idiom.",
+      "evidence": "target c8 00 00 00 ... 33 c0 c9 c3 (enter 0,0 / xor eax,eax); High C 1.73 emits 55 8b ec ... 2b c0 c9 c3 (push ebp;mov ebp,esp / sub eax,eax). Verified with tools/cmpdisp.js --addr 0xfdea0."
+    },
+    {
+      "addr": "fde90",
+      "callers": 1,
+      "bytes": 16,
+      "class": "unresolved",
+      "what": "Setter for 0xdea3c, twin of 0xfdea0. Same two differences.",
+      "evidence": "Same prologue and zeroing-idiom difference as 0xfdea0."
+    },
+    {
+      "addr": "fdebc",
+      "callers": 1,
+      "bytes": 16,
+      "class": "unresolved",
+      "what": "Setter for 0xdea44, third of the trio. Same two differences.",
+      "evidence": "Same prologue and zeroing-idiom difference as 0xfdea0."
+    },
+    {
+      "addr": "e779c",
+      "callers": 1,
+      "bytes": 21,
+      "class": "unresolved",
+      "what": "Getter for a 57-byte-stride array at 0x7af05. The lea chain (i*3, *9, *57) matches exactly; the load is nobase SIB.",
+      "evidence": "Target loads 8b 04 15 <disp32> (mov eax,[edx*1+disp]). High C 1.73 emits 8b 82 <disp32> ([edx+disp]) for every source shape tried: byte-array + i*57, struct with 53-byte pad, extern array, register pointer, int[64][14]. Three angles per docs/overnight-run.md, then parked."
+    },
+    {
+      "addr": "e7784",
+      "callers": 1,
+      "bytes": 24,
+      "class": "unresolved",
+      "what": "Setter for the same 57-byte-stride array at 0x7af05, stores -1. Same nobase SIB difference.",
+      "evidence": "Same addressing difference as 0xe779c. This and 0xe779c type the 0x7af05 array, which is the same record array 0xe6a58 writes."
     }
   ],
   "globals_ref": {
