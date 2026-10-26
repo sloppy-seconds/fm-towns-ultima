@@ -785,3 +785,60 @@ It is not.
 Not ruled out: that the full stack (COCO, SIDEWORK, SYSINIT) would work. It
 cannot be reached because `COCO` stops the batch, and `COCO` fails on the
 6.2 floppy for a documented memory reason.
+
+## Result 13: the TownsOS-console plus GDS test, and what actually blocks it
+
+The hypothesis worth testing was that `RUN386` needs both a TownsOS that completes
+its resident stack **and** the `GDS.SYS` graphics driver, and that no image has
+both. Two do, between them:
+
+| image | boots to | `TOWNS.SYS` | `GDS.SYS` | stack completes |
+|---|---|---|---|---|
+| `tos21-console.hdm` | CLI (`CONTROL` commented out) | yes | **no** | `COCO` fails |
+| `towns62.hdm` | CLI | yes | yes | `COCO` hangs |
+
+`tools/tos21-gds.py` built the combination: `saves/scratch-tos21gds.hdm`, TownsOS
+2.1 L51 with `GDS.SYS` (32,379 bytes) copied from `towns62.hdm` and
+`DEVICE=\SYS\GDS.SYS` inserted after the `TOWNS.SYS` line. `CONFIG.SYS` verified by
+reading it back. The boot sector is intact (`IPL4` present, first eight bytes
+`49504c34 eb4d0620`).
+
+### It could not be booted, and the reason is not GDS
+
+A control image was built with the **original** `CONFIG.SYS` and a trace line added
+at the top of `AUTOEXEC.BAT`. It also produced no `T.LOG`. So `GDS.SYS` is not what
+breaks the boot.
+
+The boot is reachable but stops before the shell. Two measured facts:
+
+- The screen settles at 1,087 distinct colours, 92 percent black, and is
+  **static**. Pressing Enter three times and then typing `XXXX` changes nothing,
+  so the guest is not at a command prompt taking input.
+- `SHELL=C:\COMMAND.COM C:\ /P` in `CONFIG.SYS`. On a floppy-only boot there is no
+  `C:`, so the shell cannot start. That is consistent with a boot that loads the
+  device drivers and then has nowhere to go.
+
+This means `docs/highc-dos-negative.md`'s description of this image as one that
+"boots to a DOS prompt" is correct only when a `C:` exists, which is what the
+8 MB hard disk supplied in that earlier work. The image alone does not.
+
+### Verdict
+
+**NEGATIVE, and the test itself is blocked rather than the hypothesis refuted.**
+The combination exists and is verifiable on disk, but it has never been booted
+because this image needs a `C:` volume to reach its shell.
+
+Ruled out: that `GDS.SYS` on a DOS 6.2 boot is what stops TownsOS from booting.
+
+Not ruled out: the combined hypothesis. To test it the image needs either
+`SHELL=A:\COMMAND.COM` or a hard disk supplying `C:`. The first is a two-byte edit
+to a `CONFIG.SYS` line and is the obvious next attempt.
+
+### The stale claim this contradicts
+
+`docs/highc-dos-negative.md` states that `tos21-console.hdm` "carries
+`CONSOLE.EXE`, `COMMAND.COM` and `RUN386.EXE`" and is "a TownsOS environment
+**and** a real DOS shell at the same time". The first half is true. The second
+half is true only with a `C:` present, and the page does not say so. That is the
+same class of defect this project keeps finding: a sentence that was true in the
+configuration it was measured in, written as if it were a property of the image.
