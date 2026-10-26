@@ -307,17 +307,21 @@
       "addr": "e779c",
       "callers": 1,
       "bytes": 21,
-      "class": "unresolved",
-      "what": "Getter for a 57-byte-stride array at 0x7af05. The lea chain (i*3, *9, *57) matches exactly; the load is nobase SIB.",
-      "evidence": "Target loads 8b 04 15 <disp32> (mov eax,[edx*1+disp]). High C 1.73 emits 8b 82 <disp32> ([edx+disp]) for every source shape tried: byte-array + i*57, struct with 53-byte pad, extern array, register pointer, int[64][14]. Three angles per docs/overnight-run.md, then parked."
+      "class": "base-fold",
+      "what": "Getter for the int at offset +0x7af05 of a 57-byte-stride record array, indexed by the first argument.",
+      "evidence": "tools/cmpdisp.js --addr 0xe779c: identical except the three-byte displacement of 8b 82 <disp32>. No flags. This was parked in the nobase-SIB class by mistake: the target uses the base-register form 8b 82, and the plain source compiles to exactly that. The park note was written from a different source shape that produced 8b 04 15.",
+      "c": "extern char arr[];\nint f(int i) { return *(int*)(arr + i*57); }",
+      "flags": ""
     },
     {
       "addr": "e7784",
       "callers": 1,
       "bytes": 24,
-      "class": "unresolved",
-      "what": "Setter for the same 57-byte-stride array at 0x7af05, stores -1. Same nobase SIB difference.",
-      "evidence": "Same addressing difference as 0xe779c. This and 0xe779c type the 0x7af05 array, which is the same record array 0xe6a58 writes."
+      "class": "base-fold",
+      "what": "Setter for the same 57-byte-stride array at 0x7af05, storing -1 into the int at that offset.",
+      "evidence": "tools/cmpdisp.js --addr 0xe7784: identical except the three-byte displacement of c7 82 <disp32>. No flags. Same correction as 0xe779c: never a nobase-SIB mismatch, the target uses the base-register form and the plain source matches.",
+      "c": "extern char arr[];\nvoid f(int i) { *(int*)(arr + i*57) = -1; }",
+      "flags": ""
     },
     {
       "addr": "fb4cc",
@@ -489,7 +493,7 @@
       "bytes": 41,
       "class": "unresolved",
       "what": "Copies 0x1000 bytes from 0xbd578 to the buffer at (arg<<12)+0x4de90, using a lodsb/stosb loop.",
-      "evidence": "39 of 41 bytes reproduce, including the ac aa 41 eb f3 lodsb/stosb loop. The single difference is the lea: target 8d b0 <disp32> (lea esi,[eax+disp]), ours 8d 34 05 <disp32> (lea esi,[eax*1+disp]). Same nobase-SIB class as 0xe779c and 0xe7784, recorded once in docs/nobase-sib.md."
+      "evidence": "39 of 41 bytes reproduce, including the ac aa 41 eb f3 lodsb/stosb loop. The one differing instruction is the lea: target 8d b0 <disp32> (lea esi,[eax+disp32], base register present), ours 8d 34 05 <disp32> (SIB, no base). Forty flag sets were compiled against this source by tools/leasibflags.py and none produced the target form: see docs/leasib-flags-negative.md. The negative is solid for every -O level and for the two toggles proven live (optimize_xjmp, auto_reg_alloc); the remaining toggle names are unobservable on this source and are recorded as attempted rather than refuted."
     },
     {
       "addr": "104390",

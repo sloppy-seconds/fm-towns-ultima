@@ -1,9 +1,67 @@
 # The nobase-SIB addressing class
 
-**Verdict: OPEN, parked as a class after three routines and eleven source shapes.** This is
-the third of the class-level causes found working the `base-fold` queue, and it is recorded
-once rather than as three separate park notes. A fourth candidate, `0x100307`, was withdrawn
-from the class when the mask tool turned out to be the fault, and is now recovered.
+**Verdict: OPEN, and reduced from three routines to one.** Two of the three members were
+still in this class by mistake, and the flag search in
+[leasib-flags-negative.md](leasib-flags-negative.md) is what exposed it. What remains is a
+single routine with a measured negative behind it.
+
+## The correction, first, because it changes the count
+
+This page originally listed `0xe779c`, `0xe7784` and `0xe3c58` as three routines parked on
+one cause. **`0xe779c` and `0xe7784` were never mismatches.** The plain source
+
+```c
+extern char arr[];
+int f(int i) { return *(int*)(arr + i*57); }
+```
+
+compiles, with **no flags**, to `8b 82 <disp32>`, which is exactly the target. Both are now
+recovered under the disp32 standard. The park notes were written from a different source
+shape that produced `8b 04 15`, and the shape rather than the routine was the problem.
+
+That is the same defect class this project keeps recording: a conclusion drawn from one
+probe that would have been reversed by a second. The lesson is narrower this time, though,
+and worth stating: **a park note must record the source that produced the mismatch.** The
+original notes did not, so the wrong conclusion could not be checked against its input.
+
+## The one genuine case
+
+Only `0xe3c58` remains, and it is a different instruction from the one the class was named
+for. It is a `lea`, not a load:
+
+```
+target    8d b0 90 de 04 00    lea esi,[eax+0x4de90]      base register present
+ours      8d 34 05 <disp32>    lea esi,[eax*1+disp32]     SIB base field = 101
+```
+
+39 of its 41 bytes already match, including the `lodsb`/`stosb` loop.
+
+## The flag search, run
+
+Forty flag sets, one fixed source, `tools/leasibflags.py`:
+
+```
+compiled: 39 of 40;  rejected: 1
+emitted the base-register lea (8db0): 0
+no exact match
+```
+
+The search is not an empty gesture: `-off optimize_xjmp` and `-off auto_reg_alloc` both
+changed the emitted code, so the flags reach codegen. Neither fixes the `lea`. The full
+result, including which toggle names are demonstrably live and which are unobservable, is
+in [leasib-flags-negative.md](leasib-flags-negative.md).
+
+**The honest limit:** several toggle names tested were invented, and this compiler accepts
+an unknown toggle silently. So the negative binds the `-O` family and the two proven-live
+toggles, and does not bind names this project does not know. Reading the real toggle list
+from the kit is the next probe and has not been done.
+
+## The remaining sections
+
+The material below was written when the class had three members and one of them was
+`0x100307`, which turned out to be a mask defect in the comparison tool rather than a
+codegen difference. It is left in place because the reasoning about which encodings differ
+is still correct, but the counts in it are superseded by the two paragraphs above.
 
 ## The difference, exactly
 
