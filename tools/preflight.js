@@ -334,6 +334,45 @@ function main() {
 			? allLeaves.slice().sort((a, b) => a.size - b.size || b.callers - a.callers).slice(0, n)
 			: allLeaves.slice(0, n);
 
+		// --census: emit every call target with its full classification, not just the
+		// leaves. The scan above deliberately drops routines as it goes, which is right
+		// for a work queue and wrong for a census: the dropped ones are the data when
+		// the question is "what is in this binary". Reason strings are carried through
+		// so the exclusions can be audited rather than trusted.
+		if (args.includes('--census')) {
+			const rows = [];
+			for (const [addr, callers] of targets) {
+				const row = { addr, callers };
+				if (!cleanEntry(buf, addr)) {
+					row.kind = 'not-entry';
+					row.reason = ['not a real function start']; // interior address
+					rows.push(row);
+					continue;
+				}
+				const r = scanRoutine(buf, addr);
+				row.size = r.length;
+				row.calls = r.calls + r.indirectCall;
+				const kind = codeKind(buf, addr, r.mnemonics);
+				const abs = referencesAbsolute(buf, addr, r.bytes.length);
+				if (row.calls !== 0) {
+					row.kind = kind.kind === 'not-c' ? 'not-c' : 'non-leaf';
+					row.reason = kind.reasons;
+				} else if (abs !== null) {
+					row.kind = 'base-fold';
+					row.reason = ['references 0x' + abs.toString(16)];
+				} else if (kind.kind === 'not-c') {
+					row.kind = 'not-c';
+					row.reason = kind.reasons;
+				} else {
+					row.kind = 'c-leaf';
+					row.reason = [];
+				}
+				rows.push(row);
+			}
+			console.log(JSON.stringify(rows, null, 0));
+			return;
+		}
+
 		if (args.includes('--json')) {
 			console.log(JSON.stringify(leaves, null, 2));
 			return;

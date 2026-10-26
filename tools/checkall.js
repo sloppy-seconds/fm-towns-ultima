@@ -160,6 +160,51 @@ const runNode = (script, args = []) => {
 	record('image tooling audit', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
 }
 
+// D3. The corpus census must be the tool's actual output, not a remembered one.
+//
+// Why this check exists: `docs/corpus.json` carries counts that every other page
+// now links to instead of restating, so a stale corpus is worse than no corpus.
+// And the failure it guards against already happened twice in one session, both
+// times in prose rather than in tool output: reason counts written from memory
+// (26/20/16/12) when the measured values were 42/16/9/8/5/2, and a verdict check
+// using `grep -q MATCH`, which also matches the substring in MISMATCH, reporting
+// seven of seven when five had broken.
+//
+// So this regenerates the census and compares it to the committed file. It fails
+// if the tool changes, if the image changes, or if someone hand-edits the JSON.
+// The comparison is on parsed data rather than raw bytes so that formatting alone
+// does not fail it, but every value must agree.
+{
+	const r = runNode('preflight.js', ['--scan', '1', '--census']);
+	const problems = [];
+	if (!r.ok) {
+		problems.push('census run failed: ' + r.out.split('\n')[0]);
+	} else {
+		const committed = path.join(DOCS, 'corpus.json');
+		if (!fs.existsSync(committed)) {
+			problems.push('docs/corpus.json missing');
+		} else {
+			try {
+				const fresh = JSON.parse(r.out);
+				const old = JSON.parse(fs.readFileSync(committed, 'utf8'));
+				if (fresh.length !== old.length) {
+					problems.push(`census has ${old.length} rows, fresh run has ${fresh.length}`);
+				} else {
+					for (let i = 0; i < fresh.length; i++) {
+						if (JSON.stringify(fresh[i]) !== JSON.stringify(old[i])) {
+							problems.push(`row ${i} differs: committed ${JSON.stringify(old[i]).slice(0, 90)}`);
+							break;
+						}
+					}
+				}
+			} catch (e) {
+				problems.push('census unreadable: ' + e.message);
+			}
+		}
+	}
+	record('corpus census is reproducible', problems);
+}
+
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
 // places, which is exactly why it keeps happening: the doc says it, the agent does not read that doc while
 // writing a batch on autopilot.
