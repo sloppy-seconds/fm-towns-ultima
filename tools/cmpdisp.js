@@ -96,15 +96,25 @@ function relocFields(ins, image = IMAGE) {
 	// base and index to be null, which missed the base+disp32 form and reported 0xfb4cc
 	// as differing in three bytes that are a relocation.
 	//
-	// What must NOT be masked is a scaled index. `[edx*4+disp]` and `[ebx*1+disp]`
-	// (nobase SIB) are different encodings of the same address, and that difference is
-	// exactly what the nobase-SIB parks are waiting on. Masking it would hide a real
-	// mismatch. So: mask the four displacement bytes, but only when the address has no
-	// scaled index component.
-	const hasAbsMem = ins.operands.some((o) =>
-		o.type === 'mem'
-		&& (o.index === null || o.scale === 1)
-		&& o.disp >= 0x10000 && o.disp <= 0x200000);
+	// What must NOT be masked is the SCALE-1 nobase form. `8b 04 15 <disp>` ([edx*1+disp])
+	// and `8b 82 <disp>` ([edx+disp]) are different encodings of the same address, and
+	// that difference is exactly what the nobase-SIB parks are waiting on. Masking it
+	// would hide a real mismatch.
+	//
+	// Everything else with a disp32 in the data range IS a relocation and is masked:
+	//   [disp32]          base+disp32, `a1`, `c7 05`
+	//   [ecx*4+disp32]    indexed, `3b 3c 8d`
+	//   [ecx+disp32]      base+disp32, `80 b9`
+	// An earlier version of this rule tried to express the exception by enumerating the
+	// shapes it allowed and got two of them wrong in a row, reporting 0xeed6c as
+	// differing in nine bytes across three instructions that are all relocations. The
+	// narrow rule below states the ONE shape to leave alone.
+	const hasAbsMem = ins.operands.some((o) => {
+		if (o.type !== 'mem') return false;
+		if (o.disp < 0x10000 || o.disp > 0x200000) return false;
+		const isScaleOneNobase = o.base === null && o.index !== null && (o.scale === 1 || o.scale === undefined);
+		return !isScaleOneNobase;
+	});
 	if (!hasAbsMem) return fields;
 
 	// Find the ModRM byte: it follows the opcode, plus a second opcode byte for 0f xx.
@@ -116,10 +126,19 @@ function relocFields(ins, image = IMAGE) {
 	const rm = modrm & 7;
 
 	let dispAt;
-	if (mod === 0 && rm === 5) dispAt = modrmAt + 1;            // [disp32]
+	if (mod === 0 && rm === 5) dispAt = modrmAt + 1;            // [disp32], no SIB
 	else if (mod === 2) {
 		// disp32 follows ModRM, and after a SIB byte when rm == 4.
 		dispAt = modrmAt + 1 + (rm === 4 ? 1 : 0);
+	} else if (mod === 0 && rm === 4) {
+		// SIB with mod=00. The disp32 is present only when the SIB base field is 101
+		// (no base register). `3b 3c 8d <disp32>` is cmp edi,[ecx*4+disp], and its
+		// displacement is a table address. Without this branch the indexed forms were
+		// never masked and 0xeed6c reported six bytes of relocation as a real mismatch.
+		const sib = b[modrmAt + 1];
+		const sibBase = sib & 7;
+		if (sibBase !== 5) return fields;                       // base present: disp8 or none
+		dispAt = modrmAt + 2;
 	} else return fields;                                       // disp8/no disp: not a link-time value
 
 	if (dispAt + 4 <= ins.size) fields.push([dispAt, dispAt + 4]);

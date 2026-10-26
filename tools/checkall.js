@@ -197,6 +197,39 @@ const runNode = (script, args = []) => {
 	const short = verdict(['--addr', '0xfdeb6', '--code', 'a1 00 00 00 c3']);
 	if (short !== 'length-differs') problems.push(`short code must be length-differs, got ${short}`);
 
+	// The encoding-coverage controls. Each is a relocation form the masker once missed,
+	// which silently invented parks. A correct candidate for each must pass, and a
+	// wrong adjacent constant must still fail.
+	const forms = [
+		// mod=00 rm=101, no SIB: `c7 05 <disp32> imm`
+		['0xef548', 'c7 05 00 00 00 00 30 00 00 00 c3', 'c7 05 00 00 00 00 31 00 00 00 c3'],
+		// byte moffs: `a0 <disp32>`
+		['0x100307', 'a0 00 00 00 00 3c 40 72 13 a0 00 00 00 00 25 0f 00 00 00 c6 80 00 00 00 00 ff f8 c3',
+			'a0 00 00 00 00 3c 40 72 13 a0 00 00 00 00 25 0f 00 00 00 c6 80 00 00 00 00 ff f9 c3'],
+		// mod=00 rm=04 with SIB base=101: `3b 3c 8d <disp32>`. Real bytes, because a
+		// placeholder here is exactly how this control failed to test anything the first
+		// time it was written.
+		['0xeed6c',
+			'55 8b ec 57 8b 7d 08 8b 55 0c 2b c9 83 f9 20 7d 22 80 b9 00 00 00 00 00 74 16 ' +
+			'3b 3c 8d 00 00 00 00 75 0d 3b 14 8d 00 00 00 00 75 04 8b c1 eb 08 41 eb d9 ' +
+			'b8 ff ff ff ff 5f c9 c3',
+			'55 8b ec 57 8b 7d 08 8b 55 0c 2b c9 83 f9 20 7d 22 80 b9 00 00 00 00 00 74 16 ' +
+			'3b 3c 8d 00 00 00 00 75 0d 3b 14 8d 00 00 00 00 75 05 8b c1 eb 08 41 eb d9 ' +
+			'b8 ff ff ff ff 5f c9 c3'],
+	];
+	const good1 = verdict(['--addr', forms[0][0], '--code', forms[0][1]]);
+	if (good1 !== 'identical-except-disp32') problems.push(`0xef548 mod=00 rm=101 form regressed: ${good1}`);
+	const bad1 = verdict(['--addr', forms[0][0], '--code', forms[0][2]]);
+	if (bad1 !== 'differs') problems.push(`0xef548 wrong immediate must differ, got ${bad1}`);
+	const good2 = verdict(['--addr', forms[1][0], '--code', forms[1][1]]);
+	if (good2 !== 'identical-except-disp32') problems.push(`0x100307 byte-moffs form regressed: ${good2}`);
+	const bad2 = verdict(['--addr', forms[1][0], '--code', forms[1][2]]);
+	if (bad2 !== 'differs') problems.push(`0x100307 wrong immediate must differ, got ${bad2}`);
+	const good3 = verdict(['--addr', forms[2][0], '--code', forms[2][1]]);
+	if (good3 !== 'identical-except-disp32') problems.push(`0xeed6c indexed-SIB form regressed: ${good3}`);
+	const bad3 = verdict(['--addr', forms[2][0], '--code', forms[2][2]]);
+	if (bad3 !== 'differs') problems.push(`0xeed6c wrong branch displacement must differ, got ${bad3}`);
+
 	// And the tool must agree with the register: every base-fold entry marked with the
 	// disp32 standard is checked against its recorded bytes, so a hand-edit cannot claim
 	// a recovery that the image does not support.

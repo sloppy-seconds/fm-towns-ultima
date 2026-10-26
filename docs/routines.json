@@ -566,6 +566,26 @@
       "class": "unresolved",
       "what": "Stores three arguments into ints +0,+4,+8 of a 24-byte-stride record array at 0x40e88, indexed by the first argument.",
       "evidence": "Seven source shapes tried. A plain struct declaration reproduces the prologue (55 8b ec 57 8b 7d 08), the base load (b8 <disp>), and both leas (8d 14 fd, 8d 14 52) exactly. The remaining difference is the store: target 89 8c 10 <disp> keeps the value in ecx with base+index+disp, High C 1.73 emits 89 0c 10 (no displacement) because it loads the value into edx instead of reusing ecx."
+    },
+    {
+      "addr": "e5578",
+      "callers": 5,
+      "bytes": 52,
+      "class": "base-fold",
+      "what": "Two-state initialiser: if the flag at 0x7a6b4 is clear it is set to -1 and the pointer at 0x7b374 is pointed at 0x7b274, otherwise the flag is cleared and the pointer is set to 0x7b2f4.",
+      "evidence": "tools/cmpdisp.js --addr 0xe5578: identical except fifteen bytes across five displacements. The two values 0x7b274 and 0x7b2f4 are written as literal immediates, not relocations, so they are data structures at known addresses rather than symbols the linker fills.",
+      "c": "extern int f1;\nextern char *p;\nvoid f(void) { if (f1 == 0) { f1 = -1; p = (char*)0x7b274; } else { f1 = 0; p = (char*)0x7b2f4; } }",
+      "flags": ""
+    },
+    {
+      "addr": "eed6c",
+      "callers": 6,
+      "bytes": 59,
+      "class": "base-fold",
+      "what": "Linear search of a 0x20-entry table: returns the first index where a byte validity flag at 0xce3c8 is set and both ints at 0xce408[i] and 0xce488[i] match the two arguments. Returns -1 when none matches.",
+      "evidence": "tools/cmpdisp.js --addr 0xeed6c: identical except nine bytes across three displacements. The validity flag is a BYTE (80 b9, cmp byte) and the two tables are int arrays indexed at scale 4 (3b 3c 8d). This routine is what made tools/cmpdisp.js handle the mod=00 rm=04 SIB form, which it had been silently not masking.",
+      "c": "extern unsigned char valid[32];\nextern int a[32];\nextern int b[32];\nint f(int x, int y) { int i; for (i = 0; i < 0x20; i++) if (valid[i] && a[i] == x && b[i] == y) return i; return -1; }",
+      "flags": ""
     }
   ],
   "globals_ref": {
