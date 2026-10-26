@@ -66,6 +66,25 @@ function printableAt(img, v, max = 96) {
 	}
 	const len = e - v;
 	if (len < 4) return null;
+	// A reference can point into the MIDDLE of a string, not only at its start.
+	// `push 0x2950` gave "UAL=%d\n" when the real string began at 0x294c as
+	// "LINGUAL=%d\n". A truncated left edge is actively misleading when naming a
+	// routine, because "UAL=" reads as a different field from "LINGUAL=". So walk
+	// back to the preceding NUL and report the string the reference is inside of.
+	//
+	// Measured cost of not doing this: 0x2950, 0x2990 and 0x2a18 all looked like
+	// separate truncated fields when two of them were whole strings already.
+	let s = v;
+	while (s > 0 && img[s - 1] !== 0 && v - s < max) s--;
+	if (s !== v) {
+		// Only extend backwards if the whole run still looks like text.
+		const whole = img.subarray(s, v);
+		let bad = false;
+		for (const b of whole) {
+			if (b < 0x20 && b !== 0x0a && b !== 0x0d) { bad = true; break; }
+		}
+		if (!bad) return img.subarray(s, e);
+	}
 	return img.subarray(v, e);
 }
 
