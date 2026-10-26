@@ -104,6 +104,39 @@
      "diff": "bytes 2..5 only, the displacement of mov dword [0xd6e60],0x30"
     }
    ]
+  },
+  {
+   "addr": "0x077e90",
+   "kind": "pixel grid",
+   "type": "unsigned short[128][64]",
+   "stride": 128,
+   "routines": [
+    "0xf3e24",
+    "0xe3d24"
+   ],
+   "evidence": "0xf3e24 decodes to mov eax,[esp+0xc]; shl eax,0x7; mov edx,[esp+0x8]; mov cx,[esp+0x4]; mov [eax+2*edx+0x77e90],cx. A 16-bit store at 0x77e90 + a*128 + b*2, so the element is a short and the row stride is 128 bytes (64 shorts). Signature f(unsigned short value, int b, int a). Owner of the derivation is docs/base-fold-negative.md; this entry records the type and the two users."
+  },
+  {
+   "addr": "0x0df0d0",
+   "kind": "hardware",
+   "excluded": true,
+   "routines": [
+    "0xff652",
+    "0xff6e2",
+    "0xff798"
+   ],
+   "evidence": "All three users contain cli/out/in (0xff652: cli,out,out,in,out; 0xff6e2: cli,out,in,out; 0xff798: cli,out,out,in,out). Same address block as the excluded 0xdf0c7/0xdf0c8. Not a game global."
+  },
+  {
+   "addr": "0x0df0c6",
+   "kind": "hardware",
+   "excluded": true,
+   "routines": [
+    "0xff6e2",
+    "0xff7d4",
+    "0xffa44"
+   ],
+   "evidence": "All three users contain cli/out/in (0xff6e2: cli,out,in,out; 0xff7d4: cli,out,in,out; 0xffa44: cli,out). Same hardware block as 0xdf0c7/0xdf0c8/0xdf0d0. Not a game global."
   }
  ],
  "_note": "Counts corrected: 120 distinct globals. tools/globals_od.js (objdump, structured operands) cross-checked against tools/globals.js over all 76 base-fold routines and the two now agree on 76 of 76. The ndisasm classifier had been missing [eax+edx+0x392c8] forms (base+index with implicit scale 1, printed with no *1) and over-counting address immediates stored into memory. Both fixed. See docs/objdump-crosscheck.md."

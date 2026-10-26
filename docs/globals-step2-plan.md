@@ -145,9 +145,9 @@ be the interesting one.
 
 ## Execution log
 
-### The six top globals, classified
+### The top globals, classified
 
-Four typed, two excluded as hardware. Recorded in `docs/globals.json`.
+Five typed, four excluded as hardware. Recorded in `docs/globals.json`.
 
 | global | kind | basis |
 |---|---|---|
@@ -155,8 +155,11 @@ Four typed, two excluded as hardware. Recorded in `docs/globals.json`.
 | `0xce408` | pointer table, `int[]` | always `[reg*4+0xce408]` |
 | `0xce488` | pointer table, `int[]` | same 4 users, same form, 0x80 higher |
 | `0x0d6e60` | plain scalar, `int` | `mov dword [...],0x30`, compared to 0 and decremented |
+| `0x77e90` | pixel grid, `unsigned short[128][64]` | `0xf3e24` stores `cx` at `0x77e90 + a*128 + b*2` |
 | `0xdf0c7` | **excluded, hardware** | all 3 users contain `cli`/`out`/`in` |
 | `0xdf0c8` | **excluded, hardware** | same 3 hardware routines |
+| `0xdf0d0` | **excluded, hardware** | all 3 users contain `cli`/`out`/`in` |
+| `0xdf0c6` | **excluded, hardware** | all 3 users contain `cli`/`out`/`in` |
 
 `0xce408` and `0xce488` share all four users and differ by `0x80`, so they are a
 pair of parallel per-id tables rather than independent globals.
