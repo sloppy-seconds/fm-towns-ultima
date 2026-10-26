@@ -703,3 +703,85 @@ Two lessons, both already in `AGENTS.md` in other words:
 - A comment saying "eject first, order matters" sitting above code that does it
   in one place and not another is worse than no comment, because it reads as
   settled.
+
+## Result 12: RUN386 is silent with the GDS driver resident. The window hypothesis is wrong
+
+The theory worth testing was that `RUN386` fails only because no Towns window
+system is present, and that "window system" might mean the **GDS device driver**
+(`TOWNS.SYS` + `GDS.SYS`) rather than the `CONTROL.EXE` desktop. If so, an image
+with the drivers resident and a normal prompt would be enough, which is exactly
+what `saves/towns62.hdm` is.
+
+It was tested. It is wrong.
+
+### Setup
+
+`saves/towns62.hdm` already has `DEVICE=A:\TOWNS.SYS`, `DEVICE=A:\DOS\GDS.SYS` and
+`DEVICE=A:\DOS\MOUSE.SYS` in `CONFIG.SYS`, plus `OAK0.SYS` and
+`OAK1.SYS /O1 /S0 /H1 /K0 /R1 /M2 /B1` which supply the Towns memory banks. It
+boots to a writable `A:\>` with the CD mounted at `Q:`.
+
+`tools/towns62-run386.py` copies it to a scratch image (the named image is never
+modified) and replaces `AUTOEXEC.BAT` with a probe that appends each stage to
+`A:\T.LOG`, so a hang is located from the host with no OCR.
+
+### Measured
+
+The full Towns resident stack, matching the stock `AUTOEXEC.BAT`:
+
+```
+P1_START
+P2_SHARE=
+P3_MSCDEX=
+  Q:\ values HC_MULTI_K, Q:\HC386\BIN, HCD386P.EXP 670,437 bytes
+P4_COCO=
+```
+
+**The trace ends at `P4_COCO`.** `COCO` runs and the batch never reaches
+`SIDEWORK`. That confirms the documented behaviour and confirms it also happens
+on this image, not only on the DOS 6.2 floppy.
+
+Skipping the whole resident stack and letting only the `CONFIG.SYS` drivers
+load, the batch runs to completion:
+
+```
+D1_START  D2_SHARE=  D3_MSCDEX=  D4_RUN386
+D5_RC=          <- RUN386 with output redirected
+D5B_TRY_BARE    <- RUN386 with no arguments, redirected
+D5C_BARE_RC=
+D5D_TRY_NOLOG   <- RUN386 with no arguments, no redirection
+D5E_NOLOG_RC=
+D6_DONE
+```
+
+Every stage reached. **`A:\R.LOG` and `A:\R2.LOG` are both empty and no `H.OBJ`
+exists.** The screen colour count does not change across the run (1118 before,
+1118 after), so nothing opened a window and nothing drew.
+
+### Verdict
+
+**NEGATIVE.** `RUN386` executes, returns an empty errorlevel rather than a
+failure code, and produces no output and no object, with `TOWNS.SYS` and
+`GDS.SYS` both resident. So the missing piece is not the GDS device driver.
+
+Two things follow.
+
+The `compiling-on-fm-towns.md` warning that `TOWNS.SYS`/`GDS.SYS` "buy nothing
+here" was scoped to the `HCD386.EXE` route and is now confirmed for the `RUN386`
+route as well, by measurement rather than by extension.
+
+The optimiser question stays open, and the reason is now clearer: reaching
+`RUN386` is not sufficient on its own, because something above the driver is
+still missing. The remaining candidates are the `SIDEWORK` and `SYSINIT` stages
+that `COCO` blocks, and `COCO` itself needs Towns memory banks that the DOS 6.2
+floppy cannot supply. That is the same trilemma, unchanged, and this experiment
+did not escape it.
+
+### What was ruled out, precisely
+
+Ruled out: **GDS resident plus writable volume plus DOS prompt is enough**.
+It is not.
+
+Not ruled out: that the full stack (COCO, SIDEWORK, SYSINIT) would work. It
+cannot be reached because `COCO` stops the batch, and `COCO` fails on the
+6.2 floppy for a documented memory reason.

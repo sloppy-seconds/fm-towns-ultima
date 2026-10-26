@@ -210,7 +210,11 @@ before `AUTOEXEC` runs, with no diagnostic. Tested twice, in two device orders.
 `CTL.SYS` works on the TownsOS 2.1 floppy because that DOS is 3.10.
 
 **Do not add `TOWNS.SYS`, `GDS.SYS` or `MOUSE.SYS` either.** They load and
-boot, but they are for the TownsMENU route and they buy nothing here. Adding
+boot, but they are for the TownsMENU route and they buy nothing here. **This
+warning is scoped to the `HCD386.EXE` route and was verified for the other route
+too: see result 12 in [decompilation-experiment.md](decompilation-experiment.md),
+which boots an image that already has all three resident and shows `RUN386` still
+produces nothing.** Adding
 them only widens what can break.
 
 ### The CD: `saves/hc.img` + `saves/hc.ccd`
