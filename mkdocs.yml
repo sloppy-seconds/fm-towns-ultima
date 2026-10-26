@@ -158,6 +158,7 @@ nav:
       - Plan and execution for the globals: globals-plan.md
       - Typing the top globals: globals-step2-plan.md
       - The non-leaf blocker was the wrong compiler: nonleaf-reopened.md
+      - The non-leaf ceiling is call relocations: nonleaf-relocation-ceiling.md
       - Naming by string reference does not scale: naming-negative.md
       - The ndisasm continuation trap: ndisasm-continuation.md
       - objdump as a second opinion: objdump-crosscheck.md

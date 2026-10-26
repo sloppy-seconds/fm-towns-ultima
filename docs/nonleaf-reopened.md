@@ -1,5 +1,13 @@
 # The non-leaf blocker was the wrong compiler
 
+**Correction, later session.** The division finding below stands and is correct. Two
+framings in this page are superseded. First, `0xe6a58` is not a non-leaf routine: the census
+classifies it `base-fold` with `calls: 0`, and its byte-match failure is the absolute-address
+blocker of `docs/base-fold-negative.md`, not register allocation. Second, the real blocker for
+the actual `non-leaf` set is that every call carries a link-time `rel32` relocation, which no
+source shape removes. Both are measured in `docs/nonleaf-relocation-ceiling.md`. The
+"allocation is the one open question" framing below is therefore the wrong question.
+
 **Verdict: the recorded negative does not apply to High C 1.73.** A question this
 project closed on the strength of `docs/highc-spike.md` is reopened by
 measurement, and the reason is a compiler version.

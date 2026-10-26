@@ -138,3 +138,29 @@ negatives is worth more than a night that produces ten guesses.
 Every unit ends with: what was asked, what was done, what was claimed and which check
 proved it, what is stale elsewhere. `node tools/sessionreport.js` first, then the report.
 `docs/session-summary.md` is the running narrative of this phase.
+
+## Outcomes of this run
+
+The pipeline was verified (Phase 1): `0xe52c8` recompiles to MATCH in 13.6s, Capstone 5.0.7
+confirmed. The decisive experiment (Phase 2) produced a negative with a named cause, and the
+cause was not the one expected. Full write-up: `docs/nonleaf-relocation-ceiling.md`.
+
+- **`0xe6a58` is `base-fold`, not non-leaf.** The census gives it `calls: 0` and
+  `references 0x7a7d0`. It was never a valid test of non-leaf reachability, and its failure is
+  the absolute-address blocker of `docs/base-fold-negative.md`, not register allocation.
+- **The non-leaf blocker is call relocations.** Every `non-leaf` routine makes a call, and a
+  call is `e8 <rel32>`, a link-time relocation. A single-file compile emits `00 00 00 00`,
+  the game has the real displacement. Measured on four real wrappers, each compiles to the
+  game's exact shape apart from those four bytes. Linking does not fix it: the callee lands at
+  our layout's address, not the game's.
+- **Phase 5a was already answered** in `docs/base-fold-negative.md`: no `386LINK` option places
+  a data segment at a chosen absolute address in the flat model. Re-confirmed: link puts globals
+  near address 0.
+
+**The ceiling is now located.** Byte-perfect compile-and-diff matches only call-free,
+absolute-free routines: the 14 `c-leaf`, of which 10 are done. The 307 `non-leaf` and 76
+`base-fold` sets are blocked by link-time layout, which no source shape removes. Past the
+leaves the goal must change from byte-matching to behavioural reconstruction.
+
+**Stale after this run:** plan item 4j (closed), `docs/nonleaf-reopened.md` allocation framing
+(superseded), and the `0xe6a58` non-leaf framing in this file and `docs/plan.md` (corrected).

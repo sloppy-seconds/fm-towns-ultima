@@ -546,7 +546,7 @@ screenshot. The stdio client completes the handshake and `tools/list` but never 
 
 ### 4j. Finish 0xe6a58, the largest open question about non-leaf routines
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -569,6 +569,17 @@ by source shape, that set becomes ordinary work. If it cannot, that is the real 
 it should be known now rather than after 300 attempts.
 
 See [nonleaf-reopened.md](nonleaf-reopened.md).
+
+**Resolution.** The question is answered, and the answer is not the one the item expected.
+`0xe6a58` is classified `base-fold` with `calls: 0`, not non-leaf, so it was never a valid test
+of non-leaf reachability, and its byte-match failure is the absolute-address blocker already
+recorded in `docs/base-fold-negative.md`. The real blocker for the genuine `non-leaf` set is
+that every call carries a link-time `rel32` relocation that single-file compile-and-diff cannot
+reproduce. Measured on four real wrappers (`0xe9430`, `0xf7bf0`, `0xe1068`, `0xe157c`), each of
+which compiles to the game's exact shape apart from the call displacement. Full write-up:
+[nonleaf-relocation-ceiling.md](nonleaf-relocation-ceiling.md). The consequence is that the
+byte-perfect method's ceiling is the call-free, absolute-free leaves, and past them the goal
+must shift from byte-matching to behavioural reconstruction.
 
 ### 4g. A bootable hard disk with the toolchain on it
 
