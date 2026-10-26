@@ -1,9 +1,9 @@
-# The DOS compile route is the default, and its flags only half work
+# The DOS compile route is the default, and its toggles crack routines
 
 **Verdict: use DOS mode.** For routine-level byte matching, `tools/cserve.js`
 calling `HCD386.EXE` under MS-DOS 6.2 is the better tool than the TownsOS
-route, and this page records why, how to bring it up cold, and one defect in it
-that was found by measurement rather than assumed.
+route, and this page records why, how to bring it up cold, and the toggle that
+reproduces a routine no source shape could match on its own.
 
 The TownsOS route is `docs/highc-authentic-toolchain.md`. It was worth one
 session because it proved the substitute invocation reproduces the authentic
@@ -79,42 +79,68 @@ guest. The container can be dead and health still reports green.
 compile is suspicious, because the object can be produced and still not reflect
 what was asked for.
 
-## Defect: the flags parameter only half works
+## The flags parameter works, and one toggle cracks a routine
 
 `/api/compile` accepts `flags` and interpolates it into the generator command
-line at `tools/cserve.js:513`. Ordinary switches arrive. **Toggle switches are
-silently ignored.** Measured on one source, all producing the same object sha
-`cfa02c2e3778`:
+line at `tools/cserve.js:513`. Both ordinary switches and toggle switches
+arrive. Measured on the `0xe52c8` candidate:
 
 | flags | result |
 |---|---|
-| (none) | 62 bytes of code |
+| (none) | 62 bytes, frameless, sha `cfa02c2e3778` |
 | `-O` | 62 bytes, identical |
-| `-off Remove_BP` | 62 bytes, identical |
-| `-on PROFILE` | 62 bytes, identical |
-| `-off PROFILE` | 62 bytes, identical |
-| `-on=PROFILE` | 62 bytes, identical |
-| `-zzzzz` | 62 bytes, identical, no error |
-| `-g` | **compile fails**, so the flag did arrive |
+| `-zzzzz` | 62 bytes, identical, **no error** |
+| `-g` | compile fails, so the flag arrived |
+| `-off auto_reg_alloc` | 189 bytes, register roles swapped |
+| `-off optimize_xjmp` | 188 bytes, **framed** |
+| `-off optimize_fp` | 186 bytes, **framed** |
+| `-off remove_bp` | 62 bytes, identical |
+| `-on profile` | 62 bytes, identical |
 
-`-g` is the control that matters. It changed behaviour, which proves the channel
-is live. `PROFILE` on should insert an `mcount` call at function entry, which
-would be obvious in the bytes, and it did nothing. `-zzzzz` is accepted without
-error, so **an unknown flag cannot be detected from the exit status**.
+Two rules for anyone using this. **An unknown flag is silently ignored**, so a
+flag experiment must always include a control that is expected to change
+something, or a null result means nothing. And **toggle names are specific**.
+`remove_bp` and `profile` do nothing here even though `REMOVE_BP` and `PROFILE`
+are real symbols in `hcd386.exe`.
 
-Consequences, both of them unwelcome:
+### What actually controls the frame
 
-1. `Remove_BP` cannot be set this way. The frame question in
-   `docs/highc-authentic-toolchain.md` is not answered by the DOS route either.
-2. `tools/frameflags.py` concluded that twenty-one flag sets produced
-   byte-identical output, and that was read as the optimiser not engaging. That
-   experiment could not have produced any other result for the toggle flags, and
-   its header note that "unknown flags make High C error rather than ignore" is
-   false. The conclusion needs re-deriving with `-O` levels only, and needs the
-   `-g` style control applied first.
+Not `Remove_BP`. The earlier hypothesis in
+`docs/highc-authentic-toolchain.md` was wrong. The toggle is **`optimize_fp`**,
+and with it off the generator keeps the frame pointer and addresses arguments
+through `ebp`.
 
-Any future flag experiment on this route must begin by proving the flag arrived,
-using something that breaks the compile or visibly changes the code.
+The name came from `hc386set.cnf`, which ships with:
+
+```
+HCDEBUG=-on codeview \
+       -off optimize_xjmp optimize_fp auto_reg_alloc postpone_arg_pops
+```
+
+That line is the backend toggle syntax demonstrated by MetaWare itself:
+`-off` followed by space-separated lowercase names, underscores included and no
+tokeniser problem, because it is a config file rather than a command line. It
+also explains why `-g` behaved differently from every `-O` variant, since `-g`
+expands to this set.
+
+With the corrected candidate source and `-off optimize_fp`, `0xe52c8` is
+**byte-identical**, 58 bytes:
+
+```
+./tools/cc.sh e52c8.c --flags "-off optimize_fp" --want "$(target-hex e52c8)"
+MATCH
+```
+
+The source is in `docs/routines.json` under `e52c8`, with the flag recorded in
+a `flags` field alongside it.
+
+### What this implies about the game build
+
+The seven routines matched earlier needed no flag, and two of them are framed.
+This one needs `-off optimize_fp` to become framed. So the flag is not a
+project-wide setting in the original build, or the frame decision depends on
+source shape as well. That is an open question, and it is now testable: re-run
+the seven with the flag and see which stop matching.
 
 ## Correcting a claim made on this project's own evidence
 
@@ -123,6 +149,11 @@ using something that breaks the compile or visibly changes the code.
 for a multiply by two. That was wrong and is corrected there. `lea` sequences
 were already confirmed from the DOS route in `docs/highc-codegen.md`. Same code
 generator, same behaviour.
+
+An intermediate conclusion on this page, that toggle switches were silently
+ignored, was also wrong. They work. The specific names tried first were
+ineffective, and because unknown names are accepted without error the two
+looked identical. The `-off auto_reg_alloc` control is what separated them.
 
 ## Related
 

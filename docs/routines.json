@@ -54,9 +54,11 @@
    "addr": "e52c8",
    "callers": 4,
    "bytes": 58,
-   "class": "frame-decision",
-   "what": "7-field struct init. Sequence, field order, zeroed field and return all agree. Only the argument base register differs, and the size arithmetic proves that is the whole gap. Cause identified: the Remove_BP toggle is on by default and this routine was built with it off.",
-   "evidence": "result 17, cause named in docs/highc-authentic-toolchain.md"
+   "class": "matched",
+   "what": "7-field struct init plus one zeroed field, returns the pointer. Byte-identical with the generator flag -off optimize_fp, which is what keeps the frame pointer. Field order is not source order: +0x14 takes the 5th argument after +0x10 took the 7th.",
+   "evidence": "docs/compile-route-dos.md, flag found via hc386set.cnf HCDEBUG",
+   "c": "struct S{int f0,f1,f2,f3,f4,f5,z,f6;};\nstruct S *f(struct S *p,int a,int b,int c,int d,int e,int g,int h)\n{\n p->f0=a;p->f1=b;p->f2=c;p->f3=e;p->f4=g;p->f5=d;p->f6=h;p->z=0;\n return p;\n}",
+   "flags": "-off optimize_fp"
   },
   {
    "addr": "e5304",
