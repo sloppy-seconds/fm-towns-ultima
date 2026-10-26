@@ -106,6 +106,95 @@ HCDEBUG=-on codeview \
 `docs/bootable-dos-hdd.md`: the kit's default linker is the P3 extender form, not
 `386link.exe`.
 
+**And that failure is not a missing file.** The `find` procedure in `check_link_as` walks
+`$TOOLSDIR` then `PATH`, and assigns the literal message
+`/$toolname/not/found/in/TOOLSDIR/or/PATH` only when both fail. `TOOLSDIR` is empty in the
+shipped `hc386set.cnf`, so the search had exactly the one place to look. The file is a
+default name in a config we can read; the gap is the path variable, not the binary. See
+`docs/bootable-dos-hdd.md` for the quoted line numbers.
+
+This matters for scope: finding `386linkp.exp` is not a research task and would not change
+any byte-matching result, because the linker runs after the encoding decisions this page is
+about.
+
+## A toggle that can be read off the code: `CHAR_DEFAULT_UNSIGNED`
+
+Most toggles leave no signature, because the game's bytes ARE the output and the only test
+is compiling a candidate. One is different: the signedness of a bare `char` decides which
+branch family the compiler emits, so it can be measured directly.
+
+**First, the default is not what this project assumed.** Measured with `tools/cc.sh` on a
+plain global `char` load:
+
+```
+default                        0f b6 ...    movzx    char is UNSIGNED by default
+-off CHAR_DEFAULT_UNSIGNED     0f be ...    movsx    this is how you get signed
+-on  CHAR_DEFAULT_UNSIGNED     no change             already the default
+```
+
+So the toggle exists to turn signedness **off**, `-on` is a no-op, and a source wanting
+signed bytes says `signed char` or the build passes `-off`.
+
+**Second, the game matches the default.** `tools/signedness.js`, decoding the code region
+with `tools/decode.js` rather than byte-scanning it:
+
+```
+Branches whose comparison reads a BYTE register:
+  signed   2
+  unsigned 37
+  signed share: 5.1%
+
+Byte extension:
+  movsx 36   movzx 82   movsx share 30.5%
+```
+
+Both signals agree: unsigned dominates byte comparisons and `movzx` outnumbers `movsx`.
+
+### A correction worth keeping, because the first version of the tool was wrong
+
+The first run counted **every** conditional branch and reported 77 percent signed, which
+would have meant signed char. That was wrong, and the measurement that exposed it is useful:
+of 370 conditional branches in the region, **264 compare registers and only 74 touch
+memory**, because most are integer loop counters and bounds checks. Their signedness is a
+property of the surrounding arithmetic, not of `char`. Restricting the count to branches
+whose comparison actually reads a byte register flips the answer from 77 percent signed to
+5 percent.
+
+An aggregate over a population that is mostly not about the question is the same defect this
+project has recorded repeatedly, and it reproduced here inside a tool written to avoid it.
+
+### What this settles, and what it does not
+
+**Settled:** the game was built with `CHAR_DEFAULT_UNSIGNED` on, i.e. the default, with no
+`-off`. That is a compiler setting read from the code rather than from the kit.
+
+**Not settled:** this says nothing about `enter`/`xor`, `optimize_xjmp` or anything else in
+the 43-name list. Only toggles that change an observable instruction family can be read
+this way, and most do not.
+
+## The banner in the image, read, and what it does not prove
+
+The obvious shortcut was to read the game's own build banner. It contains one:
+
+```
+0x101c32: High C Run-time Library Copyright (C) 1983-1988 MetaWare Incorporated.
+```
+
+**This is already recorded** in `docs/highc-v17.md`, which compares it against the kit:
+the game embeds `1983-1988`, the 1.73 kit's library carries `1983-1989`, and v2.31 also
+carries `1983-1988`. So the string does not separate the candidates, and the page already
+says so. Reading it again confirmed the number rather than discovering it.
+
+**And it is the RUNTIME LIBRARY banner, not the compiler's.** It sits at `0x101c32`, above
+the `0xff000` library floor, among symbols like `_mwexits` and `_exit`. The census classes
+25 entries around it as `not-entry`. So it dates the library the program was linked
+against, which is compatible with a range of compilers, not the code generator that emitted
+the game's own functions.
+
+**No build flags are in the image.** Searched and absent: `HCDEBUG`, `ARGS=`, `optimize_`,
+`hc386`, `codeview`, `386link`, `char_default`. So the game carries no record of how it was
+compiled, and that avenue is closed rather than untried.
+
 ## Related
 
 - `docs/leasib-flags-negative.md`: the earlier, narrower negative this completes

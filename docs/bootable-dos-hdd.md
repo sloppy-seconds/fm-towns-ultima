@@ -128,6 +128,30 @@ The last visible failure is the link step:
 `LINKNAME=386linkp` in the environment does not reach it, because `check_link_as`
 takes `ldname` as a procedure parameter.
 
+**That error is a search failure, not a missing file, and the mechanism is now read**
+from `hc386.cnf` itself rather than inferred. The `find` procedure inside
+`check_link_as` walks `$TOOLSDIR`, then each directory on `PATH`, and only if neither
+finds the tool does it assign the literal string
+`/$toolname/not/found/in/TOOLSDIR/or/PATH`. So the text is the failure message's own
+wording, and the file may well be present.
+
+**`TOOLSDIR` is empty in the shipped configuration.** `hc386set.cnf` line 32 is
+`TOOLSDIR=` with the surrounding comment telling you to set it if the tools are not
+on `PATH`. The list of attempts in the message is exactly the two places it looked.
+That is the actionable cause: set `TOOLSDIR=Q:\HC386\BIN`, or put that directory on
+`PATH`, and the lookup has somewhere to succeed.
+
+Two further details from the config, both measured:
+
+- `LINKNAME=386linkp.exp` is the *default* in `hc386set.cnf`, not something this project
+  chose. Because it already ends in `.exp`, the `add=$com.exp` branch at line 828 does
+  not append a second one.
+- The `.exp` appending is real and is quoted at lines 826-828: with `-native` and a bare
+  name, `add=$com.exp`. So the existing note above is correct about the suffix.
+
+This route has not been re-tried with `TOOLSDIR` set. Stated as a correction to the
+cause, not as a fix that has been demonstrated.
+
 **And a hard disk cannot be relied on.** Every attempt to read a filesystem from a
 64 MB image failed after the first boot.
 
