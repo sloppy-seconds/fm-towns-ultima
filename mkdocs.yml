@@ -160,6 +160,7 @@ nav:
       - The non-leaf blocker was the wrong compiler: nonleaf-reopened.md
       - The non-leaf ceiling is call relocations: nonleaf-relocation-ceiling.md
       - The upper region may be a different compiler: compiler-generation.md
+      - The nobase-SIB addressing class: nobase-sib.md
       - Naming by string reference does not scale: naming-negative.md
       - The ndisasm continuation trap: ndisasm-continuation.md
       - objdump as a second opinion: objdump-crosscheck.md

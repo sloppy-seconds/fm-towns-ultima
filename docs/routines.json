@@ -442,9 +442,53 @@
       "addr": "100307",
       "callers": 1,
       "bytes": 28,
+      "class": "base-fold",
+      "what": "If a byte global at 0xdfa03 is at least 0x40, sets byte 0xdfa05[a & 0xf] to 0xff and returns 0.",
+      "evidence": "tools/cmpdisp.js --addr 0x100307: identical except five bytes across three absolute displacements. Earlier recorded as parked on a nobase-SIB misreading; the target uses c6 80, the base form, and the mismatch was the mask tool not handling the a0/a2 byte-moffs opcodes, not a codegen difference.",
+      "c": "extern unsigned char a;\nextern char tab[];\nint f(void) { unsigned char v = a; if (v >= 0x40) tab[a & 0xf] = 0xff; return 0; }",
+      "flags": ""
+    },
+    {
+      "addr": "ff9e3",
+      "callers": 1,
+      "bytes": 32,
+      "class": "not-c",
+      "what": "Hardware helper, 32 bytes.",
+      "evidence": "Contains pushal, cli, out, loop, popal."
+    },
+    {
+      "addr": "ffcc6",
+      "callers": 1,
+      "bytes": 41,
+      "class": "not-c",
+      "what": "Hardware latch helper, 41 bytes.",
+      "evidence": "Contains out."
+    },
+    {
+      "addr": "fec70",
+      "callers": 1,
+      "bytes": 50,
+      "class": "not-c",
+      "what": "Hardware helper, 50 bytes, around 0xdf0c7.",
+      "evidence": "Contains cli, in, out. Same block as the globals already excluded in docs/globals.json."
+    },
+    {
+      "addr": "ef248",
+      "callers": 2,
+      "bytes": 49,
+      "class": "base-fold",
+      "what": "Adds n to a per-record counter at offset 0x1b of a 351-byte record array and clamps it at 9999 (0x270f). The record index is the global at 0xceca0.",
+      "evidence": "tools/cmpdisp.js --addr 0xef248: identical except twelve bytes across four base displacements. Frameless source, no flags needed. This is the routine docs/globals.json records as the worked example for the 351-byte stride; it is now verified against the image rather than only against its own recording.",
+      "c": "struct S { char pad[27]; int x; char tail[320]; };\nstruct S arr[64];\nint gi;\nvoid f(int n) { arr[gi].x += n; if (arr[gi].x > 9999) arr[gi].x = 9999; }",
+      "flags": ""
+    },
+    {
+      "addr": "e3c58",
+      "callers": 2,
+      "bytes": 41,
       "class": "unresolved",
-      "what": "If a byte global at 0xdfa03 is at least 0x40, sets byte 0xdfa05[b & 0xf] to 0xff. Returns 0.",
-      "evidence": "Target stores via c6 04 05 <disp> ff, the nobase SIB form. High C 1.73 emits c6 80 <disp> ff for every source shape tried (tab[a & 0xf], (unsigned char) cast, pointer arithmetic). Same nobase-SIB lever as 0xe779c and 0xe7784."
+      "what": "Copies 0x1000 bytes from 0xbd578 to the buffer at (arg<<12)+0x4de90, using a lodsb/stosb loop.",
+      "evidence": "39 of 41 bytes reproduce, including the ac aa 41 eb f3 lodsb/stosb loop. The single difference is the lea: target 8d b0 <disp32> (lea esi,[eax+disp]), ours 8d 34 05 <disp32> (lea esi,[eax*1+disp]). Same nobase-SIB class as 0xe779c and 0xe7784, recorded once in docs/nobase-sib.md."
     }
   ],
   "globals_ref": {

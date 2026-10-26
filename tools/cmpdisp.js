@@ -83,8 +83,8 @@ function relocFields(ins, image = IMAGE) {
 		return fields;
 	}
 
-	// a1/a3: moffs32 immediately follows the opcode.
-	if (op === 0xa1 || op === 0xa3) {
+	// a0/a1/a2/a3: moffs32 immediately follows the opcode. a0/a2 are the byte forms.
+	if (op >= 0xa0 && op <= 0xa3) {
 		fields.push([i + 1, i + 5]);
 		return fields;
 	}
