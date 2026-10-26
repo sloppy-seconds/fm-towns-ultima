@@ -365,6 +365,86 @@
       "class": "unresolved",
       "what": "Returns 1 if a byte table lookup at 0xbd578+ is in [0x12,0x21) or equals 0x0a, else 0. Ten source shapes tried, all within one byte of the target.",
       "evidence": "Target tail is 83 f9 0a 75 05 b9 01 00 00 00 8b c1 c3, which needs ecx to be the result register throughout. Shapes that produce movzx ecx get the branch structure wrong (7c 09 vs 7c 05); shapes that get the branches right (both 7c 05) use edx for movzx and emit an extra 2b c9. The two halves are reachable separately and not together, the same pattern result 10 in docs/decompilation-experiment.md records for the frame."
+    },
+    {
+      "addr": "feb48",
+      "callers": 1,
+      "bytes": 22,
+      "class": "unresolved",
+      "what": "Sets three adjacent byte globals: 0xdee93=0, 0xdee92=0xff, 0xdee94=0. Logic fully understood, encoding not reproducible.",
+      "evidence": "Target uses c6 05 <disp> imm (mov byte [disp],imm) for all three stores. High C 1.73 emits c6 05 for a non-zero immediate but switches to a2 (byte moffs) when the value constant-folds to zero: q=r=1 gives the target shape exactly, q=r=0 gives 2b c0 a2 ... a2. The target stores zero via c6 05, so its value was not folded, and no source shape tried keeps a zero unfolded."
+    },
+    {
+      "addr": "ff025",
+      "callers": 1,
+      "bytes": 24,
+      "class": "unresolved",
+      "what": "Advances a counter at 0xdee61 by 6 and wraps to 0xdee67 when it reaches 0xdee6d. Reads as a ring-buffer pointer advance.",
+      "evidence": "Target is add esi,6 which MODIFIES esi in place with no load into it, so esi is already the accumulator on entry. A standalone function would have to load it. This is a fragment of a larger routine, not a function entry, despite being a call target."
+    },
+    {
+      "addr": "fb98c",
+      "callers": 1,
+      "bytes": 30,
+      "class": "unresolved",
+      "what": "Copies 0x1000 bytes from 0xbd578 to 0xd5be4.",
+      "evidence": "Target uses lodsb/stosb-style copy with an explicit counter. Reproducible shape not found in the angles tried; the lodsb form comes from a struct-assignment or a specific loop source."
+    },
+    {
+      "addr": "fea82",
+      "callers": 1,
+      "bytes": 33,
+      "class": "unresolved",
+      "what": "Zeroes 0xdee90 (word) then a 0x40-iteration loop clearing 6 bytes each at 0xdef45. Uses pushal/popal.",
+      "evidence": "Contains pushal/popal, which High C has no source construct for. Same not-c reason as the ten already classified, but it is a call target so it belongs in the register rather than outside the census."
+    },
+    {
+      "addr": "ffa44",
+      "callers": 1,
+      "bytes": 23,
+      "class": "not-c",
+      "what": "Clears bit 0 of the hardware latch at 0xdf0c6 and writes it to port 0xe73.",
+      "evidence": "Contains cli and out. Same hardware block as 0xdf0c7/0xdf0c8 which docs/globals.json already excludes."
+    },
+    {
+      "addr": "ff798",
+      "callers": 1,
+      "bytes": 60,
+      "class": "not-c",
+      "what": "Hardware latch write sequence on ports around 0xdf0ca.",
+      "evidence": "Contains cli, out, in, out."
+    },
+    {
+      "addr": "ff7d4",
+      "callers": 1,
+      "bytes": 63,
+      "class": "not-c",
+      "what": "Hardware latch write sequence on 0xdf0c6.",
+      "evidence": "Contains cli, out, in, out."
+    },
+    {
+      "addr": "ff8c3",
+      "callers": 1,
+      "bytes": 84,
+      "class": "not-c",
+      "what": "Hardware helper, 84 bytes.",
+      "evidence": "Contains pushal, loop, popal. High C has no source construct for any of the three."
+    },
+    {
+      "addr": "fea09",
+      "callers": 1,
+      "bytes": 25,
+      "class": "not-c",
+      "what": "Clears one byte per 0x20 stride across eight entries from 0xdf0f5.",
+      "evidence": "Contains the loop instruction. High C emits no source construct for it, which is the same reason the ten already-classified not-c entries are excluded."
+    },
+    {
+      "addr": "100307",
+      "callers": 1,
+      "bytes": 28,
+      "class": "unresolved",
+      "what": "If a byte global at 0xdfa03 is at least 0x40, sets byte 0xdfa05[b & 0xf] to 0xff. Returns 0.",
+      "evidence": "Target stores via c6 04 05 <disp> ff, the nobase SIB form. High C 1.73 emits c6 80 <disp> ff for every source shape tried (tab[a & 0xf], (unsigned char) cast, pointer arithmetic). Same nobase-SIB lever as 0xe779c and 0xe7784."
     }
   ],
   "globals_ref": {
