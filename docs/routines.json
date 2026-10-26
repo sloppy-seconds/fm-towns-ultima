@@ -31,17 +31,17 @@
    "addr": "e1c24",
    "callers": 11,
    "bytes": 46,
-   "class": "frame-decision",
-   "what": "six ints into struct+0x3c. Same shape as 0xe1bf4.",
-   "evidence": "result 10"
+   "class": "base-fold",
+   "what": "six ints into struct+0x3c. Same shape as 0xe1bf4. Begins mov eax,0xe3f4, an absolute global address, so the four bytes are a relocation.",
+   "evidence": "result 10, reclassified by docs/highc-authentic-toolchain.md"
   },
   {
    "addr": "e1bf4",
    "callers": 11,
    "bytes": 46,
-   "class": "frame-decision",
-   "what": "six ints into struct+0x24. Framed with zero locals: no source shape reproduces it.",
-   "evidence": "result 10"
+   "class": "base-fold",
+   "what": "six ints into struct+0x24. Begins mov eax,0xe3f4, an absolute global address, so the four bytes are a relocation and cannot agree in a standalone build. Not frame-decision.",
+   "evidence": "result 10, reclassified by docs/highc-authentic-toolchain.md"
   },
   {
    "addr": "e552c",
@@ -55,8 +55,8 @@
    "callers": 4,
    "bytes": 58,
    "class": "frame-decision",
-   "what": "7-field struct init. Logic provably right, only [ebp+N] versus [esp+N] differs.",
-   "evidence": "result 17"
+   "what": "7-field struct init. Sequence, field order, zeroed field and return all agree. Only the argument base register differs, and the size arithmetic proves that is the whole gap. Framed with no locals is a compiler option, not a source shape.",
+   "evidence": "result 17, measured further in docs/highc-authentic-toolchain.md"
   },
   {
    "addr": "e5304",

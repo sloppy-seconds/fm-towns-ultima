@@ -153,6 +153,7 @@ nav:
   - Toolchain:
       - Compiling on FM Towns: compiling-on-fm-towns.md
       - Compiling with High C: highc-compile-success.md
+      - The authentic toolchain reproduces seven routines: highc-authentic-toolchain.md
       - The plot calibration: highc-plot-calibration.md
       - Pixel writer address correction: pixel-writer-address-correction.md
       - AGENTS.md audit: agents-md-audit.md
