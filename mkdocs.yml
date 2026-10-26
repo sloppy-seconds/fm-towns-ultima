@@ -159,6 +159,8 @@ nav:
       - Typing the top globals: globals-step2-plan.md
       - The non-leaf blocker was the wrong compiler: nonleaf-reopened.md
       - Naming by string reference does not scale: naming-negative.md
+      - The ndisasm continuation trap: ndisasm-continuation.md
+      - objdump as a second opinion: objdump-crosscheck.md
       - The corpus census: corpus-census.md
       - The authentic toolchain reproduces seven routines: highc-authentic-toolchain.md
       - The plot calibration: highc-plot-calibration.md

@@ -55,7 +55,7 @@ def target_bytes(addr):
     # did not happen ndisasm disassembled the PREVIOUS routine and reported it as
     # the target with no error. Nothing in this file may route bytes through a
     # shared path. tools/imgaudit.js asserts this.
-    out = subprocess.run(['ndisasm', '-b32', '-o', hex(addr), '-'],
+    out = subprocess.run(['ndisasm', '-b32', '-w', '-o', hex(addr), '-'],
                          input=blob, capture_output=True)
     text = out.stdout.decode('latin1')
     bytes_ = []

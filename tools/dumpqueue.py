@@ -45,7 +45,7 @@ def routine(image, addr, cap=512):
     blob = image[addr:addr + cap]
     if not blob:
         return None
-    out = subprocess.run(['ndisasm', '-b32', '-o', hex(addr), '-'],
+    out = subprocess.run(['ndisasm', '-b32', '-w', '-o', hex(addr), '-'],
                          input=blob, capture_output=True)
     text = out.stdout.decode('latin1')
     bytes_ = []

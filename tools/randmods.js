@@ -66,7 +66,7 @@ function boundarySet() {
 	const tmp = '/var/tmp/bnd.bin';
 	for (const entry of entries) {
 		fs.writeFileSync(tmp, img.subarray(entry, entry + 0x200));
-		const out = execFileSync('ndisasm', ['-b32', '-o' + entry, tmp], {
+		const out = execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, tmp], {
 			encoding: 'utf8',
 			maxBuffer: 8 * 1024 * 1024,
 		});
@@ -126,7 +126,7 @@ function main() {
 		const buf = '/var/tmp/randmod.bin';
 		fs.writeFileSync(buf, img.subarray(entry - 0x20, entry - 0x20 + 0xc0));
 		process.stdout.write(
-			execFileSync('ndisasm', ['-b32', '-o' + entry, buf], { encoding: 'utf8' })
+			execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, buf], { encoding: 'utf8' })
 		);
 		return;
 	}

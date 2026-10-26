@@ -91,7 +91,7 @@ function scanRoutine(buf, entry) {
 	fs.writeFileSync(tmp, chunk);
 	let text;
 	try {
-		text = execFileSync('ndisasm', ['-b32', '-o', '0x' + entry.toString(16), tmp], {
+		text = execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + entry.toString(16), tmp], {
 			encoding: 'utf8', stdio: 'pipe',
 		});
 	} finally {
@@ -148,7 +148,7 @@ function disasm(buf, addr, len) {
 	const tmp = '/var/tmp/dcr-' + process.pid + '.bin';
 	fs.writeFileSync(tmp, buf.slice(addr, addr + len));
 	try {
-		return execFileSync('ndisasm', ['-b32', '-o', '0x' + addr.toString(16), tmp], {
+		return execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + addr.toString(16), tmp], {
 			encoding: 'utf8', stdio: 'pipe',
 		}).trimEnd();
 	} finally {

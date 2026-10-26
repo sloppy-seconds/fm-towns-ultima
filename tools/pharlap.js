@@ -269,7 +269,7 @@ if (disName) {
 	console.log('\n== disassembly at ' + disName + ' (0x' + start.toString(16) + '), ' + len + ' bytes ==');
 	try {
 		const out = execSync(
-			'ndisasm -b32 -e' + start + ' -o0x' + start.toString(16) + ' "' + tmp + '" 2>/dev/null',
+			'ndisasm -b32 -w -e' + start + ' -o0x' + start.toString(16) + ' "' + tmp + '" 2>/dev/null',
 			{ encoding: 'utf8', maxBuffer: 1 << 24 }
 		);
 		console.log(out.split('\n').slice(0, 40).join('\n'));
@@ -283,5 +283,5 @@ if (dumpPath) {
 	const img = buf.subarray(h.loadStart, h.loadEnd || buf.length);
 	fs.writeFileSync(dumpPath, img);
 	console.log('\nwrote flat load image ' + img.length + ' bytes to ' + dumpPath);
-	console.log('  disassemble with: ndisasm -b32 -e0x' + h.loadStart.toString(16) + ' -o0x' + h.loadStart.toString(16) + ' ' + dumpPath);
+	console.log('  disassemble with: ndisasm -b32 -w -e0x' + h.loadStart.toString(16) + ' -o0x' + h.loadStart.toString(16) + ' ' + dumpPath);
 }

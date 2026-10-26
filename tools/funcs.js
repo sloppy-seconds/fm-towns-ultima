@@ -106,7 +106,7 @@ function main() {
 		//
 		// Measured, not assumed: the randMod prologue is at stripped 0xe1c5c and raw
 		// 0xe1c7c.
-		const text = execFileSync('ndisasm', ['-b32', '-o' + entry, '-'], {
+		const text = execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, '-'], {
 			input: buf.subarray(entry, entry + len),
 			encoding: 'utf8',
 		});

@@ -78,7 +78,7 @@ function scanRoutine(buf, entry) {
 	// Bytes go to ndisasm on STDIN. No temp file: a fixed path is the hazard that
 	// produced a fabricated disassembly in tools/trycands.py, and tools/imgaudit.js
 	// asserts that no tool hands a disassembler a shared path.
-	const text = execFileSync('ndisasm', ['-b32', '-o', '0x' + entry.toString(16), '-'], {
+	const text = execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + entry.toString(16), '-'], {
 		input: chunk, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
 	});
 	const bytes = [];

@@ -84,7 +84,7 @@ function refillPath(img, base) {
 	fs.writeFileSync(tmp, img.subarray(base, end));
 	let out;
 	try {
-		out = execFileSync('ndisasm', ['-b32', '-o' + base, tmp], {
+		out = execFileSync('ndisasm', ['-b32', '-w', '-o' + base, tmp], {
 			encoding: 'utf8',
 			maxBuffer: 8 * 1024 * 1024,
 		});

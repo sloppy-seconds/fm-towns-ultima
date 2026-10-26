@@ -93,7 +93,7 @@ const tmp = path.join(require('os').tmpdir(), 'findpal_code.bin');
 fs.writeFileSync(tmp, buf.subarray(PAYLOAD));
 let dis = '';
 try {
-	dis = execSync('ndisasm -b32 -o0x' + PAYLOAD.toString(16) + ' "' + tmp + '" 2>/dev/null', {
+	dis = execSync('ndisasm -b32 -w -o0x' + PAYLOAD.toString(16) + ' "' + tmp + '" 2>/dev/null', {
 		encoding: 'utf8',
 		maxBuffer: 1 << 29,
 	});

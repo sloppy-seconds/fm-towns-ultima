@@ -221,7 +221,7 @@
  ],
  "globals_ref": {
   "file": "docs/globals.json",
-  "note": "Typed globals for the base-fold set, with the routines supporting each. Recovered routines are recorded on the global they use, not here, because a routine is only recoverable once its global is typed.",
+  "note": "Typed globals for the base-fold set, with the routines supporting each. Recovered routines are recorded on the global they use, not here, because a routine is only recoverable once its global is typed. See docs/objdump-crosscheck.md: the distinct global count is 122, corrected from 118.",
   "counts": {
    "typed": 4,
    "excluded_hardware": 2,

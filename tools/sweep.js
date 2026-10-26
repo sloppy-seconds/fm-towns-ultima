@@ -59,7 +59,7 @@ function sweep(img, entry, len) {
 	fs.writeFileSync(tmp, slice);
 
 	// -o sets the origin label, so addresses come back in the project's address space.
-	let out = execFileSync('ndisasm', ['-b32', '-o' + entry, tmp], {
+	let out = execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, tmp], {
 		encoding: 'utf8',
 		maxBuffer: 64 * 1024 * 1024,
 	});

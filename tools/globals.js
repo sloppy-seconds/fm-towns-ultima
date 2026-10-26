@@ -56,7 +56,7 @@ function load() {
 // Refuse to guess a routine length. A wrong length silently changes which bytes
 // are scanned, which is the failure mode being avoided here.
 function routineText(buf, addr, maxLen = 4096) {
-	const out = execFileSync('ndisasm', ['-b32', '-o', '0x' + addr.toString(16), '-'], {
+	const out = execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + addr.toString(16), '-'], {
 		input: buf.subarray(addr, addr + maxLen), encoding: 'buffer', stdio: 'pipe',
 	});
 	return out.toString('latin1');
@@ -91,11 +91,18 @@ function operandKind(text) {
 		return null;
 	}
 	const inner = m[1];
-	const hasReg = /\b(e?[abcd]x|e?[sd]i|e?[sb]p|e?ip)\b/.test(inner);
-	const hasIndex = /\*\s*[1248]/.test(inner);
+	// A SCALE IS NOT REQUIRED. `[eax+edx+0x392c8]` is base+index with an implicit
+	// scale of 1, and ndisasm prints it with no `*1`. Requiring `/\*\s*[1248]/` made
+	// this tool classify it as `relative` and MISS the reference entirely, which is a
+	// false negative: 0xe30a0 lost four globals (0x392c8, 0x392cc, 0x392d0, 0x392d4)
+	// that objdump reports as indexed-base. Found by cross-checking against
+	// tools/globals_od.js, which reads the structure from objdump instead of inferring
+	// it from text.
+	const regs = [...inner.matchAll(/\b(e?[abcd]x|e?[sd]i|e?[sb]p|e?ip)\b/gi)].map((x) => x[1].toLowerCase());
+	const hasScale = /\*\s*[1248]/.test(inner);
 	const hasDisp = /\+\s*0x[0-9a-f]+/.test(inner);
-	if (hasIndex && hasDisp) return 'indexed-base';
-	if (hasReg) return 'relative';
+	if (hasDisp && (hasScale || regs.length >= 2)) return 'indexed-base';
+	if (regs.length >= 1) return 'relative';
 	return 'absolute';
 }
 

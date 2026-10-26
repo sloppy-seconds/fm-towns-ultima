@@ -56,7 +56,7 @@ function decodeWindow(img, addr, len) {
 	fs.writeFileSync(tmp, slice);
 	let out = '';
 	try {
-		out = execFileSync('ndisasm', ['-b32', '-o' + addr.toString(), tmp], { encoding: 'utf8' });
+		out = execFileSync('ndisasm', ['-b32', '-w', '-o' + addr.toString(), tmp], { encoding: 'utf8' });
 	} finally {
 		fs.unlinkSync(tmp);
 	}
