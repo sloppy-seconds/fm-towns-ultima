@@ -136,11 +136,38 @@ a `flags` field alongside it.
 
 ### What this implies about the game build
 
-The seven routines matched earlier needed no flag, and two of them are framed.
-This one needs `-off optimize_fp` to become framed. So the flag is not a
-project-wide setting in the original build, or the frame decision depends on
-source shape as well. That is an open question, and it is now testable: re-run
-the seven with the flag and see which stop matching.
+Answered by measurement, and the answer is that the flag is a per-routine lever,
+not a project-wide setting. Re-running the seven previously matched routines
+with `-off optimize_fp`:
+
+| routine | target frame | baseline | with `-off optimize_fp` |
+|---|---|---|---|
+| `0xe9e2c` | none | matched | **breaks**, gains a frame |
+| `0xe44d0` | none | matched | **breaks** |
+| `0xe9940` | framed | matched | still matches, object sha unchanged |
+| `0xe07e8` | framed | matched | still matches, object sha unchanged |
+| `0xe65fc` | none | matched | **breaks** |
+| `0xe662c` | none | matched | **breaks** |
+| `0xfd0ec` | none | matched | **breaks** |
+
+Two of seven survive the flag. The two that survive are the two that were
+already framed, and for them the flag changes nothing at all, identical object
+sha with and without. So those two were framed by source shape, and the flag
+only forces a frame where the compiler had a free choice.
+
+The working rule, which is a decision procedure rather than a theory:
+
+1. Compile the candidate with no flags. If it matches, done.
+2. If the target is framed and the build is frameless, retry with
+   `-off optimize_fp`.
+3. If the target is frameless, never use that flag for that routine.
+
+### A verification bug worth recording
+
+The first pass at this table reported seven of seven matching. The check was
+`grep -q MATCH`, which also matches the substring inside `MISMATCH`. The table
+above is from a comparison of the compiled hex against the target hex in code,
+not a substring search. Any future verdict check must not be a substring grep.
 
 ## Correcting a claim made on this project's own evidence
 
