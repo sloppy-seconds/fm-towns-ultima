@@ -90,6 +90,49 @@ register-name rule was added and a synthetic conflicting case was made to fail i
 That check is reused here, and it is the reason step 2's "all users agree" is
 worth anything.
 
+### Second routine: `0xef248`, which is the method under test
+
+`0xef548` was a single store. `0xef248` is the real test, because it uses the
+351-stride chain and a struct field.
+
+```c
+struct S { char pad[27]; int x; char tail[320]; };
+struct S arr[64];
+int gi;
+void f(int n) { arr[gi].x += n; if (arr[gi].x > 9999) arr[gi].x = 9999; }
+```
+
+49 bytes, and **all 12 differing bytes are disp32 relocation fields and nothing
+else**:
+
+| bytes | field |
+|---|---|
+| 1 to 3 | the global, `0x0ceca0` vs our own |
+| 22 to 24, 28 to 30, 40 to 42 | the same struct field, referenced three times |
+
+37 of 49 bytes match, and the instruction sequence is identical.
+
+The struct size is the part that was not guessable. The first attempt used
+`char pad[27]; int x;` which is 31 bytes, and the index chain came out wrong
+because the compiler scales by `sizeof`. The target's chain computes `351*i`, so
+`sizeof(struct S)` is 351, which fixed the padding to 320 bytes of tail. That is
+the kind of fact the code does state, but only if you read the scale factor rather
+than the field offset.
+
+The behaviour is a per-record counter capped at 9999 (`0x270f`), which reads like
+a money or score limit.
+
+### What the method now shows
+
+Two routines recovered, one a single store and one using the full stride chain.
+The second confirms that a global's declaration, once derived, produces source
+that compiles to the target's exact instruction sequence. That is the property the
+whole approach depends on, and it now has one non-trivial instance behind it.
+
+It is still two. Nothing here proves the remaining 112 globals will fall out at
+this rate, and the next routine that disagrees somewhere other than a disp32 will
+be the interesting one.
+
 ## Done when
 
 - five globals are typed, each in `docs/globals.json` with the routines that
