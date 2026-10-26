@@ -426,7 +426,7 @@ should not be picked up before the rules work in Phase 4b.
 | field | value |
 |---|---|
 | autonomy | runs unattended via `tools/cserve.js` and `tools/preflight.js` |
-| done when | at least 25 of the 103 leaves are attempted and the match rate is recorded, or the run stops on the trigger below |
+| done when | at least 25 of the 33 Level-1 candidates are attempted and the match rate is recorded, or the run stops on the trigger below |
 | blocked by | nothing |
 
 **Why this is a plan item and not just tooling.** The whole question of whether High C 1.73 is the
@@ -454,6 +454,41 @@ first calibration, and it costs a few hours rather than the months a wrong-toolc
 
 **Known shape levers to try before calling a mismatch, from the experiment:** pointer type (byte versus
 int), operand order in a `&&`, and `return p + 1` versus `p++; return p`. All three changed the output.
+
+**The pool was 103 and is now 33.** That correction is worth reading before starting this item.
+`tools/preflight.js` now asks a third question the first version did not: does the routine reference an
+absolute address? A routine that does cannot be matched until it is linked, because the displacement is a
+relocation that is `00000000` in the object. Two thirds of the leaf set was never attemptable, so a rate
+measured across all 103 would have been a rate across a set that was mostly impossible by construction.
+See [decompilation-experiment.md](decompilation-experiment.md) results 8 and 9.
+
+**Every cord pull now carries a class** from `tools/cordclass.js`, so a run produces a table of causes
+rather than a table of addresses. Read `node tools/cordclass.js <run.json>` after a run. A class marked
+`structural` means stop attempting those routines; a class marked `addressable` means a lever exists and
+`--explain <class>` names it.
+
+### 4g. A bootable hard disk with the toolchain on it
+
+**State:** OPEN · **Autonomy:** NEEDS A DECISION
+
+| field | value |
+|---|---|
+| autonomy | partly. Building the image is mechanical, but the CD will not mount under the floppy boot and the route round that is a choice about the project's boot strategy |
+| done when | either a bootable image with `HCD386.EXE` on a writable volume is produced and one compile runs with no floppy in the drive, or the page records why the CD-boot route cannot be made to work and the floppy stays |
+| blocked by | `MSCDEX` failing to mount the CD under the DOS 6.2 floppy boot, so the compiler cannot be reached from there |
+
+**Why it is on the list.** Every compile currently costs three floppy round trips and a
+`FD0LOAD`, and each of those is a chance for the guest and the host to disagree about a live volume.
+One of those disagreements produced a torn FAT and three separate misdiagnoses before it was found (see
+[decompilation-experiment.md](decompilation-experiment.md) result 11). A compile path with no removable
+media in it removes that whole class of failure, and removes the 700 ms writeback wait and the eject on
+every operation with it.
+
+**Why it is not started yet.** [compile-blocker.md](compile-blocker.md) records that both candidate
+images lack DOS system files, so `C:` is a data volume rather than a DOS one and the CD's
+`SHELL=C:\COMMAND.COM` cannot be satisfied. The obvious fix is to install DOS onto the image, which is a
+change of approach rather than a fix. This is a decision, not a chore, and it should be taken before a
+long run rather than in the middle of one.
 
 ### 4e. Confirm the U2 palette in-game
 

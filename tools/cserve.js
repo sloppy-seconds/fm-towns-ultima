@@ -375,7 +375,19 @@ async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_T
 	assertWritable();
 	const t0 = Date.now();
 	const cleanup = [doneFile, logFile, `${genObj}.OBJ`, `${srcName}.OBJ`, `${srcName}.C`, batFile];
-	const rmAll = () => {
+	// Cleanup deletes host-side, so the guest must not be holding the volume when
+	// it runs. Without this eject the guest writes its cached FAT back over the
+	// host's edit and the table tears: measured as 0x400 flipping from `fe ff`
+	// (two FAT reserved entries) to `00 f0` (a media descriptor byte where a FAT
+	// entry belongs), after which mtools cannot read the image at all.
+	//
+	// The failure is reproducible and is not about volume or free space: 12
+	// compiles in a burst leave the FAT intact, while one source that the
+	// compiler rejects breaks it every time, because the failure path calls rmAll
+	// immediately after the guest has been writing. See tools/fateject.py.
+	const rmAll = async () => {
+		try { await ejectFloppy(); } catch { /* already gone */ }
+		await sleep(400);
 		for (const f of cleanup) {
 			try { deleteImageFile(f); } catch { /* already gone */ }
 		}
@@ -434,13 +446,13 @@ async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_T
 	try { log = readImageFile(logFile).toString('latin1'); } catch { /* none */ }
 
 	if (!done) {
-		rmAll();
+		await rmAll();
 		return { ok: false, error: 'compile did not finish', elapsedMs: Date.now() - t0, log };
 	}
 
 	let obj;
 	try { obj = readImageFile(`${genObj}.OBJ`); } catch {
-		rmAll();
+		await rmAll();
 		return { ok: false, error: 'no object file produced', elapsedMs: Date.now() - t0, log };
 	}
 
@@ -455,7 +467,7 @@ async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_T
 	// at all. The whole response is already in hand, so nothing here is worth
 	// keeping on disk.
 
-	rmAll();
+	await rmAll();
 	return {
 		ok: true,
 		name: srcName,

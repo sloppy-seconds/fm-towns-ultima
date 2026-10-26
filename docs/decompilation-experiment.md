@@ -570,3 +570,136 @@ then completed, with `0xe662c` matching after the reset that would otherwise
 have been recorded as a failure.
 
 The reset endpoint earned its place on its first real use.
+
+## Result 10: the frame-decision lead, closed as NEGATIVE after 23 sources and 21 flag sets
+
+Two routines in the pool pull the cord with class `frame-decision`. The target at
+`0xe1bf4` has a shape that turns out to be the whole problem:
+
+```
+55 8b ec          push ebp; mov ebp,esp     <- frame
+b8 f4 e3 00 00    mov eax,0xe3f4            <- base in eax
+8b 55 08          mov edx,[ebp+8]           <- argument read through the frame
+89 50 24          mov [eax+0x24],edx        <- store via base+disp8
+...
+c9 c3             leave; ret
+```
+
+**A frame pointer with no frame.** There is no `sub esp`, no pushed register,
+nothing saved at all, and yet the arguments are read at `[ebp+N]`. That
+combination is not any shape this experiment could produce.
+
+### What the compiler actually does
+
+`tools/frameprobe.py` compiles 23 sources that differ in one respect at a time.
+The rule it established is narrower than expected:
+
+| variant | frame | why it matters |
+|---|---|---|
+| `local-unused` | **no** | declaring a local is not enough |
+| `local-used` | yes | a live local is what forces the frame |
+| `varargs` | no | variadic does not force a frame |
+| `seven-args` | no | arity does not matter |
+| `nested-call` | yes | but it also pushes `esi`/`edi` |
+| `array-local` / `struct-local` | yes | but they also emit `sub esp,8` |
+| `base-then-args-order` | yes | closest shape, uses `ecx` for the base |
+
+**Eleven of 23 frame, and every one of them differs from the target in a second
+way as well.** Those that allocate have a slot. Those that call push registers.
+None has a frame and nothing else.
+
+The one thing that reproduces the target's `mov eax,0xe3f4` is
+`target-shape-min`, which puts the base in `eax` correctly but has no frame at
+all. So the two halves of the target's prologue are reachable separately and
+never together.
+
+### Flags are not a lever
+
+`tools/frameflags.py` compiles a single fixed source under 21 flag sets, on the
+theory that a frame without a slot is an optimisation-level artefact.
+
+**Every flag set that compiled produced byte-identical output.** `(none)`,
+`-O`, `-O1`, `-O2`, `-OT`, `-OTx`, `-Od`, `-Ou`, `-Or`, `-Os`, `-Oa`, `-Ow`,
+`-Oz`, `-Oe`, `-noframe`, `-frame`, `-f`, `-v` and both combinations all give
+the same 60 bytes starting `558bec508b5508`.
+
+`-g` alone failed with no object file produced, which is consistent with a
+debug-format flag wanting something the DOS-native generator does not have.
+
+**The optimiser is not being engaged by these flags.** High C 1.73's golden path
+was `RUN386` with `HCD386P.EXP` and a `-O` argument; this project uses the
+DOS-native `HCD386.EXE`, which compiles correctly but may not honour the same
+switches. So the flag matrix shows that *this invocation* ignores the flags, not
+that the flags do nothing in principle.
+
+### Verdict
+
+**NEGATIVE.** The frame-decision class is not addressable from source at Level 1
+with this invocation. `0xe1bf4` and `0xe1c24` should be reclassified from
+`addressable` to `structural`, with the note that the remedy is either a
+different compiler invocation or the original flags, neither of which is
+available.
+
+That reclassification matters because it changes the plan: six more routines
+share this shape, and they were going to be attempted under the assumption that
+a source lever existed.
+
+### What remains open
+
+Whether `HCD386.EXE` honours `-O` at all is now an open question with a cheap
+test: compile the same source through `RUN386 HCD386P.EXP` with and without
+`-O`, the path the original toolchain documentation describes, and compare. That
+was not attempted here because it needs the Phar Lap extender running inside the
+guest, which the two-floppy setup does not currently do.
+
+## Result 11: the floppy corruption had a cause, and it was ours
+
+Three corruption incidents were attributed to volume and free space. Both were
+wrong, and the guard written for the first hypothesis could never have caught the
+second.
+
+`tools/fatwatch.py` ran 12 compiles in a burst sampling the FAT after every one:
+
+```
+  # op         FAT            free
+  1 compile    fe ff ff 03    176128
+ 12 compile    fe ff ff 03    173056
+```
+
+**Twelve compiles, no corruption, 3 KB of space consumed.** Volume is not the
+trigger.
+
+The trigger is a compile that **fails**. `tools/fateject.py` isolates it: one
+source that the compiler rejects breaks the FAT on the first attempt, every time.
+
+### Cause
+
+`cserve.js` already ejected the floppy before its *setup* deletes, and says so in
+a comment. It did **not** eject before `rmAll()`, which runs at the end of every
+compile, on the success and failure paths both. So the last operation of every
+compile deleted files host-side while the guest still had the volume open and its
+FAT sectors cached. The guest then wrote that stale table back over the host's
+edit and the table tore:
+
+```
+0x400   fe ff        two FAT12 reserved entries, valid
+0x400   00 f0        a media descriptor byte where a FAT entry belongs
+```
+
+After that mtools cannot read the image at all, so every later compile reports
+corruption rather than a compiler result.
+
+### Fix
+
+`rmAll()` now ejects first, waits 400 ms for the writeback, then deletes. Verified
+by re-running the fatal source four times: the compile now **succeeds**, and the
+FAT survives. The compile succeeded because it had been reading a torn volume,
+not because the source changed.
+
+Two lessons, both already in `AGENTS.md` in other words:
+
+- The cause of a corruption that follows a *failure* is not the same as one that
+  follows *volume*. Measuring the second and generalising was the error.
+- A comment saying "eject first, order matters" sitting above code that does it
+  in one place and not another is worse than no comment, because it reads as
+  settled.

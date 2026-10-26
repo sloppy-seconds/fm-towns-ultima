@@ -42,11 +42,11 @@ const CLASSES = {
 
 	// --- addressable: a source-form change may fix these -------------------
 	'frame-decision': {
-		severity: 'addressable',
+		severity: 'structural',
 		summary: 'The target is framed (55 8b ec, args at [ebp+N]); the compile is frameless (args at [esp+N]).',
-		cause: 'High C emits a frame when the routine needs a stack slot. Measured: adding any local forces 55 8b ec.',
-		remedy: 'Find the local the original had. A dormant local variable is the lever; try declaring and not using.',
-		unblocks: 'Every routine with this shape. Worth one focused pass, since the lever is known to exist.',
+		cause: 'A live local forces a frame, but the targets have a frame and NO local: no sub esp, nothing saved. 23 sources and 21 flag sets could not reproduce that, and every flag set gave byte-identical output, so -O is not being engaged by HCD386.EXE. See docs/decompilation-experiment.md result 10.',
+		remedy: 'None found at Level 1. Would need the original compiler invocation or flags, neither available.',
+		unblocks: 'Nothing until the invocation question is settled. Six more routines share the shape and should not be attempted.',
 	},
 	'register-choice': {
 		severity: 'addressable',
