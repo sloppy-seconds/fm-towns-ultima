@@ -629,6 +629,43 @@ for the decompilation track.
 counts will disagree and the unlock query will report false positives. The tool must derive class and
 size from `corpus.json` and only store what it alone knows.
 
+### 4l. Read the compiler's real toggle list
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended through the existing compile channel; it needs no emulator interaction beyond a batch the serve already knows how to run |
+| done when | the toggles `HCD386.EXE` accepts are listed from the kit itself rather than guessed, and `docs/leasib-flags-negative.md` is updated to say which names are refuted and which merely unknown |
+| blocked by | nothing |
+
+Item 4j's flag search produced a negative that is narrower than it first appeared, because this
+compiler accepts an unknown toggle silently: an invented name and a real toggle that does not
+affect the source are indistinguishable. The names tested that are not in MetaWare's own
+`hc386set.cnf` line are therefore recorded as attempted rather than refuted, and the negative
+binds only the `-O` family plus the two toggles proven live.
+
+**The gap, measured.** Grepping every page for toggle names returns exactly five distinct
+names, all from the one `HCDEBUG` line in `hc386set.cnf`: `optimize_xjmp`, `optimize_fp`,
+`auto_reg_alloc`, `postpone_arg_pops`, `remove_bp`. The kit ships `hc386.cnf`, `hc386set.cnf`
+and `config.exe` in `Q:\HC386\BIN`, and none of the three has been read.
+
+**The route, which is already documented.** `docs/working-set.md` records that a guest-side
+`COPY Q:\HC386\... C:\...` works, and `tools/cserve.js` already drives a batch file with
+`xdoType` and `xdoKey` in its `link()` path. So this is a batch that copies the two `.cnf`
+files to the floppy, then a read back through `getImageFile`. No new machinery is needed.
+
+**Safety.** The batch writes two files to the compile floppy and deletes them, exactly as the
+link path does today. It must not touch `saves/dos62v6.hdm` by hand; the cserve channel
+already owns that image and its write path.
+
+**Failure case, stated.** If `config.exe` turns out to be interactive-only, the `.cnf` files
+still carry the defaults and are readable as text. If neither discloses the toggle names, the
+negative stays scoped as it is and this item records that the list is not obtainable from the
+kit rather than leaving the question open by omission.
+
+See [leasib-flags-negative.md](leasib-flags-negative.md).
+
 ### 4g. A bootable hard disk with the toolchain on it
 
 **State:** OPEN · **Autonomy:** NEEDS A DECISION
