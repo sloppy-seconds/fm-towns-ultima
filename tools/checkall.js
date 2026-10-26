@@ -221,6 +221,96 @@ const runNode = (script, args = []) => {
 	record('global tooling regression', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
 }
 
+// D5. Every ndisasm invocation must pass -w.
+//
+// WHY THIS IS A CHECK AND NOT A COMMENT. `ndisasm` wraps a long instruction onto a
+// continuation line that begins with '-' and carries hex but no mnemonic:
+//
+//   000E6B25  C7840849070000FF  mov dword [eax+ecx+0x749],0xffffffff
+//             -FFFFFF
+//
+// Four separate tools parsed that text by splitting on whitespace, and each one
+// silently dropped or mis-joined the continuation. Measured consequences:
+//
+//   - 0xef548 reported as 9 bytes when it is 11, and the lost bytes contained 0xc3,
+//     so the routine looked SHORT rather than corrupt. That produced a false mismatch
+//     against a correct build.
+//   - 99 of 738 corpus rows carried the wrong routine size.
+//   - 0xe6a58 was analysed as 222 bytes and is 228, so the attempt recorded against
+//     it was made on truncated input.
+//
+// `ndisasm -w` is documented as "wide output (avoids continuation lines)" and had
+// never been used in this repository. With it the wrapped line collapses into one
+// and the trap cannot occur. This check exists so that a new tool which forgets the
+// flag fails loudly instead of quietly reporting wrong numbers.
+{
+	const files = fs.readdirSync(__dirname).filter((f) => /\.(js|py)$/.test(f) && f !== 'checkall.js');
+	const offenders = [];
+	for (const f of files) {
+		const text = fs.readFileSync(path.join(__dirname, f), 'utf8');
+		for (const line of text.split('\n')) {
+			// Only invocations, not prose. A line is an invocation if it calls ndisasm
+			// with an argument list.
+			if (!/ndisasm['"]\s*,?\s*\[|ndisasm -b/.test(line)) continue;
+			if (!/\s-w\b|'-w'|"-w"/.test(line)) offenders.push(`${f}: ndisasm without -w: ${line.trim().slice(0, 70)}`);
+		}
+	}
+	record('ndisasm uses -w', offenders);
+}
+
+// D6. THE TOOLING POLICY: no new tool parses disassembler text for operands.
+//
+// `tools/decode.js` returns instruction objects with operand TYPES, so `X86_OP_MEM` and
+// `X86_OP_IMM` are different values rather than different spellings. Thirteen ndisasm
+// call sites parsed text instead, with four conventions mixed, and every bug they
+// produced was the same shape: a detector answering a slightly different question than
+// the one asked. Four of those reached commits in one session.
+//
+// This does not ban ndisasm. It is still right for raw bytes and byte offsets, where no
+// operand semantics are asked for. It records the sites that remain, so the number can
+// only go down deliberately, and it names the files rather than failing anonymously.
+//
+// Fully documented in docs/tooling-policy.md.
+{
+	// Files allowed to INVOKE ndisasm: the boundary walkers, which ask only about
+	// lengths and bytes, plus the checks that inspect other tools rather than decode.
+	//
+	// Counting INVOCATIONS, not mentions. A file that discusses ndisasm in a comment
+	// explaining why it no longer calls it is not a violation, and an earlier version of
+	// this check flagged three such files, which would have trained the next person to
+	// delete the explanation.
+	const ALLOWED = new Set([
+		'checkall.js', 'checkglobals.js', 'imgaudit.js',
+		'decode_agree.py', 'decode_worker.py', 'decode.js', 'decode-setup.sh',
+		'funcs.js', 'cfgwalk.js', 'sweep.js', 'preflight.js',
+		'frameanalysis.js', 'randmods.js', 'decompile-run.js',
+		'findpal.js', 'pharlap.js', 'checkquoted.js',
+		'dumpqueue.py', 'trycands.py',
+	]);
+	const invokes = (text) =>
+		/ndisasm['"]\s*,?\s*\[/.test(text) || /ndisasm -b/.test(text) ||
+		/\[['"]ndisasm['"]/.test(text);
+	const files = fs.readdirSync(__dirname).filter((f) => /\.(js|py)$/.test(f));
+	const problems = [];
+	for (const f of files) {
+		if (ALLOWED.has(f)) continue;
+		const text = fs.readFileSync(path.join(__dirname, f), 'utf8');
+		if (invokes(text)) {
+			problems.push(`${f} invokes ndisasm but is not in the policy allow-list. ` +
+				'Use tools/decode.js, or add it to ALLOWED with a reason. See docs/tooling-policy.md.');
+		}
+	}
+	// Pinned so migrating a tool is an intentional edit rather than a silent drift.
+	const PENDING = 13;
+	const still = files.filter((f) => ALLOWED.has(f)
+		&& invokes(fs.readFileSync(path.join(__dirname, f), 'utf8')));
+	if (still.length !== PENDING) {
+		problems.push(`files invoking ndisasm: ${still.length}, pinned at ${PENDING}. ` +
+			'If you migrated one, lower PENDING in the same commit.');
+	}
+	record('tooling policy', problems);
+}
+
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
 // places, which is exactly why it keeps happening: the doc says it, the agent does not read that doc while
 // writing a batch on autopilot.

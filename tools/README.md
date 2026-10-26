@@ -1,7 +1,22 @@
 # tools
 
-Reusable extraction and analysis scripts. No dependencies beyond Node and
-(optionally) `ndisasm`.
+Reusable extraction and analysis scripts.
+
+**Dependencies, and they differ by job.** The verification gates (`verify.js`,
+`checkall.js`, `check-disc.sh`) need Node and nothing else, deliberately, so anyone
+can confirm the findings after unzipping the disc. The analysis and decoding tools
+need a Python virtual environment with Capstone, because Capstone is the decoder and
+its only binding with operand detail is Python:
+
+```bash
+./tools/decode-setup.sh          # once, creates tools/.venv (gitignored)
+./tools/decode-setup.sh --check  # confirm it is present
+```
+
+`ndisasm` and GNU `objdump` are still used for raw bytes and byte offsets, and
+`objdump` as an independent cross-check on operand classification. The rule that
+came out of that work is in `docs/tooling-policy.md`: **never parse disassembler text
+to answer a question about an operand.**
 
 All of them locate the disc `.img` automatically by looking beside the tools
 directory, so run them from the repo root.

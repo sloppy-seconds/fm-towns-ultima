@@ -413,7 +413,15 @@ The palette command needs the `PRI` prefix: `PRI PALETTE`. Bare `PALETTE`
 returns "Do what?".
 
 - Host `ai.lan`, Bazzite. Check `hostname` before sysadmin work.
-- `node` for all tooling. No npm dependencies. `ndisasm` present via brew.
+- **Two languages, divided by job.** Node for the gates (`verify.js`, `checkall.js`),
+  which must stay dependency-free so a stranger can check the findings. Python for
+  analysis tools, because instruction decoding needs Capstone and Capstone's only
+  binding with operand detail is Python. A venv is required for decoding: run
+  `./tools/decode-setup.sh` once, and `./tools/decode-setup.sh --check` to confirm.
+  It is gitignored at `tools/.venv`. `tools/decode-requirements.txt` is the version
+  source of truth.
+- **`ndisasm` is no longer the decoder for anything that asks a question about
+  operands.** It remains for raw bytes and byte offsets. See `docs/tooling-policy.md`.
 - Java 25 present (Ghidra would run). No Ghidra, Reko, or radare2 installed.
 - Scratch files go to `/var/tmp`, **never** `/tmp`.
 - The game itself runs in Tsugaru via `run.sh`. Not required for extraction.
@@ -521,6 +529,11 @@ Write it in `docs/` as OPEN and say what is missing.
   ad-hoc one-liners that get thrown away.
 - Shared format logic goes in `tools/cd.js`. Do not duplicate a decoder.
 - Use `writePNG` / `writeWAV` / the decoders from `cd.js`.
+- **Never parse disassembler text to answer a question about an operand.** Call the
+  decoder, which returns instruction objects with operand types. Thirteen
+  `ndisasm` call sites once parsed text with four different conventions, and every
+  bug they produced was the same defect: a detector answering a slightly different
+  question than the one asked. The full reasoning is in `docs/tooling-policy.md`.
 - Scripts must print what they did, including counts and any mismatch.
 - Write derived artefacts to `extracted/` or `analysis/`, both gitignored.
   Never commit game data, ROMs, or extracted assets.

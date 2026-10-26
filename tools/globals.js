@@ -53,14 +53,10 @@ function load() {
 	return fs.readFileSync(imagePath());
 }
 
-// Refuse to guess a routine length. A wrong length silently changes which bytes
-// are scanned, which is the failure mode being avoided here.
-function routineText(buf, addr, maxLen = 4096) {
-	const out = execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + addr.toString(16), '-'], {
-		input: buf.subarray(addr, addr + maxLen), encoding: 'buffer', stdio: 'pipe',
-	});
-	return out.toString('latin1');
-}
+// routineText() was removed here: the migration to tools/decode.js left it declared and
+// never called, and the tooling-policy check in checkall.js refused to let it hide,
+// because it still invoked ndisasm. Dead code that calls a decoder is worse than dead
+// code, since it looks like a live path.
 
 // An operand that names a memory location or loads an address is data.
 // A branch target is code. The distinction is by MNEMONIC first, because that is
