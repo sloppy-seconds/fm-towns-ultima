@@ -159,3 +159,35 @@ mismatch for a reason that is not about the source.
 
 The next useful step is not a bigger decompile attempt. It is **obtaining one older High C and running the two-line
 `idiv` test**, which takes minutes and tells us whether the whole path is viable.
+
+## The `idiv` test was run, and High C 1.73 passes it
+
+> **RESOLVED 2026-11.** The test this page asked for has been run against the
+> compiler now in the pipeline. High C 1.73 emits the hardware divide that 2.31
+> does not, so the negative below is scoped to 2.31 and does not describe 1.73.
+
+Source:
+
+```c
+int f(int a, int b) { int c = a / b; return c; }
+```
+
+High C 1.73 produces:
+
+```
+55 8b ec 50 8b 45 08 99 f7 7d 0c 89 45 fc c9 c3
+```
+
+which contains `99 f7 7d 0c`, that is `cdq` then `idiv dword [ebp+0xc]`. That is
+the hardware-divide form present 83 times in `ENCHANT.EXP` and absent from 2.31 at
+every optimisation level.
+
+So the two compilers are cleanly distinguishable on this test, 2.31 fails it, 1.73
+passes it, and the project's own conclusion was right: **1.73 is the compiler, and
+2.31 was never going to work.**
+
+What that does NOT establish is that bulk compile-and-diff is now practical. It
+establishes that the specific mismatch this page identified, which would have
+broken every routine containing a division, is not present in the compiler in
+use. Whether the remaining work is tractable is a separate question with one
+favourable data point so far, recorded in `docs/nonleaf-reopened.md`.

@@ -69,6 +69,24 @@ That is ordinary work of the kind already solved ten times on leaves, not a
 code-generation wall. It is also not proof that non-leaf matching is now easy. One
 routine's divide sequence is one routine's divide sequence.
 
+### The `idiv` test, which `docs/highc-forensics.md` asked for
+
+The forensics page ended by saying the next step was not a bigger decompile
+attempt but "obtaining one older High C and running the two-line `idiv` test".
+That test had not been run against 1.73. It has now.
+
+```c
+int f(int a, int b) { int c = a / b; return c; }
+```
+
+High C 1.73 emits `55 8b ec 50 8b 45 08 99 f7 7d 0c 89 45 fc c9 c3`, which
+contains `99 f7 7d 0c`: `cdq` then `idiv dword [ebp+0xc]`. The game contains 83
+such forms, and 2.31 produces them at no optimisation level.
+
+So the two compilers separate cleanly on this test and the project's earlier
+verdict was correct: 1.73 is the compiler, 2.31 never was. The page's negative is
+scoped to 2.31 and was right to be.
+
 ## The honest limits of this finding
 
 - **One expression form on one routine.** It shows the division strategy of 1.73
