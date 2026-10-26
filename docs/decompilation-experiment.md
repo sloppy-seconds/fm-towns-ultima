@@ -1065,3 +1065,74 @@ in the tool comments: the linker names its output after the **object** file
 (`LKTO.EXP`), not the source, which made an earlier probe report "no output"
 while the output existed; and reading the image while the guest was still
 writing tore the FAT, needing a settle delay after `.DON` appears.
+
+## Result 17: 0xe9940 matched, and a tool that was lying about bytes
+
+Two things happened here, one a success and one a defect in my own tooling that
+needs recording because it produced a confident false result.
+
+### The success
+
+`0xe9940` (84 callers, 37 bytes) matched exactly:
+
+```c
+void f(int a){ int i; for(i=0; i<a*5000; i++); }
+```
+
+The target is a loop that counts until it reaches `a*5000`, where the multiply by
+a constant is strength-reduced by the compiler into `lea`/`shl`/`sub`/`add`
+sequences. Two levers were needed:
+
+- **`void`, not `int`.** The first attempts were `int f(...){...return i;}`, which
+  added a trailing `8b c1` (`mov eax,ecx`) the target does not have. The target
+  falls straight from the loop into `pop edi; leave; ret`.
+- **`i < a*5000`, not `a*5000 > i`.** The written order decides which value lands
+  in `edx` and which in `ecx`, and the target compares `edx,ecx`.
+
+`while(i < a*5000)` and `for(i=0; i<a*5000; i++);` both produce the exact 37 bytes.
+
+### The defect, which matters more
+
+`tools/trycands.py` originally obtained its target bytes by shelling out to `dd`
+into a shared path, `/var/tmp/r.bin`, and then disassembling that path. When the
+`dd` did not run, `ndisasm` disassembled **the previous routine's bytes** and
+reported them as the target. There was no error: the output looked like a normal
+disassembly of a real routine.
+
+This produced a specific false claim during the session: five pool entries
+(`0xff9dd`, `0xff025`, `0xe5578`, `0xe552c`, `0xe52c8`) were reported as "the
+identical 37-byte routine at five addresses". They are not. Disassembled
+correctly they are completely different:
+
+- `0xe52c8` is a struct initialiser, six stores plus a zeroed field
+- `0xe5578` is a static guard that toggles `[0x7a6b4]` between 0 and -1
+- `0xff9dd` is hardware port I/O (`out dx,al`, `cli`), not game logic at all
+
+The false claim was plausible in shape, which is why it survived a reading.
+It came from a stale file and a missing error check, and it would have been
+caught by comparing the reported bytes against the image for one of the five.
+
+The tool now reads bytes in-process and hands them to `ndisasm` on stdin. No
+temp file, no possibility of a stale read.
+
+### The lesson, stated for the fourth time in this project
+
+**This is the same class of failure as the 0x20 base mismatch, which has now
+appeared in `funcs.js`, `preflight.js`, a `cfgwalk` call and this tool.** Every
+one was a silent address or buffer error that produced a confident wrong answer
+rather than an exception. The pattern is not coincidence, it is what this
+codebase's tooling keeps getting wrong, and the countermeasure is the same each
+time: make the tool print what it read and check it against an independent
+source before trusting a derived claim.
+
+### Also measured
+
+`0xe52c8` is **not** matched and is classified `frame-decision`. The logic is
+provably right: after the prologue, the target's instructions and the compiled
+instructions are byte-identical (`8b 45 0c 89 01 8b 45 10 89 41 04 ... 8b c1`),
+differing only in argument addressing, `[ebp+8]` against `[esp+4]`. That is the
+structural class from result 10, so it joins `0xe1bf4` and `0xe1c24`.
+
+The target also reads its arguments in a reordered sequence (8, 12, 16, 28, 32,
+24), which none of the three candidates reproduced. That may be a separate lever
+worth trying on a framed routine where the frame problem does not apply.
