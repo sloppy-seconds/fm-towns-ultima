@@ -507,6 +507,46 @@
       "class": "unresolved",
       "what": "Decrements the global at 0xd6e60 when both 0xd1424 and 0xd6e60 are positive.",
       "evidence": "Nine source shapes tried. Every one reproduces the branch structure and the ff 0d store, and every one differs in exactly one byte: High C 1.73 emits 23 c0 (and eax, eax) where the target has 85 c0 (test eax, eax). The source shapes that force test, a bare if(b), also flip 7e to 74. The two halves are reachable separately, which is the same split result 10 records for the frame."
+    },
+    {
+      "addr": "fe9ae",
+      "callers": 1,
+      "bytes": 10,
+      "class": "not-c",
+      "what": "Table lookup: returns the byte at 0xdeec5[dl].",
+      "evidence": "Target is movzx ebx, dl then mov bl,[ebx+0xdeec5]. The argument arrives in dl. Measured with tools/decode.js: four of the five call sites (0xfee68, 0xfeeb7, 0xfeedb, 0xff07c) write dl in the 24 bytes before the call, and the fifth (0xfef2d) reaches it from a path that set dl earlier. High C passes arguments on the stack: docs/highc-codegen.md measures that neither the framed nor the unframed convention uses registers, so no C source produces an entry that reads dl for an argument it never set. Same family as the already-recorded 0xfe95d."
+    },
+    {
+      "addr": "fef97",
+      "callers": 1,
+      "bytes": 16,
+      "class": "not-c",
+      "what": "Tests byte 0xdeea5[dl] against zero and returns carry set or clear.",
+      "evidence": "Same dl convention as 0xfe9ae. Target is movzx ebx, dl / cmp [ebx+0xdeea5],0 / je / clc. High C passes arguments on the stack: docs/highc-codegen.md measures that neither the framed nor the unframed convention uses registers, so no C source produces an entry that reads dl for an argument it never set. Same family as the already-recorded 0xfe95d."
+    },
+    {
+      "addr": "fefaa",
+      "callers": 1,
+      "bytes": 29,
+      "class": "not-c",
+      "what": "Bounds-checks al against 0x80..0xf0, then ORs the low nibble from 0xdeee5[dl] into al.",
+      "evidence": "Same dl convention, with a second argument in al. Two arguments passed outside the stack. High C passes arguments on the stack: docs/highc-codegen.md measures that neither the framed nor the unframed convention uses registers, so no C source produces an entry that reads dl for an argument it never set. Same family as the already-recorded 0xfe95d."
+    },
+    {
+      "addr": "feffa",
+      "callers": 1,
+      "bytes": 43,
+      "class": "not-c",
+      "what": "Adds a signed byte from 0xdef05[dl] to ax and clamps the sum to 1..0x7f.",
+      "evidence": "Same dl convention, with the value carried in ax. High C passes arguments on the stack: docs/highc-codegen.md measures that neither the framed nor the unframed convention uses registers, so no C source produces an entry that reads dl for an argument it never set. Same family as the already-recorded 0xfe95d."
+    },
+    {
+      "addr": "fefc7",
+      "callers": 1,
+      "bytes": 51,
+      "class": "not-c",
+      "what": "Adds a signed byte from 0xdef25[dl] to ax, folding by 0xc until the result is in 0..0x7f.",
+      "evidence": "Same dl convention, value in ax. High C passes arguments on the stack: docs/highc-codegen.md measures that neither the framed nor the unframed convention uses registers, so no C source produces an entry that reads dl for an argument it never set. Same family as the already-recorded 0xfe95d."
     }
   ],
   "globals_ref": {
