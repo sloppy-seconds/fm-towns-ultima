@@ -201,6 +201,14 @@
    "bytes": 0,
    "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
    "evidence": "result 20"
+  },
+  {
+   "addr": "f3e24",
+   "callers": 104,
+   "bytes": 25,
+   "class": "base-fold",
+   "what": "Pixel writer. Source identified and 24 of 25 bytes match, so this is unmatched and not a near-match: only the disp32 of the store differs, because it references the global grid at 0x77e90. Grid is unsigned short[128][64], row stride 128 bytes, indexed [a][b], function takes (value, b, a).",
+   "evidence": "docs/base-fold-negative.md"
   }
  ]
 }

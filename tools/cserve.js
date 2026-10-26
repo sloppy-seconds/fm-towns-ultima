@@ -452,6 +452,37 @@ async function link({ source, name = 'LN', cflags = '', lflags = '', outName = n
 		elapsedMs: Date.now() - t0,
 		log: log.trim() || undefined,
 	};
+
+	// Code bytes, so a linked build can be compared against the game.
+	//
+	// WHY THIS IS HERE. `compile` returns OMF LEDATA, which is the right answer for
+	// an unlinked object but carries relocation PLACEHOLDERS: a global reference
+	// appears as `00 00 00 00` until a linker fills it. So a routine that touches a
+	// global cannot be compared at all from the object, and 76 base-fold routines in
+	// docs/corpus.json were excluded on exactly that basis. The linker's real output
+	// is what needs comparing, and until now this endpoint threw it away.
+	//
+	// The extraction offset is derived, not assumed. Measured on 17 separate builds
+	// (R1..R7, T2..T4, TEST, F1..F4, L, BF, FORMAT): every `P3` file has header size
+	// 0x180 at d[0x0c], a first section of 0x80 bytes at d[0x10], and d[0x14] = 512
+	// where the code begins. All 17 agree, and all 17 have code at 0x200. A future
+	// P3 with different header values is detected and reported rather than misread.
+	if (sig === 'P3' && b.length >= 0x20) {
+		const headerSize = b.readUInt32LE(0x0c);
+		const codeOffset = b.readUInt32LE(0x14);
+		result.codeOffset = codeOffset;
+		if (codeOffset >= headerSize && codeOffset < b.length) {
+			// Strip trailing zero padding: the linker pads the section, and a caller
+			// comparing up to `ret` should not have to know by how much.
+			let end = b.length;
+			while (end > codeOffset && b[end - 1] === 0) end--;
+			const code = b.subarray(codeOffset, end);
+			result.code = [...code].map((x) => x.toString(16).padStart(2, '0')).join(' ');
+			result.codeBytes = code.length;
+		} else {
+			result.codeError = `codeOffset 0x${codeOffset.toString(16)} outside file`;
+		}
+	}
 	// Decode the MP fields when it is one, so the caller does not repeat the maths.
 	if (sig === 'MP') {
 		result.mp = {
