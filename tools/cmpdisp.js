@@ -89,12 +89,22 @@ function relocFields(ins, image = IMAGE) {
 		return fields;
 	}
 
-	// A memory operand encoded with ModRM mod=00 rm=101 (disp32, no base) or
-	// mod=10 (disp32 after ModRM, possibly after SIB). Only mask when the decoded
-	// operand really is absolute, so a constant displacement stays unmasked.
+	// A memory operand whose displacement is an absolute data address. The operand can
+	// have NO base and NO index (`a1 <disp32>`, `[disp32]`), OR a base with no index
+	// (`[edx+disp32]`, `89 82 78 4a 0d 00`) — both put the array's address in the
+	// displacement, so both are link-time relocations. An earlier version required
+	// base and index to be null, which missed the base+disp32 form and reported 0xfb4cc
+	// as differing in three bytes that are a relocation.
+	//
+	// What must NOT be masked is a scaled index. `[edx*4+disp]` and `[ebx*1+disp]`
+	// (nobase SIB) are different encodings of the same address, and that difference is
+	// exactly what the nobase-SIB parks are waiting on. Masking it would hide a real
+	// mismatch. So: mask the four displacement bytes, but only when the address has no
+	// scaled index component.
 	const hasAbsMem = ins.operands.some((o) =>
-			o.type === 'mem' && o.base === null && o.index === null
-			&& o.disp >= 0x10000 && o.disp <= 0x200000);
+		o.type === 'mem'
+		&& (o.index === null || o.scale === 1)
+		&& o.disp >= 0x10000 && o.disp <= 0x200000);
 	if (!hasAbsMem) return fields;
 
 	// Find the ModRM byte: it follows the opcode, plus a second opcode byte for 0f xx.

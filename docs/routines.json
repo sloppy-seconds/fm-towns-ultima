@@ -317,6 +317,54 @@
       "class": "unresolved",
       "what": "Setter for the same 57-byte-stride array at 0x7af05, stores -1. Same nobase SIB difference.",
       "evidence": "Same addressing difference as 0xe779c. This and 0xe779c type the 0x7af05 array, which is the same record array 0xe6a58 writes."
+    },
+    {
+      "addr": "fb4cc",
+      "callers": 1,
+      "bytes": 27,
+      "class": "base-fold",
+      "what": "Writes an int into a 2D-indexed array at 0xd4a78, index formed as (a<<8)+(b<<4). Argument order is (value, unused, a, b): the value is the FIRST stack argument, the two shift inputs are the 3rd and 4th.",
+      "evidence": "tools/cmpdisp.js --addr 0xfb4cc: identical except the base+disp32 of 89 82 <disp32>. Source shape that matched: *(int*)(arr + ((a<<8)+(b<<4))) = v; with arr a char array.",
+      "c": "char arr[4096];\nvoid f(int v, int p, int a, int b) { *(int*)(arr + ((a<<8)+(b<<4))) = v; }",
+      "flags": ""
+    },
+    {
+      "addr": "fb480",
+      "callers": 1,
+      "bytes": 27,
+      "class": "base-fold",
+      "what": "Exact twin of 0xfb4cc writing at 0xd4a7c, four bytes higher in the same record. Together they show the record at 0xd4a74 holds at least three ints at +0, +4, +8.",
+      "evidence": "tools/cmpdisp.js --addr 0xfb480: identical except the base+disp32.",
+      "c": "char arr[4096];\nvoid f(int v, int p, int a, int b) { *(int*)(arr + ((a<<8)+(b<<4))) = v; }",
+      "flags": ""
+    },
+    {
+      "addr": "e2ff4",
+      "callers": 8,
+      "bytes": 25,
+      "class": "base-fold",
+      "what": "Zeroes the int at offset +0x7a150 of a 24-byte-stride record array indexed by the first argument.",
+      "evidence": "tools/cmpdisp.js --addr 0xe2ff4: identical except the two base displacements. Source shape: *(int*)(arr + i*24) = 0 with arr a char array. The lea pair is [i*8 + base] then [eax+eax*2], i.e. i*24.",
+      "c": "char arr[4096];\nvoid f(int i) { *(int*)(arr + i*24) = 0; }",
+      "flags": ""
+    },
+    {
+      "addr": "e3100",
+      "callers": 2,
+      "bytes": 35,
+      "class": "base-fold",
+      "what": "Writes two arguments to +0x7a154 and +0x7a158 of the same 24-byte-stride record, indexed by the first argument.",
+      "evidence": "tools/cmpdisp.js --addr 0xe3100: identical except six bytes across two base displacements. Both stores are base+disp32 through one computed index register, which the two-extern source shape reproduces.",
+      "c": "extern int a0, a1;\nvoid f(int i, int a, int b) { *(int*)((char*)&a0 + i*24) = a; *(int*)((char*)&a1 + i*24) = b; }",
+      "flags": ""
+    },
+    {
+      "addr": "efaf4",
+      "callers": 7,
+      "bytes": 41,
+      "class": "unresolved",
+      "what": "Returns 1 if a byte table lookup at 0xbd578+ is in [0x12,0x21) or equals 0x0a, else 0. Ten source shapes tried, all within one byte of the target.",
+      "evidence": "Target tail is 83 f9 0a 75 05 b9 01 00 00 00 8b c1 c3, which needs ecx to be the result register throughout. Shapes that produce movzx ecx get the branch structure wrong (7c 09 vs 7c 05); shapes that get the branches right (both 7c 05) use edx for movzx and emit an extra 2b c9. The two halves are reachable separately and not together, the same pattern result 10 in docs/decompilation-experiment.md records for the frame."
     }
   ],
   "globals_ref": {
