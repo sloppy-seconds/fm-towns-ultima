@@ -75,17 +75,14 @@ function load() {
 // decompile-run.js was fixed the same way for the same reasons.
 function scanRoutine(buf, entry) {
 	const chunk = buf.slice(entry, Math.min(entry + 4096, buf.length));
-	const tmp = '/var/tmp/pf-' + process.pid + '.bin';
-	fs.writeFileSync(tmp, chunk);
-	let text;
-	try {
-		text = execFileSync('ndisasm', ['-b32', '-o', '0x' + entry.toString(16), tmp], {
-			encoding: 'utf8', stdio: 'pipe',
-		});
-	} finally {
-		fs.unlinkSync(tmp);
-	}
+	// Bytes go to ndisasm on STDIN. No temp file: a fixed path is the hazard that
+	// produced a fabricated disassembly in tools/trycands.py, and tools/imgaudit.js
+	// asserts that no tool hands a disassembler a shared path.
+	const text = execFileSync('ndisasm', ['-b32', '-o', '0x' + entry.toString(16), '-'], {
+		input: chunk, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
+	});
 	const bytes = [];
+	const mnemonics = [];
 	let calls = 0, indirectCall = 0, rets = 0;
 	for (const line of text.split('\n')) {
 		if (!line.trim()) continue;
@@ -93,11 +90,12 @@ function scanRoutine(buf, entry) {
 		if (!m) continue;
 		for (let i = 0; i < m[1].length; i += 2) bytes.push(parseInt(m[1].slice(i, i + 2), 16));
 		const asm = m[2].trim();
+		mnemonics.push(asm);
 		if (/^call\b/.test(asm)) calls++;
 		if (/^ret/.test(asm)) { rets++; break; }
 		if (bytes.length > 4096) break;
 	}
-	return { bytes, calls, indirectCall, rets, length: bytes.length };
+	return { bytes, calls, indirectCall, rets, length: bytes.length, mnemonics: mnemonics.join('\n') };
 }
 
 // Is this address the START of a function, rather than an interior address that
@@ -161,6 +159,59 @@ function callCounts() {
 	return counts;
 }
 
+// What KIND of code is this: game C, or the library layer beneath it?
+//
+// WHY THIS IS NEEDED. The candidate gate selected on three properties: real
+// function start, makes no calls, references no absolute address. A BIOS stub
+// satisfies all three. It is a leaf, it is reached by a call, and its I/O ports
+// are immediates rather than addresses. So eleven of twenty-four candidates were
+// hardware and library code that no C can ever reproduce, and every attempt on
+// them was wasted.
+//
+// Three signals, each measured on the real image rather than assumed:
+//
+//   address   Every non-C routine found so far sits above 0xff000. The image is
+//             0x105d0e bytes and the region above 0xff000 holds cli/sti, segment
+//             loads and rep movsb: 16-bit real-mode support code, the Fujitsu
+//             and Phar Lap layer, not Origins' C. The address is the cheapest
+//             and most reliable signal.
+//
+//   mnemonic  High C has no source construct for pusha/popa/loop, for x87
+//             status instructions, or for `ret n` (callee-pops is the Pascal
+//             convention; High C emits plain `ret`). A routine containing any of
+//             these is not C from this toolchain.
+//
+//   in/out    Port I/O. A compiler can emit these only through an intrinsic or an
+//             asm block, and this toolchain has neither as plain C.
+//
+// The signal is reported, not enforced, because there is one routine whose
+// calling convention is unexplained (0xfe95d takes its argument in al and
+// returns in ax/dx with no prologue) and calling it "not C" would be a claim
+// stronger than the evidence. See docs/decompilation-experiment.md result 20.
+const LIBRARY_FLOOR = 0xff000;
+
+function codeKind(buf, addr, insnText) {
+	const reasons = [];
+	if (addr >= LIBRARY_FLOOR) reasons.push(`above 0x${LIBRARY_FLOOR.toString(16)} (library layer)`);
+
+	// Anything High C cannot emit from source.
+	const noSource = [
+		[/\b(pusha|popa|pushad|popad)\b/, 'pusha/popa'],
+		[/\bloop\b/, 'loop'],
+		[/\b(fld|fst|fstp|fild|fist|fistp|fnstsw|fnstcw|fldcw|fxch|fadd|fsub|fmul|fdiv|fcom)\w*/, 'x87'],
+		[/\bret\s+0x[0-9a-f]+/, 'ret n (callee pops)'],
+		[/\brep\s+movs/, 'rep movs'],
+	];
+	for (const [re, name] of noSource) {
+		if (re.test(insnText)) reasons.push(name);
+	}
+	// Port I/O. Match the mnemonic, not the hex: 'ee' appears inside any operand.
+	if (/\b(in|out)\b/.test(insnText)) reasons.push('port I/O');
+
+	if (reasons.length === 0) return { kind: 'c', reasons: [] };
+	return { kind: 'not-c', reasons };
+}
+
 // Does this routine load or store through an absolute address?
 //
 // This is the question that was missing, and its absence produced two cord pulls
@@ -212,9 +263,13 @@ function classify(buf, addr, counts) {
 	const isLeaf = r.calls === 0 && r.indirectCall === 0;
 	const realEntry = cleanEntry(buf, addr);
 	const absRef = referencesAbsolute(buf, addr, r.bytes.length);
+	const kind = codeKind(buf, addr, r.mnemonics);
 	let verdict;
 	if (!realEntry) {
 		verdict = 'NOT ATTEMPTABLE: interior address, not a function start. It follows other instructions, so no C can produce it.';
+	} else if (kind.kind === 'not-c') {
+		verdict = `NOT C CODE: ${kind.reasons.join(', ')}. No source form produces these instructions, `
+			+ 'so byte matching C cannot apply. Document the behaviour instead.';
 	} else if (absRef !== null) {
 		verdict = `NOT ATTEMPTABLE AT LEVEL 1: references absolute address 0x${absRef.toString(16)}. `
 			+ 'The disp32 is a relocation, so LEDATA is 00000000 until linked.';
@@ -229,6 +284,8 @@ function classify(buf, addr, counts) {
 		bytes: r.length,
 		callers: counts.get(addr) ?? 0,
 		realEntry,
+		codeKind: kind.kind,
+		codeKindReasons: kind.reasons,
 		absRef: absRef === null ? null : '0x' + absRef.toString(16),
 		leaf: isLeaf,
 		verdict,
@@ -259,6 +316,7 @@ function main() {
 
 		// Walk every target, not just the first n, so the totals are honest.
 		const allLeaves = [];
+		const notC = [];
 		for (const [addr, callers] of targets) {
 			if (!cleanEntry(buf, addr)) continue;
 			const r = scanRoutine(buf, addr);
@@ -266,6 +324,10 @@ function main() {
 			// Skip routines that touch an absolute address: their LEDATA is not
 			// final, so a Level-1 comparison can never succeed.
 			if (referencesAbsolute(buf, addr, r.bytes.length) !== null) continue;
+			// Skip code no C compiler can produce. Without this the queue contained
+			// eleven BIOS stubs and x87 helpers, every attempt on which was wasted.
+			const kind = codeKind(buf, addr, r.mnemonics);
+			if (kind.kind === 'not-c') { notC.push({ addr, callers, reasons: kind.reasons }); continue; }
 			allLeaves.push({ addr, callers, size: r.length });
 		}
 		const leaves = order === 'size'
@@ -276,7 +338,11 @@ function main() {
 			console.log(JSON.stringify(leaves, null, 2));
 			return;
 		}
-		console.log(`${allLeaves.length} leaves total among real function starts.`);
+		console.log(`${allLeaves.length} C leaves among real function starts.`);
+		if (notC.length) {
+			console.log(`${notC.length} excluded as not-C (library, BIOS, x87, hand-written asm).`);
+			console.log('  ' + notC.slice(0, 12).map((x) => '0x' + x.addr.toString(16)).join(' '));
+		}
 		console.log(`showing ${leaves.length}, ordered by ${order}.\n`);
 		console.log('addr        callers  bytes');
 		for (const l of leaves) {
@@ -304,6 +370,7 @@ function main() {
 	console.log(`routine ${c.addr}`);
 	console.log(`  instruction boundary: ${boundary === null ? 'unknown' : boundary}`);
 	console.log(`  real function start:  ${c.realEntry}`);
+	console.log(`  code kind:            ${c.codeKind}${c.codeKindReasons.length ? ' (' + c.codeKindReasons.join(', ') + ')' : ''}`);
 	console.log(`  absolute data ref:    ${c.absRef ?? 'none'}`);
 	console.log(`  bytes to first ret:   ${c.bytes}`);
 	console.log(`  calls out:            ${c.callsInRoutine}`);

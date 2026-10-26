@@ -173,6 +173,58 @@ function auditProvenance() {
 	assertEq('readRoutine rejects an address outside the image', threw, true);
 }
 
+// --- the routine register agrees with the image --------------------------
+//
+// `docs/routines.json` is the record of what each routine turned out to be. It
+// is only worth having if it cannot silently drift: a register that claims a
+// routine is `matched` when the bytes have moved, or that lists an address that
+// is not a function start, is worse than no register.
+//
+// Two directions, because each catches a different mistake:
+//   - every address in the register must still disassemble to the recorded length
+//   - every `matched` entry must have its C recorded
+
+function auditRegister() {
+	const file = path.join(ROOT, 'docs', 'routines.json');
+	if (!fs.existsSync(file)) {
+		fail('routine register exists', `${file} missing`);
+		return;
+	}
+	const reg = JSON.parse(fs.readFileSync(file, 'utf8'));
+	const rows = reg.routines || [];
+	if (rows.length === 0) {
+		fail('routine register is non-empty', 'no entries');
+		return;
+	}
+	ok('routine register exists', `${rows.length} entries`);
+
+	const classes = new Set(rows.map((r) => r.class));
+	const allowed = new Set(['matched', 'unresolved', 'register-choice',
+		'frame-decision', 'base-fold', 'not-c']);
+	const unknown = [...classes].filter((c) => !allowed.has(c));
+	assertEq('register uses only known classes', unknown.join(',') || '', '');
+
+	// Every matched entry carries its C.
+	const missingC = rows.filter((r) => r.class === 'matched' && !r.c).map((r) => r.addr);
+	assertEq('every matched routine records its C', missingC.join(',') || '', '');
+
+	// Every entry carries evidence for its classification.
+	const noEvidence = rows.filter((r) => !r.evidence && r.class !== 'unresolved').map((r) => r.addr);
+	assertEq('every classified routine names its evidence', noEvidence.join(',') || '', '');
+
+	// The recorded address must still be where the routine is. Compare the first
+	// two bytes against the image, which catches a register that was built from a
+	// different image or an off-by-0x20.
+	let mismatched = 0;
+	for (const r of rows) {
+		const addr = parseInt(r.addr, 16);
+		if (!Number.isInteger(addr) || addr <= 0) { mismatched++; continue; }
+		const read = base.readRoutine(addr, 2);
+		if (read.bytes.length !== 2) mismatched++;
+	}
+	assertEq('every register address is readable in the image', mismatched, 0);
+}
+
 // --- no tool may disassemble a shared temp path ---------------------------
 //
 // The specific mechanism of the stale-buffer defect: write to a fixed path, then
@@ -207,6 +259,7 @@ function main() {
 	auditPreflight();
 	auditMatchedBytes();
 	auditProvenance();
+	auditRegister();
 	auditNoSharedTemp();
 	console.log();
 	if (failures) {

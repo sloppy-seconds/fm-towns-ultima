@@ -1,0 +1,200 @@
+{
+ "routines": [
+  {
+   "addr": "e9e2c",
+   "callers": 91,
+   "bytes": 21,
+   "class": "matched",
+   "what": "\"=\"\" scanner, 91 callers. C matched byte-exact.",
+   "evidence": "result 7",
+   "c": "char *f(char *p) { while (*p != '=' && *p) p++; p++; return p; }\n"
+  },
+  {
+   "addr": "e44d0",
+   "callers": 85,
+   "bytes": 49,
+   "class": "matched",
+   "what": "atoi, 85 callers. C matched byte-exact.",
+   "evidence": "result 7",
+   "c": "int f(char *s) { int n = 0; while (*s == ' ' || *s == '\\t') s++; while (*s >= '0' && *s <= '9') { n = n * 10 + (*s - '0'); s++; } return n; }\n"
+  },
+  {
+   "addr": "e9940",
+   "callers": 84,
+   "bytes": 37,
+   "class": "matched",
+   "what": "count loop to a*5000, 84 callers. void, not int.",
+   "evidence": "result 17",
+   "c": "void f(int a){ int i; for(i=0; i<a*5000; i++); }"
+  },
+  {
+   "addr": "e1c24",
+   "callers": 11,
+   "bytes": 46,
+   "class": "frame-decision",
+   "what": "six ints into struct+0x3c. Same shape as 0xe1bf4.",
+   "evidence": "result 10"
+  },
+  {
+   "addr": "e1bf4",
+   "callers": 11,
+   "bytes": 46,
+   "class": "frame-decision",
+   "what": "six ints into struct+0x24. Framed with zero locals: no source shape reproduces it.",
+   "evidence": "result 10"
+  },
+  {
+   "addr": "e552c",
+   "callers": 4,
+   "bytes": 76,
+   "class": "unresolved",
+   "what": "byte search stride 128, returns index or -1."
+  },
+  {
+   "addr": "e52c8",
+   "callers": 4,
+   "bytes": 58,
+   "class": "frame-decision",
+   "what": "7-field struct init. Logic provably right, only [ebp+N] versus [esp+N] differs.",
+   "evidence": "result 17"
+  },
+  {
+   "addr": "e5304",
+   "callers": 3,
+   "bytes": 189,
+   "class": "unresolved",
+   "what": "189B. Field set plus two row copies."
+  },
+  {
+   "addr": "e07e8",
+   "callers": 2,
+   "bytes": 58,
+   "class": "matched",
+   "what": "3-byte counter decrement with borrow. signed char locals.",
+   "evidence": "result 20",
+   "c": "void f(char *p){ signed char a=p[0], b=p[1], c=p[2]; c--; if(c<0){ c=0x4a; if(--b<0) --a; } p[0]=a; p[1]=b; p[2]=c; }"
+  },
+  {
+   "addr": "e140c",
+   "callers": 2,
+   "bytes": 43,
+   "class": "register-choice",
+   "what": "scan for 0xf2 stepping 6. 12 candidates, all 43/43 bytes, one register pair differs.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "e65fc",
+   "callers": 2,
+   "bytes": 23,
+   "class": "matched",
+   "what": "copies two int fields out through two pointers.",
+   "evidence": "result 20",
+   "c": "struct S { char pad[0x1e]; int a; char pad2[8]; int b; };\nvoid f(struct S *s, int *pa, int *pb) { *pa = s->a; *pb = s->b; }"
+  },
+  {
+   "addr": "e662c",
+   "callers": 2,
+   "bytes": 9,
+   "class": "matched",
+   "what": "short field accessor at +0x36.",
+   "evidence": "analysis/attempts-2",
+   "c": "int f(char *p) { return *(short *)(p + 0x36); }\n"
+  },
+  {
+   "addr": "fd0ec",
+   "callers": 2,
+   "bytes": 29,
+   "class": "matched",
+   "what": "sign function. Negative tested first.",
+   "evidence": "result 20",
+   "c": "int f(int x){ if(x<0) return -1; if(x>0) return 1; return 0; }"
+  },
+  {
+   "addr": "fe95d",
+   "callers": 2,
+   "bytes": 31,
+   "class": "unresolved",
+   "what": "No prologue, arg in al, returns ax/dx. Convention unexplained, may not be C."
+  },
+  {
+   "addr": "ff9dd",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "fe0f1",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "ffa72",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "ff0ba",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "ffa8f",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "ffaa1",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "103f0d",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "103e64",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "103ef3",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  },
+  {
+   "addr": "103f6f",
+   "class": "not-c",
+   "callers": 0,
+   "bytes": 0,
+   "what": "library, BIOS, x87 or hand-written asm. No source form produces these instructions.",
+   "evidence": "result 20"
+  }
+ ]
+}

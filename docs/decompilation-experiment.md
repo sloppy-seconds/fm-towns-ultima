@@ -1271,8 +1271,32 @@ its internals risks more than it gains right now.
 
 ## Result 20: the pool contains two code populations, and the byte match rate means nothing across both
 
-Working the queue found that **8 of the 24 routines are not C-compiled code at
-all.** They cannot match any C, and every attempt on them is wasted.
+Working the queue found that **10 of the 24 routines contain instructions no C
+compiler can emit from source.** Writing C for them is wasted work, and calling
+them "unmatched" would misdescribe them.
+
+The precise claim matters, because "not C" is not the same as "not part of the
+game". Three distinct cases, and one earlier overstatement:
+
+- **hand-written assembly** (`0xff0ba`): `pusha; mov ecx,0x19; nop; loop; popa`.
+  High C has no source construct for `pusha`, `popa` or `loop`. This is a timing
+  loop, written in asm.
+- **hardware primitives** (`0xff9dd`, `0xfe0f1`, `0xffa72`, `0xffa8f`,
+  `0xffaa1`): port I/O. A compiler emits `out` only through an intrinsic or an
+  asm block, and this toolchain offers neither as plain C.
+- **x87 helpers** (`0x103f0d`, `0x103ef3`, `0x103e64`, `0x103f6f`): `fld`/`ret n`.
+  `ret n` is the callee-pops convention, which High C does not emit.
+
+**A correction.** An earlier draft of this page put `0xfe95d` in the same list and
+said all of them "can never match". That was too strong. `0xfe95d` takes its
+argument in `al` and returns in `ax`/`dx` with no prologue, which is a
+register-based convention rather than a non-C construct. It may well be C
+compiled with a non-default convention, so it stays in the queue as `unresolved`
+rather than being written off.
+
+These routines are still part of the corpus. They are how the game reaches the
+hardware, and the disassembly already says what they do. What cannot be done is
+verifying them by byte-matching C, because there is no C to write.
 
 ### What they are
 
@@ -1310,8 +1334,10 @@ below 0xff000   15 routines    game code
 above 0xff000   11 routines    library, BIOS support, x87 helpers
 ```
 
-Of the 15 below `0xff000`, seven now match. Of the 11 above, **zero can ever
-match**, and they should not have been in the queue.
+Of the 15 below `0xff000`, seven match. Of the 9 above, none can be matched
+against C, and they should not have been in the queue. `0xfe0f1` sits below
+`0xff000` and is still excluded, by the port-I/O test rather than the address,
+which is why the two signals are independent.
 
 ### The consequence for the rate
 
@@ -1331,3 +1357,73 @@ done by hand over the 24 entries, which is enough to state the finding and not
 enough to keep the gate honest for the next 700 routines. That is the next piece
 of work, and it belongs in `tools/preflight.js` with assertions in
 `tools/imgaudit.js` the way the address detection now has.
+
+## Result 21: the gate now excludes not-C code, and there is a register
+
+Result 20 found that the candidate pool mixed two code populations. Three things
+were built in response.
+
+### `tools/preflight.js` classifies code kind
+
+Two independent signals, both measured rather than assumed:
+
+- **address**: `LIBRARY_FLOOR = 0xff000`. Every non-C routine found sits above
+  it. The region above holds `cli`/`sti`, segment loads and `rep movsb`, which is
+  16-bit real-mode support code, not Origins' C.
+- **mnemonic**: `pusha`/`popa`, `loop`, x87, `ret n`, `rep movs`, and port I/O.
+  None of these has a source form in this toolchain.
+
+The text is matched against decoded mnemonics, not hex. An earlier attempt
+matched against the raw byte string and reported `0xe140c` as port I/O because
+`ee` occurs inside an operand. That is the same mistake as the SIB case: matching
+bytes instead of instructions.
+
+Result, over the same 24-entry pool:
+
+```
+14 C leaves among real function starts.
+10 excluded as not-C.
+```
+
+The two signals are independent and both fire: `0xfe0f1` is below `0xff000` and
+is excluded by port I/O, while `0x103f0d` is excluded by both.
+
+### `docs/routines.json` is the register
+
+24 entries, each carrying a class, a one-line description, and the evidence for
+that class. It is in `docs/` and tracked, **not** in `analysis/`, because that
+directory is gitignored to keep extracted game data out and a record of our own
+findings placed there would be silently lost.
+
+| class | count | meaning |
+|---|---|---|
+| `matched` | 7 | C found that reproduces the bytes exactly |
+| `frame-decision` | 3 | logic right, prologue differs. Structural |
+| `register-choice` | 1 | one register pair differs across 12 candidates |
+| `unresolved` | 3 | real C routines nothing has cracked |
+| `not-c` | 10 | no source form produces these instructions |
+
+`node tools/routines.js` prints it grouped. `node tools/routines.js --todo` prints
+the three actually-open routines.
+
+### The register is audited, not just written
+
+`tools/imgaudit.js` now asserts, and each assertion was broken deliberately and
+watched to fail:
+
+- only known class names appear (`bogus-class` fails)
+- every `matched` entry records its C (removing one fails)
+- every classified entry names its evidence
+- every address is readable in the image
+
+A register that claims a routine is matched when its bytes moved, or that lists
+an address that is not a function start, is worse than no register.
+
+### What is open
+
+Three C routines, listed by `--todo`. `0xe140c` is `register-choice`, twelve
+candidates deep. Three `frame-decision` routines are structurally blocked on the
+same thing, and if that ever opens all three fall together.
+
+The `not-c` ten are not abandoned, they are deferred to a different method:
+reading and documenting the behaviour, since there is no C to match.
