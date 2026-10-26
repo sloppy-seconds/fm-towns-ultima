@@ -489,6 +489,24 @@
       "class": "unresolved",
       "what": "Copies 0x1000 bytes from 0xbd578 to the buffer at (arg<<12)+0x4de90, using a lodsb/stosb loop.",
       "evidence": "39 of 41 bytes reproduce, including the ac aa 41 eb f3 lodsb/stosb loop. The single difference is the lea: target 8d b0 <disp32> (lea esi,[eax+disp]), ours 8d 34 05 <disp32> (lea esi,[eax*1+disp]). Same nobase-SIB class as 0xe779c and 0xe7784, recorded once in docs/nobase-sib.md."
+    },
+    {
+      "addr": "104390",
+      "callers": 1,
+      "bytes": 36,
+      "class": "base-fold",
+      "what": "Toggles one of two flag bits in a record reached through the pointer at 0xdfdf8: bit 0x80 of byte +9 when the byte flag at 0xdfd2f is set, otherwise bit 1 of byte +10 when byte +11 is zero.",
+      "evidence": "tools/cmpdisp.js --addr 0x104390: identical except nine bytes across three displacements. The flag at 0xdfd2f is a BYTE, not an int: 83 3d (cmp dword) does not match, 80 3d (cmp byte) does.",
+      "c": "extern char flag;\nextern char *rec;\nvoid f(void) { if (flag) *(unsigned char*)(rec+9) ^= 0x80; else if (!rec[11]) *(unsigned char*)(rec+10) ^= 1; }",
+      "flags": ""
+    },
+    {
+      "addr": "fabf8",
+      "callers": 1,
+      "bytes": 25,
+      "class": "unresolved",
+      "what": "Decrements the global at 0xd6e60 when both 0xd1424 and 0xd6e60 are positive.",
+      "evidence": "Nine source shapes tried. Every one reproduces the branch structure and the ff 0d store, and every one differs in exactly one byte: High C 1.73 emits 23 c0 (and eax, eax) where the target has 85 c0 (test eax, eax). The source shapes that force test, a bare if(b), also flip 7e to 74. The two halves are reachable separately, which is the same split result 10 records for the frame."
     }
   ],
   "globals_ref": {
