@@ -163,6 +163,9 @@ nav:
       - objdump as a second opinion: objdump-crosscheck.md
       - Capstone as a replacement decoder: capstone-gate.md
       - Tooling policy: tooling-policy.md
+      - Geartowns and the MCP server: geartowns.md
+      - Session summary: session-summary.md
+      - Overnight run plan: overnight-run.md
       - The corpus census: corpus-census.md
       - The authentic toolchain reproduces seven routines: highc-authentic-toolchain.md
       - The plot calibration: highc-plot-calibration.md

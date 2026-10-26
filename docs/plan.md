@@ -515,6 +515,61 @@ then the migration is at fault. The census is under an assertion precisely so th
 
 See [tooling-policy.md](tooling-policy.md) and [capstone-gate.md](capstone-gate.md).
 
+### 4i. Geartowns GL presentation, so the MCP debugger is usable
+
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | needs someone to look at the noVNC view, and the container has no network for `dnf` |
+| done when | the trilogy reaches a visible boot screen in noVNC, or the GL route is recorded as a negative and headless MCP is adopted instead |
+| blocked by | the blocker is `SDL_GL_SetSwapInterval(1) failed` repeating with a frozen framebuffer |
+
+The container builds, the FreeTOWNS ROMs load, the disc parses as 8 tracks, the BIOS
+demonstrably executes (`CLI`, `CLD`, `OUT DX,AL` at `FC00:00000027`), and the MCP server
+serves **106 tools** including `get_palettes` and `set_breakpoint`. What does not work is
+presenting frames: two captures 15 seconds apart are byte-identical.
+
+Eliminated already: Xvfb does advertise GLX; Mesa and `swrast_dri.so` are installed;
+`SDL_RENDER_DRIVER=software` and `LIBGL_ALWAYS_SOFTWARE=1` change nothing because
+Geartowns configures SDL itself; and it is not the debugger pausing, since `Debug = false`
+and `PauseWhenInactive = false` were both set.
+
+Four routes, in the order given in `docs/geartowns.md`: a Geartowns renderer or shader
+setting; a real software GL stack such as `Xorg` with the dummy driver instead of Xvfb;
+`--fullscreen` rather than `--windowed`; or abandon the picture and use headless MCP, which
+takes no GL path at all.
+
+**The last one is probably right.** The palette question needs `get_palettes`, not a
+screenshot. The stdio client completes the handshake and `tools/list` but never gets a
+`tools/call` response, and that is a bug in `tools/mcp-geartowns.py`, not in Geartowns.
+
+### 4j. Finish 0xe6a58, the largest open question about non-leaf routines
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended via `tools/cc.sh`; the only requirement is candidate source |
+| done when | the routine matches apart from disp32, or the register-allocation difference is shown to be structural and recorded as a negative |
+| blocked by | nothing |
+
+The record initialiser at `0xe6a58` is solved: 57-byte stride at `0x7aee4`, byte at 0 then
+fourteen dwords, `(c-6)/8` as three `cdq/sub/sar` pairs, `(d-4)/16` as `idiv`, and an
+`xchg eax,ebx` that is a **swap** rather than a min. Three source shapes written, none
+matched.
+
+The failure is allocation, not logic. The target has no local frame, loads `esi=[ebp+0x14]`
+and `ebx=[ebp+0x20]` up front and reuses `esi` for the division; all three candidates emit
+`push eax` and reload `c`. Same class as the register-choice case `0xe140c`.
+
+**Why this matters more than one routine.** The 307 `non-leaf` routines are 41.6% of the
+image and the whole method rests on one favourable data point. If allocation can be steered
+by source shape, that set becomes ordinary work. If it cannot, that is the real frontier and
+it should be known now rather than after 300 attempts.
+
+See [nonleaf-reopened.md](nonleaf-reopened.md).
+
 ### 4g. A bootable hard disk with the toolchain on it
 
 **State:** OPEN · **Autonomy:** NEEDS A DECISION
