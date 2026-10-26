@@ -467,6 +467,54 @@ rather than a table of addresses. Read `node tools/cordclass.js <run.json>` afte
 `structural` means stop attempting those routines; a class marked `addressable` means a lever exists and
 `--explain <class>` names it.
 
+### 4h. Migrate the remaining eleven `ndisasm` call sites to the shared decoder
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended; no emulator, no disc state, no interactive step |
+| done when | every remaining site calls `tools/decode.js` (or Capstone directly, in Python), `PENDING` in `tools/checkall.js` is lowered to match, and `docs/corpus.json` is byte-identical after each census-critical tool is migrated |
+| blocked by | nothing |
+
+**What is done and what is not.** `tools/decode.js` exists, `docs/capstone-gate.md` proves it decodes
+the code region identically to `ndisasm`, `tools/globals.js` is migrated as the worked example, and
+`docs/tooling-policy.md` is enforced so no new violation can appear. **One of thirteen sites is
+migrated.** The other eleven are this item.
+
+**The eleven, and they are not equal in difficulty.**
+
+| file | sites | risk |
+|---|---|---|
+| `trycands.py` | 1 | low. Python, so import Capstone directly |
+| `dumpqueue.py` | 1 | low. Same |
+| `findpal.js` | 1 | low, but the only shell-string invocation with `2>/dev/null` |
+| `pharlap.js` | 2 | low. Uses `-e` to skip a header |
+| `randmods.js` | 2 | low |
+| `decompile-run.js` | 2 | low |
+| `frameanalysis.js` | 1 | medium. Passes `-o` in decimal |
+| `funcs.js` | 1 | **high. underpins the census** |
+| `cfgwalk.js` | 1 | **high. underpins the census** |
+| `sweep.js` | 1 | **high. underpins the census** |
+| `preflight.js` | 1 | **high. underpins the census** |
+
+**Order, and why it is this order.** Do the two Python sites first, because Python tools importing
+Capstone directly is the intended end state and it establishes that pattern rather than the
+Node-over-Python subprocess workaround. Then the five low-risk JS sites. Then the four census-critical
+ones **one at a time, diffing `docs/corpus.json` after each**, because a change there is either a real
+finding or a migration defect and those must be told apart before committing.
+
+**`decode_agree.py` and `checkall.js` keep their `ndisasm` invocation deliberately.** The first is the
+comparison harness and needs both decoders; the second greps for invocations to enforce the policy.
+Deleting either would remove the ability to check the others.
+
+**Failure case, stated.** If a census-critical migration changes `docs/corpus.json`, do not accept the
+new file. Characterise the difference first: if it is a size or classification correction then the old
+`ndisasm` path was wrong and the difference is a finding worth documenting; if it is a boundary shift
+then the migration is at fault. The census is under an assertion precisely so this cannot be glossed.
+
+See [tooling-policy.md](tooling-policy.md) and [capstone-gate.md](capstone-gate.md).
+
 ### 4g. A bootable hard disk with the toolchain on it
 
 **State:** OPEN · **Autonomy:** NEEDS A DECISION
