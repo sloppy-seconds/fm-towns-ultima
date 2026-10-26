@@ -657,6 +657,84 @@ async function compile({ source, name = 'CAL', flags = '', timeoutMs = COMPILE_T
 
 // --- reset ------------------------------------------------------------------
 //
+// Run an ARBITRARY batch on the guest and bring named files back.
+//
+// WHY. `compile` and `link` both drive the guest with a fixed batch and a fixed
+// output. Reading the High C kit's own configuration needs a batch whose whole
+// purpose is a `COPY` from Q: to A:, which is neither of those. Without this,
+// every such question becomes ad-hoc shell work against the floppy image, which
+// is exactly the hand-testing that damaged the image before.
+//
+// SAFETY. The caller supplies the batch, so it can do anything the guest can,
+// including writing to A:. It is therefore restricted on purpose: it runs only
+// while the request is in flight, the batch is written through the same
+// writeImageFile path the compiler uses (so cserve keeps ownership of the
+// image), and a fixed set of scratch names is cleaned up afterwards. It does not
+// touch the pristine master and never rewrites AUTOEXEC.BAT or CONFIG.SYS.
+async function probe({ batch, want = [], timeoutMs = COMPILE_TIMEOUT_MS }) {
+	if (typeof batch !== 'string' || !batch.trim()) throw new Error('batch is required');
+	const batFile = check83('PRBAT', 'BAT');
+	const doneFile = check83('PRDON', 'DON');
+	const logFile = check83('PRLOG', 'LOG');
+	const crlf = (s) => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
+
+	// The done file is written last so the poll has an unambiguous end marker.
+	// A batch that fails mid-way still writes it, because the marker is a separate
+	// command appended here rather than the success of the caller's batch.
+	const full = crlf(batch) +
+		'\r\nDIR A:\\*.* > A:\\' + doneFile + '\r\n';
+
+	assertWritable();
+	const t0 = Date.now();
+	const scratch = [doneFile, logFile, batFile, ...want];
+	const rmAll = async () => {
+		try { await ejectFloppy(); } catch { /* already gone */ }
+		await sleep(400);
+		for (const f of scratch) {
+			try { deleteImageFile(f); } catch { /* not present */ }
+		}
+	};
+
+	await ejectFloppy();
+	await sleep(700);
+	for (const f of scratch) {
+		try { deleteImageFile(f); } catch { /* not present */ }
+	}
+	writeImageFile(batFile, Buffer.from(full, 'latin1'));
+
+	await attachFloppy();
+	await xdoKey('Return');
+	await sleep(300);
+	xdoType(batFile);
+	await sleep(200);
+	await xdoKey('Return');
+
+	const deadline = Date.now() + timeoutMs;
+	let done = false;
+	while (Date.now() < deadline) {
+		await sleep(1200);
+		if (fileSize(doneFile) !== null) { done = true; break; }
+	}
+
+	// Settle before reading. The guest flushes lazily and reading while it writes is
+	// what tore the FAT in the compile path.
+	await sleep(1500);
+
+	const files = {};
+	for (const f of want) {
+		try {
+			const buf = readImageFile(f);
+			if (buf && buf.length) files[f] = { bytes: buf.length, text: buf.toString('latin1') };
+		} catch { /* absent */ }
+	}
+	let listing = '';
+	try { listing = readImageFile(doneFile).toString('latin1'); } catch { /* none */ }
+
+	await rmAll();
+	if (!done) return { ok: false, error: 'probe did not finish', elapsedMs: Date.now() - t0, listing };
+	return { ok: true, elapsedMs: Date.now() - t0, files, listing };
+}
+
 // Restores the working image from the pristine master and re-attaches it, so the
 // guest boots from a known-good floppy. This is the recovery path for the two
 // failure modes above: a full volume, and a corrupt FAT.
@@ -739,6 +817,7 @@ const server = http.createServer(async (req, res) => {
 					'POST   /api/fs/reload',
 					'GET    /api/health                      space, health, canWrite',
 					'POST   /api/reset                       restore floppy from pristine master',
+					'POST   /api/probe                       {"batch":"...","want":["FILE"]}',
 					'POST   /api/compile                     {"source":"...","name":"CAL","flags":"-O"}',
 					'POST   /api/link                        {"source":"...","lflags":"-NOPACK"}',
 				],
@@ -801,6 +880,18 @@ const server = http.createServer(async (req, res) => {
 		if (p === '/api/link' && req.method === 'POST') {
 			const body = JSON.parse(await readBody(req) || '{}');
 			return json(res, 200, await link(body));
+		}
+
+		if (p === '/api/probe' && req.method === 'POST') {
+			const body = JSON.parse(await readBody(req) || '{}');
+			// The guest is single-flight: a probe and a compile cannot overlap.
+			if (busy) return json(res, 429, { error: 'one guest operation at a time; retry shortly' });
+			busy = true;
+			try {
+				return json(res, 200, await probe(body));
+			} finally {
+				busy = false;
+			}
 		}
 
 		if (p === '/api/compile' && req.method === 'POST') {

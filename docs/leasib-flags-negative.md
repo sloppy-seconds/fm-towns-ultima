@@ -1,5 +1,12 @@
 # The flag search for the base-register lea: negative
 
+**This page is superseded by [compiler-toggles.md](compiler-toggles.md), which completes it.**
+The gap below was that this compiler accepts an unknown toggle name silently, so a negative
+built from invented names proves nothing. The kit's real list has since been read: **43
+toggle names, none of which produces the `lea`**, and there is no 386 memory-model switch at
+all. The narrower result on this page still stands and the reasoning is kept because the
+scoping problem it identifies is the reason the follow-up was needed.
+
 **Verdict: NEGATIVE for the flag sets that are demonstrably live. The `lea` encoding is
 not a compiler flag in High C 1.73.** Forty flag sets were compiled against the
 `0xe3c58` body, and none produced the target's `lea`.

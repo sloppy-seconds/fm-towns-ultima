@@ -631,7 +631,7 @@ size from `corpus.json` and only store what it alone knows.
 
 ### 4l. Read the compiler's real toggle list
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -664,7 +664,15 @@ still carry the defaults and are readable as text. If neither discloses the togg
 negative stays scoped as it is and this item records that the list is not obtainable from the
 kit rather than leaving the question open by omission.
 
-See [leasib-flags-negative.md](leasib-flags-negative.md).
+**Resolution.** Read from the kit with the new `/api/probe` route. `hc386.cnf` is 2,098
+lines of driver logic and names **43 toggles**; `hc386set.cnf` is the variable file. Every
+real name was compiled in both senses against the `0xe3c58` body and **none produces the
+target `lea`**. The `opt_sib`, `opt_addr`, `peephole` and similar names the earlier negative
+tested are confirmed absent from the real list rather than merely unobservable. The address
+model was also checked and `hc386.cnf` says "Only small model for 386", so there is no
+memory-model switch to try. Two incidental findings are recorded: the kit ships
+`ARGS=-native -HVp`, and `LINKNAME=386linkp.exp`, which explains the link failure in
+`docs/bootable-dos-hdd.md`. Full write-up: [compiler-toggles.md](compiler-toggles.md).
 
 ### 4g. A bootable hard disk with the toolchain on it
 

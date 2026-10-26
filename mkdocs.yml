@@ -162,6 +162,7 @@ nav:
       - The upper region may be a different compiler: compiler-generation.md
       - The nobase-SIB addressing class: nobase-sib.md
       - The base-register lea is not a flag: leasib-flags-negative.md
+      - The kit's real toggle list: compiler-toggles.md
       - Naming by string reference does not scale: naming-negative.md
       - The ndisasm continuation trap: ndisasm-continuation.md
       - objdump as a second opinion: objdump-crosscheck.md
