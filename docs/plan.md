@@ -774,6 +774,15 @@ baseline. Full write-up: [character-creation.md](character-creation.md).
 | done when | the step rule, the blocking test, the food and turn counters, and the wrap arithmetic at the map edges are stated, or the wrap is shown to be a lookup rather than arithmetic |
 | blocked by | nothing |
 
+**Partial, read this session.** The wrap is arithmetic on a **16 by 16** grid: `0xef5b4` adds a
+direction delta to `MAP_X`/`MAP_Y` and corrects by `+/- 0x10` when the result leaves `0..15`. The
+collision test is a call to `0xfb41c`, which indexes a cell table by `(x << 8) + (y << 4)`.
+Both routines are now in the register.
+
+**Still open:** the food and turn counters (they belong to the turn, item 1b), the mapping from
+arrow keys to direction 1..4, and the jump table at `0xef3d0` whose entries do not read as code
+addresses. See [movement-and-wrap.md](movement-and-wrap.md).
+
 ### 5c. Time gates and the four epochs
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
