@@ -45,13 +45,62 @@ the seed set is now the limiting factor, not the walk.
 Every one of the 7 found from 25 seeds was verified real by `fmtownskit/tablecheck.py`, so this
 is a measure of reach rather than of a looser detector.
 
+## Raising the seed count
+
+Feeding the walk its own discoveries back in converges at once: 603 seeds give 603 functions and
+reseed with the function starts it found changes nothing. The ceiling was therefore the seed set,
+not the walk, and the question was where better seeds could come from. Two candidates were
+tested and one was rejected.
+
+**Rejected: pointers found in the data.** Scanning the code band for dwords that point into it
+yields 234 candidate function addresses, and they are not functions. 35 of them land inside a zero
+region, and adding them raises conflicts faster than it raises functions:
+
+| pointer seeds added | functions | conflicts added |
+|---|---|---|
+| 25 | +30 | +60 |
+| 50 | +71 | +241 |
+| 100 | +159 | +330 |
+
+A seed that adds two conflicts for every function is decoding data. A dword in the code range is
+not evidence of a function start, and this is the distinction `discover.py` makes when it says a
+conflict means the descent has gone into data.
+
+**Accepted: the rows this project had already classified `not-entry`.** Of the 284 such rows, 214
+begin with `push` and 42 with `enter`, which is 256 of 284 looking like plausible prologues. They
+were labelled `not-entry` for the reason "not a real function start" without a prologue test
+having been recorded, so the label was treated as unproven.
+
+Added one at a time, keeping a row only if it raised conflicts by no more than 2, **275 of the 284
+were accepted and 9 rejected**. The result:
+
+| seeds | functions | instructions | bytes of code | conflicts |
+|---|---|---|---|---|
+| 397 corpus rows | 603 | 35,644 | 110,778 | 362 |
+| 672 after acceptance | 709 | 40,943 | **127,239** | 366 |
+
+Four more conflicts for 105 more functions and 16,461 more bytes. That is a sound trade, and the
+contrast with the pointer seeds is the whole point: the same method applied to the same binary
+separates a real function start from a data value.
+
+**Almost every corpus row is now reached**, 68 jump tables are found with 65 bounded, and 24
+indirect transfers remain unresolved. The reached fraction is against the row count owned by
+[call-graph.md](call-graph.md).
+
+## What the not-entry label was doing
+
+The label was right about 9 rows and wrong about 275. That is worth recording rather than quietly
+fixing, because it changes what `docs/corpus.json` is for: a set of candidate starts to be tested,
+not a set of established ones. Treating `not-entry` as a fact would have excluded a quarter of
+the game's functions from every walk.
+
 ## What this does not say
 
-The 110,778 is a floor, not a total. It is what is reachable from 397 seeds, and code reachable only
-from an unresolved indirect transfer is still not in it, there being 11 such transfers in the
-guarded 397-seed run. Nor is every byte it counts necessarily a distinct function: bodies may
-share code, and a jump into another function's middle copies that code into both, which is
-measured rather than estimated away.
+The 127,239 is a floor, not a total. It is what is reachable from 672 seeds, and code reachable
+only from an unresolved indirect transfer is still not in it, there being 24 such transfers in the
+final run. Nor is every byte it counts necessarily a distinct function: bodies may share code, and
+a jump into another function's middle copies that code into both, which is measured rather than
+estimated away.
 
 ## Reproducing
 
