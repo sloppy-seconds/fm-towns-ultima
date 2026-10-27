@@ -458,7 +458,23 @@ the wrong place rather than an error.
 
 - `TYPE 2` needs the space. `TYPE2` returns "Do what?".
 - Print targets need the `PRI` prefix: `PRI PALETTE`, not `PALETTE`.
-- The VM starts paused only with `-PAUSE`. Without it the game is already
+- **`RUN` gives no confirmation that it worked.** It returns empty output whether it resumed the
+  machine or not, so a script that pauses, runs and saves can produce two copies of a frozen
+  machine and diff them as if they were live. **Check the emulator's own clock instead:**
+
+  ```
+  STA  ->  Towns TIME (Nano-Seconds): 3051982309317
+  sleep 3
+  STA  ->  Towns TIME (Nano-Seconds): 3055235626510
+  ```
+
+  Advancing values mean running. **Identical nanosecond values mean paused**, whatever `RUN`
+  appeared to do. This cost an hour on 2026-10-28: a "live" baseline of 50,906 changed bytes was
+  two copies of a paused machine plus the pause transition. See `docs/monster-movement.md`.
+- `PAU` on an already-paused machine prints a doubled prompt, `>>Towns TIME`, which is the only
+  hint that the pause was redundant.
+- The VM starts paused only with `-PAUSE`. Without it the game is already running.
+
 ### Running without a display
 
 If you do not have the desktop's display, run the emulator in a container:

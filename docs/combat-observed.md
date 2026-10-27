@@ -76,10 +76,16 @@ The player also confirmed there is **no visible mana counter**, so a spell cost 
 
 ## Not yet measured
 
-- **Monster HP.** The object array has not been located, so a kill cannot be read from memory.
+- **Monster HP.** The object array has not been located, so a kill cannot be read from memory, and
+  neither can a monster's position. What has been measured instead is the *behaviour*: monsters
+  move on some player turns and not others, which is not one step per turn. See
+  [monster-movement.md](monster-movement.md).
 - **Kill experience reward.** `EXPERIENCE` stayed at 21 through the whole fight because nothing was killed.
 - **The paralysis flags.** Player-observed, not found in memory.
-- **Whether 5 and 15 damage are rolls or constants.** Two hit totals, no per-hit breakdown.
+- **Whether damage is a roll and what its range is.** Five samples are now recorded in
+  [combat-formulas.md](combat-formulas.md), values **5, 12, 14, 15, 16**, every one different, so
+  it is a roll. The range is not established: the samples come from different fights and
+  different monsters and nothing ties them together.
 
 ---
 
