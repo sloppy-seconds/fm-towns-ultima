@@ -133,51 +133,99 @@ different fight and a different monster, and nothing here ties the two together.
 So **monster damage is not a constant.** Six samples from two fights over five distinct values. That
 rules out a fixed value and is the first thing this page can say about the form without guessing.
 
-## Talking to a monster produces a taunt, and the phrase is not in the binary
+## Talking to a monster: the taunt, found
 
-The player used `T` against a monster and moved south. The monster answered **"Eat death scum!"**
+The player used `T` against a monster and moved south. The monster answered **"Eat death Scum!"**
 and attacked for **16**, taking HP from 122 to 106.
 
-**The search was unsound, and that is the finding. The phrase must exist.**
+### It is at `0x61d0`, and the decoding rule is two offsets not one
 
-A 1990 Origins port does not generate dialogue, so if the text is on screen it is bytes somewhere.
-Every search below therefore failed to *find* it rather than showing it does not exist, and the
-wording of the earlier version of this section said the latter. That was wrong and is corrected
-here.
+The phrase is in `ENCHANT.EXP` at **`0x61d0`**, as the first of a run of NPC dialogue lines that
+sit in bilingual pairs: an English line encoded with `0xEB` escapes, then the same line in plain
+Shift-JIS.
 
-**Why the searches were unsound.** The `0xEB` encoding is only verified for payloads below `0x60`,
-which is the range the `STRENGTH`-style labels use. For payloads at or above `0x60` the rule is
-approximate and `docs/text-encoding.md` says so. That is not a detail: decoding the `0xEB` runs in
-`ENCHANT.EXP` with the documented rule renders strings as `_llilu`, `msmn_g` and `l_[^su`, which
-is not text. Those are real game strings and the decoder cannot read them.
+```
+0x61d0  eb 44 eb 5a eb 6d 20 eb 5d eb 5e eb 5a eb 6d eb 61 20 eb 52 eb 5c eb 6e eb 66 eb 74
+0x61ed  82 ad 82 bd 82 ce 82 ea eb 74 82 d0 82 c6 82 c5 82 c8 82 b5 eb 74
+```
 
-So any search for an `0xEB`-encoded phrase using that transform was searching for the wrong bytes
-whenever the phrase contains a payload at or above `0x60`. A negative from such a search carries no
-information about whether the phrase is present.
+`0x61d0` decodes to **`Eat death Scum!`**. The line under it is the Japanese pair,
+`くたばれ。ひとでなし。` ("Drop dead. You beast."), which is what let the English be solved: two
+encodings of the same sentence, one of which can be read directly.
 
-**What the searches did establish, and it is narrower than claimed:**
+**The `0xEB` rule that cracked it.** The documented `xx + 1` transform is only one of two:
+
+| payload | transform | range of the result |
+|---|---|---|
+| `≤ 0x59` | `+ 1` | capitals and the first punctuation block |
+| `≥ 0x5a` | `+ 7` | lowercase |
+| `0x74` | `!` | the commonest line ending, 21 uses |
+| `0x75` | `?` | 8 uses |
+
+Eighteen payload-to-character pairs were collected from three lines whose wording is not in doubt
+(`Eat death Scum!`, `A guard says：`, `Pay your taxes!`) and **every one obeys the split, with no
+exceptions**. The single `+1` rule failed on all of them the moment a lowercase letter appeared,
+which is why six earlier readings of `0xEB` could not decode dialogue.
+
+### What the table gives
+
+The NPC dialogue table runs from about `0x61d0` to `0x6600` and decodes cleanly with the rule above:
+
+| address | line |
+|---|---|
+| `0x61d0` | `Eat death Scum!` |
+| `0x6204` | `A guard says：` |
+| `0x622c` | `Pay your taxes!` |
+| `0x6258` | `A jester sings：` |
+| `0x62dc` | `Will you buy my apples?` |
+| `0x634c` | `Ugh, me tough!` |
+| `0x63a8` | `Believe!` |
+| `0x64b4` | `Good day!` |
+| `0x6588` | `chest!` |
+
+**What this establishes.** The taunt is data, it is static, and it was always findable. The failure
+was the decoder, not the phrase. Every search that used `+1` alone was searching for the wrong
+bytes, which is why plain ASCII, `0xEB`-escaped and case-insensitive scans across all 140 disc files
+all returned nothing.
+
+**What is not yet done.** The `0x74`/`0x75` punctuation mapping is derived from how often each ends a
+line, not from the code that stores them, and other punctuation (`,`, `.`, `：`) is still
+unaccounted for, which is why two lines render with a stray byte. The rule above is written into
+`tools/` so it can be reused, and the remaining punctuation is a smaller version of the same
+problem.
+
+**The turn accounting held again.** Two passes cost 30 food and moved `MAP` from 84 to 86, both
+consistent with every earlier read.
+
+### What the failed searches established, kept as a record
+
+Paul rejected the earlier claim that the phrase does not exist, and was right. A 1990 Origins port
+does not generate dialogue, so if the text is on screen it is bytes somewhere. Every search below
+failed to *find* it rather than showing it was absent, and the earlier wording said the latter.
+
+**Why the searches were unsound.** The `0xEB` encoding was only verified for payloads below `0x60`,
+the range the `STRENGTH`-style labels use. With that rule alone, real game strings decode as
+`_llilu`, `msmn_g` and `l_[^su`. A search for an `0xEB` phrase using it was searching for the wrong
+bytes, so a negative from such a search carried no information.
+
+**What the plain-ASCII half did establish, and it stands:**
 
 | scope | searched for | result |
 |---|---|---|
-| `ENCHANT.EXP` | plain ASCII, `Eat`/`death`/`scum` in all cases | none |
+| `ENCHANT.EXP` | `Eat`/`death`/`scum` in all cases | none |
 | `TBIOS.BIN` | the same | none |
 | 79 extracted assets | the same | none |
 | **all 140 disc files** | the same | `scum` nowhere; `death` only in `EXODUS.EXP`, which is Ultima III |
 
-The plain-ASCII half of that is trustworthy: the same scan finds `LINGUAL` once, `ROSTER` six
-times, `GOLD=` once and `MONSTER` once in `ENCHANT.EXP`, so it works. **The phrase is not stored as
-plain ASCII anywhere on the disc.** The `0xEB` half proves nothing, for the reason above.
-
-**What that leaves.** The phrase is `0xEB`-encoded, and the `0xEB` decoder is incomplete for
-payloads at or above `0x60`. Finding it requires fixing the decoder first. Generating runtime
-dialogue is not a plausible explanation for a game of this vintage and is no longer offered as one.
+That half is trustworthy because the same scan finds `LINGUAL` once, `ROSTER` six times, `GOLD=`
+once and `MONSTER` once. **The phrase is not stored as plain ASCII anywhere on the disc.** It is
+`0xEB`-encoded, and the decoder was the problem.
 
 `tools/findmem.py` searches live RAM, sprite RAM and VRAM and is committed **unverified**, because
-its hits could not be read back; see the tool's header. It does not close this either.
+its hits could not be read back. It turned out not to be needed: the phrase was static all along.
 
-**What is established:** talking does not prevent the monster acting, and the reply is
-monster-specific rather than a generic refusal. That is a rule the game applies and it belongs in
-the corpus even though the wording cannot yet be located.
+**The rule that survived:** talking does not prevent the monster acting, and the reply is
+monster-specific rather than a generic refusal.
 
 **The 16 is the sixth damage sample** and the second occurrence of that value. See above.
 

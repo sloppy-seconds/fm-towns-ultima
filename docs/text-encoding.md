@@ -14,7 +14,7 @@ measured. What `0xEB` means in the strings is not, and four readings of it have 
 | background fill | `0xe6e48` -> `0x8b6` -> TBIOS **AH 0x2b**, rectangle at `0x7add8` |
 | text attributes | four, through a table at `TBIOS.BIN 0xfad0` |
 | pixel handling | a `not` cascade over a byte count, so a plain bitmap inverted on merge |
-| `0xEB` in strings | **resolved**: a single-byte ASCII escape, `EB xx` is character `xx + 1` |
+| `0xEB` in strings | **resolved**: an ASCII escape with two offsets, `+1` for payloads up to `0x59` and `+7` above |
 
 ## The cell size, from two independent statements
 
@@ -86,18 +86,42 @@ retraction saying it was not, and that retraction was itself wrong: it followed 
 handler, which is a different routine reaching the same buffer. Two callers, two purposes, one
 buffer.
 
-## What `0xEB` is: a single-byte ASCII escape
+## What `0xEB` is: two offsets, split by the payload
 
-**Resolved, with one range still approximate.** `EB xx` encodes **two different things according
-to the payload**:
+**Resolved.** `EB xx` is an ASCII escape whose transform depends on `xx`, and the split was found
+by decoding dialogue against its Japanese twin rather than by arithmetic on labels.
 
-| payload | rule | example |
+| payload | transform | result |
 |---|---|---|
-| below `0x60` | `xx + 1` is an ASCII character | `EB 52` is `S` |
-| `0x60` and above | `xx + 0x2D` is halfwidth katakana | `EB 74` is `｡`, the halfwidth full stop |
+| `≤ 0x59` | `+ 1` | capitals and the first punctuation block |
+| `≥ 0x5a` | `+ 7` | lowercase |
+| `0x74` | `!` | the commonest line ending, 21 uses |
+| `0x75` | `?` | 8 uses |
 
-All other bytes pass through unchanged, and the result is Shift-JIS. The two forms coexist
-inside one string.
+All other bytes pass through unchanged and the result is decoded as Shift-JIS, because these
+strings sit next to plain Shift-JIS entries and sometimes mix the two.
+
+**Why the earlier single `+1` rule survived so long.** It is correct for the system string table,
+which is where `STRENGTH` lives at `0x1528`, and that string was the evidence for it. Every payload
+there happens to be `≤ 0x59`, so the rule never had to be wrong. Fed real dialogue it produces
+`_llilu` and `EatsdeathScumu`, which is what stopped six readings of this byte from reaching the
+text.
+
+**The measurement that settled it.** Three NPC lines have a plain Shift-JIS twin in the same table,
+so their wording is not in doubt:
+
+| address | English (`0xEB`) | Japanese (plain Shift-JIS) |
+|---|---|---|
+| `0x61d0` | `Eat death Scum!` | `くたばれ!ひとでなし!` |
+| `0x6204` | `A guard says：` | `衛兵が言う：` |
+| `0x622c` | `Pay your taxes!` | `税金を払えよ!` |
+
+Eighteen payload-to-character pairs came out of those three and **every one obeys the split with
+no exceptions**. `tools/ebdecode.py` implements it and `--search scum` returns `0x61d0`.
+
+**Still not explained.** The comma, the full stop and the fullwidth colon appear in the text but
+their payloads are not identified; `0x92` sits where a comma belongs in `Ugh, me tough!` and is
+passed through undecoded. A few lines therefore render with one stray byte.
 
 The evidence is a string whose meaning is already known from its plain twin:
 
