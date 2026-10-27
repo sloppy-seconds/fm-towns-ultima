@@ -81,15 +81,82 @@ Combined with `TMENU`'s `0xfb7c`, which does `enter 0xc` and then uses exactly t
 `[ebp-4]`, `[ebp-8]`, `[ebp-0xc]` in a sort loop touching no hardware, the assembly reading is
 dead for all of these.
 
+## The local-size distribution, which refutes the depth explanation
+
+A natural reading of the rate differences is that launchers and presentation shells have deeper
+frames, crossing some threshold. Measured, that is wrong.
+
+| binary | `enter` fns | mean locals | mean (nonzero) | max | zero-local |
+|---|---|---|---|---|---|
+| `DARKNESS.EXP` | 74 | 9.0 | 15.9 | 112 | 32 |
+| `ENCHANT.EXP` | 71 | 9.2 | 16.7 | 112 | 32 |
+| `EXODUS.EXP` | 70 | 9.2 | 16.9 | 112 | 32 |
+| `TMENU.EXP` | 252 | **34.4** | 38.7 | **2052** | 28 |
+| `BRITISH.EXP` | 67 | 8.8 | 15.9 | 112 | 30 |
+| `UT2DEMO.EXP` | 67 | 8.8 | 15.9 | 112 | 30 |
+
+**The presentation program has the shallowest frames of all (8.8 mean) and nearly double the
+`enter` rate.** Depth and rate are not correlated. `TMENU` has both more and larger frames, but
+it is the only binary that does, so it is one data point rather than a trend.
+
+The full local-size histograms make the point sharper. The three games are near-identical bucket
+by bucket:
+
+```
+DARKNESS  0:32 4:17 8:5 12:5 16:4 20:4 28:1 32:1 36:1 44:1 48:1 56:1 112:1
+ENCHANT   0:32 4:15 8:4 12:5 16:4 20:4 28:1 32:1 36:1 44:1 48:1 56:1 112:1
+EXODUS    0:32 4:15 8:3 12:5 16:4 20:4 28:1 32:1 36:1 44:1 48:1 56:1 112:1
+```
+
+Same maximum, same count of zero-local routines, same single routine at 112 bytes. That is not
+similarity of style, it is shared code, and the next section confirms it.
+
+## The finding that actually explains the stability
+
+Comparing routine bodies byte for byte across the three games:
+
+| pair | shared `enter` routines |
+|---|---|
+| `ENCHANT` vs `DARKNESS` | **31 of 71** |
+| `ENCHANT` vs `EXODUS` | 29 of 71 |
+| `DARKNESS` vs `EXODUS` | 29 of 74 |
+
+**Thirty-one routines are byte-identical between Ultima II and Ultima I.** The three games share
+a compiled library core.
+
+Splitting `ENCHANT`'s routines into shared and unique:
+
+| subset | `enter` routines | `push ebp` routines | `enter` rate |
+|---|---|---|---|
+| shared with `DARKNESS` | 31 | 39 | **44.3%** |
+| unique to `ENCHANT` | 40 | 279 | **12.5%** |
+
+**The shared library uses `enter` 3.5 times as often as game-specific code does.** That is the
+strongest measured correlate found in this whole investigation, and it points at something
+concrete: the frame form tracks which upstream library a routine came from, not what the program
+does.
+
+It also revises the "three independent builds agreeing to 1.3 points" reading. They agree
+because they share a large block of identical code, not solely because Origins wrote
+consistently.
+
 ## What this does not show
 
-It does not identify the selection rule. Four builds with four rates says the rule is
-source-dependent, and says nothing about which source feature triggers it. The 43 command-line
-toggles are exhausted and the driver route reproduces the same `push ebp` for every C source
-tried.
+**It does not identify the trigger.** The 44.3 percent against 12.5 percent split says the frame
+form tracks which library a routine came from. It does not say what property of that library's
+source causes it. "Comes from the shared core" is a label on the observed split, not an
+explanation of it, and the same caution applies here as to the three structural readings already
+refuted on this question.
 
-It also does not show that `enter` is *unreachable*. `ENCHANT` uses it 71 times, so the compiler
-can emit it; what has not been found is a C source that makes it.
+**It does not show `enter` is unreachable from C.** `ENCHANT` uses it 71 times, so the compiler
+emits it; what has not been found is a C source that makes it. All 43 toggles are exhausted and
+the driver route gives `push ebp` for every source tried.
+
+**It does not licence treating a prologue mismatch as benign.** Because the trigger is unknown, a
+candidate whose prologue differs cannot be called verified on a post-prologue comparison. The
+`identical except disp32` tolerance used elsewhere in this project rests on the differing bytes
+being provably linker-supplied; `enter` against `push ebp` has no such proof, and the two are
+different instructions rather than one relocation.
 
 ## The correction this page carries
 
