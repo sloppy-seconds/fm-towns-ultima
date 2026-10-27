@@ -119,6 +119,29 @@ TownsOS driver:
 | `_asm mov ah,4;` | no object file produced |
 | `asm("mov ah,4")` | **compiles, but emits the text as data**: the tail of the object is `6d 6f 76 20 61 68 2c 34`, which is the ASCII string `mov ah,4`. Not an instruction. |
 
+Two further tests rule out the remaining explanations.
+
+**`#pragma asm` is not passed downstream to an assembler.** It fails under `-S`, `-S -on asm`
+and `-c` as well as under no flag, each with "no object file produced". A front end that
+forwarded the text to an assembler would succeed with `-S`, because the output is assembly either
+way. It does not, so the pragma is rejected by the compiler rather than deferred to a later pass.
+
+**The standard intrinsics are library calls, not instructions.**
+
+| source | emitted |
+|---|---|
+| `_int(0x90)` | `68 90 00 00 00 e8 00 00 00 00 83 c4 04 c3` |
+| `_outp(0x4d4, v)` | `55 8b ec 0f b6 45 08 50 68 d4 04 00 00 e8 ... c9 c3` |
+| `_inp(0x4d4)` | `68 d4 04 00 00 e8 00 00 00 00 83 c4 04 c3` |
+
+Decoding `_int(0x90)`: `68 90 00 00 00` is `push 0x90`, `e8 00 00 00 00` is `call <reloc>`, and
+`83 c4 04` cleans the stack. **The interrupt number is pushed as an argument to a library
+function.** There is no `cd 90` anywhere in that output.
+
+So this build has no intrinsic that emits a trap instruction. `_int`, `_outp` and `_inp` are
+ordinary runtime-library functions, and the trap itself lives inside code the kit ships
+pre-compiled and cannot recompile.
+
 **And the kit ships no assembler.** `DIR Q:\HC386\BIN\*.EXE` lists `386LINK`, `AUTOCFIG`,
 `CONFIG`, `HC386`, `HCD386`, `HCXREF`, `XREF`, `XREFP`. There is no `386ASM` and no `MASM`.
 
