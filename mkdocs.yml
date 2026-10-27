@@ -186,6 +186,7 @@ nav:
       - The authentic toolchain reproduces seven routines: highc-authentic-toolchain.md
       - The plot calibration: highc-plot-calibration.md
       - Pixel writer address correction: pixel-writer-address-correction.md
+      - Two frames of reference: two-frames-of-reference.md
       - AGENTS.md audit: agents-md-audit.md
       - Compiler API: compiler-api.md
       - The goal, stated: goal-behavioural-faithfulness.md

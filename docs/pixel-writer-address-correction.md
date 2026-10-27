@@ -9,6 +9,10 @@
 > saying which base it used, which is what made three docs look wrong.
 > `funcs.js` now converts to raw offsets on output. If you see `0xf3e04` in a
 > tool's output, check which base it is reporting before concluding anything.
+>
+> The general lesson, including what happens when an outside authority asserts
+> that only one frame exists, is in
+> [two-frames-of-reference.md](two-frames-of-reference.md).
 
 This page records a correction to `docs/core-routines.md` and to the
 "expected bytes" this project had been comparing compilers against since the
