@@ -166,6 +166,7 @@ nav:
       - enter is compiler-emitted in both binaries: enter-compiler-emitted.md
       - The enter census across seven binaries: enter-census.md
       - Character creation, verified from stored rosters: character-creation.md
+      - Movement and the torus wrap: movement-and-wrap.md
       - The shared enter routines are TBIOS trap stubs: enter-tbios-stubs.md
       - The real-mode generator does not emit enter: enter-not-emittable.md
       - The driver route, reached and reproducible: highc-driver-route.md
