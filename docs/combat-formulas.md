@@ -148,6 +148,27 @@ and attacked for **16**, taking HP from 122 to 106.
 - **A negative on the obvious route.** A taunt specific to being spoken to is data, and data with
   no match in the binary is not addressable by the methods used here.
 
+### The search widened to every asset, and still found nothing
+
+The first search covered only the executable. It was then repeated over **all 80 files** in the
+project: `ENCHANT.EXP`, `TBIOS.BIN`, and every extracted asset under `extracted/` (79 files,
+including the 63 decoded PNGs, the WAVs and the manifests). Each was searched for `death` and
+`scum` case-insensitively and in the `0xEB`-escaped form.
+
+**Zero hits in all 80 files.**
+
+The control matters more than the result here, because a negative is only worth as much as the
+method. The same scan finds `lingual` once, `roster` seven times, `gold=` once and `kill` twice in
+`ENCHANT.EXP`, and the executable holds 340 printable runs including the full English command list
+(`A)ttack  J)ump   S)teal`, `H)yper   Q)uit&save`). So the search works, the game's English is
+reachable by it, and these two words are genuinely absent.
+
+**What that leaves.** The phrase is either generated at runtime from parts, or held in a region
+neither the executable nor the savestate exposes in a decodable form. Note that `tools/findmem.py`
+searches live RAM, sprite RAM and VRAM and is committed **unverified**, because its hits could not
+be read back; see the tool's header. Until that is resolved, the wording stays open and the rule
+stays recorded.
+
 **What is established:** talking does not prevent the monster acting, and the reply is
 monster-specific rather than a generic refusal. That is a rule the game applies and it belongs in
 the corpus even though the wording cannot yet be located.
