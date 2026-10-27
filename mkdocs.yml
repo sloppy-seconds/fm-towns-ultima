@@ -179,6 +179,7 @@ nav:
       - objdump as a second opinion: objdump-crosscheck.md
       - Capstone as a replacement decoder: capstone-gate.md
       - Tooling policy: tooling-policy.md
+      - The kit decoder against Capstone: decoder-comparison.md
       - Geartowns and the MCP server: geartowns.md
       - Session summary: session-summary.md
       - Overnight run plan: overnight-run.md

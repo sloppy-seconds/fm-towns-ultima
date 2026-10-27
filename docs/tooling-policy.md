@@ -20,6 +20,16 @@ new tools and to any tool being modified.
 
 New analysis tools are Python. The gates do not move.
 
+**Capstone is chosen for dependencies, not because it is a better decoder.** `fmtownskit`,
+cloned under `references/`, carries its own independent 386 decoder, and `docs/decoder-comparison.md`
+measures the two against each other: **234,153 instructions agree, 0 differ, 2 refused** over the
+project's seed set, with 0 differences again across a 20,000-instruction random sweep. The kit's
+decoder also returns typed operand objects, so it satisfies rule 1 and the policy does not forbid
+it. The reasons for staying with Capstone are that switching gains nothing measured, that
+Capstone is an rpm already on the machine while the kit is a gitignored clone, and that one
+decoder is enough. Recorded because without the measurement this section could read as ruling
+out a decoder it never examined.
+
 ## Why rule 1 is absolute
 
 `ndisasm` was invoked from thirteen places in eleven files, with four different
