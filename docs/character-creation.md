@@ -185,14 +185,17 @@ range              = 10..20, inside the 10..25 bounds
 ```
 
 **A stat cannot take everything.** The cap of 25 means the most one attribute can absorb is 15 of
-the 30 points, so at least 15 must go elsewhere. That answers the question this section previously
-left open.
+the 30 points, so at least 15 must go elsewhere.
+
+**Confirmed at the screen.** The cap was observed interactively in the character creation screen: an
+attribute cannot be raised past **25**. That agrees with `cmp edx, 0x19` at `0xec687`, so the bound
+is now measured as well as read.
 
 ### A caveat on the four measured characters
 
 All four on `saves/modifier_test.hdm` were entered at exactly 10 each, so **they spent none of the
 30 points**. They confirm the modifier arithmetic and say nothing about allocation. The allocation
-model above rests on the `save-files.md` case and on the code, not on those four.
+model above rests on the `save-files.md` case, on the code, and on the interactive check of the cap.
 
 ## `0xcde4d` is the points spent
 

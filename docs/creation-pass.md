@@ -144,8 +144,9 @@ weaker footing than the modifier table and is labelled as such.
 **Nothing that blocks a reimplementation.** The modifier deltas are read from code and verified four
 for four, the allocation is 30 points with a 25 cap and a 10 floor, and the starting kit is constant.
 
-**What is still untested at runtime:** the allocation bounds themselves. Creating one character and
-pushing a single stat past 25 would confirm the cap interactively, and has not been done.
+**What is still untested at runtime:** the 30-point budget and the floor of 10. The **cap of 25 was
+confirmed interactively** on the creation screen, which agrees with `cmp edx, 0x19` at `0xec687`.
+No attempt was made to spend past 30 total or to push an attribute below 10.
 
 ## Two corrections this pass made outside its own subject
 

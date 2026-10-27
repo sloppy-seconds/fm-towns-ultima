@@ -777,7 +777,9 @@ the same code.
 
 **Allocation, also read from the code.** `0xec340` is the allocator: `mov esi, 0x1e` gives **30**
 points to spend, `cmp edx, 0x19` caps each attribute at **25**, and `cmp eax, 0xa` floors it at **10**.
-So one stat cannot take everything, because 25 absorbs at most 15 of the 30.
+So one stat cannot take everything, because 25 absorbs at most 15 of the 30. **The cap of 25 was
+confirmed interactively on the creation screen**, agreeing with the code. The 30-point budget and
+the floor of 10 remain code-only.
 
 **The 90 in `quickstart.md` and `save-files.md` is the total, not the budget.** Six attributes at
 base 10 is 60, plus 30 to allocate is 90. Both numbers are right and the phrasing is loose rather
