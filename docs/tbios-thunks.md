@@ -63,7 +63,42 @@ Before this, a graphics routine could only be recognised by its output. Now a fu
 calls `0xabd` is known to call **TBIOS function 0x46** with two arguments, and the meaning of 0x46
 is a property of the platform, documented in `fmtownskit`'s `towns.py`, not of this game.
 
-## A worked example: `0x7add8` is a rectangle
+## A worked example, and the reading that was wrong
+
+**Correction first.** An earlier revision of this page called `0x7add8` a rectangle and TBIOS 0x46 a
+rectangle fill. Reading the handler at `0x2d78` refutes that. What it does:
+
+```
+0x2d78  mov eax, [esi]
+0x2d7a  mov gs:[ebp+0x1c4], eax     ; two dwords from the caller's block
+0x2d81  mov eax, [esi+4]
+0x2d84  mov gs:[ebp+0x1c8], eax
+0x2d8b  mov al, gs:[ebp+0x108]      ; a mode byte
+0x2d92  test al, 0xe
+0x2d94  je  0x2e4c
+0x2db9  call 0x28d8
+0x2dc2  mov ecx, gs:[ebp+0xc]
+0x2dd1  sub esp, ecx                ; allocate a work area on the stack
+0x2dd3  mov edi, esp
+0x2ddc  sub eax, eax
+0x2dde  stosd                       ; zero it
+0x2de8  call 0x36dc
+0x2ded  call 0x6120
+0x2df2  call 0x3d70
+0x2df7  test word gs:[ebp+0x108], 0xe0
+0x2e3a  add esp, gs:[ebp+0x200]     ; restore the stack it borrowed
+0x2e41  ret
+```
+
+That is a **mode switch that borrows stack and calls three sub-handlers**, not a drawing primitive.
+The two dwords it reads from `[esi]` become TBIOS work-area fields `0x1c4` and `0x1c8`.
+
+So `0x7add8` is **not established to be a rectangle.** What is established is narrower: four
+consecutive words there are filled from a function's four arguments and the block's address is
+passed on with a second pointer. Whether the callee treats it as a rectangle is unread.
+
+The lesson is the one this project keeps relearning: four arguments and a struct do not make a
+rectangle, and the label came from the shape rather than from the callee.
 
 Found by following the index. `0xe6058` is a function that takes four arguments and stores them:
 
@@ -81,9 +116,9 @@ Found by following the index. `0xe6058` is a function that takes four arguments 
 0xe60a4  call 0xabd               ; TBIOS function 0x46
 ```
 
-**Four consecutive words at `0x7add8`, then a TBIOS 0x46 call with the struct as an argument.**
-Four arguments in, four words out, consumed by one system call. That is a rectangle, and `0x7add8`
-is where it is kept.
+**Four consecutive words at `0x7add8`, then a TBIOS 0x46 call with the block as an argument.**
+Four arguments in, four words out, handed to one system call. What the block means is not
+established, per the correction above.
 
 The index also shows `0x7add8` referenced by **20 functions**, and its neighbours `0x7addc`,
 `0x7adde`, `0x7ade0`, `0x7ade2`, `0x7ade4` by 11 to 20 each. A shared argument block, written by
@@ -143,10 +178,11 @@ the 34 zeros are exactly the gaps the game's thunks skip: `0x1c`-`0x1f`, `0x30`-
 
 ## What this still does not give
 
-**A name.** The table says AH `0x46` dispatches to `0x2d78` in `TBIOS.BIN`. It does not say that
-handler draws a rectangle. Two routes to a name remain: read the handler, or find Fujitsu's
-documentation of the TBIOS call set. The first is static work of the kind this project does, and
-the second may not exist in the archive.
+**A name.** The table says AH `0x46` dispatches to `0x2d78` in `TBIOS.BIN`. Reading that handler
+establishes what it does mechanically, a mode switch that borrows stack and calls three
+sub-handlers, and it does **not** give it a name: `0x36dc`, `0x6120` and `0x3d70` are three more
+unread handlers, and the chain of unread code ends somewhere Fujitsu's documentation would settle
+and this analysis does not.
 
 `tools/tbios.js` prints the mapping, `--game` restricts it to the 69 values the game uses, and
 `--check` asserts every link, including the two that are easy to get wrong: the header slot and the
