@@ -63,21 +63,51 @@ points into code that another path decodes from a different offset.
 
 ## What came out
 
-| | |
-|---|---|
-| functions | **709** |
-| instructions | **40,927** |
-| bytes of code | **127,205** |
-| C++ | **204,985 lines**, 38 translation units plus a 2.6 MB table |
-| compiles | **yes**, 90 seconds, one link, no errors |
-| self-test | **761 vectors, 0 failures**, 6 stopped at the machine |
-| jump tables | 67, of which 64 bounded |
-| indirect transfers unresolved | 24 |
-| refused | 828 |
+| | 672 seeds | **770 seeds (union)** |
+|---|---|---|
+| functions | 709 | **794** |
+| instructions | 40,927 | **42,053** |
+| bytes of code | 127,205 | **130,703** |
+| C++ | 204,985 lines | **228,744 lines** |
+| vectors | 761 | **888** |
+| failures | 0 | **0** |
+| stopped at the machine | 6 | **6** |
 
-`6 stopped at the machine` means six vectors reached an interrupt, a port or a far transfer,
-which is a property of the function and not a failure: the C++ stops where the interpreter
-stops.
+### The seed set is still the lever
+
+`docs/seed-sets.md` records that the seed set limits coverage more than the walk does. Testing
+that here: `tools/seeds.js --emit` derives 430 candidates mechanically, and the union with the
+curated 672 is **770 distinct seeds**. Swapping only the seed set, with every other argument
+identical:
+
+```
+672 seeds: 709 functions, 40,927 instructions, 127,205 bytes, 359 conflicts
+770 seeds: 794 functions, 42,053 instructions, 130,703 bytes, 508 conflicts
+```
+
+**85 more functions for 3,498 more bytes.** The conflicts rose from 359 to 508, which is the
+expected cost: more seeds means more chances for two paths to claim the same bytes from
+different offsets, and it is the same trade `docs/guarded-walk-coverage.md` describes.
+
+### The unguarded figures, for comparison
+
+| | unguarded | guarded, 770 seeds |
+|---|---|---|
+| instructions | 655,298 | **42,053** |
+| bytes of code | 1,356,442 | **130,703** |
+| conflicts | 546,743 | **508** |
+| C++ source | 20 MB per translation unit | **8.6 MB total** |
+| compile time | over 8 minutes, not finished | **90 seconds** |
+
+The instruction count is the tell. 42,053 is in the same range as this project's own guarded
+walk (35,644 instructions over 397 seeds, `docs/guarded-walk-coverage.md`), while 655,298 is
+larger than the file can contain. The earlier page's "655,298 instructions" was the same
+overcount that `guarded-walk-coverage.md` already documented as "more code than the file
+contains", and it was still in the recompilation write-up.
+
+**The conflicts are a known class.** 508, concentrated near the start of the image (`0x235`,
+`0x5b9`, `0x7b5`): a target derived from a table that another path decodes from a different
+offset.
 
 ## The output is readable
 
