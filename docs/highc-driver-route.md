@@ -87,7 +87,7 @@ Each of these was an addition to the line above, and each one was wrong:
 The default `CMOS=/data/CMOS.BIN` is correct and needs no flag. **The lesson is not to add
 anything to a documented invocation without a reason.**
 
-## Two tests through the driver, both inconclusive for the same reason
+## Tests through the driver, all inconclusive for the same reason
 
 **Test 1.** An inline callee, so the call was folded:
 
@@ -114,7 +114,7 @@ char f(char c) { int r; r = c; return (char)trap(0x110, 0x46, r); }
 55 8b ec 0f b6 4d 08 51 6a 46 68 10 01 00 00 e8 dc ff ff ff 83 c4 0c c9 c3   f
 ```
 
-**Neither contains a `c8` byte.** Both use `55 8b ec`. That is the fact, and it is the same fact
+**None contains a `c8` byte.** Both use `55 8b ec`. That is the fact, and it is the same fact
 from the real-mode generator and from the optimising driver.
 
 ### Why neither test is a controlled comparison
@@ -145,29 +145,83 @@ are different in half their instructions. **Recording this as evidence about `en
 the same error as the mask-too-narrow bug and the provenance claim: a correct measurement
 applied to the wrong population.**
 
-## What the two tests do establish
+## Test 3: two modules, so the call is genuinely cross-module
+
+```
+E4.C    char trap(char c);
+        char f(char c) { return trap(c); }
+TRAP.C  char trap(char c) { return c + 1; }
+```
+
+`hc386 e4.c trap.c` linked both, confirmed by the map:
+
+```
+Input module(s):
+"E4" from file "e4.obj".
+"TRAP" from file "trap.obj".
+```
+
+Code at `0x200` of the resulting `P3`, which is the compiler's output for this source rather
+than bytes from the game:
+
+```
+55 8b ec ff 75 08 e8 05 00 00 00 83 c4 04 c9 c3    f
+8a 44 24 04 40 c3                                  trap
+```
+
+**Zero `c8`. One `push ebp; mov ebp, esp`.** The callee `trap` is frameless and reads its
+argument off `esp`, so the optimiser is working and the modules are distinct.
+
+### And it is still not like-for-like
+
+```
+target : c8 00 00 00  53  8a 5d 08  b4 46  e8 3d 00 00 00  0f b6 c0  5b  c9 c3
+ours   : 55 8b ec     ff 75 08  e8 05 00 00 00  83 c4 04  c9 c3
+```
+
+The first line is the game's bytes at `0xfe211`. The second is what the compiler produced for
+the source above.
+
+The argument still travels on the stack, pushed and then cleaned by `83 c4 04`. The target
+passes it in `bl` and saves `ebx` itself. **High C has no source construct that puts a
+parameter in a specific register**, so a C source can never produce the target's call site no
+matter how the modules are split. The map also shows both functions merged into one `E4`
+segment, so "two modules" here means two object files, not two code regions.
+
+## What the tests do establish
 
 - The driver route works and is reproducible from the command above.
-- For ordinary C with a normal argument convention, the driver emits `push ebp; mov ebp, esp`.
-- The optimiser engages through this route where it did not through `HCD386.EXE`: the callee
-  `trap` is emitted as `8b 44 24 04 03 44 24 08 03 44 24 0c c3`, frameless and fully
-  register-allocated.
+- For ordinary C with the normal argument convention, the driver emits `push ebp; mov ebp, esp`.
+- The optimiser engages through this route where it did not through `HCD386.EXE`: the callees
+  came out frameless and register-allocated, and both object files linked.
+- **High C has no source construct that places a parameter in a specific register.** That is
+  the reason no C source reaches the target's call site, and it is a property of the language
+  and compiler rather than of any source shape that might still be tried.
 
 ## What it does not establish
 
-That no C source produces `enter`. The test source cannot reproduce the target's call shape,
-so the prologue comparison is uncontrolled.
+That no C source produces `enter`. Three tests agree, but none is controlled, so the honest
+statement is still the weaker one.
 
-## The next test, which would be decisive
+## Why this line of inquiry should now stop
 
-Match the target's **call shape** first, so the only remaining variable is the prologue. That
-means a source where the argument reaches the callee in a byte register, which needs the
-callee to be a real external symbol compiled with an 8-bit convention, or an assembly stub.
-Two `.C` files on the same image is the simplest way to force a real call rather than an
-inline.
+Three attempts in, the pattern is consistent: every C source this compiler accepts pushes its
+arguments, and the target passes one in `bl`. Reproducing the target's call site needs a
+register convention the compiler does not offer, so **the prologue comparison can never be
+made fair by writing more C**. Continuing to vary the source is repeating an angle that has
+failed three times with the same cause, which is the trigger in `docs/overnight-run.md` for
+treating something as a class rather than grinding it.
 
-Until that is done, `docs/enter-not-emittable.md` keeps its scope: the real-mode generator
-does not emit `enter`, and the driver has not been shown to either on a like-for-like source.
+The two readings that remain are the ones `docs/enter-band-boundary.md` lists: the band was
+assembled rather than compiled, or it came from a different release of the toolkit. Neither is
+testable from the disc.
+
+## What would have to be true for a fair test
+
+A callee written in assembly, declaring the register convention, linked against C that calls
+it. That is possible with the kit's assembler, and it is the only route left. It tests whether
+the compiler's *frame* choice changes when the callee's convention is unusual, which is a
+narrower question than the one this inquiry started with and may not be worth building.
 
 ## Related
 
