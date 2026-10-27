@@ -8,7 +8,10 @@ separate question and the answer is no.**
 
 ### Sound filename table, `0x1350` to `0x1472`
 
-14 entries, `Q:\SOUND\<name>.SND`, at a **fixed 20-byte stride**:
+14 entries, `Q:\SOUND\<name>.SND`. **Correction: not a fixed stride.** The addresses below are
+correct and were re-read from the bytes, but they are **4-byte aligned and variable length**,
+not 20 bytes apart: `0x13c8` to `0x13e0` is 24, and `0x1364` to `0x1378` is 20. An earlier
+version of this heading said "fixed 20-byte stride", which the list under it contradicts.
 
 ```
 0x1350  Q:\SOUND\BUMP.SND
@@ -32,7 +35,7 @@ name appears as a literal 54 times in the image, which is how the sound code ind
 
 ### Music filename table, `0x1e68` to `0x1f4c`
 
-`Q:\SOUND\<name>.EUP`, same 20-byte stride, a separate block:
+`Q:\SOUND\<name>.EUP`, the same 4-byte-aligned packing, a separate block:
 
 ```
 0x1e68  Q:\SOUND\MAP.EUP
