@@ -104,7 +104,7 @@ same two turns, so `MAP` counts turns and not position.
 
 **One hit cannot tell a constant from a roll**, and the next hit showed it is a roll. See below.
 
-## Damage varies: 16, then 12
+## Damage varies: five samples, five values
 
 A single observation of 16 was not enough to claim a constant, and the following hit confirmed why.
 The monster hit again between two reads of the same fight:
@@ -113,23 +113,48 @@ The monster hit again between two reads of the same fight:
 |---|---|
 | 178 → 162 | **16** |
 | 162 → 150 | **12** |
+| 150 → 136 | **14** |
 
-So **monster damage is not a constant**. Two samples, 12 and 16, from the same fight and probably
-the same monster. That rules out a fixed 16 and it is the first thing this page can say about the
-form without guessing.
+and an earlier fight in `combat-observed.md` recorded **5** and **15**. So **five samples, values 5,
+12, 14, 15, 16**, every one different. Monster damage is unambiguously a roll, and the spread of the
+three hits in this fight is 12 to 16.
 
-**What a range would have to be to fit two samples is not determined.** Two points are consistent
-with a dice roll, a base plus a small random term, or a value scaled by something that changed
-between the hits (the player's own HP fell from 162 to 150, and STRENGTH or the monster's state
-could also matter). Distinguishing those needs more hits, and would need the monster's identity
-and HP, which this project has not located.
+**What the range is, is not determined.** Five points are consistent with a roll around 12 to 16 with
+the 5 an outlier from another fight, or with a wider distribution the five missed, or with a value
+that scales by something unidentified. The player's own HP fell across these hits and STRENGTH or
+the monster's state could also matter. **Do not read 12 to 16 as the range:** the 5 comes from a
+different fight and a different monster, and nothing here ties the two together.
 
-**The turn accounting held again.** One more turn cost 15 food and moved `MAP` from 83 to 84, both
-consistent with the earlier reads.
+So **monster damage is not a constant.** Five samples from two fights, every one different. That
+rules out a fixed value and is the first thing this page can say about the form without guessing.
 
-**What is now known that was not:** monster damage is variable, at least 12 and 16 occur, the
-player's HP is the field `0xcde81`, and a fight costs the same 15 food per turn as a step. Item 4b
-is still open, but it is open on three measurements rather than on a scan.
+**The turn accounting held again.** Two passes cost 30 food and moved `MAP` from 84 to 86, both
+consistent with every earlier read.
+
+## One attack missed and one hit, and the second monster left no trace
+
+In the same stretch the player passed twice. The first monster attack missed (a parry), the second
+hit for 14. A **second monster was present and could not reach the player**.
+
+**Whether the second monster takes a turn cannot be told from these measurements.** The candidate
+evidence would be extra turn cost, and there is none: two passes cost exactly `2 * 15` food and moved
+`MAP` by exactly 2. A third party taking its own turn would have to make something in that
+accounting move faster, and nothing did.
+
+**That is weak evidence either way.** The turn cost is charged per player action and `MAP` is a
+player-turn counter, so neither is expected to notice a third party. A monster that does nothing
+because it is out of reach would leave no trace in either. **What would settle it** is a monster
+taking an observable action of its own, with a count of how many such actions occur per player turn.
+
+**The object array was not located.** The entity tables at `0xce3c8`, `0xce408` and `0xce488` were read
+from this state and hold **map tile data** (nibbles such as `15 15 17 55 55 55`), not entity records.
+So the monster and its HP cannot be read, and a second monster cannot be found by looking it up. This
+matches `combat-observed.md`, which already records monster HP as unlocated.
+
+**What is now known that was not:** monster damage is variable and all five samples differed, the
+player's HP is the field `0xcde81`, a fight costs the same 15 food per turn as a step, and `MAP`
+counts turns rather than position. Item 4b is still open, but it is open on five measurements rather
+than on a scan.
 
 ## An earlier one-hit kill, for contrast
 
