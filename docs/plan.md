@@ -90,8 +90,9 @@ from the items below rather than maintained separately.
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
-writing it reports four of eleven startable now: 1a, 1b, 2a and 4b, with 4a and 2b held back by item order. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
-had to be assembled by reading nine paragraphs and hoping the prose was current.
+writing it reports eleven of twenty-six startable now, with 2b and 4a held back by item order. That is
+the honest answer to "what can an agent do tonight", and before the tool existed the answer had to be
+assembled by reading nine paragraphs and hoping the prose was current.
 
 The tool is authoritative and this prose is not, because the tool re-reads the items every time and the
 prose does not.
@@ -911,6 +912,14 @@ See [movement-and-wrap.md](movement-and-wrap.md).
 
 This is the skeleton a reimplementation needs and it is mechanical. `docs/call-graph.md` records the
 current fraction.
+
+**Progress, not completion.** Two routines are now named by reading them to their handlers, both from
+the `tools/funtriage.js` ranking: `0xe5854` (text out, `docs/text-encoding.md`) and `0xe5d90` (the
+display context, `docs/display-context.md`). The method that works is `tools/tbios-read.js`, which
+chains a call site through its TBIOS wrapper to the handler in `TBIOS.BIN`. Forty of the ranked
+functions call at least one TBIOS stub, so that is the size of the tractable set; two of forty is
+where this stands. Nothing here counts as satisfying the item, which asks for every routine with
+three or more callers.
 
 ## What is closed and should not be reopened
 
