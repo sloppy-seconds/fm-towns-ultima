@@ -94,6 +94,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Guarded walk coverage](guarded-walk-coverage.md) | The first honest reach figure: 25 seeds reach 28 percent of the code this project believes exists, 397 reach 110,778 bytes. |
 | [Unreferenced extents](unreferenced-extents.md) | 7,788 bytes nothing reached refers to, and the three wrong readings of it before the measurement stood. |
 | [Recompilation result](recompilation-result.md) | 709 functions to 205,189 lines of C++ that compiles and passes its self-test. 98.7 percent of the C-shaped corpus, and why that is not a playable port. |
+| [Three games compared](three-games-compared.md) | No shared engine, 3 percent identical once shared BSS is removed. A shared toolchain, and tooling that opens all three. |
 | [The decompilation experiment](decompilation-experiment.md) | First Level-1 run on real routines. One byte match, one confirmed relocation trigger, and the candidate pool is 103 not 738. |
 | [The decompilation loop](decompilation-loop.md) | The strategy and the Andon Cord, amended where the experiment contradicted it. |
 | [The decompilation plan](decompilation-plan.md) | Running the loop unattended, and the honest ceiling. |

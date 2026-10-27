@@ -191,6 +191,7 @@ nav:
       - Guarded walk coverage: guarded-walk-coverage.md
       - Unreferenced extents: unreferenced-extents.md
       - Recompilation result: recompilation-result.md
+      - Three games compared: three-games-compared.md
       - AGENTS.md audit: agents-md-audit.md
       - Compiler API: compiler-api.md
       - The goal, stated: goal-behavioural-faithfulness.md
