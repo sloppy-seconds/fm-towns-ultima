@@ -110,7 +110,13 @@ function render(b) {
 		const out = [];
 		for (let i = 0; i < b.length; i++) {
 			if (b[i] === 0xeb && i + 1 < b.length) {
-				out.push((b[i + 1] + 1) & 0xff);
+				// TWO RANGES, both measured against known strings. Payloads below 0x60 are ASCII one
+				// below the character (EB 52 -> S, so STRENGTH at 0x1528). Payloads 0x60 and above are
+				// halfwidth katakana at payload + 0x2D (EB 74 -> 0xA1, the halfwidth full stop). The
+				// single +1 rule was wrong for the second range and turned every sentence ending into
+				// a stray 'u'.
+				const p = b[i + 1];
+				out.push(p < 0x60 ? p + 1 : p + 0x2D);
 				i++;
 			} else {
 				out.push(b[i]);

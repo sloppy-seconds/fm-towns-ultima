@@ -88,8 +88,16 @@ buffer.
 
 ## What `0xEB` is: a single-byte ASCII escape
 
-**Resolved.** `EB xx` encodes **the character `xx + 1`**. All other bytes pass through
-unchanged, and the result is Shift-JIS. The two forms coexist inside one string.
+**Resolved, with one range still approximate.** `EB xx` encodes **two different things according
+to the payload**:
+
+| payload | rule | example |
+|---|---|---|
+| below `0x60` | `xx + 1` is an ASCII character | `EB 52` is `S` |
+| `0x60` and above | `xx + 0x2D` is halfwidth katakana | `EB 74` is `｡`, the halfwidth full stop |
+
+All other bytes pass through unchanged, and the result is Shift-JIS. The two forms coexist
+inside one string.
 
 The evidence is a string whose meaning is already known from its plain twin:
 
@@ -145,16 +153,25 @@ an escape to a glyph index, a lead byte, or a marker for gaiji. It is none of th
 
 ### A caveat this does not explain
 
-One string does **not** decode cleanly this way:
+The `+0x2D` rule for payloads at or above `0x60` is right for every sentence ending and wrong
+for at least one string. `0x36cc` contains eight consecutive `EB 91` pairs where `+0x2D` gives
+`ｾ` eight times, and a run of eight of the same character in the middle of text is more likely
+to be padding. No transform tried (`+0x2D`, `+0x41`, `+0x40`, `+0x0B`) makes that run read as
+spaces, so the rule holds for the ends of sentences and is not settled for every payload in
+that range.
+
+One string also does not decode cleanly under either rule:
 
 ```
 0x1474  EB 4F EB 42 EB 4C 20 EB 43 EB 5A EB 6D EB 5A ...
   ->    PCM D[n[ fi[^ _llilu
 ```
 
-`PCM` is right and the rest is not, though `0x149a` renders the same kind of message correctly.
-So either that string is damaged, or the high-value payloads use a second transform. It is
-recorded rather than explained, and it does not affect the hundreds of strings that do decode.
+`PCM` is right and the rest is not, though `0x149a` renders the same kind of message correctly
+as `PCMデ－タのロ－ドに失敗しました`. Recorded rather than explained.
+
+Both are recorded as open. What is not open is the direction: payloads below `0x60` are ASCII
+one below the character, which is confirmed by six independent labels.
 
 ### What this unlocks
 
