@@ -200,6 +200,7 @@ nav:
       - Developing mechanics quickly: developing-mechanics-quickly.md
       - TBIOS thunks: tbios-thunks.md
       - ScummVM and FM Towns: scummvm-fmtowns.md
+      - The first ranked function: first-ranked-function.md
       - AGENTS.md audit: agents-md-audit.md
       - Compiler API: compiler-api.md
       - The goal, stated: goal-behavioural-faithfulness.md

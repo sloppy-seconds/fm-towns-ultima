@@ -103,6 +103,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Developing mechanics quickly](developing-mechanics-quickly.md) | 709 functions and none named. Why reading one routine at a time cannot scale, and the one index that would. |
 | [TBIOS thunks](tbios-thunks.md) | 70 named system-call stubs at 0x2d1, one per TBIOS function the game uses, and the table in TBIOS.BIN that resolves every AH value to a handler. |
 | [ScummVM and FM Towns](scummvm-fmtowns.md) | What the clone contains and what it does not. No gfx_fmtowns.cpp, no Ultima II engine, and why the cross-reference method cannot work. |
+| [The first ranked function](first-ranked-function.md) | 0xe5d90, a graphics mode initialiser: six TBIOS calls, a 1,536-byte context, and what the ranking bought. |
 | [The decompilation experiment](decompilation-experiment.md) | First Level-1 run on real routines. One byte match, one confirmed relocation trigger, and the candidate pool is 103 not 738. |
 | [The decompilation loop](decompilation-loop.md) | The strategy and the Andon Cord, amended where the experiment contradicted it. |
 | [The decompilation plan](decompilation-plan.md) | Running the loop unattended, and the honest ceiling. |

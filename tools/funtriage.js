@@ -85,7 +85,13 @@ function thunks(exe) {
 		for (let p = ahSite - 1; p >= Math.max(0, ahSite - 40); p--) {
 			if (exe[p] === 0xc3) { start = p + 1; break; }
 		}
-		while (start < ahSite && (exe[start] === 0x90 || exe[start] === 0x66)) start++;
+		while (start < ahSite && (exe[start] === 0x90 || exe[start] === 0x66 || exe[start] === 0x00)) start++;
+		// A CREDIBLE ENTRY BEGINS WITH A PROLOGUE INSTRUCTION: push (56/57) or a mov from memory
+		// (8b). 13 of the 70 entries failed that and were landing mid-instruction, which made
+		// unrelated jump targets look like TBIOS calls: 0xe5d90 was credited with AH 0x15, 0x16 and
+		// 0x17 that its body never calls. Only entries that pass are kept.
+		const c = exe[start];
+		if (c !== 0x56 && c !== 0x57 && c !== 0x8b) continue;
 		out.set(start, exe[ahSite + 1]);
 	}
 	return out;
