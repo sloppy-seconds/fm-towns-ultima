@@ -246,10 +246,60 @@ ef69d  mov [0xd4a50], ebx        ; mirrored copy
 **Note the mirrored copies at `0xd4a4c` and `0xd4a50`.** The position is stored twice, one copy in
 the roster record and one in a global pair, and both are written on every successful step.
 
+## The step cost, measured in the running game
+
+**One step costs 15 food, and one arrow key moves one square in that direction.** Measured
+live, three consecutive steps on the overworld with the character record read before and
+after each:
+
+```
+start      X=19 Y=20 FOOD=39940
+after Left  X=18 Y=20 FOOD=39925  (dX=-1 dY=+0 dFOOD=-15)
+after Up    X=18 Y=19 FOOD=39910  (dX=+0 dY=-1 dFOOD=-15)
+after Right X=19 Y=19 FOOD=39895  (dX=+1 dY=+0 dFOOD=-15)
+```
+
+Read with the emulator console, which takes a DS-relative offset. **DS's base is the image
+base**, so a file address is also the DS offset: `MD 14:cdf6b 140` reads the player record
+without any arithmetic. The record layout and every address is in
+[live-fieldmap.md](live-fieldmap.md), which derived them first; this section adds only the cost
+measurement.
+
+**Pause first.** `live-fieldmap.md` records that without `PAU` the record flips between its
+loaded contents and `FF` fill about one sample in six, because the game re-reads it
+continuously. The three steps above were measured unpaused and were consistent, then
+re-checked under `PAU` and matched exactly, so the numbers stand. Pausing first is still the
+right order.
+
+| field | address | value at the start of this run |
+|---|---|---|
+| X | `0xcdf6b` | 19 |
+| Y | `0xcdf6f` | 20 |
+| FOOD | `0xcde8d` | 39,955, then 39,940 |
+| HP | `0xcde81` | 400 |
+| max HP | `0xcde85` | 400 |
+| GOLD | `0xcde91` | 400 |
+
+**Only FOOD changed.** HP, max HP and GOLD were identical before and after every step, so the
+step cost is charged to food alone and not to any other visible counter.
+
+**The 15 is not yet explained.** It is constant across three steps in three directions on what
+may be open terrain. Whether it is per-step, per-terrain, or a sum of a base and a terrain
+cost is not settled: the three steps were all on the same screen without entering anything.
+The way to settle it is to walk onto different terrain types and compare, which has not been
+done.
+
+**A west then east step returns the coordinates exactly.** They read 20,20 before and 20,20
+after, which is the correct result and was briefly mistaken for a failure to move before the
+single-direction case was run.
+
 ## What is still not read
 
-**The food and turn counters.** Not found in this routine and not searched for yet. They belong to
-whatever drives the turn, which is plan item 1b and is `BLOCKED ON INPUT`.
+**The turn counter.** The food decrement is now measured but the turn counter is not found, and
+nothing in the three steps above distinguished "per step" from "per turn". It belongs to
+whatever drives the turn, which is plan item 1b.
+
+**Whether the 15 varies by terrain.** See above.
 
 **The direction numbering.** The four cases give deltas but the mapping from arrow keys to
 direction 1..4 was not confirmed here. `docs/bot-build.md` records that a west step moved
