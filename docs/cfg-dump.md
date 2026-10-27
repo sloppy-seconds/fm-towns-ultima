@@ -51,23 +51,41 @@ A busy loop costs one entry with a high count rather than one entry per iteratio
 real program stays small. The hook runs once per instruction, in the same function that already
 increments `instHist[opCode]`, so the added cost is one map lookup.
 
-## What was built and what was not
+## Build and verification
 
-**Both changed translation units compile clean:**
+The clone carries a `Containerfile`, added on the same branch, because `Tsugaru_CUI` links
+`fssimplewindow_connection`, which pulls `<GL/gl.h>` and `<X11/Xlib.h>`. The CUI never opens a
+window, but the link dependency is there regardless.
+
+The package list is the one upstream CI already uses for `build-linux` in
+`.github/workflows/autorelease.yml`: `mesa-common-dev`, `libglu1-mesa-dev`, `libasound2-dev`. The
+X11 development packages are added explicitly because the GitHub runner image happens to ship them
+and this image should not depend on that.
 
 ```
-cpu/CMakeFiles/cpu.dir/i486debug.cpp.o                 148,016 bytes
-main_cui/command/CMakeFiles/townscommand.dir/townscommand.cpp.o   691,664 bytes
+podman build -t tsugaru-build -f Containerfile .
+podman run --rm -v "$PWD:/src:z" tsugaru-build
 ```
 
-**The full binary was not built here.** `Tsugaru_CUI` links `fssimplewindow_connection`, which
-pulls `GL/gl.h` and `X11/Xlib.h`. This host has neither, `mesa-libGL-devel` and `libX11-devel` are
-not installed, and installing them needs sudo. The CUI never opens a window, but the link
-dependency is there regardless.
+**Verified: it builds and the commands are in the binary.**
 
-So the claim on this page is **"it compiles"**, tested per translation unit, and not **"it runs"**.
-Do not upgrade that claim without building the executable somewhere that has the GL and X11
-headers.
+```
+[100%] Built target Tsugaru_CUI
+-rwxr-xr-x. 3641640 build/main_cui/Tsugaru_CUI
+
+$ strings build/main_cui/Tsugaru_CUI | grep -E 'CFGSTART|CFGSTOP|SAVECFG'
+CFGSTART
+CFGSTOP
+SAVECFG
+```
+
+So `CFGSTART`, `CFGSTOP` and `SAVECFG` are present in a shipped executable along with their help
+text, and this is no longer the "compiles but was never linked" claim an earlier version of this
+page made.
+
+**Still not run.** Nothing has been fed a game and asked for a graph. The next step is to start
+that binary with the disc, `CFGSTART`, play a few turns, `CFGSTOP` and `SAVECFG`, and see whether
+the edge counts make sense. That is a different kind of check from a build and it is not done.
 
 ## Why this instead of reading `SAVEHIST`
 
