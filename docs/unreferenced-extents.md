@@ -75,3 +75,24 @@ The honest summary is that this is a small, closed question worth about 8 KB, an
 attempts to answer it from byte statistics alone failed. That is the same lesson as
 [fmtownskit-and-seeds.md](fmtownskit-and-seeds.md): a shape that is plausible under one reading
 tells you nothing until an independent measurement rules the other readings out.
+
+## How this gets answered, and it is not by measuring it again
+
+These become known when code that touches them is read, not before. A reference gives the shape,
+and the shape names the object: an indexed `lea` fixes the element width from its scale, a `push`
+makes it an argument, a byte write makes it a field, and reading the callee says what happens next.
+That is exactly how the player record at `0xcdf6b` became known, and it is the opposite of what
+was attempted here.
+
+So the reopening condition is concrete: **when the walk reaches a function that references one of
+these addresses, run `x86map --refs` on it.** Until then there is nothing further to learn from
+the bytes, and the extents should not be re-measured, re-clustered or re-guessed.
+
+A second, weaker route exists and is worth naming so it is not mistaken for the first. If the seed
+set grows to reach new code, these extents may stop being unreferenced without any of them being
+read, which would answer the question the other way: it was missed code all along. Re-running the
+sweep after a seed change costs one command and would show that.
+
+The two-instance pair, `0xd82b6` and `0xd8b6e` at 325 bytes with 101 non-zero each, is the first
+thing to test if a reference ever appears: identical sizes and densities should mean identical
+structures, and a reference to one should explain both.
