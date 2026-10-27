@@ -194,6 +194,7 @@ nav:
       - Three games compared: three-games-compared.md
       - Seed sets: seed-sets.md
       - The wrap found: movement-wrap-found.md
+      - The seed gap that was not there: jmp-seed-gap-negative.md
       - AGENTS.md audit: agents-md-audit.md
       - Compiler API: compiler-api.md
       - The goal, stated: goal-behavioural-faithfulness.md
