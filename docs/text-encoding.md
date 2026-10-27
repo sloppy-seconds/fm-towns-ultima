@@ -272,3 +272,88 @@ pixels. It does not: **it hands a pointer to TBIOS and TBIOS renders.** So:
 | text attributes | four, dispatched through `TBIOS.BIN 0xfad0` |
 | pixel handling | a `not` cascade over a byte count, so a plain bitmap inverted on merge |
 | glyph storage | **not located**. The search now follows the struct built in `0xe6eb0` |
+
+
+## The text is Shift-JIS after all, and `0xEB` is a lead byte
+
+`0xe6eb0`'s character loop contains the textbook Shift-JIS test, and it refutes the escape theory
+recorded above:
+
+```
+0xe6f35  mov al,[edi]
+0xe6f37  cmp al,0x81 ; jb ...        ; below 0x81 is single-byte
+0xe6f3b  cmp al,0x9f ; jbe 0xe6f4d   ; 0x81..0x9F: a Shift-JIS lead byte
+0xe6f41  cmp al,0xe0 ; jb ...
+0xe6f49  cmp al,0xfc ; ja ...        ; 0xE0..0xFC: the second lead range
+0xe6f4d  mov al,[edi+1]
+0xe6f50  cmp al,0x40 ; jb ...
+0xe6f54  cmp al,0x7e ; jbe 0xe6f63   ; trail byte 0x40..0x7E
+0xe6f5b  cmp al,0x80 ; jb ...
+0xe6f5f  cmp al,0xfc ; ja ...        ; or 0x80..0xFC
+```
+
+Those are Shift-JIS's lead and trail ranges exactly. **`0xEB` is inside `0xE0`-`0xFC`**, so the
+`EB 42` pairs in the strings are two-byte Shift-JIS characters and not an escape plus a font code.
+
+**The earlier "font character code" reading was wrong in form and right in substance.** The bytes
+are Shift-JIS structured, and they are also not standard Shift-JIS: every `0xEB xx` pair in
+`0x42dc` is accepted by the game's test and **rejected by a standard Shift-JIS decoder**.
+
+```
+EB42 REJECT    EB5A REJECT    EB67 REJECT    EB5C REJECT
+EB5E REJECT    EB65 REJECT    EB5E REJECT    EB5D REJECT
+```
+
+That is the definition of **gaiji**, user-defined characters: valid Shift-JIS lead and trail ranges,
+codes the standard leaves unassigned, glyphs supplied by the program. Which is what `GAIJI2.COM`
+is for, and why its name is not a coincidence.
+
+So the position is sharper than before. The encoding is Shift-JIS with a gaiji block, and the *glyphs*
+for that block are installed by the game or by the Fujitsu driver, and **the code is not a font
+index and not plain ASCII either**.
+
+## The complete text path
+
+```
+0xe6eb0  the layout engine
+  0xe6ebf..0xe6ec8   select the text window record: 0x7aee4 + n * 55
+  0xe6ede..0xe6ef2   compute x = window.x + 4 + cursor * 8
+  0xe6eed..0xe6f03   compute y = window.y + 0x11 + row * 16
+  0xe6f25..         take one character, testing for Shift-JIS lead and trail
+  0xe6f90           a 0x0A advances the line, a 0x00 ends the string
+  0xe6fc4           width = the number of bytes consumed
+  0xe6fcb..0xe6fd5  call the draw: the struct at 0xcda78 plus the context
+  0xe6fe2           advance the cursor, and when the row is full call 0xe6dc8
+```
+
+`0xe6dc8` is the line-full handler and it **fills a background rectangle**:
+
+```
+0xe6df1  mov [0x7add8], ax     ; x1 = window.x + 2
+0xe6e02  mov [0x7adda], ax     ; y1 = window.y + 2
+0xe6e1a  mov [0x7addc], ax     ; x2 = window.x + width - 3
+0xe6e32  mov [0x7adde], ax     ; y2 = window.y + height - 3
+0xe6e48  call 0x8b6            ; TBIOS AH 0x2b, a rectangle primitive
+```
+
+## The rectangle retraction, itself retracted
+
+[recompilation-conflicts.md](recompilation-conflicts.md) recorded a correction saying `0x7add8` was
+"not established to be a rectangle". **It is one.** It is written at `0xe6df1` through `0xe6e32`
+from the window origin and size, with 2 added to the near edges and 3 subtracted from the far ones,
+and then passed to a TBIOS rectangle call.
+
+The earlier retraction was based on the AH 0x46 handler, which turned out to be a different routine
+reaching the same struct. Two callers, two purposes, one buffer.
+
+## Status
+
+| | |
+|---|---|
+| character cell | **8 by 16 pixels** |
+| encoding | **Shift-JIS**, tested at `0xe6f35` |
+| draw call | `0xe6fd5` -> `0xc7d` -> TBIOS **AH 0x60** |
+| background fill | `0xe6e48` -> `0x8b6` -> TBIOS **AH 0x2b**, rectangle `0x7add8` |
+| text window | 55-byte record at `0x7aee4 + n * 55` |
+| encoding, precisely | Shift-JIS with a **gaiji block**: `0xEB xx` pairs are valid by the game's test and rejected by a standard decoder |
+| glyph table | a **gaiji** definition, not a full font; supplied by `GAIJI2.COM` or the TBIOS font module |
