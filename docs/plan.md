@@ -797,24 +797,40 @@ a measurement of allocation itself, which is a weaker footing than the modifier 
 **Full write-up, including the invented premise this pass corrected:**
 [creation-pass.md](creation-pass.md).
 
-### 5b. Overworld movement and the torus wrap
+### 5b. Overworld movement, the step rule and the sector boundary
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | runs unattended |
-| done when | the step rule, the blocking test, the food and turn counters, and the wrap arithmetic at the map edges are stated, or the wrap is shown to be a lookup rather than arithmetic |
+| autonomy | runs unattended; every open question here is a static one. No new play sessions are needed unless a specific static question cannot be settled |
+| done when | the routine that bounds `PLAYER_X` at 63 and changes the map id is named, the step rule and the blocking test are stated, and the viewport mapping from the 256 by 128 sector buffer to the 11 by 11 display is stated as arithmetic. Or each is shown to be unreachable statically, with the reason |
 | blocked by | nothing |
 
-**Partial, read this session.** The wrap is arithmetic on a **16 by 16** grid: `0xef5b4` adds a
-direction delta to `MAP_X`/`MAP_Y` and corrects by `+/- 0x10` when the result leaves `0..15`. The
-collision test is a call to `0xfb41c`, which indexes a cell table by `(x << 8) + (y << 4)`.
-Both routines are now in the register.
+**Corrected.** An earlier revision of this item said the wrap was arithmetic on a 16 by 16 grid. That
+was wrong, and it contradicted what `docs/bot-plan.md` had already planned around. The `cmp 0xf` at
+`0xef5b4` bounds a 16-wide **cell table**, not the world.
 
-**Still open:** the food and turn counters (they belong to the turn, item 1b), the mapping from
-arrow keys to direction 1..4, and the jump table at `0xef3d0` whose entries do not read as code
-addresses. See [movement-and-wrap.md](movement-and-wrap.md).
+**What is established:** `PLAYER_X` (`0xcdf6b`) bounds at **63**, and one step west from 0 gives 63
+with the map id (`0xcdf53`) changing 41 to 42. The sector is **256 by 128 cells** of one byte each,
+32,768 bytes, per `docs/map-geometry.md`. The collision test is `0xfb41c`, which indexes a 16-byte
+cell table with `(x << 8) + (y << 4)`.
+
+**The open questions, all static:**
+
+- **which routine bounds `PLAYER_X` at 63 and writes the map id.** `0xef5b4` provably is not it,
+since it contains no `0x3f` or `0x40` immediate anywhere. This is the main gap.
+- **what `MAP_X`/`MAP_Y` (`0xcdf63`/`0xcdf67`) are**, given that `PLAYER_X`/`PLAYER_Y` four bytes
+later are what move on a step. Their writer has not been found.
+- **how the 11 by 11 viewport is derived from a 256 by 128 buffer.** The two are not one-to-one.
+- **the food and turn counters**, which belong to the turn and to item 1b.
+
+**Method note.** The tempting next step is `bot-plan.md` P4, a savestate shape-match hunt for the
+sector buffer's live address. That is the last resort, not the first: it derives a rule from watching
+play. Every question above is answerable from the code, so it is attempted statically first. P4 stays
+available for the buffer address if static work cannot pin it.
+
+See [movement-and-wrap.md](movement-and-wrap.md).
 
 ### 5c. Time gates and the four epochs
 
