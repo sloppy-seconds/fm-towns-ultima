@@ -116,6 +116,34 @@ And stripping it does not work either:
 
 `OBL CZmZ eh` contains word-shaped fragments and reads as neither Japanese nor English.
 
+## Two further readings, and what they rule out
+
+The payload byte after each `0xEB` ranges over `0x42` to `0x68` in the samples read, and seven
+distinct values appear in one eight-character run. Two arithmetic transforms were then tried
+against the known text, and both produce halfwidth katakana rather than nonsense, which is the
+first evidence that the payload really is a character code rather than a glyph index.
+
+**`payload + 0x80`.** For `EB 4F EB 42 EB 4C` this gives `ｦd`'s neighbours `0xCF 0xC2 0xCC`,
+which decode as `ﾏﾂﾌ`. That reads as "matsufu", a plausible romanisation, and the first three
+characters of the run come out sensible. It fails on payloads above `0x5F`: `0x6D + 0x80` is
+`0xED`, outside the halfwidth range `0xA1` to `0xDF`.
+
+**`payload | 0x80` below `0x60`, `payload + 0x40` above.** This keeps every byte in range, since
+`0x65 + 0x40` is `0xA5`. It yields `ﾏﾂﾌ ﾃﾚｭﾚ ･ｨﾚﾝ ﾞｫ` for the same run, which is all valid
+halfwidth katakana and still not a word.
+
+So the payload is **in the right range to be a halfwidth katakana code with a two-part
+transform**, and neither transform tried recovers readable text. That narrows the problem from
+"unknown encoding" to "known family, wrong arithmetic", which is a better position than before
+and is where this stops for now.
+
+**What is needed to settle it.** A single message present in both forms, so the mapping can be
+read off rather than guessed. The run at `0x85fe` and the run at `0xd2158` are *similar but not
+the same text*: they differ at the second payload (`0x61` against `0x62`) and in their spacing
+(`0x20` literal in one, `0x81 0x40` in the other), so they are two different strings and cannot
+be aligned. Finding one string that exists in both encodings is the next step, and it is a
+search rather than a reading.
+
 ## The contradiction, which is the next thing to read
 
 **`0xe6eb0` tests Shift-JIS lead and trail ranges** and is fed this `0xEB` stream. Both cannot be
