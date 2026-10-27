@@ -913,14 +913,24 @@ See [movement-and-wrap.md](movement-and-wrap.md).
 This is the skeleton a reimplementation needs and it is mechanical. `docs/call-graph.md` records the
 current fraction.
 
-**Progress, not completion.** Six routines are now named by reading them to their handlers, all from
-the `tools/funtriage.js` ranking: `0xe5854` (text out, `docs/text-encoding.md`), `0xe5d90` (the
-display context, `docs/display-context.md`), and the four-routine rectangle cluster `0xe5ff4`,
-`0xe6058`, `0xe60d0` and `0xe74ac` (`docs/rectangle-cluster.md`). The method that works is
-`tools/tbios-read.js`, which chains a call site through its TBIOS wrapper to the handler in
-`TBIOS.BIN`. Forty of the ranked functions call at least one TBIOS stub, so that is the size of the
-tractable set; six of forty is where this stands. Nothing here counts as satisfying the item, which
-asks for every routine with three or more callers.
+**Progress, not completion.** Eleven routines are now named. The first six came from reading them
+to their TBIOS handlers via `tools/tbios-read.js`: `0xe5854` (text out,
+`docs/text-encoding.md`), `0xe5d90` (the display context, `docs/display-context.md`), and the
+four-routine rectangle cluster `0xe5ff4`, `0xe6058`, `0xe60d0` and `0xe74ac`
+(`docs/rectangle-cluster.md`). Five more came from strings once `tools/fnstrings.js` was fixed
+and `0xEB` was solved: `0xeb374` (save and load), `0xebb90` (roster items), `0xe22f4` (sound
+effects) and the eleven further routines the sweep grouped by handler (`docs/drawing-clusters.md`,
+`docs/six-named-routines.md`).
+
+**Two gates now carry more of this than the prose does.** `tools/triagesweep.js` groups all 41
+TBIOS-calling routines by shared handler, so the clusters find themselves rather than being
+noticed one at a time. And `0xEB` being solved means the 539 strings that were previously
+unreadable now render, which unblocks naming every routine that references them.
+
+Nothing here counts as satisfying the item, which asks for every routine with three or more
+callers. The instrument that will finish it is `tools/fnstrings.js --top`, now that it reports
+correct addresses and readable text, and the remaining limit is the part of `0xEB` still
+unsettled rather than the tooling.
 
 The cluster was worth more than four separate names. Reading them together produced the drawing
 primitives a reimplementation needs, the screen geometry `0..639` by `0x18..0x1a7`, and a
