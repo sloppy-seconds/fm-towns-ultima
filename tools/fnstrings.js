@@ -31,8 +31,17 @@ const ROOT = path.join(__dirname, '..');
 const HEADER = 0x20;
 
 function loadImage() {
+	// DO NOT SLICE THE HEADER. This function used to return `fs.readFileSync(...).slice(HEADER)`, which
+	// made every address it reported wrong by 0x20: it computed call targets in stripped coordinates
+	// but printed them as if they were raw, so `--top` named 0xebb70 as the routine holding the ROSTER
+	// strings when the real function start is 0xebb90, and 0xe5d90 (display_init, a function this
+	// project reads by hand) was reported as "not a known function start".
+	//
+	// This is the two-frames bug docs/two-frames-of-reference.md documents, still live here. For an MP
+	// the image is the WHOLE FILE and file offset == virtual address, so there is nothing to strip.
+	// A caller that needs a different frame must say so, rather than have one silently applied.
 	const local = path.join(ROOT, 'ENCHANT.EXP');
-	if (fs.existsSync(local)) return fs.readFileSync(local).slice(HEADER);
+	if (fs.existsSync(local)) return fs.readFileSync(local);
 	const disc = defaultDisc(ROOT);
 	if (!disc) throw new Error('no ENCHANT.EXP and no disc image found');
 	const d = new Disc(disc);

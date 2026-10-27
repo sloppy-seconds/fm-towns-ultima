@@ -421,6 +421,16 @@ const runNode = (script, args = []) => {
 	// exited 0.
 	const dr = runNode('tbios-read.js', ['--check']);
 	record('display context and rectangle cluster', dr.ok ? [] : dr.out.split('\n').filter((l) => /FAIL/.test(l)));
+
+	// J. The address frame. tools/fnstrings.js used to slice the 0x20 header and then report
+	// stripped addresses as raw, so every routine it named was wrong by 32: it called 0xebb70 a
+	// function start when the real one is 0xebb90, and it rejected 0xe5d90, a function this
+	// project reads by hand. That is the two-frames bug docs/two-frames-of-reference.md documents.
+	// Asserted on a routine whose span is independently known from display-context.md.
+	const fs2 = runNode('fnstrings.js', ['0xe5d90']);
+	const spanOk = /^0xe5d90\.\.0xe5e6c/.test((fs2.out || '').trim());
+	record('fnstrings reports raw addresses', spanOk ? [] :
+		['0xe5d90 should span to 0xe5e6c, got: ' + String(fs2.out || '').split('\n')[0]]);
 }
 
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
