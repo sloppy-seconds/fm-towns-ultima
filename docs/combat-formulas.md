@@ -138,36 +138,42 @@ rules out a fixed value and is the first thing this page can say about the form 
 The player used `T` against a monster and moved south. The monster answered **"Eat death scum!"**
 and attacked for **16**, taking HP from 122 to 106.
 
-**Two things follow, both negative on the static side.**
+**The search was unsound, and that is the finding. The phrase must exist.**
 
-- **The phrase is not in `ENCHANT.EXP`.** It was searched for as plain ASCII in the cases
-  `Eat death`, `eat death`, `EAT DEATH`, `death scum`, `scum`, `Scum` and `SCUM`, and as an
-  `0xEB`-escaped string, and every search returned nothing. So either the text is generated, or it
-  is stored somewhere other than the executable, or what the player read is not what the string
-  contains verbatim.
-- **A negative on the obvious route.** A taunt specific to being spoken to is data, and data with
-  no match in the binary is not addressable by the methods used here.
+A 1990 Origins port does not generate dialogue, so if the text is on screen it is bytes somewhere.
+Every search below therefore failed to *find* it rather than showing it does not exist, and the
+wording of the earlier version of this section said the latter. That was wrong and is corrected
+here.
 
-### The search widened to every asset, and still found nothing
+**Why the searches were unsound.** The `0xEB` encoding is only verified for payloads below `0x60`,
+which is the range the `STRENGTH`-style labels use. For payloads at or above `0x60` the rule is
+approximate and `docs/text-encoding.md` says so. That is not a detail: decoding the `0xEB` runs in
+`ENCHANT.EXP` with the documented rule renders strings as `_llilu`, `msmn_g` and `l_[^su`, which
+is not text. Those are real game strings and the decoder cannot read them.
 
-The first search covered only the executable. It was then repeated over **all 80 files** in the
-project: `ENCHANT.EXP`, `TBIOS.BIN`, and every extracted asset under `extracted/` (79 files,
-including the 63 decoded PNGs, the WAVs and the manifests). Each was searched for `death` and
-`scum` case-insensitively and in the `0xEB`-escaped form.
+So any search for an `0xEB`-encoded phrase using that transform was searching for the wrong bytes
+whenever the phrase contains a payload at or above `0x60`. A negative from such a search carries no
+information about whether the phrase is present.
 
-**Zero hits in all 80 files.**
+**What the searches did establish, and it is narrower than claimed:**
 
-The control matters more than the result here, because a negative is only worth as much as the
-method. The same scan finds `lingual` once, `roster` seven times, `gold=` once and `kill` twice in
-`ENCHANT.EXP`, and the executable holds 340 printable runs including the full English command list
-(`A)ttack  J)ump   S)teal`, `H)yper   Q)uit&save`). So the search works, the game's English is
-reachable by it, and these two words are genuinely absent.
+| scope | searched for | result |
+|---|---|---|
+| `ENCHANT.EXP` | plain ASCII, `Eat`/`death`/`scum` in all cases | none |
+| `TBIOS.BIN` | the same | none |
+| 79 extracted assets | the same | none |
+| **all 140 disc files** | the same | `scum` nowhere; `death` only in `EXODUS.EXP`, which is Ultima III |
 
-**What that leaves.** The phrase is either generated at runtime from parts, or held in a region
-neither the executable nor the savestate exposes in a decodable form. Note that `tools/findmem.py`
-searches live RAM, sprite RAM and VRAM and is committed **unverified**, because its hits could not
-be read back; see the tool's header. Until that is resolved, the wording stays open and the rule
-stays recorded.
+The plain-ASCII half of that is trustworthy: the same scan finds `LINGUAL` once, `ROSTER` six
+times, `GOLD=` once and `MONSTER` once in `ENCHANT.EXP`, so it works. **The phrase is not stored as
+plain ASCII anywhere on the disc.** The `0xEB` half proves nothing, for the reason above.
+
+**What that leaves.** The phrase is `0xEB`-encoded, and the `0xEB` decoder is incomplete for
+payloads at or above `0x60`. Finding it requires fixing the decoder first. Generating runtime
+dialogue is not a plausible explanation for a game of this vintage and is no longer offered as one.
+
+`tools/findmem.py` searches live RAM, sprite RAM and VRAM and is committed **unverified**, because
+its hits could not be read back; see the tool's header. It does not close this either.
 
 **What is established:** talking does not prevent the monster acting, and the reply is
 monster-specific rather than a generic refusal. That is a rule the game applies and it belongs in
