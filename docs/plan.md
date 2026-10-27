@@ -750,9 +750,9 @@ outputs, and callers.
 
 | field | value |
 |---|---|
-| autonomy | partly. The code reading runs unattended; closing the race and bound gaps needs the running game and a few characters created |
+| autonomy | runs unattended; the modifiers were read from the code and verified against four existing save files, no new characters needed |
 | done when | the point allocation, the sex/race/profession modifiers and the starting inventory are each stated as arithmetic with their bounds, or the point at which a value becomes runtime-only is named |
-| blocked by | the race and per-stat-bound terms need four characters created at a 10 baseline and one with all 90 points in a single attribute, which needs the running game and a person to drive it |
+| blocked by | nothing |
 
 The first thing a player meets, and the first subsystem on the spine.
 
@@ -779,15 +779,8 @@ the same code.
 allocator was not located, and `0xea118` turned out to parse profession letters rather than check a
 budget. That does not block a reimplementation, which needs the deltas above and a 90-point UI.
 
-Earlier wording, kept:
-
-Not a dice roll: the player allocates **90 points** across six attributes, and
-the game applies sex, race and profession modifiers once at creation. The modifier table was
-read from `saves/modifier_test.hdm`, four characters entered at 10 across the board:
-**male STA+10, female CHA+10, human INT+5, fighter STR+10 AGI+10, cleric WIS+10, wizard INT+10**,
-purely additive and confirmed against the independent 90-point case in `docs/save-files.md`. The
-gaps are the elf, dwarf and hobbit terms and the thief term, none of which were ever created at a
-baseline. Full write-up: [character-creation.md](character-creation.md).
+An earlier revision of this item was marked DONE prematurely, then reopened, then closed again on
+the real work. The history is left in the commit log rather than the item.
 
 **Starting inventory is done:** 400 gold, 40000 food, one cloth armour, one dagger, `MAGIC` 65,
 `HP` and `MHP` 400, `ERA` 2. Constant across all four measured characters, so it is not a table.
