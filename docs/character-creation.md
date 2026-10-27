@@ -78,6 +78,26 @@ fighter. Every one carries the same items and the same money:
 **So a wizard starts with the same cloth and dagger as a fighter.** The kit is a constant, not a
 per-profession table, which is worth knowing because the obvious assumption is the opposite.
 
+**No magic item is in the starting kit.** `WAND`, `STAFF`, `RING` and `GEM` are all zero for every
+one of the four measured characters, including the wizard:
+
+```
+F  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
+C  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
+W  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
+F  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
+```
+
+**What `MAGIC=65` is, and whether a wand or staff is needed to cast, is not established.** Two
+readings, neither verified:
+
+- `MAGIC` is a pool of spell power, and no implement is required.
+- a wand or staff must be obtained, and `MAGIC` gates what can be cast.
+
+`docs/hp-and-damage.md` records that the game shows **no mana or magic counter**, which counts
+against the first reading but does not settle it. Someone who has played a wizard far enough to
+cast could answer this in one sentence, and that is the cheapest way to close it.
+
 Thief was not measured, and neither was any non-human race, so those two cases remain open.
 
 `docs/equipment-thresholds.md` records the published minimums, that strength gates armour and
