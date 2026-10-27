@@ -115,3 +115,39 @@ for (let i=0;i<b.length-16;i++)
 ```
 
 That is the 70, and `grep -c` on the output gives the count above.
+
+## The table behind the AH values, found in `TBIOS.BIN`
+
+The AH numbers are now resolved to handlers. The chain, each link read from a file:
+
+```
+the game's thunk          mov ah,0x46 ... call fs:[0x20]
+  fs:[0x20]               selector 0x110, offset 0x280
+                          (the header's u32 at offset 0x20)
+the dispatcher at 0x280   movzx edi, ah
+                          call dword ptr cs:[edi*4 + 0x2b4]
+the table at 0x2b4        u32 per AH value: the handler's offset in TBIOS.BIN
+```
+
+`TBIOS.BIN` is 81,920 bytes, signature `V31L22A`, dated `89/10/25`, modules `towns` and `tbios`.
+`fmtownskit`'s `tbiosld.py` documents this layout for the modular variant used by other games,
+while the first two discs carry TBIOS as one file, which is this one.
+
+**The table has 220 non-zero entries over the full AH space, and every one of the 69 AH values the
+game uses resolves.** Above AH `0x66` the entries are not all file offsets: the largest is
+`0xff212444`, far outside an 81,920-byte file. So the table is only a dispatch table over the range
+the game uses, and no claim is made about the rest.
+
+Within `0x00` to `0x66` every non-zero entry is an offset inside the file, maximum `0x34fc`, and
+the 34 zeros are exactly the gaps the game's thunks skip: `0x1c`-`0x1f`, `0x30`-`0x3f`, `0x52`-`0x5f`.
+
+## What this still does not give
+
+**A name.** The table says AH `0x46` dispatches to `0x2d78` in `TBIOS.BIN`. It does not say that
+handler draws a rectangle. Two routes to a name remain: read the handler, or find Fujitsu's
+documentation of the TBIOS call set. The first is static work of the kind this project does, and
+the second may not exist in the archive.
+
+`tools/tbios.js` prints the mapping, `--game` restricts it to the 69 values the game uses, and
+`--check` asserts every link, including the two that are easy to get wrong: the header slot and the
+dispatcher's `call cs:[edi*4 + 0x2b4]`, whose opcode is `FF /2` (`call`) and not `FF /4` (`jmp`).

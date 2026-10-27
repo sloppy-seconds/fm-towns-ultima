@@ -405,6 +405,12 @@ const runNode = (script, args = []) => {
 	// result against the recorded runs.
 	const zr = runNode('codelimits.js', ['--check']);
 	record('zero regions match the docs', zr.ok ? [] : zr.out.split('\n').filter((l) => /FAIL/.test(l)));
+
+	// H. The TBIOS dispatch chain. tools/tbios.js maps each AH value the game uses to its handler in
+	// TBIOS.BIN, through the header slot, the dispatcher and the table at 0x2b4. Every link is
+	// asserted against the bytes; a corrupt table entry was tested and the check fails.
+	const tb = runNode('tbios.js', ['--check']);
+	record('TBIOS dispatch chain', tb.ok ? [] : tb.out.split('\n').filter((l) => l.trim() && !/^ok /.test(l)));
 }
 
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
