@@ -102,16 +102,34 @@ same two turns, so `MAP` counts turns and not position.
 
 **What this does not establish, and it is the whole of the formula.**
 
-**One hit cannot tell a constant from a roll.** 16 is one sample, and this page will not claim
-damage is a fixed 16, nor that it is `randMod` in a range, from a single observation. The
-distinguishing test is several hits from the same monster, or one hit from two different
-monsters, with the HP delta recorded each time. Nothing about to-hit was measured either: the
-player's own hit landed but the damage it did was on the monster's HP, which is not a field this
-project has located.
+**One hit cannot tell a constant from a roll**, and the next hit showed it is a roll. See below.
 
-**What is now known that was not:** a monster hit does between nothing and 16 here, the player's
-HP is the field `0xcde81`, and a fight costs the same 15 food per turn as a step. Item 4b is
-still open, but it is open on a measurement rather than on a scan.
+## Damage varies: 16, then 12
+
+A single observation of 16 was not enough to claim a constant, and the following hit confirmed why.
+The monster hit again between two reads of the same fight:
+
+| HP | delta |
+|---|---|
+| 178 → 162 | **16** |
+| 162 → 150 | **12** |
+
+So **monster damage is not a constant**. Two samples, 12 and 16, from the same fight and probably
+the same monster. That rules out a fixed 16 and it is the first thing this page can say about the
+form without guessing.
+
+**What a range would have to be to fit two samples is not determined.** Two points are consistent
+with a dice roll, a base plus a small random term, or a value scaled by something that changed
+between the hits (the player's own HP fell from 162 to 150, and STRENGTH or the monster's state
+could also matter). Distinguishing those needs more hits, and would need the monster's identity
+and HP, which this project has not located.
+
+**The turn accounting held again.** One more turn cost 15 food and moved `MAP` from 83 to 84, both
+consistent with the earlier reads.
+
+**What is now known that was not:** monster damage is variable, at least 12 and 16 occur, the
+player's HP is the field `0xcde81`, and a fight costs the same 15 food per turn as a step. Item 4b
+is still open, but it is open on three measurements rather than on a scan.
 
 ## An earlier one-hit kill, for contrast
 
