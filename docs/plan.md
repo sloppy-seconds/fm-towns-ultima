@@ -828,8 +828,15 @@ or `y == 63`** and the flag at `0xcdf57` is set
 
 **The open questions, all static:**
 
-- **what `0xf828c` does**, the loader the edge test calls. It clears the flag at `0xcdf57`, reads
-`0xcde99`, and calls `0xf3e40`. This is where the viewport question starts.
+- **what `0xf828c` does**, the loader the edge test calls. **Read.** It clears the flag at
+`0xcdf57`, loads `0xcde99` through `0xf3e40`, then calls `0xefaac` on the eight neighbours of the
+party. `0xefaac` is an object-at-position lookup over a **32-entry table** at `0xce3c8`, `0xce408`
+and `0xce488`, returning `-1` when nothing is there. It is a mob or NPC adjacency check, not the
+viewport.
+- **the terrain geometry.** The lookup at `0xefaf4` indexes `terrain[y*64 + x]` at `0xbd578`, and
+`0xbd578` is BSS. A stride of 64 conflicts with the 256 by 128 shape in `docs/map-geometry.md`,
+because 32,768 bytes at a stride of 64 is 64 by 512. Either they are different buffers, or the
+stride-64 index addresses a window, or one figure is wrong. **Not resolved.**
 - **what `MAP_X`/`MAP_Y` (`0xcdf63`/`0xcdf67`) are**, given that `PLAYER_X`/`PLAYER_Y` are what the
 clamp and the edge test use. All four are written by the same initialiser and neither meaning is
 established.
@@ -837,7 +844,8 @@ established.
 `tools/fieldmap.js` puts the base at `0xcde54` from three agreeing anchors, and at that base the
 initialiser's field run crosses a record boundary. Either the base, the stride, or the assumption
 that those are per-character fields is wrong. Not resolved.
-- **how the 11 by 11 viewport is derived from a 256 by 128 buffer.** The two are not one-to-one.
+- **how the 11 by 11 viewport is derived from a 256 by 128 buffer.** The two are not one-to-one,
+and the terrain conflict above has to settle first.
 - **the food and turn counters**, which belong to the turn and to item 1b.
 
 See [movement-wrap-found.md](movement-wrap-found.md).

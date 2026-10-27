@@ -128,3 +128,63 @@ satisfies the span constraint. **Not guessed, recorded.**
 | the viewport mapping, 256 by 128 to 11 by 11 | not started. `0xf828c` and `0xcde99` are where to begin |
 | the food and turn counters | belongs to item 1b |
 | record base and stride | **contradiction recorded**, base `0xcde54` against a cross-boundary field run |
+
+## What the sector loader actually does, and a geometry conflict
+
+`0xf828c` is not a viewport routine. Read in full it does three things: it calls `0xe5acc` twice,
+clears the flag at `0xcdf57` that the edge test checks, then loads `0xcde99` through `0xf3e40`,
+and finally runs a **neighbourhood scan** guarded by `cmp [edx+0xcde56], 1`.
+
+The scan calls `0xefaac` with eight coordinate pairs, which is the eight neighbours of the party:
+
+```
+(x-1,y-1)  (x-1,y)  (x-1,y+1)  (x,y-1)
+(x,y+1)    (x+1,y-1)  (x+1,y)  (x+1,y+1)
+```
+
+`0xefaac` is "what object is at (x,y)", and it is not a map lookup. It searches a **32-entry
+table** by coordinate:
+
+```
+0xeed78  cmp ecx, 0x20                ; 32 entries
+0xeed7d  cmp [ecx+0xce3c8], 0x0       ; the slot is in use
+0xeed86  cmp edi, [ecx*4+0xce408]     ; this slot's x
+0xeed8f  cmp edx, [ecx*4+0xce488]     ; this slot's y
+0xeed98  mov eax, ecx                 ; return the index
+0xeed9f  mov eax, 0xffffffff          ; -1 if nothing is there
+```
+
+So `0xefaac` is an object-at-position lookup over 32 slots, and the caller's `dec eax` and `je`
+test whether something was found. That is a mob or NPC adjacency check, not the viewport.
+
+The terrain lookup is a different routine, `0xefaf4`:
+
+```
+0xefaf4  mov eax, [esp+0x8]           ; y
+0xefaf8  shl eax, 6                   ; y * 64
+0xefafb  add eax, [esp+0x4]           ; + x
+0xefaff  movzx ecx, [eax+0xbd578]     ; tile = terrain[y*64 + x]
+0xefb06  cmp ecx, 0x12                ; 18
+0xefb0e  jl  0xefb15                  ; 18..32 reads as walkable (1)
+0xefb10  cmp ecx, 0xa                 ; 10 also reads as 1
+```
+
+`0xbd578` sits inside the large zero region `0x7b577..0xcdc64`, so it is BSS: a buffer loaded at
+runtime, not file data.
+
+**The conflict, stated and not smoothed.** `map-geometry.md` establishes a 32,768-byte buffer that
+is 256 by 128, from a savestate boundary and the arithmetic `32768 / 128 = 256`. The terrain lookup
+multiplies y by **64**. Those cannot both describe the same buffer: if it is 32,768 bytes with a
+stride of 64, it is **64 by 512**, not 256 by 128.
+
+Three readings remain open and no measurement here separates them:
+
+- the terrain buffer at `0xbd578` is **not** the 32,768-byte `MAP2_*` image, and the two are
+  different objects of different shapes
+- the stride-64 index addresses a **window** inside the larger buffer, with an origin added
+  elsewhere before the lookup
+- one of the two figures is wrong
+
+The third is not assumed and neither is the first. Resolving it needs the writer of `0xbd578` and
+its neighbours, or a live read of the buffer during play, which is `bot-plan.md` P4 and remains the
+last resort rather than the next step.
