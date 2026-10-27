@@ -64,6 +64,22 @@ It is an item code. Equipping changes it to `B`:
 **Equipping is a separate step a new character must perform.** It affects combat statistics, so a
 reimplementation that starts a character fully equipped is not faithful.
 
+**The starting kit does not depend on profession or sex.** Measured across all four slots on
+`saves/modifier_test.hdm`, which hold a male fighter, a male cleric, a male wizard and a female
+fighter. Every one carries the same items and the same money:
+
+| profession, race, sex | held | `R_ARMOUR` | `R_WEAPON` | `GOLD` | `FOOD` | `MAGIC` |
+|---|---|---|---|---|---|---|
+| `F` `H` `M` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
+| `C` `H` `M` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
+| `W` `H` `M` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
+| `F` `H` `F` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
+
+**So a wizard starts with the same cloth and dagger as a fighter.** The kit is a constant, not a
+per-profession table, which is worth knowing because the obvious assumption is the opposite.
+
+Thief was not measured, and neither was any non-human race, so those two cases remain open.
+
 `docs/equipment-thresholds.md` records the published minimums, that strength gates armour and
 agility gates weapons, and that the numbers are not stored literally in `ENCHANT.EXP`.
 
