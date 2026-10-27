@@ -102,3 +102,82 @@ established that `0xEB` is not a Shift-JIS lead byte but an escape.
 
 That is four anchors where there were none, and one blocker stated plainly rather than worked
 around.
+
+
+## The glyph geometry, found in the layout engine
+
+`0xe5854` is a wrapper: it optionally scans to a NUL and calls `0xe6eb0`. That second routine is the
+text layout engine and it states the character size as arithmetic:
+
+```
+0xe6ebf  lea eax, [eax+eax*2]        ; eax = 3 * arg
+0xe6ec2  lea edx, [eax+eax*8]        ; edx = 9 * eax  = 27 * arg
+0xe6ec5  lea edx, [eax+edx*2]        ; edx = 55 * arg
+0xe6ec8  lea ebx, [edx+0x7aee4]      ; ebx = 0x7aee4 + arg * 55
+0xe6ede  mov ax, [ebx+1]             ; window x
+0xe6ee2  add ax, 4
+0xe6ee6  mov edx, [ebx+0x19]
+0xe6ee9  shl edx, 3                  ; column * 8    <- character width
+0xe6eec  add edx, eax
+0xe6ef5  mov ax, [ebx+5]             ; window y
+0xe6ef9  add ax, 0x11                ; 17
+0xe6efd  mov edx, [ebx+0x1d]
+0xe6f00  shl edx, 4                  ; row * 16      <- character height
+```
+
+**A cell is 8 by 16 pixels**, and a text window is a 55-byte record at `0x7aee4 + n * 55` holding
+its origin, cursor and a `0xcda7e`-style working buffer.
+
+That is the first hard number about the font: **8 wide, 16 tall, one bit per pixel is 16 bytes per
+glyph**, twelve and a half glyphs per 200 bytes, and a full 256-glyph set would be 4,096 bytes.
+
+It also settles the search shape. A glyph table would be 16 bytes per entry, not 32, and the earlier
+scan tested lag 32 first.
+
+## What the TBIOS calls in this path actually do
+
+Read directly from `TBIOS.BIN`, they are not font calls:
+
+```
+AH 0x0c -> 0x1e04   test dx,0x20 / and dx,0xffbf ...  mov [gs:ebp+0x108], dx   a mode byte
+AH 0x15 -> 0x1f1c   cmp al,3 / mov [gs:ebp+0x34c], al                          an attribute byte
+```
+
+So the text path sets display flags and the rendering is the game's own code at `0xe6eb0`, reading
+cells from the font by a mechanism not yet found. The glyph table is therefore probably in
+`ENCHANT.EXP` after all, at 16 bytes per glyph, and the earlier searches used the wrong stride.
+
+## Searching for the glyph table: five attempts, none succeeded
+
+With 8 by 16 established, a glyph is 16 bytes and a 256-glyph set is 4,096. Five tests were run
+against `ENCHANT.EXP` and `TBIOS.BIN` and all five failed:
+
+1. **Distinct 32-byte chunks per window.** Every window scored near the maximum, because random code
+   bytes are all distinct too. The metric does not separate a font from code at all.
+2. **Rows whose low nibble is zero**, on the theory that glyph rows are padded. Two clusters scored
+   high, at `0x0c00` and `0x0ba00`, and rendering them as glyphs showed vertical repetition and
+   noise rather than letterforms. The test was measuring coincidence.
+3. **High-entropy region in `TBIOS.BIN`.** The file is 63 to 86 percent non-zero throughout with no
+   boundary between code and data, so there is no block to isolate.
+4. **Blank first and last rows of each 16-byte unit.** The winners were all inside zero fill, and
+   the `255 of 255` blank-bottom score was the zero region rather than a property of glyphs.
+5. **Rendering the best candidate**, `0x0dba00`, as 8 by 16 bitmaps. Every unit was all zeros.
+
+**What this rules out** is a contiguous 1bpp glyph table in either file at these strides. What it
+does not rule out is a table that is stored 4bpp, stored compressed, or addressed through the TBIOS
+graphics layer rather than read by the game.
+
+**One thing the failure does establish**: the search was being run before the format was known, five
+times, and each test was a guess about glyph structure rather than a measurement of it. The next
+attempt should start from the code that draws a character, not from the file.
+
+## Status
+
+| | |
+|---|---|
+| character cell | **8 by 16 pixels**, from `0xe6eb0` |
+| text window record | 55 bytes at `0x7aee4 + n * 55` |
+| `0xe5854` | wrapper, optional NUL scan, calls `0xe6eb0` |
+| `0xe6eb0` | layout engine: origin, cursor, per-character placement |
+| glyph storage | **not located**. Five searches failed, listed above |
+| next step | find the draw call inside `0xe6eb0`'s character loop |
