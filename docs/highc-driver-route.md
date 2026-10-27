@@ -87,49 +87,76 @@ Each of these was an addition to the line above, and each one was wrong:
 The default `CMOS=/data/CMOS.BIN` is correct and needs no flag. **The lesson is not to add
 anything to a documented invocation without a reason.**
 
-## The first test, and why it is weak
+## Two tests through the driver, both inconclusive for the same reason
 
-Source put on the image:
+**Test 1.** An inline callee, so the call was folded:
 
 ```c
 int bios_out(int func, char c) { return func + c; }
 int f(char c) { bios_out(0x46, c); return (unsigned char)c; }
 ```
 
-`hc386 enter.c` produced `ENTER.EXP` (548 bytes, `P3` signature) with code at `0x200`:
-
 ```
-0f b6 44 24 08 03 44 24 04 c3   0f b6...        bios_out, inlined
-8b c0                            (padding)
+0f b6 44 24 08 03 44 24 04 c3    bios_out, inlined
 55 8b ec 8a 4d 08 51 6a 46 e8 e6 ff ff ff 0f b6 c1 83 c4 08 c9 c3    f
 ```
 
-**Zero `c8` bytes in the code section. One `push ebp; mov ebp, esp`.**
+**Test 2.** A real external callee, so a genuine call was emitted:
 
-So the driver does not emit `enter` for this source either. But compare against the target
-this was modelled on:
-
-```
-target 0xfe211: c8 00 00 00 53 8a 5d 08 b4 46 e8 3d 00 00 00 0f b6 c0 5b c9 c3
-ours          : 55 8b ec    8a 4d 08 51 6a 46 e8 e6 ff ff ff 0f b6 c1 83 c4 08 c9 c3
+```c
+int trap(int sel, int fn, int arg);
+trap(int sel, int fn, int arg) { return sel + fn + arg; }
+char f(char c) { int r; r = c; return (char)trap(0x110, 0x46, r); }
 ```
 
-The differences are structural, not just the prologue:
+```
+8b 44 24 04 03 44 24 08 03 44 24 0c c3                        trap
+55 8b ec 0f b6 4d 08 51 6a 46 68 10 01 00 00 e8 dc ff ff ff 83 c4 0c c9 c3   f
+```
 
-- the target keeps the argument in `bl` behind `push ebx`, and sets `mov ah,0x46` as an
-  8-bit BIOS function number
-- ours pushes a 32-bit argument (`51 6a 46`) and cleans 8 bytes (`83 c4 08`)
-- the target has no stack cleanup at all
+**Neither contains a `c8` byte.** Both use `55 8b ec`. That is the fact, and it is the same fact
+from the real-mode generator and from the optimising driver.
 
-**The target was not calling through the C argument convention.** It is a hand-shaped BIOS
-wrapper. A C source that cannot reproduce the call shape cannot say anything reliable about
-the prologue either, so this result is suggestive and not decisive.
+### Why neither test is a controlled comparison
 
-## What it does establish
+Put the target beside test 2:
 
-- The driver route works, and the command is above.
+```
+target 0xfe211 : c8 00 00 00  53  8a 5d 08  b4 46      e8 3d 00 00 00  0f b6 c0  5b  c9 c3
+ours (test 2)  : 55 8b ec    0f b6 4d 08  51 6a 46  68 10 01 00 00 e8 dc ff ff ff  83 c4 0c  c9 c3
+```
+
+Every structural detail differs:
+
+| | target | ours |
+|---|---|---|
+| argument | `mov bl,[ebp+8]`, 8-bit | `movzx ecx,[ebp+8]`, 32-bit |
+| register save | `push ebx` / `pop ebx` | none |
+| function number | `mov ah,0x46` | `push 0x46` |
+| stack cleanup | none | `83 c4 0c` |
+
+**The target is not using the C argument convention.** It is a hand-shaped TBIOS wrapper: the
+routine it calls, `0xfe25d`, decodes as `push fs; push ax; mov ax,0x110; mov fs,eax; pop ax;
+call [0x80]; pop fs; ret`, which is a trap dispatcher, not compiled C.
+
+So comparing the prologue of a program that pushes 12 bytes of arguments against one that
+passes a single byte in `bl` says nothing about the compiler's frame choice. The two programs
+are different in half their instructions. **Recording this as evidence about `enter` would be
+the same error as the mask-too-narrow bug and the provenance claim: a correct measurement
+applied to the wrong population.**
+
+## What the two tests do establish
+
+- The driver route works and is reproducible from the command above.
 - For ordinary C with a normal argument convention, the driver emits `push ebp; mov ebp, esp`.
-- The optimiser engages through this route where it did not through `HCD386.EXE`.
+- The optimiser engages through this route where it did not through `HCD386.EXE`: the callee
+  `trap` is emitted as `8b 44 24 04 03 44 24 08 03 44 24 0c c3`, frameless and fully
+  register-allocated.
+
+## What it does not establish
+
+That no C source produces `enter`. The test source cannot reproduce the target's call shape,
+so the prologue comparison is uncontrolled.
 
 ## The next test, which would be decisive
 
