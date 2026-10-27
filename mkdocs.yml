@@ -192,6 +192,7 @@ nav:
       - Guarded walk coverage: guarded-walk-coverage.md
       - Unreferenced extents: unreferenced-extents.md
       - Recompilation result: recompilation-result.md
+      - The recompilation run clean: recompilation-clean.md
       - Recompilation conflicts: recompilation-conflicts.md
       - Three games compared: three-games-compared.md
       - Seed sets: seed-sets.md

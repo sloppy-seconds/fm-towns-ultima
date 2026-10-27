@@ -9,6 +9,12 @@ in it. It is not a playable port, and the reason is not the recompiler.**
 python3 -m fmtownskit.recomp --out build --exp game=ENCHANT.EXP@8+<672 seeds> <66 --no-code ranges>
 ```
 
+**Correction: the base is `@0x0`, not `@8`.** For this `MP` the image is the whole file at
+offset 0, so a base of 8 shifts every emitted symbol by 8 and no emitted address matches the
+ones this project reads by hand. `docs/recompilation-clean.md` records the corrected run, which
+with `@0x0` emits `f_000e5d90`, `f_000e5ff4` and `f_000e6058` at exactly the addresses
+`docs/display-context.md` and `docs/rectangle-cluster.md` give.
+
 ## What came out
 
 | | |
