@@ -40,6 +40,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         tini \
         nodejs \
         npm \
+        python3 \
+        python3-pil \
     && rm -rf /var/lib/apt/lists/*
 
 # novnc ships its web root here on Ubuntu.
@@ -53,6 +55,32 @@ COPY container/editor.html /usr/local/bin/editor.html
 # image rather than duplicating the FAT and roster logic means the two cannot
 # drift apart.
 COPY tools/savedisk.js /usr/local/bin/savedisk.js
+
+# The U2 driver scripts, so they can run INSIDE the container.
+#
+# WHY THIS IS NOT COPIED FOR CONVENIENCE. tools/u2flow.py drives the emulator with
+# xdotool against DISPLAY=:99, and that display exists only inside the container:
+# on the host /tmp/.X11-unix holds X0 and inside it holds X99. Running the script
+# from the host therefore fails with
+#
+#     subprocess.CalledProcessError: ['/usr/bin/xdotool', 'mousemove', ...]
+#
+# and the failure looks like a bad icon coordinate rather than a missing display.
+# Two hand-clicks at the wrong place were tried before the cause was found.
+#
+# They are placed together in /opt/u2 rather than copied one at a time because
+# u2read.py and u2bot.py import PIL, and the set is used as a unit:
+#
+#     podman exec fmtowns python3 /opt/u2/u2flow.py --status
+#     podman exec fmtowns python3 /opt/u2/u2flow.py --journey
+#
+# u2flow and u2screen are stdlib only. u2read and u2bot need python3-pil, which
+# is installed explicitly above rather than left to arrive as a dependency of
+# nodejs.
+COPY tools/u2flow.py /opt/u2/u2flow.py
+COPY tools/u2read.py /opt/u2/u2read.py
+COPY tools/u2screen.py /opt/u2/u2screen.py
+COPY tools/u2bot.py /opt/u2/u2bot.py
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Xvfb + VNC + noVNC. 6080 is the browser port, 5900 raw VNC.

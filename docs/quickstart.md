@@ -143,6 +143,72 @@ It prints the URLs. Open `http://<host>:6080/vnc.html`.
 
 Then follow [playing the game](#actually-playing) below.
 
+### Driving the game from a script, without clicking
+
+`tools/u2flow.py` takes the game from the Towns OS menu to a loaded character
+with no judgement. It checks the screen before every keypress and stops rather
+than guessing, because by hand the same steps went wrong repeatedly: keys sent
+into the wrong screen, a space that quit the game, several restarts.
+
+**Run it inside the container, not on the host.** This is the one thing that will
+cost you an hour if you miss it. The script drives the emulator with `xdotool`
+against `DISPLAY=:99`, and that display exists only inside the container:
+
+```
+host       /tmp/.X11-unix/  ->  X0
+container  /tmp/.X11-unix/  ->  X99
+```
+
+Run from the host it fails with
+`subprocess.CalledProcessError: ['/usr/bin/xdotool', 'mousemove', ...]`, which
+reads like a wrong icon coordinate and is not. The scripts are baked into the
+image at `/opt/u2` for this reason:
+
+```bash
+# what screen is showing, changing nothing
+podman exec fmtowns python3 /opt/u2/u2flow.py --status
+
+# drive it: menu -> splash -> ULTIMA II -> Journey Onward -> pick a character
+podman exec fmtowns python3 /opt/u2/u2flow.py --journey
+```
+
+`--status` reports whether the Towns menu or the game is up, whether the red bar
+is empty, and what the game menu has selected. `--dry-run` checks the screen and
+sends nothing.
+
+To start a particular character, put a disk with that character in
+`saves/userdisk.hdm` first. `saves/fresh_game.hdm` begins a new one and
+`saves/maxed_four.hdm` has four fully-statted characters:
+
+```bash
+cp saves/fresh_game.hdm saves/userdisk.hdm
+./tools/container-run.sh start
+podman exec fmtowns python3 /opt/u2/u2flow.py --journey
+```
+
+The container copies the disc's own `[UserDisk].hdm` into `saves/userdisk.hdm`
+only if that file is absent, so a disk placed there by hand is kept.
+
+**The API is on `127.0.0.1`, not `localhost`.** On this host `localhost` resolves
+to IPv6 `::1`, nothing listens there, and every call fails with curl exit 56 in
+6 milliseconds, which looks like a crashed supervisor.
+
+| endpoint | what |
+|---|---|
+| `GET /api/status` | is the emulator running, how many commands sent |
+| `GET /api/screen?mode=stats` | colour census. `allGrey: false` means a graphics screen |
+| `POST /api/key` / `/api/keys` | one key, or a string |
+| `POST /api/clickat` | click at a fraction of the window, inside the container |
+| `POST /api/cmd` | a raw emulator console command |
+| `POST /api/palette` | the live 16-entry palette, both pages |
+
+`GET /api/screen` also takes `mode=ascii` and `mode=text`, which is how the
+screen gets read without a vision model.
+
+```bash
+curl -s -m 20 -o /tmp/s.json 'http://127.0.0.1:8080/api/screen?mode=stats'
+```
+
 The container is the same on any host with a container runtime, but it has only
 been tested on Linux. Docker Desktop on macOS and Windows is plausible and
 untested: the script only adds the SELinux `:z` mount suffix where SELinux is

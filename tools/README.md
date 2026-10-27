@@ -76,6 +76,10 @@ directory, so run them from the repo root.
 | `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
 | `container-run.sh` | Start/stop the podman container: Xvfb, VNC, noVNC, and the supervisor API. Playable from a browser. |
+| `u2flow.py` | Drives the game from the Towns OS menu to a loaded character, checking the screen before every keypress and stopping rather than guessing. `--status` reports the screen without changing it, `--dry-run` checks and sends nothing, `--journey` does the walk. **Run it inside the container** (`podman exec fmtowns python3 /opt/u2/u2flow.py --journey`): it drives `xdotool` against `DISPLAY=:99`, which does not exist on the host. Baked into the image for that reason. |
+| `u2read.py` | Turns a screenshot into text for the panels that do not need vision: status bar, stats, action log. Needs a seeded glyph table (`--teach <panel>`), so it reports `?` until taught. Needs Pillow. |
+| `u2screen.py` | Reads the screen over the supervisor API. Stdlib only, so it runs anywhere. |
+| `u2bot.py` | Plays: walks, attacks, passes, enters towns, recording every action with a screenshot, the character fields and the CPU state. Needs Pillow. |
 | `mame-run.sh` | Same idea for MAME's FM Towns driver. Separate image, no supervisor. See the note below before using it. |
 | `savedisk.js` | Read and edit an FM Towns save disk from the shell: list, cat, slots, clone, set, world-copy, newdisk. Tested by `test-savedisk.js`. |
 | `makesave.js` | Build a save disk with characters from the command line. Imports the same modules the browser editor uses, so it is the headless test for the page. |
