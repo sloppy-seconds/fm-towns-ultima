@@ -1,0 +1,117 @@
+# The TBIOS thunk library: 70 named entry points at `0x2d1`
+
+**The game carries one small stub per TBIOS function it uses, laid out in AH order from `0x2d1`.
+That gives 70 named anchors, and every `call` to one of them says exactly which system function is
+being invoked.**
+
+## The shape of a thunk
+
+`0xabd` is one, and it is 36 bytes:
+
+```
+0xabd  push esi
+0xabe  push edi
+0xabf  mov edi, [esp+0xc]        ; first argument
+0xac3  mov esi, [esp+0x10]       ; second argument
+0xac7  mov ah, 0x46              ; the TBIOS function number
+0xac9  push fs
+0xacb  push 0x110                ; the TBIOS code selector
+0xad0  pop fs
+0xad2  call fs:[0x20]            ; the entry table
+0xad9  pop fs
+0xadb  movsx eax, ah             ; the result
+0xade  pop edi
+0xadf  pop esi
+0xae0  ret
+```
+
+The distinguishing bytes are `b4 <AH> 0f a0 68 10 01 00 00`: `mov ah, <n>`, `push fs`, `push 0x110`.
+`0x110` is the TBIOS code selector and `fs:[0x20]` is its entry table, both named by `fmtownskit`'s
+`towns` module.
+
+## The population, measured
+
+**70 thunks, 69 distinct AH values**, from `0x2d1` to `0x66`:
+
+| AH range | count |
+|---|---|
+| `0x00` to `0x1b` | 29 (two stubs share `0x01`) |
+| `0x20` to `0x2f` | 16 |
+| `0x40` to `0x51` | 18 |
+| `0x60` to `0x66` | 7 |
+
+They are laid out **in AH order**, contiguous, each 30 to 55 bytes:
+
+```
+0x2d1  ah=0x00      0x382  ah=0x03      0x441  ah=0x08
+0x2f8  ah=0x01      0x3aa  ah=0x04      0x464  ah=0x09
+0x32f  ah=0x01      0x3cd  ah=0x05      0x486  ah=0x0a
+0x35e  ah=0x02      0x3f4  ah=0x06      0x4ac  ah=0x0b
+                    0x41b  ah=0x07
+```
+
+The two `ah=0x01` stubs at `0x2f8` and `0x32f` are 55 bytes apart rather than the usual 34, so they
+take different argument counts. Which is which is not established.
+
+## Why this matters for the corpus
+
+**Every `call` to an address in `0x2d1..0x71d` is a named system call.** That is 70 anchors, and
+unlike a string anchor it cannot be ambiguous: the AH value in the stub is the function number and
+the stub is one instruction away.
+
+Before this, a graphics routine could only be recognised by its output. Now a function whose body
+calls `0xabd` is known to call **TBIOS function 0x46** with two arguments, and the meaning of 0x46
+is a property of the platform, documented in `fmtownskit`'s `towns.py`, not of this game.
+
+## A worked example: `0x7add8` is a rectangle
+
+Found by following the index. `0xe6058` is a function that takes four arguments and stores them:
+
+```
+0xe6072  mov ax, [ebp+0x8]        ; arg 1
+0xe6076  mov [0x7add8], ax
+0xe607c  mov ax, [ebp+0xc]        ; arg 2
+0xe6080  mov [0x7adda], ax        ; note +2: a word, not a dword
+0xe6086  mov ax, [ebp+0x10]       ; arg 3
+0xe608a  mov [0x7addc], ax
+0xe6090  mov ax, [ebp+0x14]       ; arg 4
+0xe6094  mov [0x7adde], ax
+0xe609a  push 0x7add8             ; the struct
+0xe609f  push 0x7a7d8             ; a context
+0xe60a4  call 0xabd               ; TBIOS function 0x46
+```
+
+**Four consecutive words at `0x7add8`, then a TBIOS 0x46 call with the struct as an argument.**
+Four arguments in, four words out, consumed by one system call. That is a rectangle, and `0x7add8`
+is where it is kept.
+
+The index also shows `0x7add8` referenced by **20 functions**, and its neighbours `0x7addc`,
+`0x7adde`, `0x7ade0`, `0x7ade2`, `0x7ade4` by 11 to 20 each. A shared argument block, written by
+many callers of the same system function.
+
+## What this does not say
+
+The meaning of TBIOS function `0x46` is **not established**, and `fmtownskit` does not supply it:
+`towns.py` names the selector `0x110` and the entry table at `0`, and it has a table of interrupt
+numbers (`INTS`) containing only `0x21` for DOS and `0x93` for the disk BIOS. There is no table of
+TBIOS function numbers anywhere in the kit, so the AH values are names only once something else
+supplies the mapping.
+
+That correction is recorded because the first version of this page asserted the opposite. The
+mapping is likely in `TBIOS.BIN` on the disc, which `tbiosld.py` in the kit already knows how to
+lay out, and reading it is a separate piece of work rather than a lookup.
+
+The thunks are also not a complete API: 70 of whatever the TBIOS offers. The game uses these and no
+others, so a function calling one is identified, and a function doing graphics without a thunk is
+not.
+
+## Reproducing
+
+```
+node -e 'const b=require("fs").readFileSync("ENCHANT.EXP");
+for (let i=0;i<b.length-16;i++)
+  if (b[i]===0xb4 && b[i+2]===0x0f && b[i+3]===0xa0 && b[i+4]===0x68 && b[i+5]===0x10 && b[i+6]===0x01)
+    console.log("0x"+i.toString(16), "ah=0x"+b[i+1].toString(16));'
+```
+
+That is the 70, and `grep -c` on the output gives the count above.

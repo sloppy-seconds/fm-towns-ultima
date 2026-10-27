@@ -101,6 +101,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [The seed gap that was not there](jmp-seed-gap-negative.md) | Hypothesis: `call`-invisible functions are missing. Refuted: 681 `jmp` targets yield zero function starts, and three addresses thought missing were inside recompiled bodies. |
 | [String tables](string-tables.md) | The sound filename, music filename and message tables, measured. Shift-JIS explains three earlier misreadings, and masking the text takes 359 conflicts to 166. |
 | [Developing mechanics quickly](developing-mechanics-quickly.md) | 709 functions and none named. Why reading one routine at a time cannot scale, and the one index that would. |
+| [TBIOS thunks](tbios-thunks.md) | 70 named system-call stubs at 0x2d1, one per TBIOS function the game uses. Every call to one is identified, and 0x7add8 turns out to be a rectangle. |
 | [The decompilation experiment](decompilation-experiment.md) | First Level-1 run on real routines. One byte match, one confirmed relocation trigger, and the candidate pool is 103 not 738. |
 | [The decompilation loop](decompilation-loop.md) | The strategy and the Andon Cord, amended where the experiment contradicted it. |
 | [The decompilation plan](decompilation-plan.md) | Running the loop unattended, and the honest ceiling. |
