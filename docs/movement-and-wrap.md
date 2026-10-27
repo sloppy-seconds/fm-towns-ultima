@@ -73,11 +73,25 @@ behaviour when only one axis moves, and it is recorded here as unexplained.
 | `PLAYER_Y` | `0xcdf6f` | same |
 
 They are four bytes apart and both exist, so **the wrap operates on the map coordinate pair, not
-the player coordinate pair.** `docs/live-fieldmap.md` observed `PLAYER_X` change by one on a west
-step, which is consistent if both are updated, but this routine only shows the `MAP_` writes.
+the player coordinate pair.**
 
-Somebody reading "torus wrap on the player position" would look in the wrong place. That was my
-own first assumption.
+### The open question this leaves
+
+**What `PLAYER_X`/`PLAYER_Y` are for is not established.** Two position pairs in one record, four
+bytes apart, is not self-explanatory, and the evidence does not settle it:
+
+- `MAP_X`/`MAP_Y` are wrapped into `0..15` by the step routine
+- `live-fieldmap.md` observed `PLAYER_X` change by 1 on a west step, but this routine does not
+  write it, so some other path updates it
+- the roster loader writes `PLAYER_X`/`PLAYER_Y` from parsed text, so they are saved and restored
+
+Candidate readings, none verified: wrapped grid versus unwrapped absolute coordinate, map-local
+versus world coordinate, tile cell versus sub-tile offset, or authoritative versus cached. Finding
+the routine that writes `PLAYER_X` on a step would settle it, and that routine was not found here.
+
+I wrote "torus wrap on the player position" in the plan item when first drafting it, from the
+expectation that a movement coordinate would be called that. The code says otherwise, and the
+phrase sent the first search at this item to the wrong fields.
 
 ## The collision check, which is not a separate routine
 
