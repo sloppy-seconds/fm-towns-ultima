@@ -293,6 +293,88 @@ done.
 after, which is the correct result and was briefly mistaken for a failure to move before the
 single-direction case was run.
 
+## The cost is a parameter, and there are two of them
+
+Measured 15 on a step and 15 on a kill, which suggested one constant. **It is not.** The food
+routine takes the amount as an argument, and it has exactly two callers, passing different values.
+
+### The routine: `0xf0c08`
+
+```
+0xf0c08  spend_food(amount):
+0xf0c0b    r0 = [0xceca0]           ; the party index
+0xf0c10    r2 = r0*11
+0xf0c16    r2 <<= 5                 ; r2 = r0*352
+0xf0c19    r2 -= r0                 ; r2 = r0*351   <- the record stride
+0xf0c1b    r0 = [r5+0x8]            ; THE AMOUNT, from the argument
+0xf0c1e    sub [r2+0xcde8d], r0     ; FOOD -= amount
+0xf0c24    cmp [r2+0xcde8d], 0
+0xf0c2b    jge 0xf0c37
+0xf0c2d    mov [r2+0xcde8d], 0      ; clamp at zero, never negative
+0xf0c47    cmp [r2+0xcde8d], 0
+0xf0c4e    jne 0xf0c7b              ; still fed, return
+```
+
+When food reaches zero it falls through to a starvation path that pushes `0x8`, `0x2` and `0xa`,
+then `0x4f58` to the text renderer. **The starvation message and its effects were not read**, so
+what happens at zero is not established.
+
+The record stride is `351`: `r0*352 - r0`. `0xcde8d` is FOOD and `0xcde4c` appears as a record base
+in the caller, so both are readable from this function.
+
+### The two costs
+
+| caller | amount | what the caller does |
+|---|---|---|
+| `0xf0b43` in `0xf0b28` | **15** | the turn: spends food, decrements the hour counter `[0xd3710]` rolling 0 to 16, advances `[r6+0x35]` capped at `[r6+0x39]` when `[0xcdf57]` is set, decays `[r6+0x14f]`, then torches `[r6+0x147]` and `[r6+0x14b]` |
+| `0xfaec0` in `0xfae9c` | **10** | the per-turn game step, which checks HP first and returns early when the player is dead |
+
+A step and a kill both cost 15 because both go through the **turn** path. The 10 is a
+different, smaller charge on the other path.
+
+### What the 10 actually is, and it is not Pass
+
+Pass was a good hypothesis and it is wrong. `0xfae9c` has **one** caller, `0xfaaa5`, and that call
+sits in a loop:
+
+```
+0xfaaa5   call 0xfae9c          ; the 10-food step
+0xfaaaa   and  r0, r0
+0xfaaac   je   0xfaaa5          ; LOOP until it returns non-zero
+```
+
+So 10 is charged **per iteration of the game's step loop**, not per command. The caller `0xfa948`
+saves position into globals, initialises screen state and then spins that loop.
+
+**The command dispatcher is elsewhere and does not decide the food cost.** It is at `0xf6c98`, keyed
+on `[r2+0xcdf57] == 2`, then a 12-entry table indexed by `[r2+0xcde99] - 2`:
+
+```
+0xf6cc9   jmp [r2*4+0xf6ad1]     ; 12 commands
+```
+
+That table does not hold code pointers: the entries read as `0x114`, `0x977c68`, `0x6805eb00`,
+and `docs/jump-tables.md` already records this table as the one that fails to resolve. So **which
+command a player picks does not change the food charged**, because the charge is on the loop and on
+the turn, not on the action.
+
+**That means the boat is unlikely to cost differently through this routine**, which is the opposite
+of the guess. Only 10 and 15 are ever passed to `spend_food`. A different boat cost would need
+another writer of FOOD, and the 20 absolute references have not been read.
+
+A step and a kill both cost 15 because both go through the **turn** path. The 10 is charged once
+per loop iteration on the other path.
+
+### On the boat
+
+Transports costing differently is **not tested and not read**. These two amounts are the only two
+literals passed to this routine, so a boat cost other than 10 or 15 would have to arrive by another
+route, which would mean food is also written somewhere else. That is checkable: `0xf0c1e` is the
+only FOOD reference through a base register, and there are 20 references at absolute addresses
+which were **not** read.
+
+**The test that settles it:** step once on foot, board, step again, and compare. One savestate pair.
+
 ## What is still not read
 
 **The turn counter.** The food decrement is now measured but the turn counter is not found, and
