@@ -91,6 +91,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Pixel writer address correction](pixel-writer-address-correction.md) | The pixel writer is at 0xf3e24, not 0xf3e04, and the "expected bytes" were a paraphrase. |
 | [Two frames of reference](two-frames-of-reference.md) | Raw offset and stripped offset both exist and both are valid. How a confident general rule about Phar Lap files nearly overwrote a measurement, and the guard against it. |
 | [fmtownskit and seeds](fmtownskit-and-seeds.md) | A game-agnostic FM Towns toolkit that recompiles 386 to C++. What transfers, what does not, and the one thing it needs that this binary cannot supply. |
+| [Guarded walk coverage](guarded-walk-coverage.md) | The first honest reach figure: 25 seeds reach 28 percent of the code this project believes exists, 397 reach 110,778 bytes. |
 | [The decompilation experiment](decompilation-experiment.md) | First Level-1 run on real routines. One byte match, one confirmed relocation trigger, and the candidate pool is 103 not 738. |
 | [The decompilation loop](decompilation-loop.md) | The strategy and the Andon Cord, amended where the experiment contradicted it. |
 | [The decompilation plan](decompilation-plan.md) | Running the loop unattended, and the honest ceiling. |
