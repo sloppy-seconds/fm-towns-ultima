@@ -391,3 +391,4 @@ stream, and evidence from `TMENU.EXP` shows the load address is not simply
 "file offset + 0x75f". Treat its port census as indicative, not authoritative.
 Read `docs/save-disk.md` 6.6 before trusting anything it reports.
 | `refindex.py` | Builds the function-to-data index: for every function start the walk found, the absolute addresses its body references, with the operand form. Turns "which function prints the attack menu" from a search into a lookup. `--query ADDR` asks who references an address, `--function ADDR` what a function references. Needs `fmtownskit` under `references/`, which is gitignored, and the Capstone venv. |
+| `funtriage.js` | Ranks the functions the walk found by how much is already known about each: which TBIOS stubs it calls, which named globals it touches, whether it references text. Joins `refindex.json`, `docs/globals.json` and the thunk table. `--fn ADDR` reports one function. Emits evidence, never names. |

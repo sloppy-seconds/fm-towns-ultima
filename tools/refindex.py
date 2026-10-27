@@ -6,9 +6,9 @@ reached through an anchor: a named global, a known constant, a string. That is t
 has produced correct results, and it does not scale, because there are 709 functions and no
 function has a name.
 
-The measurement that says what to build next: 118 call sites in `extracted/strings.json` name the
+The measurement that says what to build next: 128 call sites in `extracted/strings.json` name the
 function that prints a string, and nobody has joined them to the function starts. Those joins are
-the anchors. Doing them by hand is 118 searches; doing them for every data address at once is one
+the anchors. Doing them by hand is 128 searches; doing them for every data address at once is one
 pass over the instruction stream.
 
 So this walks a `fmtownskit` discovery once and emits, for every function, the absolute addresses
@@ -172,6 +172,15 @@ def main():
                                  'base': base, 'index': index, 'scale': scale, 'text': i.op})
                 elif o[0] == 'i':
                     refs.append({'site': a_, 'disp': o[1] & 0xFFFFFFFF, 'form': 'immediate',
+                                 'base': None, 'index': None, 'scale': 1, 'text': i.op})
+                elif o[0] == 'j':
+                    # A DIRECT CALL OR JUMP TARGET. The kit's own decoder spells these 'j', not
+                    # 'i', and an earlier version of this file handled only 'm' and 'i'. The
+                    # consequence was silent and total: every direct call in the image was left out
+                    # of the index, so a function known to call two TBIOS stubs appeared to call
+                    # none. Found by ranking the output and noticing that only one function in 691
+                    # was credited with a TBIOS call when 70 stubs exist and are called.
+                    refs.append({'site': a_, 'disp': o[1] & 0xFFFFFFFF, 'form': 'target',
                                  'base': None, 'index': None, 'scale': 1, 'text': i.op})
         if refs:
             functions['%x' % f] = refs
