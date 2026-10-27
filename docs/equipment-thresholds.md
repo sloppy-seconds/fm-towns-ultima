@@ -45,3 +45,38 @@ single-test discrimination with no bisection needed.
 
 Do not repeat the byte search. It was exhaustive for contiguous sequences and it
 came back empty.
+
+## What the equip step looks like in the save, measured
+
+Observed in the running game, not inferred. A new character carries a cloth armour and a dagger but
+has neither equipped. Two commands equip them:
+
+```
+W -> B      wear the cloth armour
+R -> B      ready the dagger
+```
+
+And the effect on the record is two bytes:
+
+| field | before | after |
+|---|---|---|
+| `R_ARMOUR` (`0xcdea1`) | `A` (65) | `B` (66) |
+| `R_WEAPON` (`0xcdebe`) | `A` (65) | `B` (66) |
+
+**This corrects a guess.** An earlier revision of `docs/character-creation.md` read `A` as meaning
+"nothing equipped", since a fresh character seemed to hold nothing. In fact `A` is an item code and
+`B` is what it becomes once worn or readied. The carried entries are separate fields, which is why
+live memory showed `CLOTH` and `DAGGER` as zero at game start while the roster file showed them as
+one: the roster stores carried counts and the record's equipped slots were still `A`.
+
+## The threshold test, now available
+
+The character used for the measurements above has `STRENGTH=35` and `AGILITY=25`. Against the
+published table that allows every armour up to Power and weapons up to **Bow at 21**, and refuses
+**Sword at 29**. So:
+
+- **ready a Sword.** If the game refuses, the thresholds are live and can be bisected.
+- if it allows it, this build has no thresholds or different ones, which would be the same outcome
+  as the stat modifiers, where the FM Towns rebuild differed from the published figures.
+
+That test has not been run. It needs the running game and one command.

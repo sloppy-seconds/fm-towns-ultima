@@ -18,32 +18,54 @@ The six attributes, in record order: `STRENGTH`, `AGILITY`, `STAMINA`, `CHARISMA
 
 ### Everything else a fresh character starts with
 
-Read from every slot on `saves/modifier_test.hdm`, all four created with the same allocation, so
-these are constants rather than per-character choices:
+**Read from live memory at the start of the game, not from a roster file.** This distinction matters
+and an earlier revision of this section got it wrong by reading the roster instead.
 
-| field | value |
-|---|---|
-| `MAGIC` | 65 |
-| `HP` | 400 |
-| `MHP` | 400 |
-| `FOOD` | 40000 |
-| `GOLD` | 400 |
-| `ERA` | 2 |
-| `R_ARMOUR` | `A` |
-| `R_WEAPON` | `A` |
-| `SKIN` | 1 |
-| `CLOTH` | 1 |
-| `HAND` | 1 |
-| `DAGGER` | 1 |
-| `PLAYER_X`, `PLAYER_Y` | 20, 20 |
-| `SEED` | 80 |
+With the savestate `saves/u2-start.state` reloaded and the VM paused, the non-zero fields of the
+record are:
 
-**Starting inventory is one cloth armour and one dagger**, with `HAND=1` because bare hands are an
-item in this engine rather than an absence. `R_ARMOUR` and `R_WEAPON` are both `A`, which appears
-to mean "nothing equipped", since the dagger is carried rather than worn.
+| field | address | value |
+|---|---|---|
+| `STRENGTH` | `0xcde62` | 35 |
+| `AGILITY` | `0xcde66` | 25 |
+| `STAMINA` | `0xcde6a` | 30 |
+| `CHARISMA` | `0xcde6e` | 10 |
+| `WISDOM` | `0xcde72` | 10 |
+| `INTELLIGENCE` | `0xcde76` | 15 |
+| `RACE`, `PROFESSION`, `SEX` | `0xcde7a`-`0xcde7c` | `H`, `F`, `M` |
+| `HP` | `0xcde81` | 400 |
+| `MHP` | `0xcde85` | 400 |
+| `FOOD` | `0xcde8d` | 39,985 |
+| `GOLD` | `0xcde91` | 400 |
+| `MAGIC` | `0xcde99` | 2 |
+| `R_ARMOUR` | `0xcdea1` | `A` (65), quantity 1 at `0xcdea2` |
+| `SKIN` | `0xcdea6` | 1 |
+| `R_WEAPON` | `0xcdebe` | `A` (65), quantity 1 at `0xcdebf` |
+| `HAND` | `0xcdec3` | 1 |
 
-`FOOD=40000` matches the fixed-point scaling `docs/save-files.md` records: the status screen
-shows `FOOD` divided by 100, so 40000 displays as 400.
+### The inventory, and two corrections
+
+**A new character carries one cloth armour and one dagger, and neither is equipped.** Both earlier
+readings of this section were wrong in different directions, so both are recorded.
+
+**First correction.** An earlier revision said "no armour and no weapon" from live memory, where
+`CLOTH` and `DAGGER` read 0. Those fields are in the record but the *carried* entries are elsewhere,
+and the equipped slots `R_ARMOUR` and `R_WEAPON` held `A` at game start. The roster file, which
+stores carried counts, correctly said `CLOTH=1` and `DAGGER=1` all along.
+
+**Second correction.** The same revision read `A` in `R_ARMOUR`/`R_WEAPON` as "nothing equipped".
+It is an item code. Equipping changes it to `B`:
+
+| command | field | before | after |
+|---|---|---|---|
+| `W` then `B` (wear) | `R_ARMOUR` `0xcdea1` | `A` (65) | `B` (66) |
+| `R` then `B` (ready) | `R_WEAPON` `0xcdebe` | `A` (65) | `B` (66) |
+
+**Equipping is a separate step a new character must perform.** It affects combat statistics, so a
+reimplementation that starts a character fully equipped is not faithful.
+
+`docs/equipment-thresholds.md` records the published minimums, that strength gates armour and
+agility gates weapons, and that the numbers are not stored literally in `ENCHANT.EXP`.
 
 ## The profession letters, and a mismatch worth recording
 
