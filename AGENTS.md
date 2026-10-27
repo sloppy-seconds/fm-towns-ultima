@@ -179,6 +179,42 @@ Corollary for plan items. An item's prose is a claim like any other. "The state 
 finding a modifier table. Describe the artefact to be produced, not the mechanic you imagine
 produces it.
 
+### Read the gameplay documentation before touching the running game
+
+**Before driving the emulator, reading memory, taking a savestate or writing a tool that does,
+find the page that already covers it. This is not optional and the pages are listed below, so
+"I did not know where to look" does not apply.**
+
+Rediscovering how to read live memory cost a session on 2026-10-28 and produced nothing. The
+console takes a DS-relative offset, and DS's base is the image base, so a file address is the
+offset and `MD 14:cdf6b 140` reads the player record with no arithmetic. That was already written
+down in **five** pages. The first attempts were `MD /0xcde81` and a hand-computed offset that
+overflowed, and the time went on working out something that was in the repository twice over.
+
+Worse than the time: the same session also read memory **without `PAU`**, when
+`live-fieldmap.md` states the record flips to `FF` fill about one sample in six without it. The
+readings happened to be consistent and were later confirmed paused, but that was luck. A page
+that says "pausing is essential" is a measurement, not a suggestion.
+
+| do not guess about | read first |
+|---|---|
+| the character record layout, every field address | `docs/live-fieldmap.md` |
+| reading live memory: `MD`, `STA`, `PAU`/`RUN`, and the `DS` base | `docs/live-fieldmap.md`, `docs/live-session.md` |
+| the screen layout: which panel is at which pixel rows | `docs/gameplayer-plan.md`, and the measured constants at the top of `tools/u2read.py` |
+| the palette, in-game | `docs/playing-and-environment.md` |
+| how to get from the Towns menu into a game | `docs/quickstart.md`, `tools/u2flow.py` |
+| what the status bar shows and how it maps to memory | `docs/hp-and-damage.md` |
+| the save disk and roster format | `docs/disc-and-binaries.md`, `tools/savedisk.js` |
+| driving the game from a script rather than by clicking | `tools/README.md`, `tools/u2bot.py` |
+
+**A negative result is not evidence the page is missing.** If a search for "how do we read
+memory" fails, search for the command instead: `MD`, `PAU`, `STA`, `savestate`. The pages are
+named after their subject, not after the question being asked.
+
+**When a measurement contradicts a page, the page is wrong and must be corrected in the same
+commit.** Finding that the documented value and the observed one differ is a finding, and
+leaving it undocumented repeats the cost on the next session.
+
 ### Three rules about evidence
 
 These are the ones that decide whether a report is worth anything. They apply to every
