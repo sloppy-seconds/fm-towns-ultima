@@ -164,6 +164,7 @@ nav:
       - enter 0,0 is the platform, not the compiler: enter-is-platform.md
       - The enter band is a build-unit boundary: enter-band-boundary.md
       - enter is compiler-emitted in both binaries: enter-compiler-emitted.md
+      - The enter census across seven binaries: enter-census.md
       - The real-mode generator does not emit enter: enter-not-emittable.md
       - The driver route, reached and reproducible: highc-driver-route.md
       - The nobase-SIB addressing class: nobase-sib.md
