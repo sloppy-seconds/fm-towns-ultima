@@ -81,7 +81,7 @@ from the items below rather than maintained separately.
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
-| 5a Character creation | AUTONOMOUS | **yes**, first on the spine |
+| 5a Character creation | AUTONOMOUS | **done**, modifiers measured |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
 | 5c Time gates and epochs | AUTONOMOUS | **yes** |
 | 5d Towns and NPC assignment | AUTONOMOUS | **yes** |
@@ -746,7 +746,7 @@ outputs, and callers.
 
 ### 5a. Character creation, as arithmetic
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -754,9 +754,15 @@ outputs, and callers.
 | done when | the stat roll, race/sex/profession selection and starting inventory are each stated as arithmetic with their bounds, or the point at which a value becomes runtime-only is named |
 | blocked by | nothing |
 
-The first thing a player meets, and the first subsystem on the spine. Ultima II rolls attributes
-from dice and then applies race and profession modifiers; the arithmetic and the bounds are the
-deliverable.
+The first thing a player meets, and the first subsystem on the spine.
+
+**Resolution.** Not a dice roll: the player allocates **90 points** across six attributes, and
+the game applies sex, race and profession modifiers once at creation. The modifier table was
+read from `saves/modifier_test.hdm`, four characters entered at 10 across the board:
+**male STA+10, female CHA+10, human INT+5, fighter STR+10 AGI+10, cleric WIS+10, wizard INT+10**,
+purely additive and confirmed against the independent 90-point case in `docs/save-files.md`. The
+gaps are the elf, dwarf and hobbit terms and the thief term, none of which were ever created at a
+baseline. Full write-up: [character-creation.md](character-creation.md).
 
 ### 5b. Overworld movement and the torus wrap
 

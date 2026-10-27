@@ -165,6 +165,7 @@ nav:
       - The enter band is a build-unit boundary: enter-band-boundary.md
       - enter is compiler-emitted in both binaries: enter-compiler-emitted.md
       - The enter census across seven binaries: enter-census.md
+      - Character creation, verified from stored rosters: character-creation.md
       - The shared enter routines are TBIOS trap stubs: enter-tbios-stubs.md
       - The real-mode generator does not emit enter: enter-not-emittable.md
       - The driver route, reached and reproducible: highc-driver-route.md
