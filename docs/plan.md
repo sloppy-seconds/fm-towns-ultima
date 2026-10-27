@@ -779,15 +779,12 @@ the same code.
 allocator was not located, and `0xea118` turned out to parse profession letters rather than check a
 budget. That does not block a reimplementation, which needs the deltas above and a 90-point UI.
 
-An earlier revision of this item was marked DONE prematurely, then reopened, then closed again on
-the real work. The history is left in the commit log rather than the item.
+**The item was marked DONE three times.** First prematurely, with three of its four criteria
+unfinished. Then reopened as PARTLY AUTONOMOUS. Then genuinely closed once the modifiers were read
+from the code. The history is in the commit log rather than the item.
 
-**Starting inventory is done:** 400 gold, 40000 food, one cloth armour, one dagger, `MAGIC` 65,
-`HP` and `MHP` 400, `ERA` 2. Constant across all four measured characters, so it is not a table.
-
-**Remaining, both needing the running game:** the elf/dwarf/hobbit and thief modifier terms (four
-more characters at a 10 baseline), and the per-stat bounds (one character with all 90 in one
-attribute). See [character-creation.md](character-creation.md#what-closing-the-remaining-gaps-would-take).
+**Full write-up, including the invented premise this pass corrected:**
+[creation-pass.md](creation-pass.md).
 
 ### 5b. Overworld movement and the torus wrap
 
