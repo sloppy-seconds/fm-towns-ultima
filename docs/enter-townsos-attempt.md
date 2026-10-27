@@ -34,9 +34,20 @@ int f(char c) { bios_out(0x46, c); return (unsigned char)c; }
 
 ## Where it stopped
 
-**Both boot configurations reached the TownsOS graphical desktop, not a command prompt.** The
-screen reads as a desktop with a file-browser window. It does not give `Q:\>`, and there is no
-text console to type into.
+**Two boot configurations were tried, and neither gave a prompt.** `-BOOTKEY F0 -HD0 <image>
+-CD hc.ccd` and `-BOOTKEY CD -HD0 <image>` both reach the same screen: the TownsOS 3.1
+environment (`TBIOS_V31L22A` in the emulator log), showing a desktop with a window, not a
+command prompt. The screen renders identically under both boot keys.
+
+**Keypresses were tried, not merely assumed to fail.** The supervisor's `/api/keys` endpoint
+is a character-typing route and `/api/key` sends named keys, both through `xdotool` against
+the Tsugaru window. The window is found (`xdotool search --name TSUGARU` returns
+`14680067`), and direct `xdotool key --window` calls were issued from inside the container.
+The screen did not change. So the block is not "we did not try"; it is that keystrokes into
+that screen do not reach a shell.
+
+**`MODE=shell` does not help.** `container/entrypoint.sh` line 95 has a shell mode, but it is
+`exec /bin/bash` inside the container, not a guest DOS shell.
 
 `docs/highc-authentic-toolchain.md` records the working prompt as:
 
@@ -45,10 +56,17 @@ Q:\> d:
 D:\> hc386 r1.c
 ```
 
-**`Q:\>` is the CD's own root**, so that session was booted from the SDK CD and reached a shell
-somewhere the graphical desktop does not lead. This attempt booted the same CD and the same HDD
-and landed in the desktop instead. The missing step is how that session got from the desktop to
-a DOS prompt, and it is not written down in the page.
+**`Q:\>` is the CD's own root**, so that session had a DOS shell running with the CD mounted.
+How it got there is not recorded in that page, and this attempt did not find it. The most
+likely missing step is the CD's own `AUTOEXEC.BAT`, which the driver-invocation note says
+runs `DEMO.BAT`.
+
+**What was learned about the guest, which the next attempt will need:**
+
+- The TownsOS HDD image's own `AUTOEXEC.BAT` sets `set prompt=[$p]` and runs `CONTROL`, a GUI
+  window manager. Booting that image lands in the desktop by design.
+- The emulator log shows a clean boot (`Loaded ROM Images`, `Identified TBIOS as:
+  TBIOS_V31L22A`) with no errors, so the guest is healthy and the screen is real.
 
 ## What was found that is worth keeping
 
