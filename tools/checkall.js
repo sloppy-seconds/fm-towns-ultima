@@ -431,6 +431,29 @@ const runNode = (script, args = []) => {
 	const spanOk = /^0xe5d90\.\.0xe5e6c/.test((fs2.out || '').trim());
 	record('fnstrings reports raw addresses', spanOk ? [] :
 		['0xe5d90 should span to 0xe5e6c, got: ' + String(fs2.out || '').split('\n')[0]]);
+
+	// K. The 0xEB escape. `EB xx` encodes the character xx + 1 and all other bytes pass
+	// through, so 0x1528 reads STRENGTH when expanded. Asserted by decoding, because the six
+	// earlier readings of this byte were all plausible and all wrong, and the only way to keep
+	// one settled is to test it against a string whose meaning is already known.
+	{
+		const buf = fs.readFileSync(path.join(ROOT, 'ENCHANT.EXP'));
+		const at = 0x1528;
+		const end = buf.indexOf(0, at);
+		const raw = buf.subarray(at, end);
+		const out = [];
+		for (let i = 0; i < raw.length; i++) {
+			if (raw[i] === 0xeb && i + 1 < raw.length) {
+				out.push(raw[i + 1] + 1);
+				i++;
+			} else {
+				out.push(raw[i]);
+			}
+		}
+		const lead = Buffer.from(out).subarray(0, 8).toString('latin1');
+		record('0xEB is an ASCII escape (xx + 1)',
+			lead === 'STRENGTH' ? [] : ['0x1528 should expand to STRENGTH, got ' + JSON.stringify(lead)]);
+	}
 }
 
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four

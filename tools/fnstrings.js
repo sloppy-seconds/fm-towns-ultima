@@ -98,14 +98,31 @@ function printableAt(img, v, max = 96) {
 }
 
 function render(b) {
-	// The 0xEB runs are not Shift-JIS. Show them as a token count rather than mojibake.
-	let eb = 0;
-	for (const x of b) if (x === 0xeb) eb++;
-	if (eb > 0) return `(0xEB run, ${eb} markers)`;
+	// 0xEB IS AN ASCII ESCAPE, and this used to report every run as a token count. `EB xx`
+	// encodes the character `xx + 1`, and all other bytes pass through, so the transform is
+	// applied first and the result decoded as Shift-JIS. docs/text-encoding.md records how it
+	// was established: the character-sheet labels appear as Shift-JIS at 0x153d and as EB text
+	// at 0x1528, and the second decodes to STRENGTH which the first says in Japanese.
+	let hasEb = false;
+	for (const x of b) if (x === 0xeb) { hasEb = true; break; }
+	let raw = b;
+	if (hasEb) {
+		const out = [];
+		for (let i = 0; i < b.length; i++) {
+			if (b[i] === 0xeb && i + 1 < b.length) {
+				out.push((b[i + 1] + 1) & 0xff);
+				i++;
+			} else {
+				out.push(b[i]);
+			}
+		}
+		raw = Buffer.from(out);
+	}
 	try {
-		const t = new TextDecoder('shift_jis', { fatal: true }).decode(b);
-		return t;
+		return new TextDecoder('shift_jis', { fatal: true }).decode(raw);
 	} catch {
+		// A string can mix the two forms and still not decode; say so rather than pretending.
+		if (hasEb) return '(undecodable after 0xEB expansion) ' + raw.toString('latin1').replace(/[^\x20-\x7e]/g, '.');
 		return b.toString('latin1').replace(/[^\x20-\x7e]/g, '.');
 	}
 }

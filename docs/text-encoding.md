@@ -14,7 +14,7 @@ measured. What `0xEB` means in the strings is not, and four readings of it have 
 | background fill | `0xe6e48` -> `0x8b6` -> TBIOS **AH 0x2b**, rectangle at `0x7add8` |
 | text attributes | four, through a table at `TBIOS.BIN 0xfad0` |
 | pixel handling | a `not` cascade over a byte count, so a plain bitmap inverted on merge |
-| `0xEB` in strings | **unresolved**, four readings failed |
+| `0xEB` in strings | **resolved**: a single-byte ASCII escape, `EB xx` is character `xx + 1` |
 
 ## The cell size, from two independent statements
 
@@ -86,7 +86,87 @@ retraction saying it was not, and that retraction was itself wrong: it followed 
 handler, which is a different routine reaching the same buffer. Two callers, two purposes, one
 buffer.
 
-## What `0xEB` is not
+## What `0xEB` is: a single-byte ASCII escape
+
+**Resolved.** `EB xx` encodes **the character `xx + 1`**. All other bytes pass through
+unchanged, and the result is Shift-JIS. The two forms coexist inside one string.
+
+The evidence is a string whose meaning is already known from its plain twin:
+
+```
+0x1640   20 20 81 6d eb 42 eb 4e eb 4c eb 4c eb 40 eb 4d eb 43 eb 52 81 6e
+  EB -> +1:  20 20 81 6d 43 4f 4d 4d 41 4e 44 53 81 6e
+  Shift-JIS:      [ C O M M A N D S ]
+```
+
+`0x81 0x6d` and `0x81 0x6e` are the full-width brackets, passing through untouched. The eight
+`EB` pairs in the middle are `COMMANDS`, each one less than its ASCII code.
+
+### The attribute labels prove it independently
+
+The character sheet has each attribute twice, once as Shift-JIS and once as `0xEB` text:
+
+| address | decoded |
+|---|---|
+| `0x153d` | `　＜強　さ＞　：　` (plain Shift-JIS) |
+| `0x1528` | `EB 52 EB 53 EB 51 EB 44 EB 4D EB 46 EB 53 EB 47 81 46 81 40` |
+
+The second decodes with `+1` as `52 53 51 44 4D 46 53 47` → `S T R E N G T H`, then
+`81 46` = the full-width colon and `81 40` = full-width space. So `0x1528` is
+`STRENGTH：　`, the English label for the Japanese `<Strength>` at `0x153d`.
+
+Six further labels confirm the same rule, and all were checked by decoding rather than by
+eye:
+
+```
+AGILITY   EB 40 EB 46 EB 48 EB 4B EB 48 EB 53 EB 58  -> AGILITY
+WISDOM    EB 56 EB 48 EB 52 EB 43 EB 4E EB 4C        -> WISDOM
+CHARISMA  EB 42 EB 47 EB 40 EB 51 EB 48 EB 52 EB 4C EB 40 -> CHARISMA
+STAMINA   EB 52 EB 53 EB 40 EB 4C EB 48 EB 4D EB 40  -> STAMINA
+```
+
+And a whole message:
+
+```
+0x149a  ... ->  PCMデ－タのロ－ドに失敗しました
+```
+
+`PCM data load failed`, which is a string `docs/` already quotes from a different routine.
+
+### Why the earlier readings failed
+
+All six previous readings treated `0xEB` as a property of the *following byte's value*, either
+an escape to a glyph index, a lead byte, or a marker for gaiji. It is none of those: it is a
+**marker that the next byte is to be incremented**, which is why
+
+- stripping the `0xEB` gave `OBL CZmZ eh`: the bytes are each one below the intended character
+- a standard decoder rejected every pair: `EB` is not a valid Shift-JIS lead
+- the frequency count ruled out a lead byte: correct, because it is not one
+
+### A caveat this does not explain
+
+One string does **not** decode cleanly this way:
+
+```
+0x1474  EB 4F EB 42 EB 4C 20 EB 43 EB 5A EB 6D EB 5A ...
+  ->    PCM D[n[ fi[^ _llilu
+```
+
+`PCM` is right and the rest is not, though `0x149a` renders the same kind of message correctly.
+So either that string is damaged, or the high-value payloads use a second transform. It is
+recorded rather than explained, and it does not affect the hundreds of strings that do decode.
+
+### What this unlocks
+
+539 strings in `0x1348` to `0x6000` contain `0xEB`, all of them previously unreadable and all
+previously blocking the naming of every routine that referenced them. `tools/fnstrings.js`
+reports those references as `(0xEB run, N markers)`; with this transform they become text, and
+the routines holding most of them become nameable.
+
+## The superseded readings
+
+Kept because the history of being wrong is the useful part, and because each removal records
+the test that ruled it out.
 
 The strings at `0x42dc`, `0x1474` and `0x4334` are full of `0xEB xx` pairs, and four readings of
 them failed on a measurable test.
