@@ -189,6 +189,7 @@ nav:
       - Two frames of reference: two-frames-of-reference.md
       - fmtownskit and seeds: fmtownskit-and-seeds.md
       - Guarded walk coverage: guarded-walk-coverage.md
+      - Unreferenced extents: unreferenced-extents.md
       - AGENTS.md audit: agents-md-audit.md
       - Compiler API: compiler-api.md
       - The goal, stated: goal-behavioural-faithfulness.md
