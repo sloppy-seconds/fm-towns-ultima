@@ -163,3 +163,51 @@ overcount by 30 bytes. Stated because the first version of the summary line did 
 A descent into that region decodes message text as instructions. Whether it is reached because a
 seed is wrong or because a jump table is read to the wrong bound is not established, and this page
 stops short of claiming either.
+
+## The string tables, and where they actually start
+
+The conflicts in the `0x5..0x36bb` cluster sit in two adjacent tables, not in code.
+
+**A filename table from `0x1348`**, entries of `Q:\SOUND\<NAME>.SND` separated by NULs:
+
+```
+0x1348  "Q:\SOUND\BUMP.SND"
+0x1358  "Q:\SOUND\FIRE.SND"
+0x1388  "Q:\SOUND\WHAT.SND"
+0x1398  "Q:\SOUND\MAGIC3.SND"
+0x13c4  "Q:\SOUND\KATANA1.SND"
+0x13dc  "Q:\SOUND\MONSTER1.SND"
+```
+
+**A message table from about `0x1500`**, English followed by Shift-JIS Japanese pairs:
+
+```
+0x1678  "   A)ttack  J)ump   S)teal \0"
+0x1695  "   A)...   J)...  S)..."        Shift-JIS, the same menu in Japanese
+0x16c4  "   B)oard   K)limb  T)rans-\0"
+0x3000  "キャラクタを生成してくださぃ"    and so on past 0x3000
+```
+
+That is why the bytes kept looking like jump tables. A Shift-JIS lead byte is `0x81` to `0x9F` or
+`0xE0` to `0xEF`, so `81 6d eb 42 eb 4e` is text, and the `0xEB` at even offsets seen three times
+in [unreferenced-extents.md](unreferenced-extents.md) is the second byte of a two-byte character
+code, not an opcode.
+
+**Nothing references either table.** `x86map --refs 0x1400` and `--refs 0x1678` both report no
+reached instruction naming them, and searching the image for their literal addresses finds 54
+occurrences of `0x1400` in the data that are not code references.
+
+**And `0xd5d` does not run into them.** Its body ends at `0xd8c` with `ret`, and the next non-zero
+byte is `0x7f` at `0xd90`, a lone constant followed by zeros until `0x1348`. There is no code
+between the thunk and the filename table.
+
+So the descent enters the table by a route neither the reference search nor the linear layout
+explains. That is as far as this got, and it is recorded as open rather than closed. The two
+candidate explanations are a jump table in the low startup code read to the wrong bound, which would
+land a target inside the table, and a seed whose disassembly happens to run past its own terminator.
+
+## Correction to what this page said earlier
+
+An earlier revision of this section called `0x1400` the message string table. It is the middle of
+the **filename** table. The message text starts later, near `0x1500`. The conclusion is unchanged,
+but the addresses in that sentence were wrong.
