@@ -811,19 +811,34 @@ a measurement of allocation itself, which is a weaker footing than the modifier 
 was wrong, and it contradicted what `docs/bot-plan.md` had already planned around. The `cmp 0xf` at
 `0xef5b4` bounds a 16-wide **cell table**, not the world.
 
-**What is established:** `PLAYER_X` (`0xcdf6b`) bounds at **63**, and one step west from 0 gives 63
-with the map id (`0xcdf53`) changing 41 to 42. The sector is **256 by 128 cells** of one byte each,
-32,768 bytes, per `docs/map-geometry.md`. The collision test is `0xfb41c`, which indexes a 16-byte
-cell table with `(x << 8) + (y << 4)`.
+**What is established:** the wrap routine is **`0xf6b5a`**, read this session. For each axis
+independently: if the coordinate is `>= 64` set it to 0, and if it is `< 0` set it to 63. That is a
+torus of **64 in both axes**, which matches the 256 by 128 sector in `docs/map-geometry.md` being
+sixteen sectors of 64 cells. The sector is **256 by 128 cells** of one byte each, 32,768 bytes. The
+collision test is `0xfb41c`, which indexes a 16-byte cell table with `(x << 8) + (y << 4)`.
+
+**Corrected again.** This item previously recorded that one step west from 0 gives 63 *and* the map
+id (`0xcdf53`) changing 41 to 42. `0xf6b5a` never writes the map id, and it is the only code that
+clamps `PLAYER_X` to 63, so that observation mixed two events or a second routine produced the
+second half. The map-id change is **unverified** until `0xf1b5c` is read, that being the only one
+of the four map-id write sites that is arithmetic rather than a plain store.
 
 **The open questions, all static:**
 
-- **which routine bounds `PLAYER_X` at 63 and writes the map id.** `0xef5b4` provably is not it,
-since it contains no `0x3f` or `0x40` immediate anywhere. This is the main gap.
+- **what changes the map id as a result of movement.** Four write sites at `0xeac7c`, `0xec541`,
+`0xedcca` and `0xf1b5c`. The first three are plain stores in record initialisers; `0xf1b5c` is an
+`add`. Reading that one is the next step.
 - **what `MAP_X`/`MAP_Y` (`0xcdf63`/`0xcdf67`) are**, given that `PLAYER_X`/`PLAYER_Y` four bytes
-later are what move on a step. Their writer has not been found.
+later are what the wrap clamps. Both pairs are written by the same initialiser and neither meaning
+is established.
+- **the record base and stride.** The code computes `index * 95` at `0xec4f2`, but
+`tools/fieldmap.js` puts the base at `0xcde54` from three agreeing anchors, and at that base the
+initialiser's field run crosses a record boundary. Either the base, the stride, or the assumption
+that those are per-character fields is wrong. Not resolved.
 - **how the 11 by 11 viewport is derived from a 256 by 128 buffer.** The two are not one-to-one.
 - **the food and turn counters**, which belong to the turn and to item 1b.
+
+See [movement-wrap-found.md](movement-wrap-found.md).
 
 **Method note.** The tempting next step is `bot-plan.md` P4, a savestate shape-match hunt for the
 sector buffer's live address. That is the last resort, not the first: it derives a rule from watching
