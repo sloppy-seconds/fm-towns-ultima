@@ -94,6 +94,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Guarded walk coverage](guarded-walk-coverage.md) | The first honest reach figure: 25 seeds reach 28 percent of the code this project believes exists, 397 reach 110,778 bytes. |
 | [Unreferenced extents](unreferenced-extents.md) | 7,788 bytes nothing reached refers to, and the three wrong readings of it before the measurement stood. |
 | [Recompilation result](recompilation-result.md) | 709 functions to 205,189 lines of C++ that compiles and passes its self-test. 98.7 percent of the C-shaped corpus, and why that is not a playable port. |
+| [Recompilation conflicts](recompilation-conflicts.md) | 366 conflicts are 12 functions and two causes. Removing the obvious seed does not help, and the measurement says why. |
 | [Three games compared](three-games-compared.md) | No shared engine, 3 percent identical once shared BSS is removed. A shared toolchain, and tooling that opens all three. |
 | [Seed sets](seed-sets.md) | Deriving function starts for U1 and U3 where there are no symbols, validated against U2 first, and three walks with zero conflicts. |
 | [The wrap found](movement-wrap-found.md) | The routine that clamps a coordinate at 63, as arithmetic. A torus of 64 in both axes, and it does not change the map id. |
