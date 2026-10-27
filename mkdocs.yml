@@ -163,7 +163,8 @@ nav:
       - The enter cluster is one band, and it interleaves: enter-cluster.md
       - enter 0,0 is the platform, not the compiler: enter-is-platform.md
       - The enter band is a build-unit boundary: enter-band-boundary.md
-      - High C 1.73 does not emit enter: enter-not-emittable.md
+      - The real-mode generator does not emit enter: enter-not-emittable.md
+      - The TownsOS driver path was attempted, not reached: enter-townsos-attempt.md
       - The nobase-SIB addressing class: nobase-sib.md
       - The base-register lea is not a flag: leasib-flags-negative.md
       - The kit's real toggle list: compiler-toggles.md

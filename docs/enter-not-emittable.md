@@ -1,17 +1,26 @@
-# High C 1.73 does not emit `enter`, and that is now measured
+# The real-mode generator does not emit `enter`
 
-**Verdict: across every source shape and every setting available to this project, High C 1.73
-emits `push ebp; mov ebp, esp` and never `enter 0,0`. So `enter` is not reachable from C with
-this compiler, and the three parked routines are out of reach by byte matching rather than
-waiting on an undiscovered flag.**
+**Scope correction: this page tested `HCD386.EXE` only.** High C 1.73 has an optimising,
+protected-mode path through the `HC386.EXE` driver on TownsOS, and it is measurably different:
+`docs/highc-authentic-toolchain.md` records that the driver produced the optimiser output the
+real-mode generator never could, and that `HCD386.EXE` returned byte-identical code for
+twenty-one different flag sets. So "the compiler cannot emit `enter`" is too strong. What was
+actually measured here is **the real-mode generator cannot**, under any setting reached from
+that route.
+
+`docs/enter-townsos.md` records the follow-up on the driver path.
+
+**Verdict as measured, on `HCD386.EXE`:** across every source shape and every setting available
+from the real-mode route, `HCD386.EXE` emits `push ebp; mov ebp, esp` and never `enter 0,0`.
 
 This closes the chain of four pages on the subject. The earlier ones each narrowed it; this
 one records the measurement that ends it.
 
 ## What was tried, and the count
 
-Compiled through `tools/cc.sh` against `HCD386.EXE` (verified: `cserve.js` line 364, and the
-compiler's own log line reads `MetaWare High C Compiler 1.73`).
+Compiled through `tools/cc.sh` against **`HCD386.EXE`**, the real-mode generator (verified:
+`cserve.js` line 364, and the compiler's own log line reads `MetaWare High C Compiler 1.73`).
+This is not the optimising driver path; see the scope correction at the top.
 
 **The control: `0xfe211` rewritten as C.** Its body is `enter 0,0; push ebx; mov bl,[ebp+8];
 mov ah,0x46; call; movzx eax,al; pop ebx; leave; ret`, which is a BIOS character-output
