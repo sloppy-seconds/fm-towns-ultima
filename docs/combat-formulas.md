@@ -104,29 +104,55 @@ same two turns, so `MAP` counts turns and not position.
 
 **One hit cannot tell a constant from a roll**, and the next hit showed it is a roll. See below.
 
-## Damage varies: five samples, five values
+## Damage varies: six samples, and 16 has now appeared twice
 
-A single observation of 16 was not enough to claim a constant, and the following hit confirmed why.
-The monster hit again between two reads of the same fight:
+A single observation of 16 was not enough to claim a constant, and the following hits confirmed why.
+The monster hit again between reads of the same fight:
 
 | HP | delta |
 |---|---|
 | 178 → 162 | **16** |
 | 162 → 150 | **12** |
 | 150 → 136 | **14** |
+| 122 → 106 | **16** |
 
-and an earlier fight in `combat-observed.md` recorded **5** and **15**. So **five samples, values 5,
-12, 14, 15, 16**, every one different. Monster damage is unambiguously a roll, and the spread of the
-three hits in this fight is 12 to 16.
+and an earlier fight in `combat-observed.md` recorded **5** and **15**. So **six samples, values 5,
+12, 14, 15, 16, 16**: only 16 has repeated. Monster damage is a roll, and the spread of the four
+hits in this fight is 12 to 16.
 
-**What the range is, is not determined.** Five points are consistent with a roll around 12 to 16 with
-the 5 an outlier from another fight, or with a wider distribution the five missed, or with a value
+**16 appearing twice is the first sign the distribution may not be uniform**, but six samples over
+five distinct values is also exactly what a small uniform draw looks like, so nothing is concluded
+beyond the observation.
+
+**What the range is, is not determined.** Six points are consistent with a roll around 12 to 16 with
+the 5 an outlier from another fight, or with a wider distribution the six missed, or with a value
 that scales by something unidentified. The player's own HP fell across these hits and STRENGTH or
 the monster's state could also matter. **Do not read 12 to 16 as the range:** the 5 comes from a
 different fight and a different monster, and nothing here ties the two together.
 
-So **monster damage is not a constant.** Five samples from two fights, every one different. That
+So **monster damage is not a constant.** Six samples from two fights over five distinct values. That
 rules out a fixed value and is the first thing this page can say about the form without guessing.
+
+## Talking to a monster produces a taunt, and the phrase is not in the binary
+
+The player used `T` against a monster and moved south. The monster answered **"Eat death scum!"**
+and attacked for **16**, taking HP from 122 to 106.
+
+**Two things follow, both negative on the static side.**
+
+- **The phrase is not in `ENCHANT.EXP`.** It was searched for as plain ASCII in the cases
+  `Eat death`, `eat death`, `EAT DEATH`, `death scum`, `scum`, `Scum` and `SCUM`, and as an
+  `0xEB`-escaped string, and every search returned nothing. So either the text is generated, or it
+  is stored somewhere other than the executable, or what the player read is not what the string
+  contains verbatim.
+- **A negative on the obvious route.** A taunt specific to being spoken to is data, and data with
+  no match in the binary is not addressable by the methods used here.
+
+**What is established:** talking does not prevent the monster acting, and the reply is
+monster-specific rather than a generic refusal. That is a rule the game applies and it belongs in
+the corpus even though the wording cannot yet be located.
+
+**The 16 is the sixth damage sample** and the second occurrence of that value. See above.
 
 **The turn accounting held again.** Two passes cost 30 food and moved `MAP` from 84 to 86, both
 consistent with every earlier read.
@@ -151,10 +177,11 @@ from this state and hold **map tile data** (nibbles such as `15 15 17 55 55 55`)
 So the monster and its HP cannot be read, and a second monster cannot be found by looking it up. This
 matches `combat-observed.md`, which already records monster HP as unlocated.
 
-**What is now known that was not:** monster damage is variable and all five samples differed, the
-player's HP is the field `0xcde81`, a fight costs the same 15 food per turn as a step, and `MAP`
-counts turns rather than position. Item 4b is still open, but it is open on five measurements rather
-than on a scan.
+**What is now known that was not:** monster damage is variable, six samples over five distinct values
+with 16 appearing twice; the player's HP is the field `0xcde81`; a fight costs the same 15 food per
+turn as a step; `MAP` counts turns rather than position; and talking to a monster draws a
+monster-specific taunt without preventing its attack. Item 4b is still open, but it is open on six
+measurements rather than on a scan.
 
 ## An earlier one-hit kill, for contrast
 
