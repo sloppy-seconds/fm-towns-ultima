@@ -428,7 +428,9 @@ This is how to reach the running game when there is no local display, which is
 the normal case over SSH.
 
 Three host specifics the script encodes because each failed silently first time:
-podman requires sudo here, SELinux is enforcing so bind mounts need `:z` or the
+project containers run **rootless** (`podman`, no sudo; the system services such as
+litellm and traefik live under `sudo podman` in a separate store, and the two stores
+cannot see each other's images), SELinux is enforcing so bind mounts need `:z` or the
 container gets `Permission denied` on every host directory, and the Tsugaru
 window is titled `FM Towns Emulator - TSUGARU` with a 640x496 geometry rather
 than 640x480, so matching on 640x480 finds nothing.
