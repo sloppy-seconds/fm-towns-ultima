@@ -211,3 +211,146 @@ land a target inside the table, and a seed whose disassembly happens to run past
 An earlier revision of this section called `0x1400` the message string table. It is the middle of
 the **filename** table. The message text starts later, near `0x1500`. The conclusion is unchanged,
 but the addresses in that sentence were wrong.
+
+## The mechanism, found: a false table at `0xf142a`
+
+Tracing the `0x235` conflict to its source gives the mechanism for the whole family.
+
+`0x237` is not a seed, is not called, and is not jumped to directly. It appears in the body of
+**`0xf0fec`**, a genuine 1,190-byte function with 57 calls. A function whose body includes `0x237`
+reaches it by a transfer, and the transfer is a table read:
+
+```
+site 0xf142a   table 0xf1232   4 entries, bounded by a cmp   one target: 0x237
+```
+
+The site is real. `0xf1428` is `77 43` (`ja`), and `0xf142a` is
+
+```
+2e ff 24 95 32 12 0f 00      jmp cs:[edx*4 + 0xf1232]
+```
+
+so the `/4` SIB form with no base and a `cmp`/`ja` bound is exactly what `_table` is designed to
+find. What it found is not a table:
+
+```
+0xf1232  0x00000237
+0xf1236  0x0051b868
+0xf123a  0xf4458d00
+0xf123e  0xfc44e850
+```
+
+One entry is plausible as an address and three are not. Decoded as instructions from `0xf1232` the
+bytes are ordinary code (`aaa`, `add`, `push`, `lea`, `call`), and scanning for a run of plausible
+code pointers anywhere within 0x40 bytes of `0xf1232` finds **zero**.
+
+So `_table` read four dwords out of the middle of code. The bound test passed because `cmp`/`ja`
+precedes the jump, and the entry test passed because the read is bounded rather than open. `0x237`
+is the first of those dwords, which is why the conflict lands on a byte inside a TBIOS stub.
+
+**Five other tables have the same signature**, each with low targets that cannot be code addresses:
+
+| site | table | entries | low targets |
+|---|---|---|---|
+| `0xf142a` | `0xf1232` | 4 | `0x237` |
+| `0xe3e7d` | `0xe3c85` | 16 | `0x77e` |
+| `0xe2f21` | `0xe2d29` | 23 | `0x100`, `0x1c0` |
+| `0xe4606` | `0xe440e` | 69 | `0x8e`, `0x6a` |
+| `0xe9129` | `0xe8f31` | 23 | `0xc5` |
+| `0xe4a22` | `0xe482a` | 69 | `0x53`, `0x57`, `0x50`, `0x5bb`, `0x6`, `0x7` |
+
+Addresses below `0x1000` are inside the MP header and the startup stubs. A jump table for game code
+does not contain them.
+
+## Why six tables and not sixty
+
+`tablecheck.py`, run earlier on this branch, reported 7 sites for the 25-seed walk with **7 real and
+0 false positives**. That check asked whether the site is a genuine `jmp`/`call` through a scaled
+index, and each of these six is. It did not ask whether the table's *contents* are addresses, and
+that is the gap: a correctly detected site with a wrong base is a different failure from a site that
+is not a jump at all.
+
+The distinguishing test is cheap and is the next thing to add: **a table whose entries include an
+address below the first plausible code byte is not a table.** Every one of the six fails that and
+the four known-good ones pass.
+
+## What this does not yet show
+
+Whether the base is wrong, the bound is wrong, or `edx` carries an offset added elsewhere before the
+jump. Only the last would leave the displacement correct and the reading wrong, and it is plausible
+because the code around `0xf142a` is a `mov`/`cmp`/`ja` sequence whose `edx` is computed earlier.
+Settling it needs the `edx` chain read, which is where this stops.
+
+## The real cause: the displacement is not the table base
+
+The six false tables share one cause, and it generalises.
+
+Take `0xe2f21`. The instruction is `2e ff 24 95 29 2d 0e 00`, which is
+
+```
+jmp cs:[edx*4 + 0xe2d29]
+```
+
+so `_table` reads 23 dwords from `0xe2d29` at a stride of 4. All 23 are code bytes read as dwords.
+**Zero of the 23 are valid addresses in the image.**
+
+The table is at `0xe2f29`, immediately after the instruction, and it is exact:
+
+```
+0xe2f29  0xe2d85
+0xe2f2d  0xe2d8c
+0xe2f31  0xe2d93
+0xe2f35  0xe2d9a
+...      23 entries, spaced 7 bytes apart
+```
+
+**All 23 are valid code addresses.** The difference between the declared displacement and the real
+table is `0x200`, the same offset by which the `ja` skips past the table:
+
+```
+0xe2f0d  movzx eax, [edx+0xcde7b]    ; the profession byte
+0xe2f15  sub   edx, 0x41             ; 'A'
+0xe2f18  cmp   edx, 0x16             ; 22, so 23 entries
+0xe2f1b  ja    0xe2fcf               ; past the table
+0xe2f21  jmp   [edx*4 + 0xe2d29]
+```
+
+So the site is right, the bound is right, and the **base is wrong**.
+
+Checking the other five the same way: read from immediately after the instruction and the first
+eight dwords are 8 of 8 valid code addresses, except `0xf142a` which is 4 of 8 and remains the one
+genuine oddity.
+
+| site | declared table | table after the jmp | first 8 entries valid |
+|---|---|---|---|
+| `0xe2f21` | `0xe2d29` | `0xe2f29` | **8 of 8** |
+| `0xe3e7d` | `0xe3c85` | `0xe3e85` | **8 of 8** |
+| `0xe4606` | `0xe440e` | `0xe460e` | **8 of 8** |
+| `0xe9129` | `0xe8f31` | `0xe9131` | **8 of 8** |
+| `0xe4a22` | `0xe482a` | `0xe4a2a` | **8 of 8** |
+| `0xf142a` | `0xf1232` | `0xf1432` | 4 of 8 |
+
+His own `pc-4ddriving` documentation describes exactly this idiom, in
+[three-games-compared.md](three-games-compared.md): *"they jump through tables placed right after
+the jump"*. The displacement in the encoding is a **stale or biased value** the compiler emitted,
+and the real base is `next_instruction + index*4` with the index pre-biased by the code before it.
+
+## Why this matters beyond the conflicts
+
+Every table read through the wrong base feeds garbage targets into the walk. That is why
+`0x237`, `0x100` and `0x6` appear as function starts: they are entries read from the middle of code.
+
+The repair is in `_table`, and it is testable without changing any game knowledge: **if the entries
+at the declared displacement are not code addresses and the entries immediately after the
+instruction are, the displacement is biased.** That is a property of the compiler's output, so it
+belongs in the kit.
+
+It also explains why `tablecheck.py` reported 7 of 7 sites real. It asked whether the site is a
+genuine `jmp` through a scaled index, which it is in every case. It never asked whether the table
+the tool then *read* contains addresses.
+
+## The `ja` skip, independently
+
+For `0xe2f21` the `ja` target `0xe2fcf` is not `table + 23*4` (`0xe2f85`), so the skip is not
+simply past the table either. It is 74 bytes further on. That is consistent with code following the
+table, and it is recorded rather than explained.
