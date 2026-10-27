@@ -16,6 +16,55 @@ sex, profession and race, then applies modifiers once at creation time.
 The six attributes, in record order: `STRENGTH`, `AGILITY`, `STAMINA`, `CHARISMA`, `WISDOM`,
 `INTELLIGENCE`.
 
+### Everything else a fresh character starts with
+
+Read from every slot on `saves/modifier_test.hdm`, all four created with the same allocation, so
+these are constants rather than per-character choices:
+
+| field | value |
+|---|---|
+| `MAGIC` | 65 |
+| `HP` | 400 |
+| `MHP` | 400 |
+| `FOOD` | 40000 |
+| `GOLD` | 400 |
+| `ERA` | 2 |
+| `R_ARMOUR` | `A` |
+| `R_WEAPON` | `A` |
+| `SKIN` | 1 |
+| `CLOTH` | 1 |
+| `HAND` | 1 |
+| `DAGGER` | 1 |
+| `PLAYER_X`, `PLAYER_Y` | 20, 20 |
+| `SEED` | 80 |
+
+**Starting inventory is one cloth armour and one dagger**, with `HAND=1` because bare hands are an
+item in this engine rather than an absence. `R_ARMOUR` and `R_WEAPON` are both `A`, which appears
+to mean "nothing equipped", since the dagger is carried rather than worn.
+
+`FOOD=40000` matches the fixed-point scaling `docs/save-files.md` records: the status screen
+shows `FOOD` divided by 100, so 40000 displays as 400.
+
+## The profession letters, and a mismatch worth recording
+
+The roster file stores `PROFESSION` as one of `F`, `C`, `W`, `T` (`docs/save-files.md` establishes
+this against the sprite index).
+
+But `0xea118` parses a single character as `D`, `F`, `U` or `Z`, mapping to class indices 2, 4, 3
+and 1:
+
+```asm
+ea109  cmp edx, 0x44        ; 'D' -> 0xcde4c = 2
+ea10e  cmp edx, 0x46        ; 'F' -> 4
+ea113  cmp edx, 0x55        ; 'U' -> 3
+ea118  cmp edx, 0x5a        ; 'Z' -> 1
+ea11d  jmp default          ; anything else -> 0
+```
+
+**Two different alphabets, in one program.** The routine was not traced to a caller and its role
+is not established; it may be a parser for an imported or legacy roster. Recorded because a future
+reader comparing the file format to the code will hit it and assume one of them is wrong.
+
 ## The measured modifier table
 
 Read this session from `saves/modifier_test.hdm`, which holds four characters all entered at
@@ -94,12 +143,34 @@ known only for `H`, and `docs/meta-analysis-review.md` already records the other
 index formula `SPID = profession_index * 4 + 2`, but no thief was created at a 10 baseline, so
 its stat term is unknown.
 
+**The per-stat bounds.** Not established. The 90-point budget is confirmed, but whether a single
+attribute may take all 90, or whether there is a per-stat ceiling at creation, was not tested.
+A search for the allocation routine found no comparison against 90 in the registration path at
+`0xedf38`, and the allocator itself was not located.
+
 **The order of application.** The terms are additive and commute, so order does not matter for
-the totals. It would matter only if a clamp existed, and none was observed: no row hits a
-ceiling.
+the totals. It would matter only if a clamp existed, and none was observed: no measured row hits
+a ceiling.
 
 **Where the table lives in the code.** Not located. The values are known by measurement, which
 is sufficient for a reimplementation, and finding the table would only confirm them.
+
+**What `0xea118` is for.** It parses a profession letter from a different alphabet than the
+roster stores. Unresolved.
+
+## What closing the remaining gaps would take
+
+Two of the three gaps are cheap and one is not:
+
+| gap | how |
+|---|---|
+| elf, dwarf, hobbit, thief modifiers | create four characters at 10 across the board, one per race with a fixed profession, then four more varying profession. This is the same measurement already done for human, repeated. Needs the game and about ten minutes. |
+| per-stat bounds | create one character putting all 90 into a single attribute and read the stored value. Needs the game and one character. |
+| what `0xea118` parses | trace its caller. Static, cheap, and low value. |
+
+All three need either the running game or a caller trace. None blocks a reimplementation, because
+the measured table covers human with all three measured professions, and the starting inventory
+is constant.
 
 ## What a reimplementation needs, and has
 

@@ -81,7 +81,7 @@ from the items below rather than maintained separately.
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
-| 5a Character creation | AUTONOMOUS | **done**, modifiers measured |
+| 5a Character creation | PARTLY AUTONOMOUS | partly: inventory and human modifiers done, race and bounds need the game |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
 | 5c Time gates and epochs | AUTONOMOUS | **yes** |
 | 5d Towns and NPC assignment | AUTONOMOUS | **yes** |
@@ -746,23 +746,33 @@ outputs, and callers.
 
 ### 5a. Character creation, as arithmetic
 
-**State:** DONE · **Autonomy:** AUTONOMOUS
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | runs unattended; decoder and census only, no emulator |
+| autonomy | partly. The code reading runs unattended; closing the race and bound gaps needs the running game and a few characters created |
 | done when | the point allocation, the sex/race/profession modifiers and the starting inventory are each stated as arithmetic with their bounds, or the point at which a value becomes runtime-only is named |
-| blocked by | nothing |
+| blocked by | the race and per-stat-bound terms need four characters created at a 10 baseline and one with all 90 points in a single attribute, which needs the running game and a person to drive it |
 
 The first thing a player meets, and the first subsystem on the spine.
 
-**Resolution.** Not a dice roll: the player allocates **90 points** across six attributes, and
+**Resolution so far, and this item is not done.** An earlier revision marked it DONE prematurely:
+its own criteria name four things and three were finished. What is established:
+
+Not a dice roll: the player allocates **90 points** across six attributes, and
 the game applies sex, race and profession modifiers once at creation. The modifier table was
 read from `saves/modifier_test.hdm`, four characters entered at 10 across the board:
 **male STA+10, female CHA+10, human INT+5, fighter STR+10 AGI+10, cleric WIS+10, wizard INT+10**,
 purely additive and confirmed against the independent 90-point case in `docs/save-files.md`. The
 gaps are the elf, dwarf and hobbit terms and the thief term, none of which were ever created at a
 baseline. Full write-up: [character-creation.md](character-creation.md).
+
+**Starting inventory is done:** 400 gold, 40000 food, one cloth armour, one dagger, `MAGIC` 65,
+`HP` and `MHP` 400, `ERA` 2. Constant across all four measured characters, so it is not a table.
+
+**Remaining, both needing the running game:** the elf/dwarf/hobbit and thief modifier terms (four
+more characters at a 10 baseline), and the per-stat bounds (one character with all 90 in one
+attribute). See [character-creation.md](character-creation.md#what-closing-the-remaining-gaps-would-take).
 
 ### 5b. Overworld movement and the torus wrap
 
