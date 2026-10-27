@@ -99,6 +99,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Seed sets](seed-sets.md) | Deriving function starts for U1 and U3 where there are no symbols, validated against U2 first, and three walks with zero conflicts. |
 | [The wrap found](movement-wrap-found.md) | The routine that clamps a coordinate at 63, as arithmetic. A torus of 64 in both axes, and it does not change the map id. |
 | [The seed gap that was not there](jmp-seed-gap-negative.md) | Hypothesis: `call`-invisible functions are missing. Refuted: 681 `jmp` targets yield zero function starts, and three addresses thought missing were inside recompiled bodies. |
+| [String tables](string-tables.md) | The sound filename, music filename and message tables, measured. Shift-JIS explains three earlier misreadings, and masking the text takes 359 conflicts to 166. |
 | [The decompilation experiment](decompilation-experiment.md) | First Level-1 run on real routines. One byte match, one confirmed relocation trigger, and the candidate pool is 103 not 738. |
 | [The decompilation loop](decompilation-loop.md) | The strategy and the Andon Cord, amended where the experiment contradicted it. |
 | [The decompilation plan](decompilation-plan.md) | Running the loop unattended, and the honest ceiling. |
