@@ -356,4 +356,55 @@ reaching the same struct. Two callers, two purposes, one buffer.
 | background fill | `0xe6e48` -> `0x8b6` -> TBIOS **AH 0x2b**, rectangle `0x7add8` |
 | text window | 55-byte record at `0x7aee4 + n * 55` |
 | encoding, precisely | Shift-JIS with a **gaiji block**: `0xEB xx` pairs are valid by the game's test and rejected by a standard decoder |
-| glyph table | a **gaiji** definition, not a full font; supplied by `GAIJI2.COM` or the TBIOS font module |
+| what `0xEB` is | **unresolved**. Four readings failed, listed below |
+
+
+## Counting `0xEB` in the text region, and what it shows
+
+A frequency count over `0x1348` to `0x6000`, the region where printable ASCII stops:
+
+| lead | count |
+|---|---|
+| `0x81` | 1032 |
+| `0x82` | 908 |
+| `0x83` | 437 |
+| `0xEB` | **3652** |
+| `0xE1` | 2 |
+
+`0x81`, `0x82` and `0x83` have the frequencies of Shift-JIS punctuation and katakana, which fits
+what [three-games-compared.md](three-games-compared.md) measured. **`0xEB` at 3652 against `0xE1` at
+2 is not a character code distribution.** No character block has one member outnumbering its
+neighbours by three orders of magnitude.
+
+So `0xEB` is not a lead byte here, and it is not an escape to a font index either. What follows it
+is mostly **printable ASCII**:
+
+```
+0x1474  EB 4F EB 42 EB 4C EB 5A EB 5A EB 6D EB 5A ...
+        O    O    B    L    Z    Z    m    Z
+```
+
+Stripping the `0xEB` bytes gives `OBL CZmZ eh`, which contains word-shaped fragments and is not
+readable Japanese or English. So neither reading is right, and the correct one has not been found.
+
+## Where this leaves the encoding, honestly
+
+Four readings have now been tried and each failed on a measurable test:
+
+| reading | how it failed |
+|---|---|
+| plain ASCII with `0xEB` as an escape to a glyph code | stripping gives `OBL CZmZ eh`, not words |
+| the pairs are Shift-JIS | a standard decoder rejects every one |
+| `0xEB` is a Shift-JIS lead byte | 3652 uses against `0xE1` at 2 is not a character distribution |
+| `0xEB` marks gaiji | gaiji sets are small, and 155 distinct pairs over 14,214 occurrences in the whole file is far too many |
+
+**What is certain** is the surrounding machinery, which does not depend on the encoding: the cell is
+8 by 16, the draw is TBIOS AH `0x60`, the background is AH `0x2b` with a rectangle at `0x7add8`, the
+window is a 55-byte record at `0x7aee4 + n * 55`, and the character loop at `0xe6eb0` tests
+Shift-JIS lead and trail ranges and advances on `0x0A`.
+
+**The contradiction to resolve** is that the same routine both tests Shift-JIS ranges and is fed
+this `0xEB` stream. Either the strings at `0x42dc` and `0x1474` never pass through `0xe6eb0`, or
+`0xEB` is handled by a branch in that routine this reading has not followed. The second is more
+likely and it is where the next attempt starts: **the `0xe6f37`-`0xe6f8b` tests accept `0xEB` as a
+lead and then read one byte, so what `0xe6f4d` onwards does with the pair is the answer.**
