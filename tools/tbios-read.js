@@ -74,6 +74,31 @@ function callTarget(ins) {
 	return j ? j.value : null;
 }
 
+// Every call target in a routine's own body, honouring the boundary rule that a routine ends
+// at its last ret. The --check cluster assertions need the direct call set without printing
+// anything, and the first version of this check counted transitively, which overstated two
+// routines: 0xe60d0 reaches AH 0x46 only through 0xe5ff4.
+function directCalls(exe, at, limit = 400) {
+	const { insns } = decode(at, Math.min(at + limit, exe.length), { image: EXE });
+	const out = [];
+	for (const ins of insns) {
+		const t = callTarget(ins);
+		if (t !== null) out.push(t);
+		if (/^ret/i.test(ins.mnemonic)) {
+			const next = insns[insns.indexOf(ins) + 1];
+			if (!next || /^int3$/i.test(next.mnemonic) || /^nop$/i.test(next.mnemonic)) break;
+			const isPrologue = /^push$/i.test(next.mnemonic) &&
+				/^(ebp|ebx|esi|edi)$/i.test((next.operands[0] || {}).name || '');
+			const isPrelude = /^mov$/i.test(next.mnemonic) && next.operands.length === 2 &&
+				next.operands[0].type === 'reg' && next.operands[1].type === 'reg' &&
+				next.operands[0].name === next.operands[1].name;
+			if (isPrologue || isPrelude) break;
+			if (ins.addr > at + 0x200) break;
+		}
+	}
+	return out;
+}
+
 function printRoutine(exe, at, limit) {
 	const { insns } = decode(at, Math.min(at + limit, exe.length), { image: EXE });
 	const found = [];
@@ -164,9 +189,63 @@ function main() {
 					(st ? 'AH 0x' + st.ah.toString(16) + ' -> ' + (got === undefined ? 'none' : '0x' + got.toString(16)) : 'no signature'));
 			}
 		}
+
+		// The rectangle cluster, docs/rectangle-cluster.md. The DIRECT AH set per routine:
+		// a transitive count overstated two of them, because 0xe60d0 reaches AH 0x46 only
+		// through 0xe5ff4, so the check asserts what each routine calls itself.
+		const cluster = [
+			[0xe5ff4, [0x0c, 0x46]],
+			[0xe6058, [0x0c, 0x46]],
+			[0xe74ac, [0x0c, 0x46]],
+			[0xe60d0, [0x0c, 0x48, 0x49]],
+		];
+		for (const [at, wantAh] of cluster) {
+			const got = new Set();
+			for (const c of directCalls(exe, at)) {
+				const st = stubAh(exe, c);
+				if (st) got.add(st.ah);
+			}
+			const same = got.size === wantAh.length && wantAh.every((a) => got.has(a));
+			if (!same) {
+				bad++;
+				console.log('FAIL 0x' + at.toString(16) + ': expected direct AH [' +
+					wantAh.map((a) => hex(a, 2)).join(' ') + '], got [' +
+					[...got].sort((a, b) => a - b).map((a) => hex(a, 2)).join(' ') + ']');
+			}
+		}
+
+		// AH 0x48 and 0x49 must reach the SAME handler, which begins by subtracting 0x47.
+		// docs/rectangle-cluster.md claims they are one family, so a divergence fails here.
+		if (byAh.get(0x48) !== byAh.get(0x49) || byAh.get(0x48) !== 0x2e80) {
+			bad++;
+			console.log('FAIL AH 0x48/0x49: expected both 0x2e80, got 0x' +
+				(byAh.get(0x48) || 0).toString(16) + ' and 0x' + (byAh.get(0x49) || 0).toString(16));
+		}
+
+		// The text window stride. docs/rectangle-cluster.md and text-encoding.md both say 57,
+		// reached as 3n then 27n then 3n + 54n. Asserted as arithmetic AND against the bytes of
+		// the `lea edx,[eax+edx*2]` at 0xe6ec5, because a stated stride was wrong at 55 for a
+		// long time and nothing checked it.
+		const stride = (n) => {
+			const eax = n * 3;
+			const edx = eax + eax * 8;
+			return eax + edx * 2;
+		};
+		if (stride(1) !== 57) {
+			bad++;
+			console.log('FAIL stride: 3n then 27n then 3n+54n gives ' + stride(1) +
+				', and docs say 57');
+		}
+		// 8d 14 50 is `lea edx,[eax+edx*2]`, the third link of the chain.
+		if (exe[0xe6ec5] !== 0x8d || exe[0xe6ec6] !== 0x14 || exe[0xe6ec7] !== 0x50) {
+			bad++;
+			console.log('FAIL 0xe6ec5: expected 8d 14 50 (lea edx,[eax+edx*2]), got ' +
+				exe.subarray(0xe6ec5, 0xe6ec8).toString('hex'));
+		}
+
 		console.log(bad === 0
-			? 'display-context: 7 of 7 TBIOS calls in 0xe5d90 reach the recorded handler'
-			: 'display-context: ' + bad + ' of 7 disagree');
+			? 'tbios-read: 7 display-context calls, 4 cluster routines, 0x48/0x49 family and the 57-byte stride all hold'
+			: 'tbios-read: ' + bad + ' disagree');
 		return bad === 0 ? 0 : 1;
 	}
 

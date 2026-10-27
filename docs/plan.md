@@ -913,13 +913,18 @@ See [movement-and-wrap.md](movement-and-wrap.md).
 This is the skeleton a reimplementation needs and it is mechanical. `docs/call-graph.md` records the
 current fraction.
 
-**Progress, not completion.** Two routines are now named by reading them to their handlers, both from
-the `tools/funtriage.js` ranking: `0xe5854` (text out, `docs/text-encoding.md`) and `0xe5d90` (the
-display context, `docs/display-context.md`). The method that works is `tools/tbios-read.js`, which
-chains a call site through its TBIOS wrapper to the handler in `TBIOS.BIN`. Forty of the ranked
-functions call at least one TBIOS stub, so that is the size of the tractable set; two of forty is
-where this stands. Nothing here counts as satisfying the item, which asks for every routine with
-three or more callers.
+**Progress, not completion.** Six routines are now named by reading them to their handlers, all from
+the `tools/funtriage.js` ranking: `0xe5854` (text out, `docs/text-encoding.md`), `0xe5d90` (the
+display context, `docs/display-context.md`), and the four-routine rectangle cluster `0xe5ff4`,
+`0xe6058`, `0xe60d0` and `0xe74ac` (`docs/rectangle-cluster.md`). The method that works is
+`tools/tbios-read.js`, which chains a call site through its TBIOS wrapper to the handler in
+`TBIOS.BIN`. Forty of the ranked functions call at least one TBIOS stub, so that is the size of the
+tractable set; six of forty is where this stands. Nothing here counts as satisfying the item, which
+asks for every routine with three or more callers.
+
+The cluster was worth more than four separate names. Reading them together produced the drawing
+primitives a reimplementation needs, the screen geometry `0..639` by `0x18..0x1a7`, and a
+correction to a stride that `text-encoding.md` had stated wrongly as 55 for want of a check.
 
 ## What is closed and should not be reopened
 

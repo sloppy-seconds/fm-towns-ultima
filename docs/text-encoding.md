@@ -8,7 +8,7 @@ measured. What `0xEB` means in the strings is not, and four readings of it have 
 | | |
 |---|---|
 | character cell | **8 by 16 pixels** |
-| text window | a **55-byte record** at `0x7aee4 + n * 55` |
+| text window | a **57-byte record** at `0x7aee4 + n * 57` |
 | draw call | `0xe6fd5` -> `0xc7d` -> TBIOS **AH 0x60** |
 | the blit | `TBIOS.BIN 0x3568`, installing `0xf538` or `0xf5e0` by attribute |
 | background fill | `0xe6e48` -> `0x8b6` -> TBIOS **AH 0x2b**, rectangle at `0x7add8` |
@@ -23,13 +23,22 @@ The layout engine `0xe6eb0` computes a character position from the window record
 ```
 0xe6ebf  lea eax, [eax+eax*2]        3 * arg
 0xe6ec2  lea edx, [eax+eax*8]        27 * arg
-0xe6ec5  lea edx, [eax+edx*2]        55 * arg
-0xe6ec8  lea ebx, [edx+0x7aee4]      a 55-byte window record
+0xe6ec5  lea edx, [eax+edx*2]        57 * arg
+0xe6ec8  lea ebx, [edx+0x7aee4]      a 57-byte window record
 0xe6ee6  mov edx, [ebx+0x19]         the column
 0xe6ee9  shl edx, 3                  column * 8    <- width
 0xe6efd  mov edx, [ebx+0x1d]         the row
 0xe6f00  shl edx, 4                  row * 16      <- height
 ```
+
+**Correction, recorded rather than quietly applied.** This page said 55 for both the stride
+and the multiplier. The chain is `3n`, then `27n`, then `3n + 54n`, which is 57. Checked on
+the raw bytes with `xxd -s 0xe6ebf -l 12 ENCHANT.EXP`, giving
+`8d 04 40 8d 14 c0 8d 14 50 8d 9a e4`, where `8d 14 50` is `lea edx,[eax+edx*2]`. The
+independent check came from `0xe74ac` in `docs/rectangle-cluster.md`, which computes the same
+chain and whose cell geometry then differs by exactly 7 and 15, an 8 by 16 cell less a
+one-pixel border. The field offsets `+0x19` and `+0x1d` are unaffected, so the layout
+conclusions on this page stand.
 
 and the TBIOS handler that draws a character states the height again:
 

@@ -412,12 +412,15 @@ const runNode = (script, args = []) => {
 	const tb = runNode('tbios.js', ['--check']);
 	record('TBIOS dispatch chain', tb.ok ? [] : tb.out.split('\n').filter((l) => l.trim() && !/^ok /.test(l)));
 
-	// I. The display context. docs/display-context.md claims seven specific TBIOS calls in 0xe5d90
-	// reach seven specific handlers. Those are measured values, so they are asserted rather than
-	// described: the check was verified to fail by substituting a wrong handler address, and it
-	// exposed that main()'s return value was being discarded, so it printed the failure and exited 0.
+	// I. The display context and the rectangle cluster. docs/display-context.md claims seven
+	// specific TBIOS calls in 0xe5d90 reach seven specific handlers, and docs/rectangle-cluster.md
+	// claims the direct AH set of four routines, that AH 0x48 and 0x49 share a handler, and that
+	// the text window stride is 57. Those are measured values, so they are asserted rather than
+	// described. All five assertion groups were verified to fail by substituting a wrong value:
+	// this gate also exposed that main()'s return was discarded, so it printed failures and
+	// exited 0.
 	const dr = runNode('tbios-read.js', ['--check']);
-	record('display context handlers', dr.ok ? [] : dr.out.split('\n').filter((l) => /FAIL/.test(l)));
+	record('display context and rectangle cluster', dr.ok ? [] : dr.out.split('\n').filter((l) => /FAIL/.test(l)));
 }
 
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
