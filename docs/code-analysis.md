@@ -13,9 +13,23 @@ The rest is zero fill, in three large regions:
 
 | offset | length |
 |---|---|
-| `0x07b557` | 337,645 |
-| `0x04106e` | 233,598 |
-| `0x00e5d2` | 207,322 |
+| `0x07b577` | 337,645 |
+| `0x04108e` | 233,598 |
+| `0x00e5f2` | 207,322 |
+
+**These are raw file offsets.** An earlier revision of this table gave `0x07b557`,
+`0x04106e` and `0x00e5d2`, which are the same runs in the header-stripped frame, `0x20`
+lower. The lengths were right in both. That is the two-frames confusion recorded in
+[two-frames-of-reference.md](two-frames-of-reference.md), and it mattered here: the
+regions are what a walker is told to avoid, and 32 bytes is enough to place a boundary
+wrong. `tools/codelimits.js` now measures them each run and `node tools/checkall.js`
+fails if this table and the bytes disagree.
+
+Other pages cite the stripped value `0x7b557` and are correct as written, because the
+record arithmetic they do is also in stripped offsets: `0x7aee4` plus 29 records of 57
+bytes ends at `0x7b559`, two bytes before the boundary, and that holds in either frame
+as long as one is used throughout. The distinction only bites a tool that measures the
+file and compares against a figure from a page.
 
 Those are BSS: uninitialised globals, present in the file because a flat image has
 no way to say "this range is zero". Any scan that treats the file as uniformly

@@ -398,6 +398,13 @@ const runNode = (script, args = []) => {
 			'If you migrated one, lower PENDING in the same commit.');
 	}
 	record('tooling policy', problems);
+
+	// G. The zero regions are still where the docs say they are. A different rip of the disc, or a
+	// doc that drifts, changes what a walker may decode, and the symptom is a count that is merely
+	// larger rather than a failure. tools/codelimits.js does the measuring and this asserts the
+	// result against the recorded runs.
+	const zr = runNode('codelimits.js', ['--check']);
+	record('zero regions match the docs', zr.ok ? [] : zr.out.split('\n').filter((l) => /FAIL/.test(l)));
 }
 
 // E3. No `2>&1` inside a DOS batch file. This has now cost time twice, and it is documented in four
