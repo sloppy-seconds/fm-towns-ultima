@@ -127,8 +127,13 @@ function render(b) {
 	try {
 		return new TextDecoder('shift_jis', { fatal: true }).decode(raw);
 	} catch {
-		// A string can mix the two forms and still not decode; say so rather than pretending.
-		if (hasEb) return '(undecodable after 0xEB expansion) ' + raw.toString('latin1').replace(/[^\x20-\x7e]/g, '.');
+		// A string can mix the two forms and still not decode. Report the expansion rather than
+		// pretending: the surviving ASCII is real evidence about what the string says, and hiding
+		// it behind "undecodable" loses the one thing that is readable. docs/text-encoding.md
+		// records that some payload ranges are still not settled.
+		const ascii = raw.toString('latin1');
+		const runs = ascii.match(/[\x20-\x7e]{3,}/g) || [];
+		if (hasEb) return '(0xEB partly undecoded) ' + (runs.join(' / ') || ascii.replace(/[^\x20-\x7e]/g, '.'));
 		return b.toString('latin1').replace(/[^\x20-\x7e]/g, '.');
 	}
 }
