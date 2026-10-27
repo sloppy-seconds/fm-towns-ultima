@@ -76,7 +76,44 @@ Two readings remain, and they are the same two as for the tick:
 2. **The combat routine is reached indirectly.** There are 144 unresolved indirect branches, dominated by
    `call dword near [0xdfc5c]`. If combat is one of them, no call-graph or displacement search will find it.
 
-## A single one-hit kill, measured live
+## The first damage measurement: one hit of 16
+
+A fight the player did not win in one blow. Sequence as played: the player hit and the monster
+was wounded, the monster hit back, then the monster attacked again and the player **parried**,
+which is a miss. Nobody died. States taken paused immediately before and after.
+
+| field | before | after | delta |
+|---|---|---|---|
+| HP | 178 | 162 | **−16** |
+| max HP | 400 | 400 | 0 |
+| EXP | 12 | 12 | 0 |
+| FOOD | 38,770 | 38,740 | **−30** |
+| GOLD | 447 | 447 | 0 |
+| X / Y | 57 / 18 | 57 / 18 | 0 |
+| MAP | 81 | 83 | **+2** |
+
+**The monster landed one hit and it took 16 HP.** The parry took none, so the 16 is a single hit
+and not an average.
+
+**The turn accounting corroborates the food measurement.** Two player turns passed and food fell
+by 30, which is `2 * 15`. That is independent of the earlier three-step result and it is the
+first time the 15 has been observed across a fight rather than a walk. `MAP` rose by 2 over the
+same two turns, so `MAP` counts turns and not position.
+
+**What this does not establish, and it is the whole of the formula.**
+
+**One hit cannot tell a constant from a roll.** 16 is one sample, and this page will not claim
+damage is a fixed 16, nor that it is `randMod` in a range, from a single observation. The
+distinguishing test is several hits from the same monster, or one hit from two different
+monsters, with the HP delta recorded each time. Nothing about to-hit was measured either: the
+player's own hit landed but the damage it did was on the monster's HP, which is not a field this
+project has located.
+
+**What is now known that was not:** a monster hit does between nothing and 16 here, the player's
+HP is the field `0xcde81`, and a fight costs the same 15 food per turn as a step. Item 4b is
+still open, but it is open on a measurement rather than on a scan.
+
+## An earlier one-hit kill, for contrast
 
 Two savestates, taken paused, before and after killing a monster with one hit. The player stood
 at (12,17) on map 40 and did not move; the monster died without landing a hit.
@@ -129,10 +166,14 @@ session had already produced two negatives on the same pattern and a third guess
 which was correct about verification, and too optimistic about reading: the fields the formulas must touch
 are not touched by any routine that rolls dice.
 
-**One live attempt has now been made and it failed to produce a formula**, for a reason worth recording.
-A monster was engaged and killed in one hit, with savestates taken before and after. HP did not move,
-so there was no damage to measure. The run gave the food, EXP and gold costs of a kill and nothing
-about the damage arithmetic. See the measurement above.
+**One live attempt has now been made and it produced a single observation.** A monster hit the
+player once for 16 HP while the player parried the second attack. That is the first real damage
+number this project has, and it is one sample. It does not distinguish a constant 16 from a roll,
+and no claim is made about which. See the measurement above.
+
+**Something is now known about the monster's side of the exchange**, which was not before: a
+monster can miss (the parry), a hit takes HP from `0xcde81`, and a fight advances `MAP` by one per
+turn while charging 15 food per turn.
 
 **A further negative on the string route.** This page's own next step was to find what references the
 attack string `による攻撃` and read that routine. The string is at `0x680c` and **nothing references
