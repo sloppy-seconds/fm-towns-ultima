@@ -181,3 +181,94 @@ attempt should start from the code that draws a character, not from the file.
 | `0xe6eb0` | layout engine: origin, cursor, per-character placement |
 | glyph storage | **not located**. Five searches failed, listed above |
 | next step | find the draw call inside `0xe6eb0`'s character loop |
+
+
+## The draw chain, found: TBIOS function `0x60`
+
+The draw call inside `0xe6eb0`'s character loop is at `0xe6fd5`, and it goes to a **TBIOS thunk**,
+not to game code.
+
+```
+0xe6fc4  mov word [0xcda7c], dx     the advance width
+0xe6fcb  push 0xcda78               a struct: x at +0, y at +2, width at +4
+0xe6fd0  push 0x7a7d8               the display context
+0xe6fd5  call 0xc7d                 draws one character
+```
+
+`0xc7d` is `mov ah,0x60`, then push `fs`, push `0x110`, pop `fs` and `lcall fs:[0x20]`. **My earlier thunk
+scan missed it**, because the entry scan looked for a preceding `ret` and this stub is preceded by
+`8b 74 24 10` continuing from the previous instruction. The AH-value scan found it and the entry scan
+did not, and that is recorded because it means the 70-stub count is a floor, not a total.
+
+### The handler, `TBIOS.BIN 0x336c`
+
+```
+0x336c  test word [gs:ebp+0x108], 0xe     the mode byte again, skip if no display
+0x3378  lodsd eax, [esi]                  first dword of the struct
+0x3379  mov [gs:ebp+0x344], eax           -> the x
+0x3380  lodsw ax, [esi]                   next word
+0x3382  test ax, ax ; je 0x33cd           a zero width draws nothing
+0x3387  mov [gs:ebp+0x348], ax            -> the width
+0x338f  mov [gs:ebp+0x33c], esi           the glyph pointer
+0x3396  mov [gs:ebp+0x340], ds
+0x339d  mov byte [gs:ebp+0x378], 0x10     the height, 16
+0x33a5  call 0x3568                       the blit
+```
+
+**`0x10` is the height and it agrees with the `shl edx,4` found in the layout engine.** Two
+independent statements of 16.
+
+### The blit selects a routine by attribute
+
+`0x3568` compares two values and installs a function pointer:
+
+```
+0x3580  cmp dword [gs:ebp+0x350], 0x100008
+0x358d  mov dword [gs:ebp+0x330], 0xf538    if equal
+0x359a  mov dword [gs:ebp+0x330], 0xf5e0    otherwise
+0x35a6  cmp dword [gs:ebp+0x354], 0x100010
+0x35b3  mov dword [gs:ebp+0x334], 0xf538    if equal
+```
+
+`0xf538` computes a rectangle from the x, y and width fields. `0xf5e0` is the interesting one.
+
+### `0xf5e0` states the pixel handling
+
+```
+0xf5e0  movzx eax, byte [gs:ebp+0x34c]     the attribute set by AH 0x15
+0xf5e8  mov eax, cs:[eax*4 + 0xfad0]       a second dispatch table, four entries
+0xf5f7  test dl, 2
+0xf5fc  mov eax, 0xfc13                    one path
+0xf603  mov eax, 0xfe78                    the other
+0xf61a  mov cx, [gs:ebp+0x362]             a byte count
+0xf622  shr cx, 1 ; jae ...                odd byte: not byte [esi] ; inc esi
+0xf62a  shr cx, 1 ; jae ...                odd word: not word [esi] ; add esi, 2
+0xf635  not dword [esi] ; add esi, 4       then dwords
+```
+
+**The `not` cascade is a complemented copy**, so the glyph is stored as a plain bitmap and inverted
+while being merged. The loop's byte count comes from `[ebp+0x362]`, and the table at `0xfad0` has
+exactly **four** entries, `0xfae0`, `0xfb14`, `0xfb68` and `0xfbc0`, one per text attribute.
+
+## What this changes about the glyph search
+
+The five failed searches all assumed the game reads a glyph table out of `ENCHANT.EXP` and feeds
+pixels. It does not: **it hands a pointer to TBIOS and TBIOS renders.** So:
+
+- the glyph pointer in `[gs:ebp+0x33c]` comes from the caller's struct, and the caller is game code
+  in `0xe6eb0`'s loop
+- the format is whatever TBIOS expects, which the `not` cascade suggests is a plain 1bpp bitmap of
+  `0x362` bytes per row-block
+- a table in `ENCHANT.EXP` is still the most likely storage, and the search should now be driven by
+  what `0xe6eb0` puts in that struct rather than by byte statistics
+
+## Status
+
+| | |
+|---|---|
+| character cell | **8 by 16 pixels**, stated twice: `shl edx,4` and `[ebp+0x378]=0x10` |
+| draw call | `0xe6fd5` -> `0xc7d` -> TBIOS **AH 0x60** -> `TBIOS.BIN 0x336c` |
+| the blit | `TBIOS.BIN 0x3568`, installing `0xf538` or `0xf5e0` by attribute |
+| text attributes | four, dispatched through `TBIOS.BIN 0xfad0` |
+| pixel handling | a `not` cascade over a byte count, so a plain bitmap inverted on merge |
+| glyph storage | **not located**. The search now follows the struct built in `0xe6eb0` |
