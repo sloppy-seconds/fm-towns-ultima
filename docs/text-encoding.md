@@ -56,16 +56,31 @@ font glyph index, and the glyph table is not in `ENCHANT.EXP`.
 - the 81 distinct strings in `extracted/strings.json`
 - the message table at `0x1518` with its 56-byte stride
 
-**Correction.** An earlier sentence here said the glyphs were already extracted and pointed at
-`assets-and-graphics.md`. That is wrong: the font is not documented there, and the one page match for
-"font" is a note that the map files are *not* a font. What does exist is a work stream:
-`tools/fontgrid.js` finds the cell grid in a character sheet and names `GAI.TIF`, 352 by 352, with
-184 empty columns and 103 empty rows, and `tools/fontmap.py` also exists.
+**Three attempts to find the table, all failed, and all recorded here.**
 
-So the position is: a character sheet has been located and a grid-finding tool written, but no
-code-to-glyph mapping is established and whether `GAI.TIF` is even the font this text uses is
-unproven. That is a real next investigation rather than a small join, and this page says so instead
-of overstating it.
+**First, `GAI.TIF`.** `tools/fontgrid.js` names it as a 352 by 352 character sheet with 184 empty
+columns and 103 empty rows. Running the tool on the extracted `extracted/u2/title/gai.png` gives
+**one ink run per axis**, a single 168 by 249 picture in the middle of the sheet. That is a title
+graphic, not a grid of glyphs, so `GAI.TIF` is not a font. The earlier note about 184 empty columns
+was reading a sparse picture, not a character sheet.
+
+**Second, a font file among the assets.** The disc carries 63 `.TIF` files and no `.FNT`, `.DAT` or
+any other font container. Nothing there is a glyph table.
+
+**Third, `GAIJI2.COM`.** That name means user-defined characters and it is a Fujitsu program,
+6,849 bytes, banner `Copyright FUJITSU LIMITED 1989-1990`, entered by the usual COM `jmp +0x3c`.
+It is a driver, not a table: its dense data region is 193 bytes of code, and its system calls are
+`int 21h` with `AH=09` (print) at two sites and `AH=3e`/`AH=3f` (close and read) at two more. Nothing
+in it is a glyph bitmap.
+
+**Where that leaves it.** The glyphs are most likely a TBIOS service rather than game data, which is
+consistent with there being no font file on the disc: `fmtownskit`'s `tbiosld.py` lists a `FNT`
+module among the TBIOS components for the modular builds. Naming a character code therefore means
+either reading the font module out of `TBIOS.BIN`, or reading AH `0x0c`, `0x15`, `0x16` and `0x17` in
+[first-ranked-function.md](first-ranked-function.md), which are the calls the text path uses.
+
+Unproven in both cases. What is proven is that the table is not in the assets and not in
+`GAIJI2.COM`.
 
 ## What was tried and failed
 
