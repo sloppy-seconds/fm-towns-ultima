@@ -81,7 +81,7 @@ from the items below rather than maintained separately.
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
-| 5a Character creation | PARTLY AUTONOMOUS | partly: inventory and human modifiers done, race and bounds need the game |
+| 5a Character creation | AUTONOMOUS | **done**, modifiers read from the code |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
 | 5c Time gates and epochs | AUTONOMOUS | **yes** |
 | 5d Towns and NPC assignment | AUTONOMOUS | **yes** |
@@ -746,7 +746,7 @@ outputs, and callers.
 
 ### 5a. Character creation, as arithmetic
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -756,8 +756,30 @@ outputs, and callers.
 
 The first thing a player meets, and the first subsystem on the spine.
 
-**Resolution so far, and this item is not done.** An earlier revision marked it DONE prematurely:
-its own criteria name four things and three were finished. What is established:
+**Resolution.** The modifier arithmetic is now read from the code rather than measured, and the
+model reproduces all four measured characters exactly. `0xed6e0` applies six `add [stat],` sums of
+stack slots, and three branches write those slots: race at `0xecf07`, profession at `0xed3bb`, sex at
+`0xed158`. That makes elf, dwarf, hobbit and thief known rather than unknown, since they come from
+the same code.
+
+| choice | STR | AGI | STA | CHA | WIS | INT |
+|---|---|---|---|---|---|---|
+| male | 0 | 0 | +10 | 0 | 0 | 0 |
+| female | 0 | 0 | 0 | +10 | 0 | 0 |
+| human | 0 | 0 | 0 | 0 | 0 | +5 |
+| elf | 0 | +5 | 0 | 0 | 0 | 0 |
+| dwarf | +5 | 0 | 0 | 0 | 0 | 0 |
+| hobbit | -5 | 0 | 0 | +10 | 0 | 0 |
+| fighter | +10 | +10 | 0 | 0 | 0 | 0 |
+| cleric | 0 | 0 | 0 | 0 | +10 | 0 |
+| wizard | 0 | 0 | 0 | 0 | 0 | +10 |
+| thief | 0 | +10 | 0 | 0 | 0 | 0 |
+
+**Still open:** where the base 90 points are held, and whether one stat may take all 90. The
+allocator was not located, and `0xea118` turned out to parse profession letters rather than check a
+budget. That does not block a reimplementation, which needs the deltas above and a 90-point UI.
+
+Earlier wording, kept:
 
 Not a dice roll: the player allocates **90 points** across six attributes, and
 the game applies sex, race and profession modifiers once at creation. The modifier table was

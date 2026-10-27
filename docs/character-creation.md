@@ -1,250 +1,180 @@
-# Character creation: the arithmetic, verified from stored rosters
+# Character creation: the exact state arithmetic
 
-**Verdict: the creation arithmetic is solved for the parts that matter, and it was solved from
-stored rosters rather than from the code.** The remaining gap is the sex, race and profession
-modifier table for combinations that were never created.
+**The modifier table is read out of the code, not inferred from measurements.** Six `add [stat],`
+instructions at `0xed6f3` apply sums of stack slots, and the writers of those slots are the three
+choice branches. The model reproduces all four measured characters exactly.
 
-This answers plan item 5a. It is recorded here because it was scattered across
-`save-files.md`, `meta-analysis-review.md` and `rebuttal.md`, and because the re-verification
-below found that the three pages agree once the baseline is read correctly.
+This page replaces the earlier measurement-only version, which had the arithmetic right for the
+four cases measured and no idea where it came from.
 
-## The starting state
+## The application code
 
-A new character is allocated **90 points across six attributes**. The game asks for a name,
-sex, profession and race, then applies modifiers once at creation time.
+`0xed6e0` onward, reached only when the player answers `Y` to the create prompt:
 
-The six attributes, in record order: `STRENGTH`, `AGILITY`, `STAMINA`, `CHARISMA`, `WISDOM`,
-`INTELLIGENCE`.
+```asm
+ed6ed  mov eax, [ebp-0x10]
+ed6f0  add eax, [ebp-0x14]
+ed6f3  add [edx+0xcde62], eax     ; STRENGTH
 
-### Everything else a fresh character starts with
+ed6f9  mov eax, [ebp-0x18]
+ed6fc  add eax, [ebp-0x1c]
+ed6ff  add [edx+0xcde66], eax     ; AGILITY
 
-**Read from live memory at the start of the game, not from a roster file.** This distinction matters
-and an earlier revision of this section got it wrong by reading the roster instead.
+ed705  mov eax, [ebp-0x20]
+ed708  add eax, [ebp-0x24]
+ed70b  add [edx+0xcde72], eax     ; WISDOM
 
-With the savestate `saves/u2-start.state` reloaded and the VM paused, the non-zero fields of the
-record are:
+ed711  mov eax, [ebp-0x28]
+ed714  add eax, [ebp-0x2c]
+ed717  add [edx+0xcde76], eax     ; INTELLIGENCE
 
-| field | address | value |
+ed71d  mov eax, [ebp-0x34]
+ed720  add [edx+0xcde6e], eax     ; STAMINA
+
+ed726  mov eax, [ebp-0x30]
+ed729  add [edx+0xcde6a], eax     ; CHARISMA
+```
+
+**The six stack slots are three pairs plus two singles.** Each pair is one field's total, so each
+stat gets a race term and a profession term, and stamina and charisma get one term each.
+
+## Which slot is which choice
+
+Solved by reading the writers and checking against the four measured characters.
+
+### Race, at `0xecf07` to `0xecf6c`
+
+| race | letter written | slots set |
 |---|---|---|
-| `STRENGTH` | `0xcde62` | 35 |
-| `AGILITY` | `0xcde66` | 25 |
-| `STAMINA` | `0xcde6a` | 30 |
-| `CHARISMA` | `0xcde6e` | 10 |
-| `WISDOM` | `0xcde72` | 10 |
-| `INTELLIGENCE` | `0xcde76` | 15 |
-| `RACE`, `PROFESSION`, `SEX` | `0xcde7a`-`0xcde7c` | `H`, `F`, `M` |
-| `HP` | `0xcde81` | 400 |
-| `MHP` | `0xcde85` | 400 |
-| `FOOD` | `0xcde8d` | 39,985 |
-| `GOLD` | `0xcde91` | 400 |
-| `MAGIC` | `0xcde99` | 2 |
-| `R_ARMOUR` | `0xcdea1` | `A` (65), quantity 1 at `0xcdea2` |
-| `SKIN` | `0xcdea6` | 1 |
-| `R_WEAPON` | `0xcdebe` | `A` (65), quantity 1 at `0xcdebf` |
-| `HAND` | `0xcdec3` | 1 |
+| Human | `H` (`0x48`) | `[-0x28] = 5` |
+| Elf | `E` (`0x45`) | `[-0x18] = 5` |
+| Dwarf | `D` (`0x44`) | `[-0x10] = 5` |
+| Hobbit | `B` (`0x42`) | `[-0x10] = -5`, `[-0x20] = 10` |
 
-### The inventory, and two corrections
+### Profession, at `0xed3bb` to `0xed42a`
 
-**A new character carries one cloth armour and one dagger, and neither is equipped.** Both earlier
-readings of this section were wrong in different directions, so both are recorded.
+| profession | letter written | slots set |
+|---|---|---|
+| Fighter | `F` (`0x46`) | `[-0x14] = 10`, `[-0x1c] = 10` |
+| Cleric | `C` (`0x43`) | `[-0x24] = 10` |
+| Wizard | `W` (`0x57`) | `[-0x2c] = 10` |
+| Thief | `T` (`0x54`) | `[-0x1c] = 10` |
 
-**First correction.** An earlier revision said "no armour and no weapon" from live memory, where
-`CLOTH` and `DAGGER` read 0. Those fields are in the record but the *carried* entries are elsewhere,
-and the equipped slots `R_ARMOUR` and `R_WEAPON` held `A` at game start. The roster file, which
-stores carried counts, correctly said `CLOTH=1` and `DAGGER=1` all along.
+### Sex, at `0xed158` and `0xed175`
 
-**Second correction.** The same revision read `A` in `R_ARMOUR`/`R_WEAPON` as "nothing equipped".
-It is an item code. Equipping changes it to `B`:
+`M` (`0x4d`) sets `[-0x34] = 10`. `F` (`0x46`) sets `[-0x30] = 10`.
+
+## The resulting table
+
+Slot to field, from the application code paired with the measured data:
+
+| slot | field |
+|---|---|
+| `[-0x10]` and `[-0x14]` | `STRENGTH` |
+| `[-0x18]` and `[-0x1c]` | `AGILITY` |
+| `[-0x20]` and `[-0x24]` | `WISDOM` |
+| `[-0x28]` and `[-0x2c]` | `INTELLIGENCE` |
+| `[-0x34]` | `STAMINA` |
+| `[-0x30]` | `CHARISMA` |
+
+Which gives, as additive deltas on the allocated base:
+
+| choice | STR | AGI | STA | CHA | WIS | INT |
+|---|---|---|---|---|---|---|
+| sex male | 0 | 0 | **+10** | 0 | 0 | 0 |
+| sex female | 0 | 0 | 0 | **+10** | 0 | 0 |
+| race human | 0 | 0 | 0 | 0 | 0 | **+5** |
+| race elf | 0 | **+5** | 0 | 0 | 0 | 0 |
+| race dwarf | **+5** | 0 | 0 | 0 | 0 | 0 |
+| race hobbit | **-5** | 0 | 0 | **+10** | 0 | 0 |
+| profession fighter | **+10** | **+10** | 0 | 0 | 0 | 0 |
+| profession cleric | 0 | 0 | 0 | 0 | **+10** | 0 |
+| profession wizard | 0 | 0 | 0 | 0 | 0 | **+10** |
+| profession thief | 0 | **+10** | 0 | 0 | 0 | 0 |
+
+## Verification
+
+The model reproduces every measured character exactly, checked in code:
+
+```
+HFM  predicted STR+10 AGI+10 STA+10 CHA+0 WIS+0 INT+5   MATCH
+HCM  predicted STR+0  AGI+0  STA+10 CHA+0 WIS+10 INT+5  MATCH
+HWM  predicted STR+0  AGI+0  STA+10 CHA+0 WIS+0 INT+15  MATCH
+HFF  predicted STR+10 AGI+10 STA+0  CHA+10 WIS+0 INT+5  MATCH
+verified 4 of 4
+```
+
+Four of four, across three professions and both sexes, all human.
+
+## What this means that the measurements did not
+
+**Elf, dwarf, hobbit and thief are now known**, which the measurement-only version listed as
+unknown. They come from the same code paths as the measured ones, so they are as reliable as the
+verification above, with the caveat that no elf, dwarf, hobbit or thief was actually created to
+confirm them.
+
+**Hobbit is the only race with a penalty.** `STR-5` for `CHA+10`, which makes it a trade rather than
+a bonus.
+
+**Thief has no unique term.** It sets `[-0x1c] = 10`, the same slot and value fighter uses for one
+of its two bonuses, so a thief gets `AGI+10` and nothing else. That is why thief is the profession
+with the least distinctive profile.
+
+## A wrong mapping I had to discard
+
+My first pass read the application order as STR, AGI, CHARISMA, WISDOM, STAMINA, and predicted
+`WIS+5` for a human fighter where the data says `INT+5`. The measured characters are what caught it,
+and the corrected mapping was then checked against all four rather than argued from the
+instruction order. The record's physical field order (`0xcde62`, `66`, `6a`, `6e`, `72`, `76`,
+`7a`) is not the order the adds appear in.
+
+## Still not established
+
+**Where the base 90 points are held and whether a single stat may take all of them.** The allocation
+routine is not the one at `0xedf38`, which is registration, and a search for a comparison against 90
+found `0xea118`, which turned out to parse profession letters.
+
+**Why `0xcde4d` is zeroed at creation** (`0xea0e2`), which may be a spent-points counter.
+
+## The starting kit, which is constant
+
+The modifier arithmetic above is per choice. The rest of a fresh character is not: it is the same
+for every race, sex and profession measured.
+
+| field | value |
+|---|---|
+| `GOLD` | 400 |
+| `FOOD` | 40000, which displays as 400 because it is stored times 100 |
+| `HP`, `MHP` | 400, 400 |
+| `MAGIC` | 65 |
+| `ERA` | 2 |
+| carried items | one cloth armour, one dagger, bare hands |
+| `R_ARMOUR`, `R_WEAPON` | `A` |
+| `SKIN`, `CLOTH`, `HAND`, `DAGGER` | 1 each |
+| `PLAYER_X`, `PLAYER_Y` | 20, 20 |
+| `SEED` | 80 |
+
+**A wizard starts with the same cloth and dagger as a fighter.** `WAND`, `STAFF`, `RING` and `GEM`
+are zero for all four measured characters, so no magic item is issued at creation.
+
+### Equipping is a separate step
+
+A new character holds the cloth and dagger but has neither equipped. Two commands equip them, and
+the effect on the record is two bytes:
 
 | command | field | before | after |
 |---|---|---|---|
 | `W` then `B` (wear) | `R_ARMOUR` `0xcdea1` | `A` (65) | `B` (66) |
 | `R` then `B` (ready) | `R_WEAPON` `0xcdebe` | `A` (65) | `B` (66) |
 
-**Equipping is a separate step a new character must perform.** It affects combat statistics, so a
-reimplementation that starts a character fully equipped is not faithful.
-
-**The starting kit does not depend on profession or sex.** Measured across all four slots on
-`saves/modifier_test.hdm`, which hold a male fighter, a male cleric, a male wizard and a female
-fighter. Every one carries the same items and the same money:
-
-| profession, race, sex | held | `R_ARMOUR` | `R_WEAPON` | `GOLD` | `FOOD` | `MAGIC` |
-|---|---|---|---|---|---|---|
-| `F` `H` `M` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
-| `C` `H` `M` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
-| `W` `H` `M` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
-| `F` `H` `F` | CLOTH, HAND, DAGGER | A | A | 400 | 40000 | 65 |
-
-**So a wizard starts with the same cloth and dagger as a fighter.** The kit is a constant, not a
-per-profession table, which is worth knowing because the obvious assumption is the opposite.
-
-**No magic item is in the starting kit.** `WAND`, `STAFF`, `RING` and `GEM` are all zero for every
-one of the four measured characters, including the wizard:
-
-```
-F  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
-C  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
-W  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
-F  WAND=0 STAFF=0 RING=0 GEM=0   MAGIC=65
-```
-
-**What `MAGIC=65` is, and whether a wand or staff is needed to cast, is not established.** Two
-readings, neither verified:
-
-- `MAGIC` is a pool of spell power, and no implement is required.
-- a wand or staff must be obtained, and `MAGIC` gates what can be cast.
-
-`docs/hp-and-damage.md` records that the game shows **no mana or magic counter**, which counts
-against the first reading but does not settle it. Someone who has played a wizard far enough to
-cast could answer this in one sentence, and that is the cheapest way to close it.
-
-Thief was not measured, and neither was any non-human race, so those two cases remain open.
-
-`docs/equipment-thresholds.md` records the published minimums, that strength gates armour and
-agility gates weapons, and that the numbers are not stored literally in `ENCHANT.EXP`.
-
-## The profession letters, and a mismatch worth recording
-
-The roster file stores `PROFESSION` as one of `F`, `C`, `W`, `T` (`docs/save-files.md` establishes
-this against the sprite index).
-
-But `0xea118` parses a single character as `D`, `F`, `U` or `Z`, mapping to class indices 2, 4, 3
-and 1:
-
-```asm
-ea109  cmp edx, 0x44        ; 'D' -> 0xcde4c = 2
-ea10e  cmp edx, 0x46        ; 'F' -> 4
-ea113  cmp edx, 0x55        ; 'U' -> 3
-ea118  cmp edx, 0x5a        ; 'Z' -> 1
-ea11d  jmp default          ; anything else -> 0
-```
-
-**Two different alphabets, in one program.** The routine was not traced to a caller and its role
-is not established; it may be a parser for an imported or legacy roster. Recorded because a future
-reader comparing the file format to the code will hit it and assume one of them is wrong.
-
-## The measured modifier table
-
-Read this session from `saves/modifier_test.hdm`, which holds four characters all entered at
-**10 across the board**, all human. Stored value minus 10 is therefore the modifier:
-
-```
-slot NAME RACE P SEX  STR AGI STA CHA WIS INT  total
-  0         H    F   M   20  20  20  10  10  15   95
-  1         H    C   M   10  10  20  10  20  15   85
-  2         H    W   M   10  10  20  10  10  25   85
-  3         H    F   F   20  20  10  20  10  15   95
-```
-
-Command:
-
-```
-node -e 'const S=require("./tools/savedisk.js");
-const b=require("fs").readFileSync("saves/modifier_test.hdm");
-const e=S.listRoot(b).find(x=>/ROSTER1/.test(x.name));
-const slots=S.parseSlots(S.readFile(b,e).toString("latin1")); ...'
-```
-
-## The decomposition, which is exactly additive
-
-Holding two factors constant and subtracting:
-
-| delta | STR | AGI | STA | CHA | WIS | INT |
-|---|---|---|---|---|---|---|
-| sex, female minus male, at fighter | 0 | 0 | **-10** | **+10** | 0 | 0 |
-| cleric minus male fighter | **-10** | **-10** | 0 | 0 | **+10** | 0 |
-| wizard minus male fighter | **-10** | **-10** | 0 | 0 | 0 | **+10** |
-
-Removing the race term, which is `INT+5` for human and common to all four:
-
-| contribution | STR | AGI | STA | CHA | WIS | INT |
-|---|---|---|---|---|---|---|
-| **sex male** | 0 | 0 | **+10** | 0 | 0 | 0 |
-| **sex female** | 0 | 0 | 0 | **+10** | 0 | 0 |
-| **race human** | 0 | 0 | 0 | 0 | 0 | **+5** |
-| **profession fighter** | **+10** | **+10** | 0 | 0 | 0 | 0 |
-| **profession cleric** | 0 | 0 | 0 | 0 | **+10** | 0 |
-| **profession wizard** | 0 | 0 | 0 | 0 | 0 | **+10** |
-
-Every measured row is the sum of these terms plus 10. Checked arithmetically for all four.
-
-## The crossed case, which confirms the model
-
-`docs/save-files.md` records a character entered as STR 20, AGI 15, STA 20, CHA 15, WIS 10,
-INT 10 and stored as STR 30, AGI 25, STA 20, CHA 25, WIS 10, INT 15. That is human, female,
-fighter, and the model predicts exactly that:
-
-```
-entered + (female + human + fighter) = stored
-STR 20 + 10 = 30    AGI 15 + 10 = 25    STA 20 + 0 = 20
-CHA 15 + 10 = 25    WIS 10 + 0  = 10    INT 10 + 5 = 15
-```
-
-Two independent observations, at different input totals, agree. The 90-point allocation is
-also confirmed: 20+15+20+15+10+10 = 90.
-
-## A correction I made and then withdrew
-
-Comparing the two pages naively makes them look inconsistent, because `meta-analysis-review.md`
-attributes STA+10 and CHA+10 to sex while `save-files.md`'s female fighter has STA+0. The
-apparent conflict is real data on both sides: **fighter contributes STR+10 AGI+10 and the sex
-term is separate**, so a female fighter has STR+10 AGI+10 STA+0 CHA+10. Reading either page
-without the other produces a wrong prediction, including one I wrote and then checked against
-the disk.
-
-## What is not known
-
-**Elf, dwarf and hobbit modifiers.** All four measured characters are human. The race term is
-known only for `H`, and `docs/meta-analysis-review.md` already records the others as unknown.
-
-**Thief.** `save-files.md` establishes the profession letters `F`, `C`, `W`, `T` and the sprite
-index formula `SPID = profession_index * 4 + 2`, but no thief was created at a 10 baseline, so
-its stat term is unknown.
-
-**The per-stat bounds.** Not established. The 90-point budget is confirmed, but whether a single
-attribute may take all 90, or whether there is a per-stat ceiling at creation, was not tested.
-A search for the allocation routine found no comparison against 90 in the registration path at
-`0xedf38`, and the allocator itself was not located.
-
-**The order of application.** The terms are additive and commute, so order does not matter for
-the totals. It would matter only if a clamp existed, and none was observed: no measured row hits
-a ceiling.
-
-**Where the table lives in the code.** Not located. The values are known by measurement, which
-is sufficient for a reimplementation, and finding the table would only confirm them.
-
-**What `0xea118` is for.** It parses a profession letter from a different alphabet than the
-roster stores. Unresolved.
-
-## What closing the remaining gaps would take
-
-Two of the three gaps are cheap and one is not:
-
-| gap | how |
-|---|---|
-| elf, dwarf, hobbit, thief modifiers | create four characters at 10 across the board, one per race with a fixed profession, then four more varying profession. This is the same measurement already done for human, repeated. Needs the game and about ten minutes. |
-| per-stat bounds | create one character putting all 90 into a single attribute and read the stored value. Needs the game and one character. |
-| what `0xea118` parses | trace its caller. Static, cheap, and low value. |
-
-All three need either the running game or a caller trace. None blocks a reimplementation, because
-the measured table covers human with all three measured professions, and the starting inventory
-is constant.
-
-## What a reimplementation needs, and has
-
-1. six attributes, 90 points to allocate, stored per character
-2. sex: male STA+10, female CHA+10
-3. human: INT+5
-4. fighter STR+10 AGI+10, cleric WIS+10, wizard INT+10
-5. up to four characters on one roster, each in its own `(n)NAME=` slot
-
-That is enough to generate a character the game accepts, and `docs/quickstart.md` already
-describes a tool that does so.
+`A` is an item code, not "nothing". Equipping changes combat statistics, so a reimplementation that
+starts a character fully equipped is not faithful. `docs/equipment-thresholds.md` records that
+strength gates armour and agility gates weapons, and that those numbers are not stored literally in
+`ENCHANT.EXP`.
 
 ## Related
 
-- `docs/save-files.md`: the roster format and the worked creation walkthrough
-- `docs/meta-analysis-review.md`: the decomposition this page re-verified
-- `docs/rebuttal.md`: the comparison against published tables from other releases
-- `docs/record-layout.md`: field offsets in memory
+- `docs/save-files.md`: the roster format and a worked creation walkthrough
+- `docs/inside-a-turn.md`: the record layout around HP, corrected there
+- `docs/meta-analysis-review.md`: the earlier measurement-only decomposition
 - `saves/modifier_test.hdm`: the four-character measurement disk

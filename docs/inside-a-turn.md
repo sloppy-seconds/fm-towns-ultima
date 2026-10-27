@@ -11,8 +11,8 @@ From `0xf6ebc` itself, before it reads a key:
 ```
 0xf6ebc   mov word [0xcde48],0xffff        ; clear a two-byte field
 0xf6ec5   push 7 / call 0xe6b1c           ; select display pane 7
-0xf6edc   cmp dword [rec+0xcde81],0x0     ; MAGIC
-0xf6ee8   call 0xf0c60                    ; if MAGIC is 0, run its handler
+0xf6edc   cmp dword [rec+0xcde81],0x0     ; HP, the death check
+0xf6ee8   call 0xf0c60                    ; if HP is 0, run its handler
 0xf6eed   push 7 / call 0xe77f8
 0xf6ef4   call 0xf0b08
 0xf6f0c   cmp dword [rec+0xcdf9b],0x0     ; GATE_X
@@ -20,6 +20,15 @@ From `0xf6ebc` itself, before it reads a key:
 0xf6f19   call 0xe4928 (readKey) in a loop until non-zero
 0xf6f3d   jmp  [edx*4+0xf6d65]            ; command table, key - 1
 ```
+
+**Correction.** This block was annotated `MAGIC` at `0xcde81`. It is **HP**, verified against the
+game's own display in `docs/hp-and-damage.md`, where the screen read 385 and memory read 385. So
+the line is the **death check**: if current HP is zero, run the handler at `0xf0c60`.
+
+There is also **no magic or mana field in this game.** The record around HP is HP, maximum HP,
+experience, food and gold, with nothing between them for a spell pool, and the player reports no
+mana counter on screen. Spells appear to be learned or carried rather than paid for out of a pool.
+That reading is the player's and is not yet confirmed from the code.
 
 ## The 39, classified
 

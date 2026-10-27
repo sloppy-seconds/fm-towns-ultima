@@ -880,6 +880,14 @@
       "class": "not-c",
       "what": "Whole-map transform: a four-way selector, each case a nested 16 by 16 loop over the cell table, rewriting coordinates as 15 - value. The rotate and reflect family.",
       "evidence": "Read this session, docs/movement-and-wrap.md. Every loop bound is cmp 0x10 and the coordinate update is mov edx,0xf / sub. Called from 0xef953 with the table base 0xd5a74. Which case is which rotation was not established."
+    },
+    {
+      "addr": "ed6e0",
+      "callers": 1,
+      "bytes": 100,
+      "class": "not-c",
+      "what": "Applies the character-creation modifiers. Six add [stat],eax instructions, each summing two stack slots: STR from [-10]+[-14], AGI [-18]+[-1c], WIS [-20]+[-24], INT [-28]+[-2c], STA [-34], CHA [-30]. Reached only when the player answers Y to the create prompt.",
+      "evidence": "Read docs/character-creation.md. The slot writers are the race branch at 0xecf07, the profession branch at 0xed3bb and the sex branch at 0xed158. The resulting model reproduces all four characters on saves/modifier_test.hdm exactly."
     }
   ],
   "globals_ref": {
