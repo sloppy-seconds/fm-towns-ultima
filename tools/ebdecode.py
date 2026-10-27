@@ -7,7 +7,9 @@ transform. It is two, split by the payload:
     payload <= 0x59    result = payload + 1     capitals and the first punctuation block
     payload >= 0x5a    result = payload + 7     lowercase
     payload == 0x74    result = '!'             the commonest line ending, 21 uses
-    payload == 0x75    result = '?'             8 uses
+    payload == 0x75    result = '?'             10 uses
+    payload == 0x94    result = ')'             the command-key marker, 256 uses
+    payload == 0x92    result = ','             2 uses
 
 Everything that is not an `0xEB` escape passes through unchanged, and the whole result is then
 Shift-JIS, because these strings mix escaped ASCII with plain Shift-JIS in adjacent entries.
@@ -30,9 +32,10 @@ Usage:
     ./tools/.venv/bin/python3 tools/ebdecode.py --search scum      decoded strings containing text
     ./tools/.venv/bin/python3 tools/ebdecode.py --json
 
-Not yet explained, and left visible rather than guessed: `,` and `.` and the fullwidth colon
-appear in the text but their payloads are not identified, so a few lines render with a stray
-byte. `0x92` sits where a comma belongs in `Ugh, me tough!` and is passed through undecoded.
+Not yet explained: the full stop has not been found as a payload in these tables. Note that
+0x94 was first read as a zero-width marker, because dropping it turns the race names into
+Human, Elf and Dwarf. The Japanese twin rules that out: 0x3389 is E + 0x94 + 人間, so the 0x94
+stands where a ')' must be in both languages. It is ')'.
 """
 
 import argparse
@@ -61,6 +64,10 @@ def decode(raw):
                 out.append(ord('!'))
             elif p == 0x75:
                 out.append(ord('?'))
+            elif p == 0x94:
+                out.append(ord(')'))
+            elif p == 0x92:
+                out.append(ord(','))
             elif p <= 0x59:
                 out.append((p + 1) & 0xFF)
             else:

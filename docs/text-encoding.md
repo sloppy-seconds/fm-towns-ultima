@@ -14,7 +14,7 @@ measured. What `0xEB` means in the strings is not, and four readings of it have 
 | background fill | `0xe6e48` -> `0x8b6` -> TBIOS **AH 0x2b**, rectangle at `0x7add8` |
 | text attributes | four, through a table at `TBIOS.BIN 0xfad0` |
 | pixel handling | a `not` cascade over a byte count, so a plain bitmap inverted on merge |
-| `0xEB` in strings | **resolved**: an ASCII escape with two offsets, `+1` for payloads up to `0x59` and `+7` above |
+| `0xEB` in strings | **resolved**: an ASCII escape with two letter offsets (`+1` up to `0x59`, `+7` above) and four punctuation payloads: `0x74` `!`, `0x75` `?`, `0x94` `)`, `0x92` `,` |
 
 ## The cell size, from two independent statements
 
@@ -119,9 +119,46 @@ so their wording is not in doubt:
 Eighteen payload-to-character pairs came out of those three and **every one obeys the split with
 no exceptions**. `tools/ebdecode.py` implements it and `--search scum` returns `0x61d0`.
 
-**Still not explained.** The comma, the full stop and the fullwidth colon appear in the text but
-their payloads are not identified; `0x92` sits where a comma belongs in `Ugh, me tough!` and is
-passed through undecoded. A few lines therefore render with one stray byte.
+### `0x94` is `)` and `0x92` is `,`
+
+The two payloads outside both letter ranges are ordinary punctuation after all. **`0x94` is the
+closing parenthesis `)` and `0x92` is the comma `,`.**
+
+The parenthesis is the one that matters, because it is how the game marks a command key. Every
+option in this game is written `A)ttack`, `E)nter`, `Z)tat`, and the race menu on the character
+creation screen is the same shape:
+
+| address | raw | decoded |
+|---|---|---|
+| `0x3368` | `eb 47 eb 94 eb 6e eb 66 eb 5a eb 67` | **`H)uman`** |
+| `0x3380` | `eb 44 eb 94 eb 65 eb 5f` | **`E)lf`** |
+| `0x3398` | `eb 43 eb 94 eb 70 eb 5a eb 6b eb 5f` | **`D)warf`** |
+| `0x33b4` | `eb 41 eb 94 eb 68 eb 5b eb 5b eb 62 eb 6d` | **`B)obbit`** |
+
+Each is followed by the same entry in Japanese, and the Japanese carries the same letter and the
+same `0x94`: `0x3375` is `eb 47 eb 94 90 6c 20 20 8a d4`, which is `H)` then `人間`, the kanji for
+human. That pairing is what proves `0x94` is a rendered character and not a marker: it appears in
+both halves of a bilingual pair at the same position.
+
+The header above them confirms the screen: `0x334c` decodes to `［Race］` and `0x3359` to `［ 種 族 ］`.
+
+**`0x92` is a comma**, giving `Ugh,me tough!` and `Psst,wanna buy a watch?`. The missing space after
+the comma is consistent across every use, so the comma is stored without one and the text relies on
+the following word starting a new field, or the spacing is simply absent in the original.
+
+**A wrong reading, kept, because it was convincing.** `0x94` was first recorded here as a
+zero-width marker, on the evidence that dropping it produced `Human`, `Elf` and `Dwarf`. Dropping
+it does produce those words, which is exactly why the error was plausible. What ruled it out was
+looking at the Japanese twin, where `0x94` sits where a `)` must be: no marker could occupy that
+position in both languages. Paul suggested the `H)uman` reading directly, having seen the command
+list format elsewhere in the game.
+
+**So punctuation is all table payloads, not code.** `0x74` is `!`, `0x75` is `?`, `0x94` is `)`,
+`0x92` is `,`. The fullwidth colon `81 46` and the fullwidth space `81 40` are not escaped at all;
+they are plain Shift-JIS sitting in the same string, which is why a decoder must handle both.
+
+**What is still not explained.** The full stop has not been found as a payload in these tables.
+`tools/ebdecode.py` implements all four punctuation payloads.
 
 The evidence is a string whose meaning is already known from its plain twin:
 
