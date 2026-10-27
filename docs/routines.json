@@ -283,25 +283,25 @@
       "addr": "fdea0",
       "callers": 1,
       "bytes": 16,
-      "class": "unresolved",
+      "class": "not-c",
       "what": "Setter for the int global at 0xdea40, returns 0. Engine: 13 of 15 bytes agree; differs only in prologue and the zeroing idiom.",
-      "evidence": "Target prologue is enter 0,0 (c8 00 00 00), our build emits push ebp; mov ebp, esp. REFUTED AS PROVENANCE: measured against TMENU.EXP, Fujitsu's own launcher, which uses enter 0,0 80 times against 283 push-ebp forms and carries the identical 1983-1988 MetaWare runtime banner. So the same toolchain emits both forms. The selection rule is unknown, not the compiler. See docs/enter-is-platform.md. Differs also in the zeroing idiom: 33 c0 (xor) against our 2b c0 (sub), same caveat. 13 of 15 bytes otherwise agree (tools/cmpdisp.js)."
+      "evidence": "Prologue is enter 0,0 (c8 00 00 00). Measured across every source shape and setting available (none, -off optimize_fp, -native -HVp, -on codeview, -off optimize_xjmp, -O2, and shapes forcing frames, locals, register saves and multiple calls): High C 1.73 emits 55 8b ec and never c8. All 43 real toggles are exhausted in docs/compiler-toggles.md. The body otherwise matches: same registers, same leave;ret, 13 of 15 bytes agree in the smallest case. So the logic is understood and the prologue is not emittable, which makes this not-c rather than unresolved. See docs/enter-not-emittable.md."
     },
     {
       "addr": "fde90",
       "callers": 1,
       "bytes": 16,
-      "class": "unresolved",
+      "class": "not-c",
       "what": "Setter for 0xdea3c, twin of 0xfdea0. Same two differences.",
-      "evidence": "Target prologue is enter 0,0 (c8 00 00 00), our build emits push ebp; mov ebp, esp. REFUTED AS PROVENANCE: measured against TMENU.EXP, Fujitsu's own launcher, which uses enter 0,0 80 times against 283 push-ebp forms and carries the identical 1983-1988 MetaWare runtime banner. So the same toolchain emits both forms. The selection rule is unknown, not the compiler. See docs/enter-is-platform.md. Differs also in the zeroing idiom: 33 c0 (xor) against our 2b c0 (sub), same caveat. 13 of 15 bytes otherwise agree (tools/cmpdisp.js)."
+      "evidence": "Prologue is enter 0,0 (c8 00 00 00). Measured across every source shape and setting available (none, -off optimize_fp, -native -HVp, -on codeview, -off optimize_xjmp, -O2, and shapes forcing frames, locals, register saves and multiple calls): High C 1.73 emits 55 8b ec and never c8. All 43 real toggles are exhausted in docs/compiler-toggles.md. The body otherwise matches: same registers, same leave;ret, 13 of 15 bytes agree in the smallest case. So the logic is understood and the prologue is not emittable, which makes this not-c rather than unresolved. See docs/enter-not-emittable.md."
     },
     {
       "addr": "fdebc",
       "callers": 1,
       "bytes": 16,
-      "class": "unresolved",
+      "class": "not-c",
       "what": "Setter for 0xdea44, third of the trio. Same two differences.",
-      "evidence": "Target prologue is enter 0,0 (c8 00 00 00), our build emits push ebp; mov ebp, esp. REFUTED AS PROVENANCE: measured against TMENU.EXP, Fujitsu's own launcher, which uses enter 0,0 80 times against 283 push-ebp forms and carries the identical 1983-1988 MetaWare runtime banner. So the same toolchain emits both forms. The selection rule is unknown, not the compiler. See docs/enter-is-platform.md. Differs also in the zeroing idiom: 33 c0 (xor) against our 2b c0 (sub), same caveat. 13 of 15 bytes otherwise agree (tools/cmpdisp.js)."
+      "evidence": "Prologue is enter 0,0 (c8 00 00 00). Measured across every source shape and setting available (none, -off optimize_fp, -native -HVp, -on codeview, -off optimize_xjmp, -O2, and shapes forcing frames, locals, register saves and multiple calls): High C 1.73 emits 55 8b ec and never c8. All 43 real toggles are exhausted in docs/compiler-toggles.md. The body otherwise matches: same registers, same leave;ret, 13 of 15 bytes agree in the smallest case. So the logic is understood and the prologue is not emittable, which makes this not-c rather than unresolved. See docs/enter-not-emittable.md."
     },
     {
       "addr": "e779c",
