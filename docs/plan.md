@@ -775,13 +775,22 @@ the same code.
 | wizard | 0 | 0 | 0 | 0 | 0 | +10 |
 | thief | 0 | +10 | 0 | 0 | 0 | 0 |
 
-**Still open:** where the base 90 points are held, and whether one stat may take all 90. The
-allocator was not located, and `0xea118` turned out to parse profession letters rather than check a
-budget. That does not block a reimplementation, which needs the deltas above and a 90-point UI.
+**Allocation, also read from the code.** `0xec340` is the allocator: `mov esi, 0x1e` gives **30**
+points to spend, `cmp edx, 0x19` caps each attribute at **25**, and `cmp eax, 0xa` floors it at **10**.
+So one stat cannot take everything, because 25 absorbs at most 15 of the 30.
 
-**The item was marked DONE three times.** First prematurely, with three of its four criteria
-unfinished. Then reopened as PARTLY AUTONOMOUS. Then genuinely closed once the modifiers were read
-from the code. The history is in the commit log rather than the item.
+**The 90 in `quickstart.md` and `save-files.md` is the total, not the budget.** Six attributes at
+base 10 is 60, plus 30 to allocate is 90. Both numbers are right and the phrasing is loose rather
+than wrong. Confirmed against the worked example there: entered 20, 15, 20, 15, 10, 10 sums to 90,
+spends exactly 30 above base, and stays inside 10 to 25.
+
+**`0xcde4d` is the points spent**, zeroed at `0xec34e` and required to be non-zero at `0xed632`
+before the profession branch accepts, so the game will not let the player leave the allocation
+screen having spent nothing.
+
+**Caveat:** all four characters on `saves/modifier_test.hdm` were entered at exactly 10 each, so they
+spent none of the 30. The allocation model rests on the `save-files.md` case and on the code, not on
+a measurement of allocation itself, which is a weaker footing than the modifier table.
 
 **Full write-up, including the invented premise this pass corrected:**
 [creation-pass.md](creation-pass.md).

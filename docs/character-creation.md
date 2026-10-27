@@ -128,13 +128,85 @@ and the corrected mapping was then checked against all four rather than argued f
 instruction order. The record's physical field order (`0xcde62`, `66`, `6a`, `6e`, `72`, `76`,
 `7a`) is not the order the adds appear in.
 
-## Still not established
+## The allocation, which is 30 points and not 90
 
-**Where the base 90 points are held and whether a single stat may take all of them.** The allocation
-routine is not the one at `0xedf38`, which is registration, and a search for a comparison against 90
-found `0xea118`, which turned out to parse profession letters.
+The allocator is `0xec340`. It is the routine that runs before any of the choice branches, and it
+holds the budget and both bounds.
 
-**Why `0xcde4d` is zeroed at creation** (`0xea0e2`), which may be a spent-points counter.
+```asm
+ec340  push ebp
+ec341  mov ebp, esp
+ec343  sub esp, 0x4c
+ec349  mov edi, [ebp+0x8]
+ec34c  sub eax, eax
+ec34e  mov [ebp-0x4], eax        ; the state counter
+ec351  mov esi, 0x1e             ; 30 points to allocate
+```
+
+And the two bounds, in the increment and decrement paths for strength. The other five stats repeat
+the same shape at `0xec7be`, `0xec8fd`, `0xeca3c`, `0xecb7b` and `0xeccbd`:
+
+```asm
+ec681  mov edx, [eax+0xcde62]   ; current STRENGTH
+ec687  cmp edx, 0x19             ; 25
+ec68a  je  refuse                ; cannot raise past 25
+ec68c  and esi, esi
+ec68e  je  refuse                ; no points remaining
+ec690  inc [eax+0xcde62]
+ec696  dec esi                   ; spend one
+
+ec6b3  cmp eax, 0xa              ; 10
+ec6b6  je  refuse                ; cannot lower below the base
+ec6bc  cmp esi, 0x1e             ; 30
+ec6bf  je  refuse                ; cannot refund when nothing is spent
+ec6c5  dec [edx+0xcde62]
+ec6cb  inc esi                   ; refund one
+```
+
+| question | answer |
+|---|---|
+| points to allocate | **30** (`0x1e`) |
+| per-stat maximum | **25** (`0x19`) |
+| per-stat minimum | **10** (`0xa`) |
+
+### The 90 in the documentation is the total, not the budget
+
+Six attributes start at **10 each**, which is 60. The player allocates **30** on top. That is 90 in
+total, and 90 is the number `docs/quickstart.md` and `docs/save-files.md` call the points to spend.
+
+The two are consistent, and the phrasing in both pages is loose rather than wrong.
+
+Checked against the worked example in `docs/save-files.md`, which entered 20, 15, 20, 15, 10, 10:
+
+```
+sum                = 90    matches the documented total
+spent above base   = 30    exactly the budget in 0xec351
+range              = 10..20, inside the 10..25 bounds
+```
+
+**A stat cannot take everything.** The cap of 25 means the most one attribute can absorb is 15 of
+the 30 points, so at least 15 must go elsewhere. That answers the question this section previously
+left open.
+
+### A caveat on the four measured characters
+
+All four on `saves/modifier_test.hdm` were entered at exactly 10 each, so **they spent none of the
+30 points**. They confirm the modifier arithmetic and say nothing about allocation. The allocation
+model above rests on the `save-files.md` case and on the code, not on those four.
+
+## `0xcde4d` is the points spent
+
+The field is zeroed at `0xec34e` when the allocator starts, incremented implicitly by `dec esi` on
+each spend, and then **required to be non-zero** before the profession branch will accept:
+
+```asm
+ed632  cmp [edx+0xcde4d], 0x0
+ed639  jne  proceed
+ed63b  mov [ebp-0x4], 0x9      ; bounce back to state 9
+```
+
+So the game refuses to let the player leave the allocation screen without spending at least one
+point. That was an open question and the answer is in three instructions.
 
 ## The starting kit, which is constant
 

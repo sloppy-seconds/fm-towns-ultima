@@ -888,6 +888,14 @@
       "class": "not-c",
       "what": "Applies the character-creation modifiers. Six add [stat],eax instructions, each summing two stack slots: STR from [-10]+[-14], AGI [-18]+[-1c], WIS [-20]+[-24], INT [-28]+[-2c], STA [-34], CHA [-30]. Reached only when the player answers Y to the create prompt.",
       "evidence": "Read docs/character-creation.md. The slot writers are the race branch at 0xecf07, the profession branch at 0xed3bb and the sex branch at 0xed158. The resulting model reproduces all four characters on saves/modifier_test.hdm exactly."
+    },
+    {
+      "addr": "ec340",
+      "callers": 1,
+      "bytes": 0,
+      "class": "not-c",
+      "what": "The character-creation allocator. Sets a budget of 30 points (mov esi,0x1e), and each of six stats may be raised to 25 (cmp 0x19) or lowered to the base of 10 (cmp 0xa). Refunds are blocked once nothing has been spent. Writes the spent count to 0xcde4d.",
+      "evidence": "Read docs/character-creation.md. Bounds are cmp edx,0x19 for the cap and cmp eax,0xa for the floor, repeated per stat at 0xec7be, 0xec8fd, 0xeca3c, 0xecb7b, 0xeccbd. The budget reconciles with the worked 90-point case in docs/save-files.md: 6x10 base plus 30 spent equals 90 total."
     }
   ],
   "globals_ref": {

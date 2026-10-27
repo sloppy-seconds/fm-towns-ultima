@@ -111,14 +111,41 @@ was then checked against all four rather than argued from instruction order.
 **That is the pattern worth carrying:** the code gives the mechanism, the measurements give the
 labels, and neither alone was enough.
 
+## The allocation, found after the pass was first written
+
+The two questions this page originally left open were closed by reading `0xec340`, which is the
+allocator and runs before any of the choice branches.
+
+| question | answer | evidence |
+|---|---|---|
+| points to allocate | **30** | `ec351 mov esi, 0x1e` |
+| per-stat maximum | **25** | `ec687 cmp edx, 0x19` |
+| per-stat minimum | **10** | `ec6b3 cmp eax, 0xa` |
+| can one stat take everything | **no** | the cap of 25 absorbs at most 15 of the 30 |
+
+**The 90 in the documentation is the total, not the budget.** Six attributes at base 10 is 60, plus
+30 to allocate is 90. Both figures are right and the phrasing in `quickstart.md` and `save-files.md`
+is loose rather than wrong. Checked against the worked example there, which entered 20, 15, 20, 15,
+10, 10: the sum is 90, the amount spent above base is exactly 30, and every value is inside 10 to 25.
+
+**`0xcde4d` is the points spent.** Zeroed at `0xec34e`, raised as points are spent, and required to
+be non-zero at `0xed632` before the profession branch accepts. So the game refuses to let the player
+leave the allocation screen having spent nothing.
+
+### The gap that remains
+
+**The four measured characters spent zero points.** All were entered at exactly 10 each, so they
+confirm the modifier arithmetic and say nothing about allocation. The allocation model rests on the
+`save-files.md` case and the code, not on a measurement of the allocation step itself. That is a
+weaker footing than the modifier table and is labelled as such.
+
 ## What the pass did not establish
 
-**Where the 90 base points are held, and whether one stat may take all 90.** The allocator was not
-located. A search for a comparison against 90 found `0xea118`, which turned out to parse profession
-letters from `D`, `F`, `U`, `Z` rather than check a budget. Neither gap blocks a reimplementation,
-which needs the deltas above and a 90-point allocation UI.
+**Nothing that blocks a reimplementation.** The modifier deltas are read from code and verified four
+for four, the allocation is 30 points with a 25 cap and a 10 floor, and the starting kit is constant.
 
-**What `0xcde4d` is**, zeroed at creation at `0xea0e2`. Possibly a spent-points counter.
+**What is still untested at runtime:** the allocation bounds themselves. Creating one character and
+pushing a single stat past 25 would confirm the cap interactively, and has not been done.
 
 ## Two corrections this pass made outside its own subject
 
