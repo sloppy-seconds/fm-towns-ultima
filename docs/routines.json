@@ -862,8 +862,8 @@
       "bytes": 240,
       "class": "not-c",
       "trap": "ENTER_FRAME_UNEXPLAINED",
-      "what": "The movement step: direction 1..4 selects a dx/dy pair, adds it to MAP_X/MAP_Y, wraps both into 0..15 by adding or subtracting 16, tests the destination through 0xfb41c, and commits the position to the record and to 0xd4a4c/0xd4a50 when passable.",
-      "evidence": "Read this session, docs/movement-and-wrap.md. The wrap constant is 16: cmp 0xf then sub 0x10 / add 0x10 on both axes. The second y correction tests esi rather than ebx (raw 23 f6), recorded as unexplained."
+      "what": "Wraps a 16-wide coordinate with cmp 0xf and +/- 0x10, tests a destination cell through 0xfb41c, and commits it. NOT the overworld stepper: it contains no 64 bound, and a measured step at PLAYER_X=0 went to 63 while the map id changed 41 to 42.",
+      "evidence": "Read docs/movement-and-wrap.md. The 16 bound is real but it bounds a cell table, not PLAYER_X. Measured transition: PLAYER_X 0->63, map 0xcdf53 41->42, PLAYER_Y unchanged. The routine that bounds PLAYER_X at 63 has not been found."
     },
     {
       "addr": "fb41c",
@@ -871,7 +871,7 @@
       "bytes": 76,
       "class": "not-c",
       "what": "Destination test for a step: indexes a cell table by (x << 8) + (y << 4), returns the cell at +0, or 0 when cell+8 is nonzero, or -1 when cell+4 is not -1.",
-      "evidence": "Read this session as the collision test called by 0xef5b4. docs/movement-and-wrap.md."
+      "evidence": "Read as the destination test called by 0xef5b4. Indexes a 16-byte-cell table by (x << 8) + (y << 4). This bounds the cell table, not the world: see docs/movement-and-wrap.md."
     },
     {
       "addr": "fa130",

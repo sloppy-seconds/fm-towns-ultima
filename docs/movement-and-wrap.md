@@ -93,12 +93,73 @@ I wrote "torus wrap on the player position" in the plan item when first drafting
 expectation that a movement coordinate would be called that. The code says otherwise, and the
 phrase sent the first search at this item to the wrong fields.
 
-## How big is a map: one 16 by 16 grid, not 64 by 64 sectors
+## How big a map is: 64 wide, in sectors, measured by walking
 
-Asked directly whether a map is 64 by 64 divided into sectors, with an edge crossing into the
-neighbouring sector. **Measured: no.** The map is a single 16 by 16 grid.
+I claimed this section said "one 16 by 16 grid, no sectors" and that claim was **wrong**. It was
+derived from four code constants and never tested by walking. One step at the edge refuted it.
 
-Four independent constants agree:
+### The measurement
+
+Played to `PLAYER_X = 0` (`0xcdf6b`), then one step west, with a memory dump either side:
+
+| field | before | after one step west |
+|---|---|---|
+| `PLAYER_X` (`0xcdf6b`) | 0 | **63** |
+| `PLAYER_Y` (`0xcdf6f`) | 11 | 11 |
+| map id (`0xcdf53`) | 41 | **42** |
+
+**Two thing follow and both contradict the earlier reading:**
+
+- **The coordinate bound is 64, not 16.** `0` west becomes `63`, so the maximum is the world
+  width minus one.
+- **Crossing the edge changes the map id.** 41 to 42. So `0xcdf53` is a sector or world id and
+  there is a sector system, exactly as asked.
+
+### Why four constants pointed the wrong way
+
+All four are real, and all four measure **the cell table**, not the world coordinate space:
+
+| source | constant | what it actually bounds |
+|---|---|---|
+| `0xef5b4` wrap | `cmp 0xf`, `+/- 0x10` | a 16-wide structure, not `PLAYER_X` |
+| `0xfb41c` cell index | `(x << 8) + (y << 4)` | 16 bytes per cell, 256 per row |
+| `0xfa130` loops | `cmp 0x10` both axes | a 16 by 16 tile block |
+| `0xfa130` coordinate update | `15 - value` | the same block's coordinates |
+
+**And the decisive negative that should have stopped me:** `0xef5b4` contains no `0x3f` or `0x40`
+immediate at all. It cannot be the routine that bounds `PLAYER_X` at 63. The routine that does was
+never found, and reading `0xef5b4` as the overworld stepper was an assumption, not a measurement.
+
+The 16 by 16 is almost certainly the **shared cell table within a sector** and possibly relates to
+the 11 by 11 viewport, but which of those it is has not been established.
+
+### The crossing is invisible to the player
+
+Observed on screen while the step above was taken: **the display simply scrolls.** There is no
+flash, no reload, no visual discontinuity at the moment the sector id changes from 41 to 42.
+
+The player cannot tell they crossed a sector boundary, only the memory dump can. Three
+consequences:
+
+- **The sector arithmetic is seamless by design.** Whatever draws the 11 by 11 viewport reads
+  tiles without the player or the renderer caring which sector they belong to.
+- **"Torus" was the wrong word twice over.** The world is not a torus, because crossing does not
+  loop back into the same map. And it is not visibly bounded either, because the crossing is
+  hidden.
+- **The 16 by 16 structure is most likely a rendering or collision granularity**, a block the
+  code works in, rather than anything the player experiences. That is a guess and is labelled
+  one, but it explains why four constants agree on 16 while the world is 64 wide.
+
+### The method failure, stated plainly
+
+Four independent constants agreed, and agreement felt like proof. It was four measurements of the
+same thing. A single keystroke was worth more than all four, and it took Paul asking twice before
+it was tried.
+
+## How big is a map, the earlier (wrong) reasoning, kept
+
+The rest of this section is the derivation that produced the wrong answer, kept because the
+constants themselves are correct and will be needed once the real bound routine is found.
 
 | source | constant |
 |---|---|
@@ -107,12 +168,10 @@ Four independent constants agree:
 | `0xfa130` transform loops | `cmp 0x10` on both axes, in all four cases |
 | `0xfa130` coordinate update | `mov edx, 0xf` then `sub edx, [..]`, which is `15 - value` |
 
-**And the step routine does not touch the map id.** `0xd4a68` holds the current map and appears in
-`0xef5b4` only as an argument to the cell test. If crossing an edge moved the player into an
-adjacent sector, that value would have to change. It never does.
-
-So: walking off an edge wraps within the same 16 by 16 map. There is no sector system for movement
-to cross.
+**The reasoning that was wrong.** `0xd4a68` appears in `0xef5b4` only as an argument to the cell
+test and is never written there, from which I concluded that an edge crossing could not change the
+map. That inference holds for `0xef5b4` and has no bearing on the real stepper, which was never
+read.
 
 ### The arithmetic confirms the table size
 
