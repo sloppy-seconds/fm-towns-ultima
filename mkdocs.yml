@@ -204,6 +204,7 @@ nav:
       - The first ranked function: first-ranked-function.md
       - The display context, read to its handlers: display-context.md
       - The rectangle cluster, four routines through one handler: rectangle-cluster.md
+      - The drawing clusters, grouped by handler: drawing-clusters.md
       - The text encoding: text-encoding.md
       - AGENTS.md audit: agents-md-audit.md
       - Compiler API: compiler-api.md

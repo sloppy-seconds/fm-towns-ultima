@@ -40,9 +40,10 @@ The wrapper is `0xabd`:
 This is the same wrapper shape as every other TBIOS call: the signature is inside the
 wrapper, not at the call target.
 
-## The rectangle buffer
+## The shared argument buffer
 
-`0x7add8` is four 16-bit fields, written by every member of the cluster:
+`0x7add8` is the first of four 16-bit fields, and every member of this cluster writes exactly
+those four:
 
 | offset | field |
 |---|---|
@@ -54,6 +55,12 @@ wrapper, not at the call target.
 `text-encoding.md` already established that AH 0x2b, the background fill, uses this same
 buffer. So one buffer serves both a fill and a rectangle outline, which is why the ordering
 below matters.
+
+**Correction from `docs/drawing-clusters.md`.** The buffer is **longer than four fields**. The
+sprite group that calls AH 0x25 writes `0x7ade0`, `0x7ade2` and `0x7ade4` as well, so the
+struct runs to at least `0x7ade5`. The rectangle cluster uses the first four; other
+primitives use more. An earlier version of this section called it "four 16-bit fields",
+which was true only of the routines on this page.
 
 ## `0xe5ff4`: filled rectangle, with the mode saved and restored
 
