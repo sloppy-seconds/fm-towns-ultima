@@ -76,6 +76,43 @@ Two readings remain, and they are the same two as for the tick:
 2. **The combat routine is reached indirectly.** There are 144 unresolved indirect branches, dominated by
    `call dword near [0xdfc5c]`. If combat is one of them, no call-graph or displacement search will find it.
 
+## A single one-hit kill, measured live
+
+Two savestates, taken paused, before and after killing a monster with one hit. The player stood
+at (12,17) on map 40 and did not move; the monster died without landing a hit.
+
+| field | before | after | delta |
+|---|---|---|---|
+| HP | 216 | 216 | **0** |
+| max HP | 400 | 400 | 0 |
+| EXP | 10 | 12 | **+2** |
+| FOOD | 39,385 | 39,370 | **−15** |
+| GOLD | 431 | 447 | **+16** |
+| X / Y | 12 / 17 | 12 / 17 | 0 |
+| MAP | 40 | 41 | **+1** |
+
+Read with `tools/stateread.py` from the states and confirmed against `tools/peek.js` on the live
+game at the same moment; the two agreed on every field but `rng`, which advances per frame.
+
+**What this establishes.**
+
+- **A kill costs 15 food**, the same as a single step (`docs/movement-and-wrap.md`). One fight,
+  one data point, but the number being identical to the step cost is worth noting.
+- **A kill of this monster is worth 2 EXP and 16 GOLD.**
+- **`MAP` moved 40 to 41 while X and Y did not.** So map 40 and 41 are not the same place and the
+  change was not caused by movement. What `MAP` counts is unverified, and this is the first
+  observed change to it that is not a coordinate change.
+
+**What this does not establish, and it is the interesting part.**
+
+**No damage was taken, so no damage formula was measured.** The whole reason for the capture was
+HP before and after a monster hit, and the monster never hit. A one-hit kill cannot produce a
+hit-point delta, and this page will not infer one from a fight where HP did not move.
+
+So **item 4b is no better off from this run**, and the honest reading is that the capture was
+worth doing for the food, EXP and gold figures and worth nothing for the formula it was aimed at.
+The next attempt needs a fight the player does **not** win in one blow.
+
 ## What would actually work, and it is not another scan
 
 **Read the routine that prints `\nによる攻撃` and follow it backwards.** That string must be printed at the
@@ -91,6 +128,18 @@ session had already produced two negatives on the same pattern and a third guess
 **Not done, in either half.** Not the reading and not the verification. The item was `PARTLY AUTONOMOUS`
 which was correct about verification, and too optimistic about reading: the fields the formulas must touch
 are not touched by any routine that rolls dice.
+
+**One live attempt has now been made and it failed to produce a formula**, for a reason worth recording.
+A monster was engaged and killed in one hit, with savestates taken before and after. HP did not move,
+so there was no damage to measure. The run gave the food, EXP and gold costs of a kill and nothing
+about the damage arithmetic. See the measurement above.
+
+**A further negative on the string route.** This page's own next step was to find what references the
+attack string `による攻撃` and read that routine. The string is at `0x680c` and **nothing references
+it**: `tools/refindex.py --query 0x680c` returns none, a literal search for immediates in
+`0x6800..0x6820` finds none, and `tools/fnstrings.js --top 200` lists no function for it. So the
+string is reached through a computed offset into the `0xEB` table rather than an absolute address, and
+following it back needs a different method than the one this page proposed.
 
 The plan's acceptance criterion is "to-hit and damage stated exactly, and marked read-versus-verified".
 Neither is satisfied and the page says so rather than offering a plausible formula.
