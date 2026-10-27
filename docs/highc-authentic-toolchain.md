@@ -25,12 +25,45 @@ This page reaches it and the block is gone.
 
 ## The working invocation
 
-Guest: Tsugaru, CD image `saves/hc.ccd` as `Q:`, English TownsOS hard disk
-`saves/scratch-tos11en.h0` as `-HD0`. Boot reaches the TownsOS shell at `Q:\>`.
+This is the exact host command, verified this session from
+`/proc/<Tsugaru>/cmdline` inside the container. Nothing beyond these flags is needed, and
+adding a boot key or a different CMOS is what made an earlier attempt fail.
+
+```bash
+sudo podman run --name tosprobe --rm -d \
+  -p 6082:6080 -p 5902:5900 -p 8099:8080 \
+  -v "$PWD/vendor/emulator:/emulator:ro,z" \
+  -v "$PWD/vendor/roms:/roms:ro,z" \
+  -v "$PWD/saves:/data:z" \
+  -e RESOLUTION=1024x768x24 -e ROM_DIR=/roms -e API_PORT=8080 \
+  -e "TSUGARU_EXTRA=-CD /data/hc.ccd -HD0 /data/scratch-tos11en.h0" \
+  localhost/fmtowns:latest
+```
+
+which the entrypoint expands to
+
+```
+Tsugaru_CUI /roms -CMOS /data/CMOS.BIN -CD /data/hc.ccd -HD0 /data/scratch-tos11en.h0
+```
+
+Four things about that line are load bearing, and each one cost an attempt:
+
+- **No `-BOOTKEY`.** Leaving it out lets the firmware use the hard disk and reach DOS.
+  `-BOOTKEY F0` and `-BOOTKEY CD` both land on the TownsOS desktop instead.
+- **No `-FD0`.** No floppy is involved in this route at all.
+- **No custom `CMOS`.** The entrypoint default is `/data/CMOS.BIN` (md5
+  `67c07678301ea47d7d795a01c7202b7a`) and it works. `CMOS_HDD.bin` declares ten SCSI
+  units, which pushes the disk behind nine phantoms, and `CMOS_ONE.bin` is for the DOS
+  floppy route. See `docs/working-c-drive.md`.
+- **`-CD` at launch**, because `MSCDEX` must see media at power-on or `Q:` never appears.
+
+## Inside the guest
+
+Boot reaches a DOS prompt. The prompt is `Q:\>` when the current drive is the CD:
 
 ```
 Q:\> d:
-D:\> hc386 r1.c
+D:\> hc386 enter.c
 Found Q:\HC386\BIN\HC386.EXE
 MetaWare High C Compiler 1.73
 Copyright (C) 1988-91 MetaWare Incorporated.  Serial 1-307000.
@@ -39,9 +72,11 @@ Warning: No stack segment.
 D:\>
 ```
 
-`HC386.EXE`, not `HCD386.EXE`. The driver compiles and links in one step and
-names the output after the source, `R1.C` gives `R1.EXP` and `R1.MAP`. This is
-the command the CD's own `DEMO.BAT` uses.
+`Warning: No stack segment.` is normal for a small P3 program and the build succeeds. The
+driver compiles and links in one step and writes `<name>.EXP` and `<name>.MAP` beside the
+source.
+
+`HC386.EXE`, not `HCD386.EXE`. This is the command the CD's own `DEMO.BAT` uses.
 
 ## Method, host side
 

@@ -438,20 +438,24 @@ capture again and compare. Identical captures mean frozen.
 
 ## What still does not work
 
-- **The driver plus `RUN386`.** `HC386.EXE` stages temp files and calls
-  `RUN386 HCD386P.EXP`, which needs a Towns window system, which needs
-  TownsMENU, which cannot coexist with a writable volume on any boot
-  configuration tried. See `docs/compile-blocker.md`. It is not needed for
-  compiling.
+- **The driver plus `RUN386` on the floppy-boot route.** `HC386.EXE` stages temp files
+  and calls `RUN386 HCD386P.EXP`, which needs a Towns window system, which needs
+  TownsMENU, which cannot coexist with a writable volume on any *floppy-boot* configuration
+  tried. See `docs/compile-blocker.md`. **This is a limitation of that route, not of the
+  driver.** Booting the TownsOS HDD with no `-BOOTKEY` reaches a DOS prompt and the driver
+  runs there: see the working invocation in `docs/highc-authentic-toolchain.md` and
+  `docs/highc-driver-route.md`.
 - **TownsMENU with a writable volume.** `COCO` fails on the DOS 6.2 floppy and
   `SIDEWORK` then hangs the batch. `CTL.SYS` does not fix it under DOS 6.2.
 - **Linking.** `386LINK.EXE` was never driven. `docs/bootable-dos-hdd.md`
   recorded a path-resolution failure (`$TOOLSDIR$bin` producing mixed
   separators) that was not revisited.
-- **`-O0`..`-O4` levels.** Those are a *driver* concept. The driver forwards a
-  bare `-O` to the generator, so calling the generator directly means the
-  digits are ignored. Bare `-O`, `-O1`..`-O9` and the `-on`/`-off` optimizer
-  toggles all produce byte-identical output through this route.
+- **`-O0`..`-O4` levels through the real-mode generator.** Those are a *driver* concept.
+  Calling `HCD386.EXE` directly means bare `-O`, `-O1`..`-O9` and every `-on`/`-off`
+  optimiser toggle produce byte-identical output. Through the driver the optimiser **does**
+  engage: `int f2(int a,int b){int t;t=a+b;return t*2;}` gives `lea eax,[ecx+ecx]`, strength
+  reduction on the multiply, which the real-mode generator never produced. See
+  `docs/highc-authentic-toolchain.md`.
 - **The 15.9 GB `disk/TownsHDD_V1.HDM`.** Treat as suspect: it came from a
   hardware emulator. It is a read-only curiosity, not a boot target.
 
