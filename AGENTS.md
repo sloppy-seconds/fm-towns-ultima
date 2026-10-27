@@ -160,6 +160,25 @@ one, grep for the others.
 A fact stated in the README but not in `docs/` is fine. The same fact stated
 differently in two places is a bug waiting to be found.
 
+### Never assume game behaviour
+
+**The strictest rule here, with no exceptions.** Every statement about what the game *does* is
+either quoted from the code with the command that produced it, or it is marked unverified and
+not acted on. If a mechanic cannot be read out of the binary yet, ask Paul rather than describe
+what a 1990 RPG plausibly does.
+
+The incident that earned this. A plan item said character creation "rolls attributes from dice".
+Nobody measured that. The game has the player allocate 90 points across six attributes. Because
+the invented premise looked authoritative, the first attempt at the item went looking for
+`randMod` call sites and decoded monster spawn placement instead, which cost an hour and nearly
+produced a wrong page. A plausible sentence about a familiar genre reads exactly like a measured
+one, and no check in this repository can tell them apart.
+
+Corollary for plan items. An item's prose is a claim like any other. "The state roll" in a
+`done when` clause silently framed the deliverable as finding an RNG call when it was really
+finding a modifier table. Describe the artefact to be produced, not the mechanic you imagine
+produces it.
+
 ### Three rules about evidence
 
 These are the ones that decide whether a report is worth anything. They apply to every

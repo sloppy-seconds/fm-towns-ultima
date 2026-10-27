@@ -751,7 +751,7 @@ outputs, and callers.
 | field | value |
 |---|---|
 | autonomy | runs unattended; decoder and census only, no emulator |
-| done when | the stat roll, race/sex/profession selection and starting inventory are each stated as arithmetic with their bounds, or the point at which a value becomes runtime-only is named |
+| done when | the point allocation, the sex/race/profession modifiers and the starting inventory are each stated as arithmetic with their bounds, or the point at which a value becomes runtime-only is named |
 | blocked by | nothing |
 
 The first thing a player meets, and the first subsystem on the spine.
@@ -871,6 +871,15 @@ Every one came from getting it wrong first, and the list is longer than it shoul
 - **An unknown cause does not licence tolerance.** `identical except disp32` is sound because those
   bytes are provably linker-supplied. A prologue mismatch with an unexplained cause is not the same
   thing and must not be filed as verified.
+- **Never assume game behaviour. Validate it in the code, or ask Paul, before writing it down.**
+  This is the strictest rule here and it has no exceptions. Every description of what the game does
+  is either a quotation from code with the command that produced it, or it is marked unverified and
+  not acted on.
+  The incident: plan item 5a said character creation "rolls attributes from dice". That was invented.
+  The game has the player allocate 90 points. The invented premise then sent the first attempt at
+  the item looking for `randMod` call sites, and found monster spawn placement instead, which cost
+  an hour and nearly produced a wrong page. A plausible sentence about a 1980s RPG reads exactly
+  like a measured one, and nothing in the repository catches the difference.
 
 ## How this plan is kept honest
 
