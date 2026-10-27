@@ -107,8 +107,28 @@ only side effect is a hardware trap**, or more generally a function shape the co
 specially. That is a specific hypothesis with a specific test, which is to write a C function that does
 nothing but load a register and trap, and see whether the compiler chooses `enter`.
 
-That test has not been run. The earlier driver tests used functions that computed and returned
-values; none was a bare trap wrapper.
+That test **cannot be run with this kit**, which is now measured.
+
+**High C 1.73 has no usable inline assembly here.** Four spellings were tried through the
+TownsOS driver:
+
+| spelling | result |
+|---|---|
+| `__asm { mov ah,4 }` | no object file produced |
+| `#pragma asm ... #pragma endasm` | no object file produced, under `-on asm`, `-on ASM`, `-pragma asm`, `-on inline_asm` and no flag |
+| `_asm mov ah,4;` | no object file produced |
+| `asm("mov ah,4")` | **compiles, but emits the text as data**: the tail of the object is `6d 6f 76 20 61 68 2c 34`, which is the ASCII string `mov ah,4`. Not an instruction. |
+
+**And the kit ships no assembler.** `DIR Q:\HC386\BIN\*.EXE` lists `386LINK`, `AUTOCFIG`,
+`CONFIG`, `HC386`, `HCD386`, `HCXREF`, `XREF`, `XREFP`. There is no `386ASM` and no `MASM`.
+
+So the trap body cannot be produced on this toolchain by any route: not from C, and not from
+assembly, because there is no assembler to assemble it with. The stubs in the game were built
+with something this kit does not contain, or with a source form it does not document.
+
+That is a real limit and it should stop the inquiry rather than send it round again. It also
+explains the shape of every failure in this investigation: the thing being reproduced is a
+construct the available tooling cannot express.
 
 ## Correction to carry forward
 
