@@ -80,6 +80,7 @@ directory, so run them from the repo root.
 | `u2read.py` | Turns a screenshot into text for the panels that do not need vision: status bar, stats, action log. Needs a seeded glyph table (`--teach <panel>`), so it reports `?` until taught. Needs Pillow. |
 | `u2screen.py` | Reads the screen over the supervisor API. Stdlib only, so it runs anywhere. |
 | `peek.js` | **Reads the character record from a running game and prints it as typed values.** The one tool to use for live field reads. `--json` for one object, `--kv` for `key=value`, a bare list of names for a subset. Exits non-zero if a field could not be read, so a zero and a failure are distinguishable. See [reading the character record](#reading-the-character-record) below. |
+| `stateread.py` | **Reads the same character record from a `.state` file**, with no emulator, no container and no running game. Same fields, same `--json`. `--check` verifies the address mapping and `--expect field=value` verifies the record against a live reading. See [reading a savestate](#reading-a-savestate) below. |
 | `u2bot.py` | Plays: walks, attacks, passes, enters towns, recording every action with a screenshot, the character fields and the CPU state. Needs Pillow. |
 | `mame-run.sh` | Same idea for MAME's FM Towns driver. Separate image, no supervisor. See the note below before using it. |
 | `savedisk.js` | Read and edit an FM Towns save disk from the shell: list, cat, slots, clone, set, world-copy, newdisk. Tested by `test-savedisk.js`. |
@@ -378,6 +379,80 @@ every call fails instantly with curl exit 56, which looks like a dead supervisor
 `peek.js` shells out to `curl` and so runs on the **host**, unlike `u2flow.py`. That is the
 one difference worth remembering: `u2flow.py` needs `DISPLAY=:99` and must run inside the
 container; `peek.js` only needs the API and runs outside it.
+
+### Reading a savestate
+
+`tools/stateread.py` reads the same fields as `peek.js` from a `.state` file, with nothing
+running. That is what makes offline analysis possible: a savestate is RAM, frozen, so every
+question about state stops costing a boot and a session.
+
+```
+$ ./tools/.venv/bin/python3 tools/stateread.py saves/analysis/live.state --json
+{"hp": 216, "maxhp": 400, "exp": 10, "food": 39460, "gold": 431, "px": 13, "py": 20,
+ "map": 35, "rng": 1130578755, "strength": 20, "agility": 25, "stamina": 20, ...}
+```
+
+Taken while the game was paused, then compared against `peek.js` reading the same moment:
+**eight of nine fields matched exactly** (hp, maxhp, exp, food, gold, px, py, map). `rng`
+differed because it advances every frame and the capture is a moment earlier.
+
+**The file.** A `0x140`-byte header, then memory. The header begins `u32 0x140` then the ASCII
+`FMTOWNS`, and `486DX` sits at `0x148`. `--check` prints those, and nothing about the rest of
+the header is claimed.
+
+**The addresses, which is the hard part, and they do not unify.** Three rules, each measured:
+
+| what | rule | source |
+|---|---|---|
+| code below `0xd0000` | `state = 0x0762d2 + imageOffset` | `docs/mirrored-region.md` |
+| code at or above `0xd0000` | `state = 0x4392d2 - imageOffset` | `docs/mirrored-region.md` |
+| the player record | `state = 0x29d4b2 + imageOffset` | measured against a live game |
+
+The third is the surprise and it **contradicts the obvious reading of the second**: `0xcde81`
+is above `0xd0000`, so the mirrored formula applies to it and returns `0x36b451`, which holds
+zero. The record is actually at `0x36b333`, 0x11e earlier. Both addresses are above
+`0xd0000`, so the offset alone does not decide which rule applies, and the two are not one rule
+with a different constant. **What separates them is not established.** The likely distinction
+is that the code is loaded from the file while the record is BSS, which `live-session.md`
+records as "two bases found, relationship unknown".
+
+**Why the file cannot confirm the record base.** The record is BSS, so the image is *zero*
+there. A mapping that points at zeros therefore matches `ENCHANT.EXP` perfectly while holding
+nothing, which is exactly how an earlier version of this tool reported `0x0762d2` as correct on
+92 of 92 comparisons and read all zeros. **The only honest test is a value read from the running
+game at the same moment:**
+
+```
+$ ./tools/.venv/bin/python3 tools/stateread.py saves/analysis/live.state --check \
+    --expect hp=216 --expect food=39460 --expect px=13
+  hp            want 216      got 216      ok
+  food          want 39460    got 39460    ok
+  px            want 13       got 13       ok
+  record base 0x29d4b2: every supplied value matches
+```
+
+**The procedure, which is the point of the tool.** Take the state paused, read the live fields,
+and check them against it:
+
+```bash
+curl -s -X POST -H 'content-type: application/json' -d '{"line":"PAU"}' \
+     http://127.0.0.1:8080/api/cmd
+curl -s -X POST -H 'content-type: application/json' \
+     -d '{"line":"SAVESTATE /data/analysis/live.state"}' http://127.0.0.1:8080/api/cmd
+node tools/peek.js --json                       # the ground truth
+./tools/.venv/bin/python3 tools/stateread.py saves/analysis/live.state --check \
+     --expect hp=216 --expect food=39460
+curl -s -X POST -H 'content-type: application/json' -d '{"line":"RUN"}' \
+     http://127.0.0.1:8080/api/cmd
+```
+
+**`--check` is not optional when trusting a new state.** It exits non-zero if the code mapping
+drops below 50 percent agreement, or if any `--expect` value does not match. A silently wrong
+mapping is the failure mode this tool exists to prevent, and it produces plausible numbers from
+the wrong place rather than an error.
+
+`--at 0xcde81 --len 32` dumps any image offset, and `--diff 0xe5d90` compares one against
+`ENCHANT.EXP`.
 
 ### Console quirks worth knowing
 
