@@ -590,6 +590,271 @@
       "evidence": "tools/cmpdisp.js --addr 0xeed6c: identical except nine bytes across three displacements. The validity flag is a BYTE (80 b9, cmp byte) and the two tables are int arrays indexed at scale 4 (3b 3c 8d). This routine is what made tools/cmpdisp.js handle the mod=00 rm=04 SIB form, which it had been silently not masking.",
       "c": "extern unsigned char valid[32];\nextern int a[32];\nextern int b[32];\nint f(int x, int y) { int i; for (i = 0; i < 0x20; i++) if (valid[i] && a[i] == x && b[i] == y) return i; return -1; }",
       "flags": ""
+    },
+    {
+      "addr": "249",
+      "callers": 1,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "269",
+      "callers": 3,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "28b",
+      "callers": 7,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "2a9",
+      "callers": 3,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fdb9a",
+      "callers": 1,
+      "bytes": 37,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fdbf1",
+      "callers": 1,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fdc0b",
+      "callers": 6,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fdc25",
+      "callers": 2,
+      "bytes": 31,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fdd15",
+      "callers": 2,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fdd93",
+      "callers": 1,
+      "bytes": 21,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fdda8",
+      "callers": 1,
+      "bytes": 21,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fddbd",
+      "callers": 2,
+      "bytes": 21,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fddd2",
+      "callers": 1,
+      "bytes": 54,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fde2c",
+      "callers": 1,
+      "bytes": 34,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fde59",
+      "callers": 1,
+      "bytes": 21,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fde6e",
+      "callers": 1,
+      "bytes": 23,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe1c0",
+      "callers": 3,
+      "bytes": 29,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe211",
+      "callers": 3,
+      "bytes": 21,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe248",
+      "callers": 3,
+      "bytes": 21,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe2df",
+      "callers": 1,
+      "bytes": 31,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe3bb",
+      "callers": 1,
+      "bytes": 28,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe3d7",
+      "callers": 1,
+      "bytes": 21,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe3ec",
+      "callers": 1,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe406",
+      "callers": 1,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe420",
+      "callers": 1,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe43a",
+      "callers": 1,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe454",
+      "callers": 1,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "fe46e",
+      "callers": 6,
+      "bytes": 26,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "1019b0",
+      "callers": 3,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
+    },
+    {
+      "addr": "1044dc",
+      "callers": 6,
+      "bytes": 31,
+      "class": "not-c",
+      "trap": "TBIOS_TRAP_STUB",
+      "what": "TBIOS hardware trap wrapper: a C function whose body traps into the FM Towns BIOS.",
+      "evidence": "Batched as TBIOS_TRAP_STUB. Identified by body: enter 0,0 / mov ah,<function> / mov al or bl,[ebp+8] / int 0x90 (or call to the dispatcher at 0xfe13c or 0xfe25d) / movzx eax,ah / leave / ret. int 0x90 is the FM Towns BIOS interrupt. The 30 are byte-identical between ENCHANT.EXP and DARKNESS.EXP, which is how they were found: see docs/enter-tbios-stubs.md."
     }
   ],
   "globals_ref": {

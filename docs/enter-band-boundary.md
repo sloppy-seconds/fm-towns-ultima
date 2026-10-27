@@ -1,9 +1,37 @@
-# The `enter` band: what two measurements established
+# The `enter` band: partly the TBIOS layer, and not only that
 
-**Verdict: the band uses `enter` 100 percent and `push ebp` 0 percent, while the rest of the
-image is the exact reverse. That is a build-unit boundary, not a selection rule inside one
-compiler. Both units come from the same toolchain, and the block is compiler output, not
-assembly.**
+**Identity, established later, and it is a partial answer.** Many routines in this band are FM
+Towns BIOS trap wrappers that `int 0x90` through the dispatcher at `0xfe13c`
+(`docs/enter-tbios-stubs.md`). **But not all of them, and the split is measured:**
+
+| inside the band `0xfdb9a`-`0xfe46e` | count |
+|---|---|
+| reach a TBIOS trap (inline `int 0x90`, or a call to `0xfe13c` or `0xfe25d`) | **15** |
+| plain C with an `enter` frame and no trap at all | **12** |
+
+And across the whole image, the same split over the 71 `enter` routines:
+**20 trap, 51 do not.** For example `0xfdea0`, parked earlier as a compiler anomaly, is a plain
+global setter:
+
+```
+enter 0,0
+mov eax, [ebp+0x8]
+mov [0xdea40], eax
+xor eax, eax
+leave
+ret
+```
+
+So "the band is the BIOS interface layer" is too strong, and adopting it wholesale would be the
+same over-claim this question has already produced three times. The accurate statement is that
+the trap stubs are a large part of the band and the rest is ordinary C that happens to use the
+same frame form.
+
+The two measurements below were correct and remain so. The band was described as a build-unit
+boundary; it is better called a layer boundary, but a layer the ordinary C routines also share.
+
+**Verdict as measured: the band uses `enter` 100 percent and `push ebp` 0 percent, while the
+rest of the image is the exact reverse. Both forms come from the same toolchain.**
 
 This is steps 1 and 2 of the plan in `docs/enter-cluster.md`, run.
 
@@ -23,6 +51,12 @@ of the `enter` routines is an assembly stub. The three stubs are `0xfdee8`, `0xf
 
 So the band is not "a pile of assembly". It is compiled C, plus a few stub routines that were
 already classified `not-c`.
+
+**The correction to that reading:** these are C *wrappers around assembly traps*. The frame is
+compiler output and the leaf is a hardware instruction. `docs/enter-tbios-stubs.md` shows the
+typical member is `enter 0,0 / mov ah,<fn> / mov al,[ebp+8] / int 0x90 / movzx eax,ah / leave /
+ret`. So "C-shaped" and "assembly" were both partly true, and the useful statement is that the
+band is the boundary between them.
 
 ## Step 2: the boundary, measured
 

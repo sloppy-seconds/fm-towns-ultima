@@ -89,12 +89,17 @@ Same `enter`, same `mov ah,imm`, same byte argument, same `movzx` on return, sam
 `leave; ret`, same trap call. **It is one of this family**, which is why three tests failed to
 reproduce it from ordinary C: it is a BIOS stub, not ordinary C.
 
-## What this establishes
+## What this establishes, with the limit stated
 
-- The high-`enter` population is **the hardware interface layer**, identified by what the code
-  does rather than by a statistic.
-- `0xfe211` belongs to it, so its park reason is now explained: not a compiler anomaly, a stub.
-- The 12.5 percent `enter` rate in game-specific code is the rate among *actual game logic*.
+- **30 routines are TBIOS trap wrappers**, identified by body rather than by a statistic.
+- `0xfe211` belongs to that family, so its park reason is explained: not a compiler anomaly.
+- Of the 71 `enter` routines in `ENCHANT`, **20 reach a trap and 51 do not**. Inside the band it
+  is 15 against 12.
+
+**So the trap stubs are a large part of the high-`enter` population but not all of it.** Calling
+the whole band the BIOS layer would be wrong, and `docs/enter-band-boundary.md` now records the
+split instead. The 51 non-trap routines are ordinary C that uses the same frame form, and they
+are the ones still unexplained.
 
 ## What it still does not explain
 
