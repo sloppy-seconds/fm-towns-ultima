@@ -69,6 +69,18 @@ Working order from here, revised for the real goal:
 4. **Format documentation.** Every format gets a record in `docs/`.
 5. **Runtime confirmation**, where reading cannot settle a question.
 
+**Read first. Compile is a diagnostic, not the production method.** A routine's
+deliverable is a behavioural spec: inputs, the arithmetic as arithmetic, outputs,
+callers. Byte equality is welcome evidence and is recorded when it happens, but it is
+never the gate, and a candidate C is only worth writing when a specific question about
+arithmetic or encoding needs settling. The measurement behind this rule: compile-and-diff
+over the base-fold set produced 21 recoveries, while compile-and-diff on the `enter`
+question produced four refutations and no recoveries.
+
+**An unknown cause does not licence tolerance.** `identical except disp32` is sound
+because those bytes are provably linker-supplied. A prologue mismatch with an unexplained
+cause is a different thing and must not be filed as verified.
+
 See [docs/reimplementation-gap.md](docs/reimplementation-gap.md) for the
 measured distance and what is still missing.
 

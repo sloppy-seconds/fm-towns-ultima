@@ -81,6 +81,13 @@ from the items below rather than maintained separately.
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
+| 5a Character creation | AUTONOMOUS | **yes**, first on the spine |
+| 5b Movement and torus wrap | AUTONOMOUS | **yes** |
+| 5c Time gates and epochs | AUTONOMOUS | **yes** |
+| 5d Towns and NPC assignment | AUTONOMOUS | **yes** |
+| 5e Combat formulas | AUTONOMOUS | **yes** |
+| 5f Shops and transports | AUTONOMOUS | **yes** |
+| 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports four of eleven startable now: 1a, 1b, 2a and 4b, with 4a and 2b held back by item order. That is the honest answer to "what can an agent do tonight", and before the tool existed the answer
@@ -723,6 +730,99 @@ game installs its own. Everything needed is vendored and scripted.
 **Why it matters for the corpus.** All current output is greyscale. Until this lands, every rendered asset
 in `extracted/` is a documented limitation rather than a decoder bug.
 
+## Phase 5: read the player's spine, as behavioural specs
+
+The plan's goal section has always said routines are ranked by whether a player can observe them.
+This phase is that ranking executed, and it is the main line of work from here.
+
+**The method is read-first.** Compiling a candidate C is a diagnostic used when a specific question
+about arithmetic or encoding needs settling, not the production step. The measurements behind that
+decision are in
+[goal-behavioural-faithfulness.md](goal-behavioural-faithfulness.md#how-the-work-is-done-read-first-compile-second).
+
+**The finish line for a routine is a spec, not a byte match.** A programmer should be able to
+reimplement it from its page without reading disassembly: inputs, the arithmetic as arithmetic,
+outputs, and callers.
+
+### 5a. Character creation, as arithmetic
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended; decoder and census only, no emulator |
+| done when | the stat roll, race/sex/profession selection and starting inventory are each stated as arithmetic with their bounds, or the point at which a value becomes runtime-only is named |
+| blocked by | nothing |
+
+The first thing a player meets, and the first subsystem on the spine. Ultima II rolls attributes
+from dice and then applies race and profession modifiers; the arithmetic and the bounds are the
+deliverable.
+
+### 5b. Overworld movement and the torus wrap
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended |
+| done when | the step rule, the blocking test, the food and turn counters, and the wrap arithmetic at the map edges are stated, or the wrap is shown to be a lookup rather than arithmetic |
+| blocked by | nothing |
+
+### 5c. Time gates and the four epochs
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended |
+| done when | the epoch switching rule and what gates it are stated, including whether the gate is a coordinate test, a map id, or an item check |
+| blocked by | nothing |
+
+### 5d. Towns, dungeons and NPC assignment
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended |
+| done when | local map loading, the interior movement rule, and the NPC assignment table are read, with the table's stride and fields recorded |
+| blocked by | nothing |
+
+### 5e. Combat, as arithmetic
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended for the formulas; a live fight would need a person and is not required |
+| done when | initiative, the hit test, damage, and monster stats are stated as arithmetic, each citing the routine that implements it |
+| blocked by | nothing |
+
+`docs/combat-formulas.md` and `docs/hp-and-damage.md` hold partial work. This item completes them.
+
+### 5f. Shops, prices and transports
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended |
+| done when | price tables, the gold checks, inventory mutation on buy/sell, and the board/disembark rules for ship, plane and time machine are stated |
+| blocked by | nothing |
+
+### 5g. Name the call graph above a caller threshold
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | runs unattended; `tools/funcs.js` already produces the edges |
+| done when | every routine with three or more callers has a provisional name, a one-line purpose and a link to its page, and the count is recorded |
+| blocked by | nothing |
+
+This is the skeleton a reimplementation needs and it is mechanical. `docs/call-graph.md` records the
+current fraction.
+
 ## What is closed and should not be reopened
 
 These have been tried, failed, and explained. Reopening them needs a new method, not a new attempt.
@@ -754,6 +854,17 @@ Every one came from getting it wrong first, and the list is longer than it shoul
 - **Docs go stale fastest in the session changing them.** Numbers in the plan were wrong one commit after
   being written, three times.
 - **Record negatives.** A failed probe is worth as much as a success.
+- **A correct measurement applied to the wrong population is this project's characteristic error.**
+  Three times in one session: a raw byte count over a whole file reported as a signal, a signal
+  measured on one binary and attributed to provenance, and a park noted without the source that
+  produced it. Ask what the denominator is and whether the population is the one the question is
+  about.
+- **A park note must record the source that produced the mismatch.** Without it the park cannot be
+  re-checked, and two `enter` parks in this session turned out to be false because the source shape
+  was never written down.
+- **An unknown cause does not licence tolerance.** `identical except disp32` is sound because those
+  bytes are provably linker-supplied. A prologue mismatch with an unexplained cause is not the same
+  thing and must not be filed as verified.
 
 ## How this plan is kept honest
 

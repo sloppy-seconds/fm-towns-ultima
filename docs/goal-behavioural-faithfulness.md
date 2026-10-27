@@ -75,6 +75,51 @@ That reorders the work into what a player meets:
 Anything not reachable from that list is a lower priority than it was, regardless of how interesting it
 is. This is the same discipline `reimplementation-gap.md` asked for and it is now load bearing.
 
+## How the work is done: read first, compile second
+
+**Decided after measuring what each method actually produced.** The compile loop and the reading
+method were both used at length, and the result is not close:
+
+| method | what it produced |
+|---|---|
+| compile-and-diff over the base-fold set | **21 recoveries** |
+| compile-and-diff on the `enter` question | **4 refutations, 0 recoveries** |
+
+The compile loop is a **calibration instrument**. It established that High C 1.73 is the compiler,
+found `-off optimize_fp`, proved the `cdq/sub/sar` division form, and established the
+`identical except disp32` standard. Those jobs are done, and doing them was worth it.
+
+It is not the production method. Used as one, it spends minutes per routine to answer a question
+that reading answers directly, and it fails outright on every routine blocked by a relocation, a
+frame form, or an address that is not a function start.
+
+### The workflow for each routine
+
+1. **Locate it on the spine.** Take the next unread routine in
+   create, move, wrap, time, town, fight, buy, cast, save order from
+   `docs/plan.md` Phase 5. Not by address.
+2. **Read it.** `tools/decode.js` from the entry to the first `ret`. No emulator, no compiler.
+3. **Write the spec.** Inputs, the arithmetic as arithmetic, outputs, and who calls it. Prose plus
+   formula, in the routine's own page section.
+4. **Compile only if it settles something.** A candidate C is worth writing when there is a real
+   question about operand order, a division form, or a struct stride. Not to earn a `matched`.
+5. **Record the class either way.** `spec-only` is a good outcome and the normal one.
+
+### The finish line
+
+**A behavioural spec, not a byte match.** A routine is done when a programmer could reimplement it
+from the page without reading the disassembly. That standard is checkable by a stranger and it is
+what a reimplementation actually consumes.
+
+Byte equality remains welcome evidence and is recorded when it happens. It is never the gate.
+
+### Why this is a rule and not a preference
+
+The project's own history says so twice. `docs/plan.md` names byte matching a diagnostic, not a
+goal. `docs/reimplementation-gap.md` names game rules as the hole. And this session measured the
+consequence: hours in the compile loop on `enter` produced four refutations and no recovery, which
+is a correct outcome for a calibration instrument and a wrong one for a production line.
+
 ## What is explicitly not a shortcut
 
 **A behavioural reimplementation is not a licence to guess.** The difference between it and a
