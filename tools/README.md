@@ -54,6 +54,10 @@ directory, so run them from the repo root.
 | `sweep.js` | Linear-sweeps a function from a real entry to produce instruction boundaries. `--check addr` says whether an address begins a real instruction. Full-image sweeps are unusable; per-function sweeps are sound. |
 | `randmods.js` | Classifies `randMod` call sites. `--sweep` filters against real boundaries, which removes 13 of 85 provable false positives. |
 | `funcs.js` | Finds real function entries from `CALL rel32` targets, ranks them by call count, and disassembles from any entry with correct alignment. This is the tool that makes reading the binary reliable. |
+| `codelimits.js` | Derives the zero-fill regions from the bytes, 66 of them covering 76.6 percent of `ENCHANT.EXP`, and emits them as `--no-code` flags. `--check` asserts the table in `docs/code-analysis.md` and runs inside `checkall.js`, so a different disc rip fails rather than quietly producing a larger count. |
+| `codemask.js` | The complement of a walk's reach: which byte ranges nothing decoded. Takes the output of `fmtownskit.recomp.discover --code-ranges`, so it needs that clone, which is gitignored. `--outside-zero` subtracts the zero fill to leave the ranges worth asking about, 123,501 bytes. |
+| `seeds.js` | Derives candidate function starts for any `MP` binary on the disc, for the two games that have no corpus. Scans `E8`/`E9` targets, drops those in zero fill or named only once, then keeps a candidate only when a walk from it **alone** has zero conflicts. Validated against `ENCHANT.EXP`, where it finds 333 of the 681 C-shaped corpus rows. |
+| `globrefs.js` | Finds the code sites that read or write one global, and separates the writes from the reads. Cross-checks `x86map --refs`: both report 12 writes to `PLAYER_X`. |
 | `stride.js` | Decodes `lea` chains into exact struct strides. Found the 57-byte record used by six functions. |
 | `structfields.js` | Given a record base and stride, finds every field offset by scanning displacements over the whole image. |
 | `strtab.js` | Finds runs of consecutive dwords that point at printable strings, i.e. C arrays of `char*`. Found the string table at `0x7a864`. |
