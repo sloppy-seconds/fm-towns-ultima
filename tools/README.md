@@ -75,6 +75,7 @@ directory, so run them from the repo root.
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
 | `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
+| `calltrace.py` | **A timeline of what the machine executed**, cheaply. Tsugaru keeps the last 65,536 `CS:EIP` values in memory and `SAVEHIST` dumps them; this reads that dump, separates game from TBIOS steps, and ranks the hottest addresses. `--save` captures a fresh one over the API, `--file` analyses an existing dump offline. **`--save` verifies the clock is advancing first**, because `SAVEHIST` on a paused machine writes 65,536 zero lines and looks like a success. See [the execution timeline](#the-execution-timeline) below. |
 | `container-run.sh` | Start/stop the podman container: Xvfb, VNC, noVNC, and the supervisor API. Playable from a browser. |
 | `u2flow.py` | Drives the game from the Towns OS menu to a loaded character, checking the screen before every keypress and stopping rather than guessing. `--status` reports the screen without changing it, `--dry-run` checks and sends nothing, `--journey` does the walk. **Run it inside the container** (`podman exec fmtowns python3 /opt/u2/u2flow.py --journey`): it drives `xdotool` against `DISPLAY=:99`, which does not exist on the host. Baked into the image for that reason. |
 | `u2read.py` | Turns a screenshot into text for the panels that do not need vision: status bar, stats, action log. Needs a seeded glyph table (`--teach <panel>`), so it reports `?` until taught. Needs Pillow. |
@@ -453,6 +454,64 @@ the wrong place rather than an error.
 
 `--at 0xcde81 --len 32` dumps any image offset, and `--diff 0xe5d90` compares one against
 `ENCHANT.EXP`.
+
+### The execution timeline
+
+`tools/calltrace.py` answers "what actually ran", which is a different question from a control
+flow graph. A CFG says which blocks exist and how they connect; this says which instructions
+were executed, in order, on the most recent turn.
+
+**Tsugaru already keeps it.** The emulator maintains a rolling in-memory log of the last 65,536
+`CS:EIP` values with the stack pointer, and `SAVEHIST` writes it out instantly. No disassembly,
+no register dump, nothing streamed to disk. The dump is about 2.3 MB of text and takes a second.
+
+```
+$ ./tools/.venv/bin/python3 tools/calltrace.py --save --top 5
+  >>Debugger is ON.
+  captured .../saves/analysis/calltrace.txt (2293760 bytes)
+calltrace.txt: 65536 steps, 1 zero-filled
+  game  (CS 000c): 31670 steps
+  TBIOS (CS 0110): 33438 steps
+  other segments : 0008=164, 5e88=132, 0092=114, 0018=15, 005d=2
+
+hottest instruction addresses:
+   0110:0x9af1  x3954
+   0110:0x9af2  x3954
+   0110:0x9af3  x3954
+```
+
+**Why not the full trace.** `tools/fightcapture.sh` can log every instruction with disassembly and
+a full register set, but that is about **10 MB per second**: a 60-second fight is roughly 600 MB,
+and it competes with live memory reads through the same console, because with `AUTODISASMR` on a
+single `MD` returns around 250 lines with the 16 that matter buried. `SAVEHIST` costs none of that
+because the emulator was keeping the history anyway.
+
+**A window, not a history from boot.** The ring buffer holds 65,536 steps, so a dump is the recent
+past. That suits the question this project has, which is what ran during a turn, rather than what
+ran since power on.
+
+**Two ways `--save` can lie, both guarded.**
+
+- `SAVEHIST` only records while the debugger is enabled, so `--save` sends `ENA DEBUG` first and
+  prints what the emulator says.
+- `RUN` returns empty output whether or not the machine resumed, so `--save` takes the emulator's
+  clock before and after and **refuses to capture if it did not advance**. Without that check the
+  dump is 65,536 zero lines, which reads as a successful capture of an idle machine.
+
+The all-zero case is also caught at analysis time, so a dump captured by other means is not
+mistaken for data:
+
+```
+$ ./tools/.venv/bin/python3 tools/calltrace.py --file zeros.txt
+zeros.txt: 100 steps, 100 zero-filled
+  EVERY line is zero. The machine was paused, so nothing was recorded.
+```
+
+exits 1.
+
+**What it does not give.** Not a call graph: a `call` and a far `ret` and an interrupt all look
+like the same segment change, so `--calls` reports **transitions** rather than calls and is named
+for what it measures. Per-turn attribution needs a dump either side of the action, taken paused.
 
 ### Console quirks worth knowing
 
