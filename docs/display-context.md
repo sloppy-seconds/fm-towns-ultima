@@ -157,10 +157,84 @@ their offsets are read directly rather than derived.
 
 `0x7a7d8` and `0x7a7d4` are **four bytes apart**, and `0x7a7d4` is written with `mov ax`, a
 word store, so it occupies `0x7a7d4` and `0x7a7d5`. Two bytes at `0x7a7d6` are then
-unaccounted for before the context begins. **Do not read that gap as a reserved field: no
-store of any width was traced to it, and the alignment may be nothing more than the
-compiler placing a word at a four-byte boundary.** The context base itself is measured:
-`0x7a7d8` is the argument to AH 0x00, which is the routine that sizes and zeroes it.
+unaccounted for. **Do not read that gap as a reserved field of this structure.** `0x7a7d4`
+sits inside a static dword table that begins at `0x7a7d0`, so any meaning the two bytes carry
+belongs to that table rather than to the display context. The table is described below. The
+context base itself is measured, being the argument to AH 0x00, the routine that sizes and
+zeroes it.
+
+## Where these fields sit relative to the zero mask
+
+Most of this image is zeros, and `tools/codelimits.js` masks 67 runs of them. Which side of a
+mask boundary an address falls on changes how a finding should be read, so it is worth one
+command. The runs in this area:
+
+```
+$ node tools/codelimits.js | grep '^0x7a'
+0x7a119:0x7a350   (567 bytes)
+0x7a364:0x7a7d0   (1132 bytes)
+0x7a8cb:0x7b024   (1881 bytes)
+0x7b0dd:0x7b474   (919 bytes)
+```
+
+| address | inside a masked zero run? |
+|---|---|
+| `0x7a7d4` (word store of 9) | **no**, in the unmasked stretch `0x7a7d0..0x7a8ca` |
+| `0x7a7d8` (context base) | **no**, same stretch |
+| `0x7aed8`, `0x7aeda`, `0x7aedc` | **yes**, in `0x7a8cb..0x7b024` |
+| `0x7ae18` (the 15-entry table) | **yes**, same run |
+
+So the split is clean and it is informative:
+
+- the four fields this routine writes **by absolute address** are inside a run already masked,
+  which is what a runtime-initialised global looks like
+- the context base `0x7a7d8` and the word above it are in an **unmasked stretch** of 251
+  bytes, so the mask is not treating them as zeros in bulk
+
+## The table at `0x7a7d0`
+
+That unmasked stretch is real static data, and `tools/refindex.py` says what uses it. Ten
+functions reference `0x7a7d0` as an `immediate`, and asking `0xe5890` what it references
+shows the shape:
+
+```
+$ ./tools/.venv/bin/python3 tools/refindex.py --function 0xe5890
+  0x0007a7d0  immediate   mov      <- the table base
+  0x00000648  indexed     mov
+  0x0000064c  indexed     mov
+  0x00000650  indexed     mov
+```
+
+So `0x7a7d0` is the **base of a strided structure** and `0xe5890` reaches its entries by
+adding `0x648`. The arithmetic closes exactly:
+
+```
+0x7a7d0 + 0x648 = 0x7ae18
+```
+
+`0x7ae18` is the zeroed 15-entry table the previous section describes. So the two facts are
+one fact: **`0x7a7d0` is the header of the structure whose entries live at `0x7a7d0+0x648`.**
+The header region is not zero, the entries region is BSS, and both are part of the same
+object.
+
+That also explains `0x7a7d4` and `0x7a7d8`: they are 4 and 8 bytes into that header, which is
+where the first fields of such a structure sit. Read as dwords from `0x7a7d0`, the header is
+`1, 0, 0, 1, 2, 3, ...`, and `0xe5d90` writes 9 at `0x7a7d4` as a **word**, leaving the upper
+half of that dword untouched.
+
+Nothing references `0x7ae18` directly, which is consistent: if every access goes through the
+base plus a computed offset, no instruction carries the entries' address.
+
+Three corrections came from checking this, each recorded rather than quietly fixed:
+
+1. This page's earlier draft called the `0x7a7d4` gap the end of the non-zero stretch at
+   `0x7a364..0x7a7d0`. That run ends at `0x7a7d0`, and `0x7a7d4` is four bytes past its end.
+   Reading a mask boundary as a field layout and reading a zero run as data are the same
+   error in opposite directions.
+2. A second draft called those bytes "uninitialised space". They are not: 45 of 63 dwords in
+   the stretch are non-zero. Both drafts were written without reading the bytes.
+3. A third draft said the purpose of the `0x7a7d0` table was not established and filed a
+   query as outstanding. Running that query took one command and answered it.
 
 ## What this makes the function
 
@@ -220,15 +294,23 @@ $ xxd -s 0x7ae18 -l 200 ENCHANT.EXP
 0007ae18: 0000 0000 ... (200 bytes of 00)
 ```
 
-So this is **BSS**. The 15 entries are filled in at runtime by something this page has not
-traced, and the three bytes per entry cannot be read from the disc. The plausible reading,
-that this is a palette load with three components per colour, is a guess and is marked as
-one. What is established is only the shape: 15 entries, 12-byte stride, three byte fields
-per entry at offsets 0, 4 and 8, and one `AH 0x04` call per entry.
+So the entries are **BSS**, and it is not a new discovery: `0x7ae18` already falls inside the
+masked run `0x7a8cb..0x7b024`, so `tools/codelimits.js` had covered it before this page
+existed. They are filled in at runtime by something this page has not traced, and the three
+bytes per entry cannot be read from the disc. The plausible reading, that this is a palette
+load with three components per colour, is a guess and is marked as one. What is established
+is only the shape: 15 entries, 12-byte stride, three byte fields per entry at offsets 0, 4
+and 8, and one `AH 0x04` call per entry.
 
-This is worth recording because it is the third time in this project that a region of the
-image looked like data and turned out to be BSS. A stride and a field layout are measured;
-the meaning of the bytes is not, because there are no bytes.
+They are also not freestanding. As the next section shows, they are the entry array of the
+structure headed at `0x7a7d0`, reached as `0x7a7d0+0x648`. So "a BSS region at `0x7ae18`"
+and "the table at `0x7a7d0`" are two views of one object, and only the second is useful for
+reimplementation.
+
+The lesson is narrower than "zero regions get read as data again". Here the region was
+already masked and the mistake was writing a meaning onto it anyway, because the stride was
+real and a stride invites an interpretation. A stride and a field layout are measured; the
+meaning of the bytes is not, because there are no bytes.
 
 Call `0xe5d90` `display_init`.
 
@@ -260,6 +342,14 @@ function make" by matching at the call site, which is one reason `funtriage` ran
 - **Why the third priority has no range check.** Measured, not explained.
 - **Whether `0x7a7d4` is read as a word or a pair of bytes.** It is written as a word (9);
   no reader has been traced.
+- **What the header fields at `0x7a7d0`, `0x7a7d4`, `0x7a7d8` mean.** The base and the
+  `+0x648` stride are measured; what each dword in the header is for is not. `PRI PALETTE`
+  and a breakpoint on `0x7a7d4` in the emulator would answer it faster than more static reading.
+- **What writes the 15 entries at `0x7ae18`.** They are zero in the file and `0xe5890` only
+  reads them, and no function references `0x7ae18` directly, so a writer exists that goes
+  through the base. This page has not found it.
+- **Whether the word store of 9 at `0x7a7d4` collides with the header's own use of that dword.**
+  Untested, and worth checking before either field is relied on.
 
 ## The tool
 

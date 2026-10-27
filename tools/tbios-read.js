@@ -125,8 +125,16 @@ function main() {
 	// --image takes a PATH, not a buffer: the Python worker reads it itself. Passing the
 	// buffer stringified the whole 1 MB executable into the command line, which is how the
 	// first run of this tool produced one enormous argv instead of a disassembly.
-	const TBIOS_PATH = path.join(ROOT, 'TBIOS.BIN');
-	if (!fs.existsSync(TBIOS_PATH)) fs.writeFileSync(TBIOS_PATH, tbios);
+	// The decoder takes a PATH and reads it itself, so a buffer cannot be passed. Write the
+	// cached copy OUTSIDE the repository: TBIOS.BIN is Fujitsu's copyrighted firmware, and the
+	// first version of this tool put it in the repo root, where it sat untracked and
+	// unignored. An ignore rule now covers it, but writing it to scratch space removes the
+	// hazard rather than guarding it. /var/tmp is disk-backed, per the working-directory rule.
+	const TBIOS_PATH = path.join('/var/tmp/mpwork', 'TBIOS.BIN');
+	if (!fs.existsSync(TBIOS_PATH)) {
+		fs.mkdirSync(path.dirname(TBIOS_PATH), { recursive: true });
+		fs.writeFileSync(TBIOS_PATH, tbios);
+	}
 	const rows = table(tbios);
 	const byAh = new Map(rows.map((r) => [r.ah, r.off]));
 

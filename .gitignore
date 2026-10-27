@@ -139,6 +139,25 @@
 /output/
 /build/
 
+# TBIOS.BIN is Fujitsu's firmware, read off the disc and copyrighted. tools/tbios.js can load
+# it from the disc image on demand and tools/tbios-read.js caches it here for the decoder,
+# which takes a path rather than a buffer. It must never be tracked: committing it would put
+# a piece of the platform's ROM in git history, where a force-push cannot take it back.
+#
+# Four spellings because gitignore patterns are case-sensitive and `*.bin` at the top of this
+# file covers only lowercase. Verified with git check-ignore on each; the disc ships it as
+# TBIOS.BIN, so the other three are belt and braces rather than observed names.
+/TBIOS.BIN
+/TBIOS.bin
+/Tbios.BIN
+/tbios.BIN
+
+# refindex.json is derived from the binary by tools/refindex.py, which writes it to the
+# working directory when given no output path. It is 5 MB of derived data, so it follows the
+# same rule as everything else derived from the disc. tools/refindex.py looks for it in the
+# cwd, which is why it lands here rather than in extracted/.
+/refindex.json
+
 # --- Runtime state ---------------------------------------------------------
 
 /saves/
