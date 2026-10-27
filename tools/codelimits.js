@@ -73,6 +73,22 @@ function loadImage() {
 	return fs.readFileSync(local);
 }
 
+// THE MP HEADER IS NOT CODE EITHER, AND FINDING ZERO RUNS DOES NOT CATCH IT.
+//
+// A walk seeded inside the low addresses decoded the 30-byte header as instructions and reported
+// conflicts at 0x5, 0x6 and 0x7, which are the bytes `4d 50 0e 01 2f 08`. The header is not zero,
+// so zeroRuns cannot see it, and without this the descent treats `MP\x0e\x01/\x08` as `dec/push/
+// push/add/or`. Masking 0x0:0x1e removes 7 conflicts on ENCHANT.EXP.
+//
+// The size comes from the header's own field at 0x18, and is checked rather than trusted: a value
+// outside 0x1e..0x400 is refused by exp.py, so only a plausible one is masked here.
+function headerRange(img) {
+	if (img.length < 0x1a || img.slice(0, 2).toString() !== 'MP') return [];
+	const size = img.readUInt16LE(0x18);
+	if (size < 0x1e || size > 0x400) return [];
+	return [[0, size]];
+}
+
 function zeroRuns(img, min) {
 	const runs = [];
 	let start = null;
@@ -113,7 +129,7 @@ function main() {
 	}
 
 	const img = loadImage();
-	const runs = zeroRuns(img, min);
+	const runs = [...headerRange(img), ...zeroRuns(img, min)];
 
 	if (argv.includes('--density')) {
 		console.log('block start  end        nonzero');
@@ -144,7 +160,9 @@ function main() {
 				console.log(`ok    0x${startByte.toString(16)} + ${len} is inside ${hex(hit[0])}..${hex(hit[1])} (${hit[1] - hit[0]})`);
 			}
 		}
-		console.log(`\n${runs.length} runs of ${min}+ bytes, ${runs.reduce((t, r) => t + r[1] - r[0], 0)} bytes, ` +
+		const zr = zeroRuns(img, min);
+		console.log(`\n${zr.length} zero runs of ${min}+ bytes, plus the ${headerRange(img).length} header range; ` +
+			`${runs.reduce((t, r) => t + r[1] - r[0], 0)} bytes masked in total, ` +
 			`${((100 * runs.reduce((t, r) => t + r[1] - r[0], 0)) / img.length).toFixed(1)}% of ${img.length}`);
 		return bad ? 1 : 0;
 	}
@@ -155,4 +173,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { zeroRuns, density, loadImage, DEFAULT_MIN };
+module.exports = { zeroRuns, headerRange, density, loadImage, DEFAULT_MIN };

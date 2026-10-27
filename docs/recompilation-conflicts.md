@@ -93,3 +93,73 @@ With all 366 removed the output would still not be a playable port: the 24 indir
 `MP` still has no entry point, and the function set is 98.7 percent of the corpus rather than 98.7
 percent of the game. Fixing the conflicts makes the emitted code trustworthy as code, which is a
 different and smaller claim.
+
+## What the conflict addresses showed, and the two attribution errors
+
+Grouping conflicts by *the nearest preceding function start* put 280 under `0xd5d` and 52 under
+`0xd2b5b` and then under `0xcfe34`. Both groupings were misleading, and the reason is the same each
+time: a conflict's address and the function that owns it are different questions.
+
+Reporting the conflict addresses themselves gives a different picture:
+
+```
+0x5..0x36bb    209      the largest cluster
+0x835d..0x986f  50
+0xd8ecb..0xd8fc9 52
+0xc9b1..0xc9e5  16
+0x71cd..0x7252  11
+0xb726..0xb734   9
+0xfcfa5..0xfcff1 9
+0xfa349..0xfa371 5
+0x104793..0x104944 3
+0x5aba           1
+0xefd2a          1
+```
+
+**The conflicts begin at `0x5`.** That is inside the 30-byte `MP` header, and the header bytes
+`4d 50 0e 01 2f 08` decode as `dec`, `push`, `push`, `add`, `or`. So part of the defect is a descent
+walking the container header as if it were code, which `codelimits.js` could not catch because it
+looks for zero runs and the header is not zero.
+
+**`0xd5d` itself is clean.** It is a complete TBIOS thunk, 17 instructions from `0xd5d` to `0xd8c`:
+
+```
+0xd72  mov ah, 0x66      ; the TBIOS function number
+0xd74  push fs
+0xd76  push 0x110        ; the TBIOS code selector
+0xd7d  call [0x20]       ; the TBIOS entry table
+0xd86  movsx eax, ah
+0xd8c  ret
+```
+
+Nothing inside it can conflict. The 280 attributed to it came from the nearest-preceding rule
+sweeping in everything up to the next seed.
+
+## The fix applied
+
+`tools/codelimits.js` now masks the header range as well as the zero runs, taking the size from the
+header's own field at `0x18` and refusing a value outside `0x1e..0x400`. Measured: **366 conflicts
+become 359**, and the remaining first conflicts move to `0x235`.
+
+```
+--no-code 0x0:0x1e  --no-code 0x1d:0x200  ...
+```
+
+The header range overlaps the first zero run, which is harmless because a target matching either
+range is refused, but it means the ranges are not disjoint and anything summing their widths will
+overcount by 30 bytes. Stated because the first version of the summary line did exactly that.
+
+## What remains, honestly
+
+359 conflicts across the clusters above, and none of them yet explained. The largest is
+`0x5..0x36bb` with 209, which spans the low startup code and the message string table at
+`0x1400..0x2f00`, so the string table is the next likely site:
+
+```
+0x1670  20 20 20 41 29 74 74 61 63 6b 20 20 4a 29 75 6d 70
+        "   A)ttack  J)ump"
+```
+
+A descent into that region decodes message text as instructions. Whether it is reached because a
+seed is wrong or because a jump table is read to the wrong bound is not established, and this page
+stops short of claiming either.
