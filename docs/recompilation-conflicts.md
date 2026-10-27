@@ -354,3 +354,34 @@ the tool then *read* contains addresses.
 For `0xe2f21` the `ja` target `0xe2fcf` is not `table + 23*4` (`0xe2f85`), so the skip is not
 simply past the table either. It is 74 bytes further on. That is consistent with code following the
 table, and it is recorded rather than explained.
+
+## Applying the same fix to `discover`: attempted twice, reverted twice
+
+The base fix works in `x86map` and does not transfer. Both attempts are recorded because the
+failure is informative and neither was a coding error.
+
+**Attempt 1.** `_plausible` counted entries that were merely in the image. Conflicts went from
+166 to 1,216. The bases it chose were full of data pointers, and the walk began decoding
+`add [eax],al` at every byte.
+
+**Attempt 2.** `_plausible` counted entries that decode, then entries in the code band above
+`0x1000`. Conflicts went to 1,216 again, at the same addresses.
+
+**Why both fail, and it is not the scoring.** At site `0xe0543` the table is at `pc + 8`, which is
+`0xe054b`, and that is correct: 16 of 16 entries are code addresses in the band and the declared
+base `0xe034b` has 0 of 16. The entries are `0xe03b5`, `0xe03de`, `0xe03d1`, `0xe03bc`. **The
+targets overlap each other**: `0xe03b5`, `0xe03bc` and `0xe03c3` are 7, 7 and 5 bytes apart, so a
+descent that follows all of them decodes the same bytes at several boundaries and every one is a
+conflict.
+
+So for this site the base is right, the entries are right, and the conflict is **between targets
+rather than from a wrong base**. No choice of base fixes that, and a scoring function cannot see it.
+
+**The remaining lever is target overlap, not base selection.** A table whose entries are not all
+reachable as distinct instruction starts needs the entries merged or the overlapping ones dropped,
+and which of those is correct depends on what the table means, which is game knowledge rather than
+a format rule. That is where this stops, and the 166 conflicts stand.
+
+`recomp/discover.py` is unchanged from its state before this work. `x86map.py` keeps the base fix,
+which improved its table reporting from 0 of 68 tables fully valid to 72 of 75 and is measured in
+the commit that added it.
