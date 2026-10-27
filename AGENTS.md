@@ -200,6 +200,7 @@ that says "pausing is essential" is a measurement, not a suggestion.
 |---|---|
 | the character record layout, every field address | `docs/live-fieldmap.md` |
 | reading live memory: `MD`, `STA`, `PAU`/`RUN`, and the `DS` base | `docs/live-fieldmap.md`, `docs/live-session.md` |
+| **reading any character field from the running game** | **`tools/peek.js`**. Use it rather than parsing `MD` output. `--json` for a machine-readable object, and a non-zero exit means a read failed rather than returned zero |
 | the screen layout: which panel is at which pixel rows | `docs/gameplayer-plan.md`, and the measured constants at the top of `tools/u2read.py` |
 | the palette, in-game | `docs/playing-and-environment.md` |
 | how to get from the Towns menu into a game | `docs/quickstart.md`, `tools/u2flow.py` |

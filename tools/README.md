@@ -79,6 +79,7 @@ directory, so run them from the repo root.
 | `u2flow.py` | Drives the game from the Towns OS menu to a loaded character, checking the screen before every keypress and stopping rather than guessing. `--status` reports the screen without changing it, `--dry-run` checks and sends nothing, `--journey` does the walk. **Run it inside the container** (`podman exec fmtowns python3 /opt/u2/u2flow.py --journey`): it drives `xdotool` against `DISPLAY=:99`, which does not exist on the host. Baked into the image for that reason. |
 | `u2read.py` | Turns a screenshot into text for the panels that do not need vision: status bar, stats, action log. Needs a seeded glyph table (`--teach <panel>`), so it reports `?` until taught. Needs Pillow. |
 | `u2screen.py` | Reads the screen over the supervisor API. Stdlib only, so it runs anywhere. |
+| `peek.js` | **Reads the character record from a running game and prints it as typed values.** The one tool to use for live field reads. `--json` for one object, `--kv` for `key=value`, a bare list of names for a subset. Exits non-zero if a field could not be read, so a zero and a failure are distinguishable. See [reading the character record](#reading-the-character-record) below. |
 | `u2bot.py` | Plays: walks, attacks, passes, enters towns, recording every action with a screenshot, the character fields and the CPU state. Needs Pillow. |
 | `mame-run.sh` | Same idea for MAME's FM Towns driver. Separate image, no supervisor. See the note below before using it. |
 | `savedisk.js` | Read and edit an FM Towns save disk from the shell: list, cat, slots, clone, set, world-copy, newdisk. Tested by `test-savedisk.js`. |
@@ -301,6 +302,82 @@ That answers "is this screen in colour yet" in one call. `mode=ascii` gives a
 luminance ramp for layout, `mode=text` a character grid at 8x16 cells for
 reading dialogue and menus. The renderer is `container/screen.js`, zero
 dependencies, with its own PNG decoder.
+
+### Reading the character record
+
+**Use `tools/peek.js`. Do not parse `MD` output by hand.** Every field it reads is a verified
+address, it retries past the `FF` the game briefly writes while updating the record, and it
+distinguishes "could not read" from "the value is zero".
+
+```
+$ node tools/peek.js
+  hp          400   0xcde81
+  maxhp       400   0xcde85
+  exp           0   0xcde89
+  food      39895   0xcde8d
+  gold        400   0xcde91
+  px           19   0xcdf6b
+  py           19   0xcdf6f
+  map           6   0xcdf53
+  rng    3565644218   0xdfc78
+```
+
+| invocation | output |
+|---|---|
+| `node tools/peek.js` | all fields, one per line, with the address |
+| `node tools/peek.js --json` | one JSON object, `{"hp":400,"food":39895,...}` |
+| `node tools/peek.js --kv` | `hp=400`, one per line, for a shell capture script |
+| `node tools/peek.js hp px` | only the named fields |
+
+**The exit status is the point.** It is non-zero if any requested field could not be read, so
+a caller can tell a real `0` from a failed read. A field that fails prints `null` in JSON,
+`-1` in `--kv` because that format cannot express null, and `FAILED` in the default output.
+All four cases were checked in this session:
+
+```
+$ node tools/peek.js hp            ; echo $?   -> reads 400, exit 0
+$ node tools/peek.js nosuchfield   ; echo $?   -> "unknown field", exit 1
+$ FMTOWNS_API=http://127.0.0.1:9999 node tools/peek.js hp ; echo $?   -> exit 1
+$ FMTOWNS_API=http://127.0.0.1:9999 node tools/peek.js --kv hp        -> hp=-1
+```
+
+When testing the exit status, capture `$?` from `node` directly and not from a pipeline: the
+first version of this check ran `node ... | head` and read `head`'s status, which is always 0.
+
+```
+$ node tools/peek.js --json | jq -r .food
+39895
+$ node tools/peek.js nosuchfield; echo $?
+unknown field: nosuchfield
+1
+```
+
+**The fields and how each was verified** are in the header of `tools/peek.js` and in
+[live-fieldmap.md](../docs/live-fieldmap.md). The short version: `hp`, `exp`, `food` and `gold`
+were checked against the game's own status screen, and `px`/`py` against a single step. `map`
+is **unverified**. `rng` was confirmed as the LCG state by finding consecutive samples on the
+chain.
+
+**Three things that make reads wrong, all handled here:**
+
+- **The `MD` reply is never alone.** With `DBLOG` and `AUTODISASMR` running, a single `MD` call
+  returns hundreds of trace lines and the 16 that matter are buried. An `MD` line is the only
+  one carrying a literal `|` before the ASCII rendering, and that is what the parser keys on.
+- **The record flips to `FF` while being rewritten**, about one sample in six. `peek.js`
+  retries up to five times and treats `FF` as "try again", not as a value. Pausing first with
+  `PAU` avoids the problem entirely and is the better habit; see
+  [live-fieldmap.md](../docs/live-fieldmap.md).
+- **A dword read at a non-field address returns garbage rather than failing.** Only the
+  addresses in `FIELDS` are verified. Reading somewhere else needs a new entry and a
+  verification, not an ad-hoc read.
+
+The API defaults to `http://127.0.0.1:8080` and `FMTOWNS_API` overrides it. **Use `127.0.0.1`,
+not `localhost`:** on this host `localhost` resolves to IPv6 `::1`, nothing listens there, and
+every call fails instantly with curl exit 56, which looks like a dead supervisor.
+
+`peek.js` shells out to `curl` and so runs on the **host**, unlike `u2flow.py`. That is the
+one difference worth remembering: `u2flow.py` needs `DISPLAY=:99` and must run inside the
+container; `peek.js` only needs the API and runs outside it.
 
 ### Console quirks worth knowing
 
