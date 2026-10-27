@@ -818,19 +818,21 @@ sixteen sectors of 64 cells. The sector is **256 by 128 cells** of one byte each
 collision test is `0xfb41c`, which indexes a 16-byte cell table with `(x << 8) + (y << 4)`.
 
 **Corrected again.** This item previously recorded that one step west from 0 gives 63 *and* the map
-id (`0xcdf53`) changing 41 to 42. `0xf6b5a` never writes the map id, and it is the only code that
-clamps `PLAYER_X` to 63, so that observation mixed two events or a second routine produced the
-second half. The map-id change is **unverified** until `0xf1b5c` is read, that being the only one
-of the four map-id write sites that is arithmetic rather than a plain store.
+id (`0xcdf53`) changing 41 to 42, and then that the clamp could not explain the second half. Both
+are now resolved. They are two independent pieces of code that happen to fire in the same turn
+because the party is standing on an edge:
+
+- `0xf6b5a` clamps each coordinate, `>= 64` to 0 and `< 0` to 63
+- `0xf7742` calls `0xf1b48`, which does `MAP_ID += 1`, **only when `x == 0`, `x == 63`, `y == 0`
+or `y == 63`** and the flag at `0xcdf57` is set
 
 **The open questions, all static:**
 
-- **what changes the map id as a result of movement.** Four write sites at `0xeac7c`, `0xec541`,
-`0xedcca` and `0xf1b5c`. The first three are plain stores in record initialisers; `0xf1b5c` is an
-`add`. Reading that one is the next step.
-- **what `MAP_X`/`MAP_Y` (`0xcdf63`/`0xcdf67`) are**, given that `PLAYER_X`/`PLAYER_Y` four bytes
-later are what the wrap clamps. Both pairs are written by the same initialiser and neither meaning
-is established.
+- **what `0xf828c` does**, the loader the edge test calls. It clears the flag at `0xcdf57`, reads
+`0xcde99`, and calls `0xf3e40`. This is where the viewport question starts.
+- **what `MAP_X`/`MAP_Y` (`0xcdf63`/`0xcdf67`) are**, given that `PLAYER_X`/`PLAYER_Y` are what the
+clamp and the edge test use. All four are written by the same initialiser and neither meaning is
+established.
 - **the record base and stride.** The code computes `index * 95` at `0xec4f2`, but
 `tools/fieldmap.js` puts the base at `0xcde54` from three agreeing anchors, and at that base the
 initialiser's field run crosses a record boundary. Either the base, the stride, or the assumption
