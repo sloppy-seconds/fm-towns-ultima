@@ -872,6 +872,14 @@
       "class": "not-c",
       "what": "Destination test for a step: indexes a cell table by (x << 8) + (y << 4), returns the cell at +0, or 0 when cell+8 is nonzero, or -1 when cell+4 is not -1.",
       "evidence": "Read this session as the collision test called by 0xef5b4. docs/movement-and-wrap.md."
+    },
+    {
+      "addr": "fa130",
+      "callers": 1,
+      "bytes": 0,
+      "class": "not-c",
+      "what": "Whole-map transform: a four-way selector, each case a nested 16 by 16 loop over the cell table, rewriting coordinates as 15 - value. The rotate and reflect family.",
+      "evidence": "Read this session, docs/movement-and-wrap.md. Every loop bound is cmp 0x10 and the coordinate update is mov edx,0xf / sub. Called from 0xef953 with the table base 0xd5a74. Which case is which rotation was not established."
     }
   ],
   "globals_ref": {

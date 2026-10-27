@@ -93,6 +93,50 @@ I wrote "torus wrap on the player position" in the plan item when first drafting
 expectation that a movement coordinate would be called that. The code says otherwise, and the
 phrase sent the first search at this item to the wrong fields.
 
+## How big is a map: one 16 by 16 grid, not 64 by 64 sectors
+
+Asked directly whether a map is 64 by 64 divided into sectors, with an edge crossing into the
+neighbouring sector. **Measured: no.** The map is a single 16 by 16 grid.
+
+Four independent constants agree:
+
+| source | constant |
+|---|---|
+| `0xef5b4` wrap | `cmp 0xf`, corrected by `+/- 0x10` |
+| `0xfb41c` cell index | `(x << 8) + (y << 4)`, so 256 bytes per row and 16 per cell |
+| `0xfa130` transform loops | `cmp 0x10` on both axes, in all four cases |
+| `0xfa130` coordinate update | `mov edx, 0xf` then `sub edx, [..]`, which is `15 - value` |
+
+**And the step routine does not touch the map id.** `0xd4a68` holds the current map and appears in
+`0xef5b4` only as an argument to the cell test. If crossing an edge moved the player into an
+adjacent sector, that value would have to change. It never does.
+
+So: walking off an edge wraps within the same 16 by 16 map. There is no sector system for movement
+to cross.
+
+### The arithmetic confirms the table size
+
+A 16 by 16 grid of 16-byte cells occupies `0xd4a74` to `0xd5a73`, exactly 4,096 bytes. The next
+referenced data structure is at **`0xd5a74`**, which is that boundary, and it is the map transform
+routine `0xfa130` being passed the table address. The layout agrees with the arithmetic three ways.
+
+## `0xfa130`: whole-map transforms
+
+The routine called with the map base is a four-way transform, each case a nested 16 by 16 loop:
+
+| case | row start | row step | effect |
+|---|---|---|---|
+| `0xfa186` | `0xf0` | `+0x10` | scan with rows reversed |
+| `0xfa1b8` | n/a | n/a | swap two coordinates, `0xf - x` |
+| `0xfa1d0` | `0xff` | `-0x10` | scan from the last cell backwards |
+| `0xfa219` | `0xf` | `-1` | scan with columns reversed |
+
+Each path ends by rewriting coordinates as `0xf - value`. This is the rotate and reflect family, and
+every loop bound in it is 16.
+
+**Not yet established:** which case corresponds to which rotation or flip, and whether the game uses
+all four. The case selector is at `[ebp+0xc]` and was not traced to a caller.
+
 ## The collision check, which is not a separate routine
 
 After the wrap, the destination is tested by calling `0xfb41c`:
