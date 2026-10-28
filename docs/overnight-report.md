@@ -115,8 +115,16 @@ follow would move the failure one call later and hide it. `saves/userdisk.hdm` i
 Paul's order for this morning, recorded because the reasoning matters as much as the list: **defects first, then
 the new seeds through the recompiler to see what falls out, then the rest.** Findings before tidying.
 
-Done since that was written: **8a, 8b, 8c, 8d, 8e**, **7e** and the second and third port walls. Open: **7a**
-(in progress), **7d**, **7f** (the reader works, the item needs the picture), **8f**, **8g**.
+Done since that was written: **8a, 8b, 8c, 8d, 8e**, **7d**, **7e**, **7f** and the second, third and fourth port
+walls. Open: **7a** (the divergence is now control flow, not data), **8f**, **8g**.
+
+**7f ends with the port drawing the title screen.** Three walls stood between the floppy reader and a picture, and
+all three were machine state the port did not have: a keyboard (`int 90h` answered "no key" for ever, contract
+measured and implemented as patch eleven), an unknown-port report that named nothing (patch twelve), and, the one
+that mattered, **selector `0120`**, which `STA` reports at linear `0x80000000` and which is where the program draws.
+The port had no descriptor for it, so there was nowhere to draw and nothing faulted. With it:
+`181402 of 524288` VRAM bytes non-zero, `386205 writes`, and `U2_SHOT` renders a 704x525 frame that is the Ultima II
+loading screen. Palette still unsettled.
 
 1. **7a, and it is one byte.** The port and the machine now agree on the heap base, the heap limit, `ESP`, and the
    hand-off entry. The only remaining divergence is that the machine has `0x80` at DS `0xBAA`, the byte a

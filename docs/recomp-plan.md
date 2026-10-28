@@ -866,6 +866,54 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_FLOPPY_LS=1` | list the `A:` image's root directory and exit. |
 | `U2_WATCH=<linear>[:<len>]` | report every write into that linear range, with the instruction that made it. The port's answer to a physical `MEMW` watch, and it does not suffer that watch's blind spot: the machine's page tables move a linear address between physical pages, so a byte watch can miss the write it was armed for. |
 | `U2_KEYS=<frame>:<scan><ascii>,...` | press keys on given frames, which is how the port is driven past a keyboard wait. Hex, two digits each: `60:1e61` is "at frame 60 press scan code 0x1E with ASCII 0x61", measured as the key 'a'. |
+| `U2_SHOT=<path>` | write the frame the machine is showing when the run ends, with the kit's own renderer, so "it draws" is a picture rather than a byte count. |
+
+## Patch thirteen: selector 0120, which is the screen
+
+**This is the one that made the port draw.** After the keyboard worked, VRAM was still empty, and the reason was
+not in the program at all.
+
+**Tried:** to find where the drawing went. `U2_VRAM=1` on a 600-frame run: `0 of 524288 bytes are non-zero` and
+`0 writes and 0 reads to it`. The renderer itself runs, so its output was going somewhere else.
+
+**Measured, three steps.**
+
+1. `0xe5654` is `print(plane, string)`: it calls `0xe6cb0`, which indexes a window structure at
+   `0x7aee4 + plane * 0x2A`, reads its origin and size, and composes characters into buffers at `0xcda7e`,
+   `0xcda78` and `0xcda7a` in low memory. So text is composed in the program's own memory first.
+2. What copies it to the screen must use a selector, because the program's data segment is at linear
+   `0x400000` and VRAM is not there. `STA` on the running game, at the character-creation screen, reports
+   **`ES=0120(LIN:80000000)`**, and `towns_mem.cpp` maps VRAM at linear `0x80000000`. Selector `0x0120` is the
+   screen.
+3. `ADTR` confirmed the other two guesses were wrong rather than merely unmeasured: `ADTR 24:0` is linear
+   `0x000BF870` and `ADTR 2c:0` is `0x000BF820`, fifty bytes apart, which is a pair of TownsOS structures and not
+   a frame buffer.
+
+**The port had no descriptor for `0x0120` at all.** Its `0x0024` and `0x002C` were flat stand-ins, honestly
+labelled as guesses in a comment, and they were not the screen, so there was nowhere for the program to draw and
+nothing to notice: a selector that resolves to the program's own memory is not a fault, it is a silent
+no-op.
+
+**The patch** is `m.set_desc(0x0120, 0x80000000, 0x7FFFF)`, with the measurement in the comment. The two
+stand-ins stay flat on purpose: their real bases are TownsOS structures this port does not have, and the program
+only reads them, so pointing them at their true addresses would replace readable nonsense with unmapped zeros.
+
+**What it produced, on the same 600-frame run with three keypresses:**
+
+```
+vram      181402 of 524288 bytes are non-zero, first at 320
+vram      386205 writes and 83173 reads to it, 0 sprite writes
+```
+
+and `U2_SHOT=/var/tmp/port-shot.png` renders the frame at 704x525. That picture is the Ultima II title screen:
+read back with the vision model in `AGENTS.md`, it describes the title banner, the stylised "Ultima II" logo with
+the sword through it, the robed figure before the castle, and the loading bar beneath. No palette work was done to
+get there and the colours in it are the kit's, so this is the drawing chain proven, not the palette settled.
+
+**Mistake worth recording.** The item was worked for a while in the wrong direction: the byte counts and the
+divergence report were read as evidence about the game's logic, when the simplest explanation was that the machine
+had never been given a screen. The `0x0024`/`0x002C` comment had said "if the program reads through them and gets
+nonsense, this is the first place to look" and nobody looked, because nothing faulted.
 
 ## Patch eleven: a keyboard, because the kit's answers "no key" unconditionally
 

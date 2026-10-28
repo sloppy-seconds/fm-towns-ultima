@@ -88,7 +88,15 @@ void x86_trace(X86Cpu& c, uint32_t at) {
 				std::memcpy(&v, sbuf.data() + i * 4, 4);
 				std::printf("%s%08x", i ? " " : "", v);
 			}
-			std::printf("   (ss:%08x)\n", c.sbase[2] + c.r[4]);
+			std::printf("   (ss:%08x)", c.sbase[2] + c.r[4]);
+			// [ebp+4] is the return address, and it names the caller. That is the question when a function
+			// behaves correctly every time it is called and the program still does not move on: the fault is
+			// then in whoever is calling it and what it does with the answer.
+			uint8_t rb[4];
+			towns::g_towns->read_block(c.sbase[2] + c.r[5] + 4, rb, 4);
+			uint32_t ret = 0;
+			std::memcpy(&ret, rb, 4);
+			std::printf(" ret %08x\n", ret);
 		}
 		if (g_trace_file) std::fclose(g_trace_file);
 		std::exit(0);
@@ -228,9 +236,31 @@ int main(int argc, char** argv) {
 	if (g_floppy.open(floppy_path)) {
 		std::printf("machine   floppy opened from %s\n", floppy_path);
 		if (std::getenv("U2_FLOPPY_LS")) {
-			for (const auto& e : g_floppy.list())
-				std::printf("floppy    %-14s %6u bytes%s\n", e.name.c_str(), e.size, e.is_dir() ? "  (dir)" : "");
-			return 0;
+			// Listing is not serving. The failure this option exists to rule out is a shim that answers the
+			// attribute query and returns nothing when the program reads, which moves the failure one call later
+			// and looks like a program fault. So each file is read in full and reported with a checksum, and a
+			// short read is a failure of the run rather than a note.
+			int bad = 0;
+			for (const auto& e : g_floppy.list()) {
+				std::printf("floppy    %-14s %6u bytes%s", e.name.c_str(), e.size, e.is_dir() ? "  (dir)" : "");
+				std::vector<uint8_t> data;
+				if (e.is_dir()) {
+					std::printf("\n");
+					continue;
+				}
+				if (!g_floppy.read(e.name, data)) {
+					std::printf("  READ FAILED\n");
+					++bad;
+					continue;
+				}
+				uint32_t h = 2166136261u;
+				for (uint8_t ch : data) h = (h ^ ch) * 16777619u;   // FNV-1a, so two runs can be compared
+				std::printf("  read %u, fnv %08x%s\n", (unsigned)data.size(), h,
+				            data.size() == e.size ? "" : "  SHORT");
+				if (data.size() != e.size) ++bad;
+			}
+			std::printf("floppy    %d of the files read short or not at all\n", bad);
+			return bad ? 1 : 0;
 		}
 	} else {
 		std::printf("machine   no floppy: A: will answer nothing and the program will ask for a disk\n");
@@ -255,11 +285,20 @@ int main(int argc, char** argv) {
 	// 0110 is the TBIOS code segment. Live STA reported CS=0110 at linear 0x19EF4, and boot_towns puts
 	// the TBIOS image at 0x100000, so the segment's base is 0x100000 and 0x19EF4 is its offset 0x9EF4.
 	m.set_desc(0x0110, 0x100000, (uint32_t)tbios.size());
-	// 0024 and 002C are selectors the start-up loads and TownsOS would have created. Their bases are
-	// NOT measured, so this is a flat descriptor standing in for one, and it is marked as a guess: if
-	// the program reads through them and gets nonsense, this is the first place to look.
+	// 0024 and 002C are selectors the start-up loads and TownsOS would have created. Measured on the running game
+	// with `ADTR 24:0` and `ADTR 2c:0`, their linear bases are 0x000BF870 and 0x000BF820, fifty bytes apart, which
+	// is a pair of TownsOS structures rather than anything this port can supply. The flat stand-in below is kept
+	// deliberately: mapping them to their real bases would point into memory this port does not have, and the
+	// program only reads them. What mattered was that they are NOT the screen, which is what the next two lines
+	// establish.
 	m.set_desc(0x0024, 0, 0xFFFFFFFF);
 	m.set_desc(0x002C, 0, 0xFFFFFFFF);
+	// 0120 is the SCREEN, and its absence was the reason the port drew nothing. Measured on the running game:
+	// `STA` reports `ES=0120(LIN:80000000)`, and the kit maps VRAM at linear 0x80000000 (`towns_mem.cpp`: the
+	// page table for 0x80000000.. sits on `m.vram`). So the program reaches the screen through a selector, not
+	// through a fixed address, and a port without that descriptor gives it nowhere to draw. Every VRAM figure
+	// before this line was a measurement of a program that had been handed no screen.
+	m.set_desc(0x0120, 0x80000000, 0x7FFFF);
 
 	X86Cpu c;
 	std::memset(&c, 0, sizeof c);
@@ -335,6 +374,10 @@ int main(int argc, char** argv) {
 		std::printf("\n");
 	}
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
+	// U2_SHOT=<path> writes the frame the machine is showing when the run ends, with the kit's own renderer, so
+	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this
+	// (it is how its own ports save frames at a VSYNC).
+	const char* shot_path = std::getenv("U2_SHOT");
 	// U2_WATCH=<linear>[:<length>] reports every write into one linear range, with the instruction that made
 	// it. This is the port's answer to a physical MEMW watch on the machine, and one thing it does better:
 	// the machine's page tables move a linear address between physical pages, so a watch armed on a physical
@@ -457,6 +500,13 @@ int main(int argc, char** argv) {
 	// program's own path.
 	if (!m.keys.empty() || m.keys_served) {
 		std::printf("keys      %lu served, %zu still queued\n", m.keys_served, m.keys.size());
+	}
+	if (shot_path) {
+		std::vector<uint32_t> rgb;
+		int w = 0, h = 0;
+		m.render(rgb, w, h);
+		if (w > 0 && h > 0 && towns::write_png(shot_path, rgb, w, h)) std::printf("shot      %s (%dx%d)\n", shot_path, w, h);
+		else std::printf("shot      %s: the machine has no frame to render\n", shot_path);
 	}
 	if (const char* dump = std::getenv("U2_DUMP")) {
 		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);

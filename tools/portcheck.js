@@ -79,6 +79,9 @@ forbidText(main, '0x2000000', 'the fabricated heap limit is gone');
 // Phar Lap 250Fh maps a protected-mode address through these, so both have to be this program's.
 requireText(main, 'PROGRAM_BASE, 0x76000', "profile prog_phys is the machine's 0x76000");
 forbidText(main, '0x49000', "the kit's prog_phys is gone");
+// The screen: measured as ES=0120 at linear 0x80000000 on the running game. Without this the program has nowhere to
+// draw and nothing faults, which cost a session and looked exactly like a program that would not start.
+requireText(main, 'set_desc(0x0120, 0x80000000', 'the screen selector is the measured VRAM window');
 // The entry is the MP header's own field, not a literal, which is what let BRITISH.EXP run unedited.
 requireText(main, 'ENTRY_FROM_HEADER', 'entry comes from the header');
 requireText(main, 'file[0x14]', 'the header field read is dword at 0x14');

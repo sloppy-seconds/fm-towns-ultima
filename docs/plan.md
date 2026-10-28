@@ -95,7 +95,7 @@ from the items below rather than maintained separately.
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
-| 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, floppy and keyboard work, nothing draws |
+| 7f Give the port a floppy drive | AUTONOMOUS | **done**, floppy, keyboard and screen, the title draws |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
@@ -1165,7 +1165,8 @@ is the right time to look.
 
 **What is now known.** `tools/portcheck.js` is the check, wired into `checkall.js` as `port constants`, and it
 needs no emulator, no disc and no recompile: it reads `port/`, `tools/` and `docs/` and nothing else, which is
-why it runs on a clone that has downloaded nothing. Seventeen checks pass.
+why it runs on a clone that has downloaded nothing. Its own output is the count, so there is no number here to keep
+in step with it.
 
 It asserts the values this session measured, because each was a wall found the expensive way: `PROGRAM_BASE`
 `0x400000`, hand-off `ESP` `0x11EB10`, descriptor limit `0x377FFF`, profile `prog_phys` `0x76000`, the entry read
@@ -1217,7 +1218,7 @@ head because it was asked in the guest frame, and the instruction in `AGENTS.md`
 
 ### 7f. Give the port a floppy drive
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -1248,11 +1249,25 @@ machine (no key `BX=0xFF00 DX=0xFFFF`, `a` `BX=0x1E00 DX=0x0061`) and implemente
 `U2_KEYS=<frame>:<scan><ascii>` to press keys on given frames. Twenty-seven presses now report
 `27 served, 0 still queued` and the game dispatches each one through its 114-entry scan-code table at `0xE4BD1`.
 
-**What is still missing is drawing.** VRAM stays at zero with input working, so the item stays OPEN on its third
-clause. The next lead is named and measured: the program probes four devices at ports `0x0E51`, `0x0E59`, `0x0E61`,
-`0x0E69` from `0x0FF73A`, `in al, dx` then `cmp al, 0xff`, and the kit implements none of them (patch twelve, in
-[recomp-plan.md](recomp-plan.md#patch-twelve-an-unknown-io-port-now-names-the-instruction-that-wrote-it)). Whether
-that gate is what stops the screen is not established.
+**What is now known, and the item is finished on all three clauses.**
+
+`A:\ROSTER1.UT2` resolves and reads. Listing was not accepted as proof, because the item's own failure case is a
+shim that answers the query and returns nothing: `U2_FLOPPY_LS=1` now reads every file in full and reports a
+checksum, and gives `roster1.ut2` 3701 bytes `fnv 280364f9` and `world1` to `world3` at 68096 each with
+`0 of the files read short or not at all`. The program then opens the file for real and succeeds: the trace shows
+`0xe9a38` (the open) returning a handle at `0xe9a59`, with the failure branch `0xe9a4a` never taken.
+
+The floppy was the first of **three** walls. The second was the keyboard: the kit's `int 90h` had none, so the
+program waited on a KYB_read poll for ever. Its contract was measured on the machine (no key `BX=0xFF00
+DX=0xFFFF`, `a` `BX=0x1E00 DX=0x0061`), implemented, and driven with `U2_KEYS`. The third was the screen: the
+program draws through selector `0120`, which `STA` reports at linear `0x80000000`, and the port had no descriptor
+for it, so there was nowhere to draw and no fault to notice.
+
+**The port draws.** 600 frames with three keypresses give `181402 of 524288 bytes are non-zero`, `386205 writes
+and 83173 reads` to VRAM, and `U2_SHOT` renders the frame at 704x525. That frame is the Ultima II title screen,
+identified by reading it with the vision model: title banner, the logo with the sword through it, the robed figure
+before the castle, the loading bar. Nothing in this item settled the palette, and the picture's colours are the
+kit's. All three patches are recorded in [recomp-plan.md](recomp-plan.md), eleven to thirteen.
 
 ## Phase 8: the toolkit, and what this work owes it
 
