@@ -99,8 +99,35 @@ dword whose value happens to be an ASCII letter looked like a fourth character.
 
 **What this does not fix.** Adding the same model up to `PLAYER_X` gives `0xcdf67`, and the observed
 address is `0xcdf6b`, so **one 4-byte field still has to be added between `TOOLS` and `PLAYER_X`**.
-Every item count sits inside that span, so their addresses are known to within a single 4-byte shift and
-no closer.
+
+## The item block is bounded on both sides, and the arithmetic closes
+
+`TOOLS` at `0xcde9d` and `MAP` at `0xcdf53` are both confirmed addresses, one on each side of every
+item count. The span between them is **178 bytes**:
+
+```
+0xcdf53 - (0xcde9d + 4) = 0xb2 = 178
+```
+
+The format block between `TOOLS` and `MAP` has **46 entries**: 35 equipment and quest items, then the
+11 spells from `NONE` to `SCORE`. Forty-six dwords is 184 bytes, which is six too many, and
+**44 dwords plus the two `%c` fields as single bytes is exactly 178**. So the widths are determined by
+the budget even though no state has an item count to test them against: `R_ARMOUR` and `R_WEAPON`
+occupy one byte each, and every other field between them is a dword.
+
+That puts the whole item block on fixed addresses, and the missing 4 bytes is *after* `MAP`, between
+it and `PLAYER_X`, where it does no damage to any item address.
+
+**One anomaly, recorded rather than smoothed.** Under that decomposition `SKIN` is a dword at
+`0xcdea3` and `live.state` reads `0x01000000` there, which is not a plausible skin index, while the
+byte at `0xcdea6` is `1`. Either `SKIN` sits at a different offset than the budget implies, or the
+value is stored in a form this reading does not capture. **Unresolved**, and it is the one thing that
+stops the item table from being finished.
+
+**No artefact on disk can settle it.** All 29 savestates and the save disk's roster were checked: every
+character has **zero** in every item field (`TORCHES`, `KEY`, `GEM`, `ANKH`, `SKULL_KEY` and the rest),
+so there is nothing to match against. A character holding one item would fix `SKIN` and the item
+addresses in the same reading.
 
 ## The deltas and what they mean
 
