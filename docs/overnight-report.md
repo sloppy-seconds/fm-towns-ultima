@@ -71,36 +71,47 @@ Frame 4,026 became **24,000 frames, 6,399,984,003 guest clocks, no fault**, 818 
 0 refused and 0 conflicts. What remains is the count: 30 unresolved indirect transfers in the game module and
 67 in TBIOS.
 
-## Item 7a, started, and the finding is that the screen is empty
+## Item 7a, the answer: a missing floppy drive
 
-`U2_VRAM=1` reports the machine's VRAM vector and its access counters after a run. After 24,000 frames:
+The differential trace found it. `-DX86_TRACE_ON` plus `x86_trace` logs each address the first time the port
+executes it, which stays bounded however long the run, `cfgprobe.py capture --journey` gives the machine's
+block-level control flow, and `tools/divergence.py` compares them. After 600 frames the port executes **4,216**
+distinct addresses in segment `000C` and **4,200 match a machine record exactly**. The first of the sixteen that
+do not is `0x0e259b`, a `je` that the machine takes and the port does not:
 
 ```
-vram      0 of 524288 bytes are non-zero, first at -1
-vram      0 writes and 0 reads to it, 0 sprite writes
+0x0e2591  call 0xe23cc
+0x0e2599  and eax, eax
+0x0e259b  je 0xe2623      the machine jumps over everything below this
+0x0e25a1  push 0x1930     message 0x1930
+0x0e25a6  call 0xe75f8    print it
+0x0e25ae  push 2          then read a key, in a loop
 ```
 
-**The program does not draw and does not try to.** A memory dump alone cannot separate "drew nothing" from
-"never touched the screen", and the counters can. Zero accesses means the drawing code is never reached.
+An error dialog. Three hops later the check is `int 21h AX=4300`, get file attributes, at guest `0x102317`, and
+instrumenting it prints one line:
 
-**It is waiting for a key.** The trace tail is the same call repeated thousands of times,
-`int 90h AX=0901` at guest `0x000e25ae`, and that address is a loop: `push 2`, `call 0xe4b60`, and back to
-itself while the result is 0.
+```
+  attributes: A:\ROSTER1.UT2 -> not found
+```
 
-**The open question, which is the next thing to do:** whether that wait is before or after the title is drawn.
-The live machine shows the splash before any key is pressed, so if this is the same wait, something gates the
-drawing ahead of it. Candidates, in order of suspicion: the CD probe whose return values were only partly
-measured, a CRT or VRAM mode read, and any capability test our stubs answer differently.
+**So the port has been sitting in an "insert the save disk" prompt.** The machine mounts `saves/userdisk.hdm` as
+`A:` and its probe succeeds. The port has no `A:` drive at all, so the probe fails and the program waits for a
+key. That is why nothing is drawn: the error path draws nothing, and no amount of frame counting could see it.
+
+The fix is a floppy drive, not a return value. Answering the attribute query without serving the reads that
+follow would move the failure one call later and hide it. `saves/userdisk.hdm` is a real FM Towns floppy and
+`tools/savedisk.js` already walks its FAT12.
 
 ## What to do next, in order
 
-1. **find the divergence in 7a.** Build the port with `-DX86_TRACE_ON` and define `x86_trace` to write each
-   instruction's guest address, then take the machine's own ordered control-flow capture with
-   `tools/cfgprobe.py capture --journey`, and compare the two sequences. The first difference is the bug. Do
-   not guess at which BIOS return is wrong before that comparison exists
-2. 7d, the 30 and 67 unresolved indirect transfers, each resolved by a rule or recorded as unreachable
-3. 7e, a port regression `checkall.js` can run without the emulator
-4. 6a, one frame of reference per tool
+1. **7f: give the port a floppy drive.** A FAT12 reader behind the interface the CD already uses, driven by
+   `saves/userdisk.hdm`, translating `tools/savedisk.js`. Success is the port taking the `je` at `0x0e259b` the
+   way the machine does and drawing something. Do not shim the attribute query
+2. then re-run `tools/divergence.py` against the same capture: the next divergence is the next missing piece
+3. 7d, the 30 and 67 unresolved indirect transfers
+4. 7e, a port regression `checkall.js` can run without the emulator
+5. 6a, one frame of reference per tool
 
 ## Standing hazards, written down because each one already cost time
 
