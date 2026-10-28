@@ -102,7 +102,7 @@ from the items below rather than maintained separately.
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
 | 8d Run the new seed rules through the recompiler | AUTONOMOUS | **done**, and it corrected a number |
 | 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **done**, seven binaries, one routine |
-| 8f The disc layer: `PREGAP` and a composed TBIOS | AUTONOMOUS | later, it is other titles only |
+| 8f The disc layer: `PREGAP` and a composed TBIOS | AUTONOMOUS | **done**, the refusal names why, and `boot_towns` takes a shipped image |
 | 8g Package the patches | AUTONOMOUS | last, once the set stops moving |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
@@ -1465,7 +1465,7 @@ only living in the clone.
 
 ### 8f. The disc layer: `PREGAP` and a pre-composed TBIOS
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -1476,6 +1476,23 @@ only living in the clone.
 This disc ships `TBIOS.BIN`, 81,920 bytes, beside `TBIOS.SYS`, and no `.INI` at all. The cue carries
 `PREGAP 00:02:00` on the audio tracks and the kit refuses it with "a gap not in the files is not read here".
 Neither matters for U2 now, and both matter for the other titles.
+
+**What is now known, and both clauses are answered.**
+
+`PREGAP` is **not accepted, and the reason is now recorded in the refusal itself**. This disc's cue is one `FILE`
+with eight tracks, `PREGAP 00:02:00` on track 2, and every `INDEX 01` still counted from that one file, so whether
+the rip already contains the gap is not stated anywhere the reader can see. Accepting it would shift every later
+track by 150 sectors and read the wrong sectors silently, which is the item's own failure case. Patch fifteen makes
+the message name the file, the line, the track and the gap, and say what to do instead: use the `.ccd`, which states
+the layout, or a one-track cue for the data track. The full text is in
+[disc-and-binaries.md](disc-and-binaries.md#disc-image-structure) beside the 450 zero sectors that page already
+measured in the image, which are the gap and confirm the rip contains it.
+
+`boot_towns` **already takes a finished image**: `boot_towns(Machine&, const std::vector<uint8_t>&)` copies it to
+`0x100000`, and composition is a separate `compose_tbios` the caller may skip. The port reads this disc's
+`TBIOS.BIN` and passes it, and the game boots and draws from it, so that clause needed a measurement rather than a
+change. The failure the item warned about, composing from an absent `TBIOS.INI` and calling that a failure of the
+disc, is avoided by taking the shipped image.
 
 ### 8g. Package the patches
 

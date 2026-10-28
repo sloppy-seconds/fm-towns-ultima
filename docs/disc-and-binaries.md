@@ -52,6 +52,38 @@ boundary or the PVD is the wrong one.*
 
 **Verdict:** positive. Seven Red Book tracks, lossless.
 
+**Tried:** make `fmtownskit`'s cue reader open this disc's `.cue`, for item 8f.
+
+**Measured:** it refuses at the `PREGAP` line, and the reason is the one above rather than a missing feature. The
+cue has one `FILE` and eight tracks, `PREGAP 00:02:00` on track 2, and every `INDEX 01` still counted from that one
+file, so whether the rip already contains the gap is not stated anywhere in the cue. Accepting it would shift every
+later track by 150 sectors and read the wrong sectors without an error. The refusal now names the file, the line,
+the track and the gap, and says what to do instead (item 8f, patch fifteen):
+
+```
+Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).cue:5: PREGAP 00:02:00 on track 2 cannot be decided from the cue.
+The gap is not in the file that the track's INDEX 01 counts from, but whether the rip already contains it is a
+property of the rip and the cue does not say, so accepting it would shift every later track by 00:02:00 and read
+the wrong sectors silently. Use the .ccd, which states the layout, or a one-track cue for the data track if only
+that is wanted.
+```
+
+**Verdict:** NEGATIVE for accepting `PREGAP`, POSITIVE for recording why. The 450 zero sectors this page measured in
+the image are the gap, so the rip does contain it and the `.ccd` route stays the correct one. A one-track cue for
+the data track is what the recompiled port uses, and it reads the disc correctly: 600 frames of the game load their
+artwork from it and draw.
+
+**Tried:** whether `boot_towns` needs a composed TBIOS, the second half of item 8f.
+
+**Measured:** it does not. Its signature takes the finished image (`boot_towns(Machine&, const
+std::vector<uint8_t>&)`) and copies it to `0x100000`; composition is a separate function, `compose_tbios`, which
+callers may use or not. This disc ships `TBIOS.BIN` (81,920 bytes) and no `.INI` at all, so the port reads that file
+from the disc and passes it, and the game boots and draws from it.
+
+**Verdict:** POSITIVE, and it was already true: no change was needed, only the measurement to say so. The failure
+the item warned about, composing from an absent `TBIOS.INI` and calling that a fault of the disc, is avoided by
+taking the shipped image.
+
 ---
 
 ## Toolchain and language
