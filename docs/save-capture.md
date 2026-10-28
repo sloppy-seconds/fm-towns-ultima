@@ -73,6 +73,58 @@ for string pushes among them. Exactly one was a mode string.
 byte 47, so 917 minus the 65-byte gap is consistent with an 852-byte read. That is a match worth noting
 rather than a proof, since the exact partition of the 917 has not been re-measured here.
 
+## Death loads the roster too, by a third path
+
+`death1` was captured before the loader was known, so it was checked afterwards against every candidate.
+The answer was neither of the two routines already found.
+
+| routine | reached by death1 |
+|---|---|
+| writer `0xeb374` | **no** |
+| loader `0xe0e90` (`"rb"`, fread 852) | **no** |
+
+So death opens the roster through a **third path**, and it is a text reader rather than a binary one.
+
+### The death-side reader
+
+```
+0xe9dd2  push 0x253e              ; "rt"
+0xe9dd7  push 0x2544              ; "A:\ROSTER1.UT2"
+0xe9ddc  call 0x100f34            ; fopen
+0xe9de7  jne 0xe9e05              ; opened
+0xe9de9  push 0x2554              ; failure message
+0xe9df3  mov eax, -1
+0xe9e05  push edi
+0xe9e06  push 0x4f               ; 79 bytes
+0xe9e08  lea eax,[ebp-0x50]
+0xe9e0c  call 0x10078c            ; fgets
+0xe9e14  cmp byte [ebp-0x50], 0x52   ; 'R'
+```
+
+`0x52` is `R`, the first character of `Roster data:ULTIMA II for FM-TOWNS`, so the reader checks the
+header before parsing. The mode is **`rt`**, text, not `rb`.
+
+### A correction this forced
+
+An earlier reading of this same function, `0xe9d2c`, concluded it was a loop that blanked and rewrote a
+name field. The loop and the string copy are real, but the framing was wrong: **this is the death-side
+roster reader**, and the clear-then-copy is the pass that reads each `NAME=` line back into the record.
+
+That also explains why the slot letters `E`, `D`, `B` survived the clear when it was measured earlier.
+The clear happens first and the read then writes the value from the file, which is exactly what was
+observed and misread as "the store did not run".
+
+### So there are three file paths, not one
+
+| path | routine | mode | use |
+|---|---|---|---|
+| write | `0xeb374` | `"w"`, header then 75 fields | saving |
+| read, menu | `0xe0e90` | `"rb"` | Journey Onward |
+| read, death | `0xe9d2c` | `"rt"` | death |
+
+The two readers use different modes, which is consistent with the writer producing a text file and the
+menu path reading it as a block while the death path parses it line by line.
+
 ## What this establishes
 
 | claim | evidence |
@@ -86,9 +138,8 @@ rather than a proof, since the exact partition of the 917 has not been re-measur
 
 ## What is not established
 
-- whether death uses the same loader. It is the other place a save is read, and `death1` predates knowing
-  what to look for, so it was not checked
-- how the loader parses the text back. It reads 852 bytes into a buffer and the parse has not been read
+- whether the `"rb"` and `"rt"` readers are the same data in different modes or genuinely different
+  handling. Both read `ROSTER1.UT2` and neither parse has been fully read
 - whether `852` is the whole record or a prefix. The arithmetic is suggestive and not measured
 - what the other 69 function entries in `save1` do. Most are probably text and pane helpers, because a save
   redraws the screen
