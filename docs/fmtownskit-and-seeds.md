@@ -41,8 +41,13 @@ out the entire image from them:
 Two consequences that this project has been paying for:
 
 **The entry point is in the header.** `4DDFMT.EXP`'s entry is `0x340A4`, the symbol `_mwINIT`. His
-toolkit reads `e.eip` and walks. `ENCHANT.EXP` is `MP`, which has no EIP field at all, which is why
-`Exp.eip` is `None` on the `mp-support` branch and every caller now needs a seed supplied.
+toolkit reads `e.eip` and walks.
+
+> **CORRECTION: `MP` does have an entry point, and it is the dword at `0x14`.** This section said
+> `ENCHANT.EXP` "has no EIP field at all", which is why `Exp.eip` is `None` and every caller must
+> supply a seed. The dword at `0x14` holds `0x00101A20`, and the loader is observed transferring
+> control there. The claim came from `MP_FIELDS`, which has no entry at `0x14` and so never looks at
+> it. See [the entry point `MP` does have](#the-entry-point-mp-does-have) below.
 
 **Function starts are linker-supplied.** `--symbol-seeds END` makes every symbol below the code end an
 entry. That is not a heuristic. Our seeds are inferred by this project's own analysis, and a third of
@@ -52,6 +57,53 @@ the candidate set is already classified as not being real entries (the breakdown
 **And he never needed a zero-region guard**, because `_edata` and `_end` told him where data began.
 There is no BSS-detection code anywhere in `fmtownskit`, only a "hole" in a jump table, which is a
 different thing.
+
+## The entry point `MP` does have
+
+`MP_FIELDS` reads ten fields from a flat `MP` header and not one of them is the entry. The dword is
+there anyway, at `0x14`:
+
+```
+$ python3 -c "import struct;d=open('ENCHANT.EXP','rb').read(0x1e); \
+    print(hex(struct.unpack_from('<I',d,0x14)[0]), hex(struct.unpack_from('<H',d,0x16)[0]))"
+0x101a20 0x10
+```
+
+and the loader uses it. A `SAVEHIST` dump taken the instant the game's first library call was reached,
+read from the oldest end, has the hand-off at step 46,254 of 65,536:
+
+```
+46253  0008:00003DD3     IRETD, the loader's last instruction
+46254  000C:00101A20     the header's entry, first game instruction
+46255  000C:00101A78     where its `jmp` goes
+```
+
+```
+$ U 0008:3DD3      -> CF        IRETD
+$ U 000C:101A20    -> EB 56     JMP 00101A78
+```
+
+So the transfer is an interrupt return that pops `CS:EIP = 000C:101A20` from a frame the loader built.
+The header's `CS` word is `0x0010` and the runtime selector is `000C`, so **the loader takes the flat
+dword and ignores `CS`**, which is what a 386 flat-model `MP` should do. The entry instruction is a
+two-byte jump. See [entry-point-question.md](entry-point-question.md).
+
+**Two conversions before that is a seed here.** The toolkit sets `image_offset = 0`, so it treats a
+file offset as an address. At runtime the relation is `address = file offset - 0x200`, measured from
+`MD 000C:0` returning `KYB_init`, which is at file `0x200`. So the seed to hand it is **`0x101C20`**,
+whose bytes are `EB 56`, and not `0x101A20`, whose bytes are `02 03` and are not an instruction
+boundary. A slip of exactly that 0x200 is what hid the entry.
+
+**The change in `_read_mp`**, given `image_offset = 0`:
+
+```python
+# was: self.eip = None
+self.eip = struct.unpack_from('<I', data, 0x14)[0] + 0x200   # runtime address = file - 0x200
+```
+
+One seed is not a seed list, so the open question about whether this project's inferred seeds are
+sufficient is untouched. What changes is that the walk now has one anchor that the loader itself
+proves, instead of only `CALL` targets that this project inferred.
 
 ## The interleaving is the same, and he named it
 
@@ -147,6 +199,7 @@ removed. With a guard in place the instruction count becomes a real number, and 
 | piece | verdict |
 |---|---|
 | `exp.py` `P3` parser | not applicable, so an `MP` path was added instead, see the branch |
+| `exp.py` `MP` entry | **available but unused**: the dword at `0x14` is the entry, observed delivered |
 | `i386.py` decoder | **agrees with Capstone on every routine checked** |
 | `x86map.py` table detection | **7 sites reported, 7 real, 0 false positives** |
 | `recomp` | **works**: the pixel writer recompiles and passes its self-test, 4 vectors 0 failures |

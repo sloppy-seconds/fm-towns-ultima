@@ -110,6 +110,9 @@ as built.
 `000C:101A78`.** The header was telling the truth. What that code does is the next question, and it
 belongs to the init path rather than to this page.
 
+It also supplies the one thing `fmtownskit` was missing on this image, an authoritative seed. See
+[fmtownskit-and-seeds.md](fmtownskit-and-seeds.md).
+
 ---
 
 **[The A12 design](a12-design.md)** **[The randMod survey](randmod-survey.md)** **[Plan](plan.md)**
