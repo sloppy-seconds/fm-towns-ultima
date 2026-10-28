@@ -91,7 +91,7 @@ from the items below rather than maintained separately.
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
 | 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
-| 7a Does the port's screen match the machine's | AUTONOMOUS | **yes**, both sides can dump |
+| 7a Does the port's screen match the machine's | AUTONOMOUS | **in progress**, second divergence localised to the allocator |
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **yes**, the rules exist |
 | 7e A port regression the checks can run | AUTONOMOUS | **yes**, no emulator needed |

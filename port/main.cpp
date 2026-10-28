@@ -46,11 +46,33 @@ extern const X86Module g_mod_p_game;
 static FILE* g_trace_file = nullptr;
 static unsigned long long g_trace_written = 0, g_trace_limit = 0;
 static std::vector<uint8_t> g_trace_seen;     // one byte per 4 KB page of a 64 MB window, then bit set per byte
+static uint32_t g_stop_at = 0, g_stop_dump = 0, g_stop_len = 0;
+static unsigned long long g_stop_count = 0, g_stop_hits = 0;
 // First executions only, in the order they happen. A full instruction trace of a real start-up is hundreds of
 // millions of lines and would have to be paged through; the order in which each address is *first* executed is
 // a few tens of thousands of lines, is bounded whatever the run length, and is what a comparison against the
 // machine's block-level capture actually needs.
+//
+// U2_STOP_AT=<guest addr> stops the run when that instruction runs and prints memory, so a value can be read at
+// exactly the same point on both sides. That is how a divergence in an allocator's return value gets compared
+// rather than guessed at.
 void x86_trace(X86Cpu& c, uint32_t at) {
+	if (g_stop_at && at == g_stop_at) {
+		if (++g_stop_hits < g_stop_count) return;      // U2_STOP_COUNT stops at the Nth hit, not the first
+		std::printf("stop      reached 0x%06x on hit %llu after %llu instructions\n", at, g_stop_hits,
+		            g_trace_written);
+		if (g_stop_dump && g_stop_len) {
+			std::vector<uint8_t> buf(g_stop_len);
+			towns::g_towns->read_block(g_stop_dump, buf.data(), (uint32_t)buf.size());
+			std::printf("memory    %08x:", g_stop_dump);
+			for (unsigned char ch : buf) std::printf(" %02x", ch);
+			std::printf("\n");
+		}
+		std::printf("regs      eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x esp %08x\n",
+		            c.r[0], c.r[3], c.r[1], c.r[2], c.r[6], c.r[7], c.r[5], c.r[4]);
+		if (g_trace_file) std::fclose(g_trace_file);
+		std::exit(0);
+	}
 	if (!g_trace_file || g_trace_written >= g_trace_limit) return;
 	uint64_t key = ((uint64_t)(c.sreg[1] & 0xFFFF) << 32) | at;
 	if (g_trace_seen.empty()) g_trace_seen.assign((size_t)1 << 22, 0);   // 4 MB of bits covers 32 M addresses
@@ -236,6 +258,17 @@ int main(int argc, char** argv) {
 		const char* lim = std::getenv("U2_TRACE_LIMIT");
 		g_trace_limit = lim ? std::strtoull(lim, nullptr, 10) : 200000ull;	// first executions, not instructions
 		std::printf("trace     %s, first executions up to %llu\n", tf, g_trace_limit);
+	} else {
+		g_trace_limit = 0;						// no trace file, but stop-at can still be used
+	}
+	if (const char* sa = std::getenv("U2_STOP_AT")) {
+		g_stop_at = (uint32_t)std::strtoul(sa, nullptr, 16);
+		if (const char* sd = std::getenv("U2_STOP_DUMP")) g_stop_dump = (uint32_t)std::strtoul(sd, nullptr, 16);
+		if (const char* sc = std::getenv("U2_STOP_COUNT")) g_stop_count = std::strtoull(sc, nullptr, 10);
+		if (!g_stop_count) g_stop_count = 1;
+		g_stop_len = 64;
+		std::printf("stop      will stop at 0x%06x on hit %llu%s\n", g_stop_at, g_stop_hits + g_stop_count,
+		            g_stop_dump ? "" : " (no U2_STOP_DUMP, registers only)");
 	}
 #endif
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);

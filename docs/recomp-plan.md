@@ -484,6 +484,51 @@ thing, and only the screen check could have shown it, because a spinning program
 `-DX86_TRACE_ON` and define `x86_trace(X86Cpu&, uint32_t)` in the port, and every instruction calls it with its
 guest address. The machine's side of the same comparison already exists as a tool: `tools/cfgprobe.py capture
 --journey` arms the recorder before boot and writes an ordered control-flow capture of a whole start-up. Two
+sequences, one aligned comparison, and the first difference is the bug. `tools/divergence.py` is that
+comparison, and it uses set subtraction rather than adjacency, because the port's trace records first executions
+and therefore carries no adjacency at all.
+
+## The second divergence, after the floppy: the allocator
+
+With the `A:` drive in place the error dialog is gone, and `tools/divergence.py` names the next address. Same
+capture, 600 frames, **6,464 of the port's 6,489 addresses match a machine record** and 25 do not. The first is
+`0x10386b`, and it is not a function: it is the instruction a `jmp` two bytes earlier exists to skip.
+
+```
+0x1037c0  call 0x1035f0        malloc
+0x1037c5  xchg esi, eax
+0x1037c6  and esi, esi
+0x1037c8  jne 0x1037d7
+0x1037ca  push edi
+0x1037cb  call 0x103718        add a chunk
+0x1037d0  push edi
+0x1037d1  call 0x1035f0        malloc again
+0x1037d6  xchg esi, eax
+0x1037d7  and esi, esi
+0x1037d9  je 0x10386b          both attempts returned null
+0x1037df  ...                  the machine goes here
+0x10386b  mov dword [ebp-4], 0  the port goes here, and returns 0
+```
+
+Both sides execute `0x1037d9`. The machine then runs `0x1037df`; the port jumps. So the port's allocator returned
+null and the machine's did not, at the same instruction, from the same call site.
+
+**Measured on the port side with `U2_STOP_AT` and `U2_STOP_COUNT`:** the failing call is the **28th** execution
+of `0x1037d9`. Hits 1 to 24 return a pointer, hit 28 returns zero, and every one of them asks for the same
+`edi = 0x214` bytes. So it is not one absurd request, it is an allocator that runs out after about two dozen.
+
+**And the heap is not out of address space.** At the failure, DS `0xdfd08` holds `0x0011EAC8` and DS `0xdfd10`
+holds `0x02000000`, with the break DS `0x00E00FC` at `0x00169AE8`, so `top - break` is about 31 MB. The free-list
+head DS `0x00E00F4` is zero, which is what the search walks.
+
+**Two properties of this heap, both read from the emitted code rather than guessed.** The routine at `0x101f1c`,
+which sysalloc calls to grow memory, is a stub in this binary: both of its branches jump past the growth code to
+the epilogue. And sysalloc's own failure return at `0x1036e9` **never executes**, so sysalloc is not what fails.
+The failure is therefore in the free-list search or in the chunk that add-a-chunk linked, not in running out of
+memory.
+
+That is where this stands. The next step is the emitted `f_00103478` (the search) against the chunk that
+`f_00103718` links, or the same two globals read on the live machine at `0x1037d9` by breakpoint.
 sequences, one aligned comparison, and the first difference is the bug.
 
 **Done, and it found a missing floppy drive.**
@@ -647,3 +692,21 @@ third-party decoder. Confirm that before relying on it, rather than assuming.
 **[fmtownskit and seeds](fmtownskit-and-seeds.md)** records what the toolkit already does.
 
 **[Distance to reimplementation](reimplementation-gap.md)** **[Call graph](call-graph.md)** **[Plan](plan.md)**
+
+## Debug switches on the port
+
+Set as environment variables. Each exists because something needed it and guessing was worse.
+
+| switch | what it does |
+|---|---|
+| `U2_TRACE_FILE=<path>` | build with `-DU2_TRACE=ON` first. Writes each address the first time it executes, so the file stays bounded. |
+| `U2_TRACE_LIMIT=<n>` | cap on those first executions, default 200000. |
+| `U2_STOP_AT=<guest hex>` | stop when that instruction runs, print registers, exit. Needs a trace build. |
+| `U2_STOP_COUNT=<n>` | stop on the Nth hit rather than the first, which is how "the 28th allocation fails" was measured. |
+| `U2_STOP_DUMP=<linear hex>` | 64 bytes at that address when the stop fires. |
+| `U2_VRAM=1` | at exit, how much of the machine's VRAM vector is non-zero, plus the kit's VRAM and sprite access counters. |
+| `U2_DIFF_CODE=1` | at exit, every byte of the program's image that guest memory has changed, and how many are inside a decoded instruction when `U2_COVERAGE` is given. |
+| `U2_COVERAGE=<file>` | the coverage file from `tools/insncoverage.py`. |
+| `U2_DUMP=<linear hex>` | 32 bytes of guest memory at exit. |
+| `U2_ENTRY`, `U2_STACK` | override the entry (default: the `MP` header field) and the hand-off `ESP`. |
+| `U2_FLOPPY_LS=1` | list the `A:` image's root directory and exit. |
