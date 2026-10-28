@@ -88,33 +88,51 @@ A wrong fix was attempted and reverted: storing the source as `dst - numBytes` i
 That produced 1268 `J` edges and **zero** `F` edges, which is the worst failure this tool can have,
 because an all-branches graph looks like data.
 
-## The one measurement that does not close
+## Pre-execution EIP: measured, and it changes the picture
 
-**Captured source addresses are mostly not instruction boundaries.** Decoding the state linearly
-from the lowest captured address in each segment and asking whether each captured source lands on a
-boundary gives **210 of 3791, or 5.5 percent**.
+Recording the EIP from `BeforeRunOneInstruction` alongside the post-execution one was the stated next
+step, and it was worth taking.
 
-A concrete case. `STA` reports `CS=0110(LIN:00019F34)`, and the recorder stores the same base, so
-the two agree. At base + `0x9AEA` the bytes are `f6 d0 65 8a 95 22 02 00`, which decodes `not al`
-(2 bytes), `mov` (7 bytes), landing at `9AF3`. The capture instead reports frequent edges at `9AF1`
-and `9AF2`, with opcodes (`0x1A5`) that do not appear in that byte stream at all. `9AF1` is inside
-the 7-byte `mov`.
+**`preEIP + preLen == src` for 405 of 415 fall-through edges (97.6 percent).** The EIP arithmetic is
+sound. The recorder is storing the address the CPU actually held, and the length it actually used.
 
-So either the base being recorded is not the base EIP is relative to at that moment, or the
-emulator is genuinely executing misaligned addresses. **This is not resolved.** The same 5.5 percent
-appears from a normal boot and from a `LOADSTATE` boot, so it is not a savestate artefact.
+An earlier version of this measurement reported **0 of 305** and was wrong, because it paired the
+pre-execution EIP with the edge's destination rather than its source. `pre + len` lands on `src`, not
+on `dst`, because `src` is the address *after* the instruction whose start `preEIP` records. Getting
+that pairing wrong makes a correct recorder look completely broken, which is the second time in this
+investigation that a mis-specified comparison produced a confident false negative.
 
-**What it does not invalidate.** The fall-through arithmetic is self-consistent: `dst == src + len`
-for every `F` edge in both captures. Whatever the addresses mean, the recorder is reporting them
-faithfully. What cannot yet be claimed is that a `J` edge is a branch, because a third of them
-point at `src+1` for multi-byte instructions.
+## The zero region is runtime-filled code, not padding
 
-## Where to look next
+`ENCHANT.EXP` has `0x10000` to `0x20000` as **65,536 bytes of zeros**. An earlier reading of this
+concluded that addresses there were not real code and that the recorder was at fault. That was
+backwards.
 
-Add the **pre-execution EIP and `numBytes`** to the record (both available in
-`BeforeRunOneInstruction`) and check that the before-EIP plus the after-EIP differ by `numBytes` for
-`F` edges. If they do not, the fault is in which value is being read. If they do, the base is wrong
-and the fix is to resolve the descriptor rather than read `baseLinearAddr`.
+The game **writes code into that region at runtime**. A boot capture has 413 of its 535 game-segment
+edges sourcing from inside it, and none of them decode against the file, because the file is not what
+the CPU is executing there. The emulator is right and the file comparison was the broken thing.
+
+## What still does not reconcile, stated plainly
+
+Outside the zero region, 19 of 122 game-segment edge sources agree with the file on instruction
+length and **103 do not**. So `CS 000C` with base `0x400000` does not map to `ENCHANT.EXP` at
+`offset = address` for most of the image.
+
+The `MP` header declares an entry point and the image is flat, so the obvious mapping is the one that
+fails. That is the open question, and it is now narrow: it is about how a linear address in the game
+segment relates to a file offset, not about whether the recorder records correctly.
+
+What is established regardless:
+
+| claim | evidence |
+|---|---|
+| The recorder captures a graph | 2,063 edges, 12 segments |
+| Fall-through arithmetic holds | 405 of 415, `pre + len == src` |
+| Zero region is runtime-filled | 413 edges source from it, none decode against the file |
+| Length agreement outside it fails | 19 agree, 103 differ |
+
+The last row is the open one. Until it is settled, the graph's addresses should be read as
+`segment:offset` pairs known to the emulator, not as file offsets.
 
 ## Why this instead of reading `SAVEHIST`
 
