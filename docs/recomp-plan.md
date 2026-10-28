@@ -106,6 +106,29 @@ created, and linear addresses outside the RAM this program mapped. `townsos()` s
 TownsOS hands it over, but the hand-off this program expects evidently includes descriptors and memory
 this port does not yet create.
 
+**Two of the three were supplied, and the third turned out to need the disc.** The low 2 MB is now mapped
+(TownsOS leaves BIOS work areas there, and the program writes at `0xdf000`), the program's mapping was
+widened by 256 KB past the image end (it writes at `0x51e000`), and descriptors exist for `0110`, `0024`
+and `002C`. `0110` uses a **measured** base, `0x19EF4`, because live `STA` reported `CS=0110` there.
+`0024` and `002C` are flat stand-ins and are marked as guesses in the source.
+
+**With those in, the run reaches a different and more informative wall:**
+
+```
+fault at 0000:000000e3: no recompiled function at 0000:00000000 (eip 00101e76, frame 0)
+  es 0014 cs 0000 ss 0014 ds 0014 fs 0110 gs 0014
+```
+
+Control went to `CS=0000`, which is not a program segment, from `eip 00101e76`. The registers show a
+program that has been doing work: `edi 0x7a7d8` is the window record base this project measured.
+
+**The likely cause, offered as a hypothesis and not as a fact.** The real-mode interrupt vector table at
+linear 0 is zero-filled here, because nothing has populated it. A far call or an interrupt taken through
+a zero vector lands on `0000:0000`, which is what the fault says. Filling it is what
+`boot_towns(m, tbios)` does: low RAM plus **TBIOS composed from the disc's own modules** at `0x100000`.
+That needs the disc image, a `cue` for the kit's `Disc::open`, and `compose_tbios` against the disc's
+`TBIOS.INI`. It is the next step rather than a change of plan.
+
 **What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
 finish. It is the difference between "the code does not run" and "the code runs until the machine is

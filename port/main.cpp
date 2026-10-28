@@ -79,18 +79,31 @@ int main(int argc, char** argv) {
 	towns::Machine m;
 	std::printf("machine   townsos profile, %u MB\n", m.profile->ram_mb);
 	m.townsos();
-	std::printf("machine   TownsOS hand-off state set\n");
+	// TownsOS hands a program low RAM with the BIOS work areas in it, and this program reads and writes
+	// around 0xdf000. townsos() sets the PIC, the CRTC and the palette but maps no memory, so the RAM
+	// the hand-off implies is mapped here: the low 2 MB, which is what the profile says the machine has.
+	m.map_ram(0x000000, 0x200000);
+	std::printf("machine   TownsOS hand-off state set, low 2 MB mapped\n");
 
-	// The program, where the running game has it.
-	m.map_ram(PROGRAM_BASE, image_size + 0x10000);
+	// The program, where the running game has it. The image is followed by the program's own BSS and
+	// heap: it writes past the image end at 0x51e000, so the mapping is generous rather than exact.
+	m.map_ram(PROGRAM_BASE, image_size + 0x40000);
 	m.write_block(PROGRAM_BASE, image, image_size);
-	// The stack, and a little above it.
-	m.map_ram(0x110000, 0x20000);
-	std::printf("program   %u bytes at linear 0x%x\n", image_size, PROGRAM_BASE);
+	std::printf("program   %u bytes at linear 0x%x, %u KB of clear space after it\n", image_size,
+	            PROGRAM_BASE, 0x40000 / 1024);
 
 	// The two selectors, as measured. 000C is the code segment, 0014 the data one, same base.
 	m.set_desc(0x000C, PROGRAM_BASE, 0x2000000);
 	m.set_desc(0x0014, PROGRAM_BASE, 0x2000000);
+	// 0110 is the TBIOS code segment, and its linear base was read live: STA reports CS=0110 at
+	// linear 0x19EF4 (docs/live-session.md). Mapping it as a flat window is enough to let the program
+	// address it; putting real TBIOS code there is a separate step and is what boot_towns() does.
+	m.set_desc(0x0110, 0x19EF4, 0x100000);
+	// 0024 and 002C are selectors the start-up loads and TownsOS would have created. Their bases are
+	// NOT measured, so this is a flat descriptor standing in for one, and it is marked as a guess: if
+	// the program reads through them and gets nonsense, this is the first place to look.
+	m.set_desc(0x0024, 0, 0xFFFFFFFF);
+	m.set_desc(0x002C, 0, 0xFFFFFFFF);
 
 	X86Cpu c;
 	std::memset(&c, 0, sizeof c);
