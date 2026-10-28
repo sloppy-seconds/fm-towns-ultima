@@ -148,6 +148,18 @@ itself is small enough to read.
 give a U3-shaped answer. It would not make the FM Towns binary yield anything it has
 not already yielded.
 
+## Ultima Underworld, and the one thing its FM Towns build gives us
+
+`references/UWReverseEngineering` is a third Ultima reverse-engineering effort, for UW1 and UW2. Most
+of it does not transfer: those are a different engine, an earlier DOS build, and the FM Towns release
+of UW2 is a **Watcom** compile where ours is High C 1.73, so its codegen observations are a warning
+rather than a hint.
+
+Its FM Towns notes are still worth reading, for two reasons. It documents the `P3` load-image packing
+test that our own `TMENU.EXP` was checked against, and it supplies the name-propagation method that was
+tried against our pair and came back empty. Both are recorded in
+[name-propagation.md](name-propagation.md).
+
 ## The cheat menus are not comparable
 
 `u3-typescript/web/src/game/cheats.ts` has a cheat menu, and its own header says:

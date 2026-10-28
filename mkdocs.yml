@@ -116,6 +116,7 @@ nav:
       - The A12 disassembler design: a12-design.md
       - The 0x101a20 entry question: entry-point-question.md
       - The control-flow walk: cfgwalk.md
+      - Name propagation, tried and negative: name-propagation.md
       - The indirect branches: indirect-branches.md
       - Ghidra viability: ghidra-viability.md
       - High C code generation: highc-codegen.md

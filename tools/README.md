@@ -71,7 +71,8 @@ directory, so run them from the repo root.
 | `coderefs.js` | Finds code that references an asset string. `--all`, `--string X`, `--calls`. Reports that 5 of 71 paths are compiled in. |
 | `test-coderefs.js` | Pins `coderefs.js` against hand-decoded bytes, 11 assertions. Run it after touching the tool. |
 | `expimage.js` | Measures `ENCHANT.EXP` as a code image: real-bytes ratio, zero-fill regions, dispatch mix, function-boundary counts. Reproduces every number in [code analysis](docs/code-analysis.md). |
-| `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. |
+| `propnames.js` | **Propagates names from a build that kept symbols onto one that did not**, by probing 24 bytes at each `SYM1` symbol and keeping only probes that occur exactly once in the target. `--shift N` is the control, `--tsv` writes the landed offsets. On `TMENU` to `ENCHANT` it is a **measured negative**: 54 unique matches, none of them function starts. See [name-propagation.md](../docs/name-propagation.md). |
+| `sym1.js` | Parses the `TMENU.EXP` symbol table: 1,725 named symbols including the whole Fujitsu `EGB_*` graphics layer. Validates by exact blob consumption. Values are 32-bit file offsets into the load image, `0x238` to `0x33848`. |
 | `palette-reference.js` | Derives the real palette from emulator screenshots by cross-screen consensus. Screenshots are not committed. |
 | `vendor.sh` | Downloads Tsugaru and the FreeTowns ROMs into `vendor/`, both gitignored. |
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |

@@ -4,12 +4,13 @@
 // See `docs/save-disk.md` 6.8. The layout below is derived from the data and validated
 // by requiring the walk to consume the blob exactly.
 //
-//   [u8 namelen][name bytes][u16 value][u16 zero][u16 type]
+//   [u8 namelen][name bytes][u32 value][u16 type]
 //
-// That is 6 bytes after the name. Uniform across 1,724 records. The single
-// irregularity is the FIRST record, PROGRAM, which carries 6 extra bytes before
-// its value field. With that one correction the walk lands on 0x7b7a, which is
-// exactly the blob length, for 1,725 records.
+// That is 6 bytes after the name, so the STRIDE was right the first time even though the
+// FIELD WIDTHS were not: reading the value as a u16 sent values to 0xffac and produced 974
+// records that looked suspicious. docs/palette.md 6.12 measured the correct reading, and the
+// walk is exact either way, which is the point worth remembering. An exact walk validates the
+// stride and says nothing about the widths.
 //
 // Byte evidence, from the hexdump:
 //
@@ -102,10 +103,9 @@ function walk(startOff) {
 		if (nameEnd + TAIL > blob.length) return { recs, p, why: 'overrun' };
 		const name = blob.toString('latin1', p + 1, nameEnd);
 		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) return { recs, p, why: 'name ' + JSON.stringify(name) };
-		const value = blob.readUInt16LE(nameEnd);
-		const zero = blob.readUInt16LE(nameEnd + 2);
+		const value = blob.readUInt32LE(nameEnd);
 		const type = blob.readUInt16LE(nameEnd + 4);
-		recs.push({ name, value, zero, type, at: p });
+		recs.push({ name, value, type, at: p });
 		p = nameEnd + TAIL;
 		if (first) {
 			p += FIRST_EXTRA;
@@ -135,12 +135,11 @@ if (!exact) {
 const nonzero = result.recs.filter((r) => r.value !== 0);
 const types = new Map();
 for (const r of result.recs) types.set(r.type, (types.get(r.type) || 0) + 1);
-const zeros = result.recs.filter((r) => r.zero !== 0).length;
 
 console.log(
 	'values: ' +
 		nonzero.length +
-		' nonzero, 16-bit range 0x' +
+		' nonzero, 32-bit range 0x' +
 		Math.min(...nonzero.map((r) => r.value)).toString(16) +
 		' - 0x' +
 		Math.max(...result.recs.map((r) => r.value)).toString(16)
@@ -152,13 +151,12 @@ console.log(
 			.map(([t, n]) => t + ' x' + n)
 			.join(', ')
 );
-if (zeros) console.log('WARNING: ' + zeros + ' records have a nonzero reserved field');
 
 // ---------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------
 
-const fmt = (r) => '0x' + r.value.toString(16).padStart(4, '0') + '  ' + r.name;
+const fmt = (r) => '0x' + r.value.toString(16).padStart(6, '0') + '  ' + r.name;
 
 if (FIND) {
 	const re = new RegExp(FIND, 'i');
@@ -177,7 +175,7 @@ if (DUMP) {
 	const outDir = path.join(ROOT, 'analysis');
 	fs.mkdirSync(outDir, { recursive: true });
 	const out = path.join(outDir, 'SYM1-symbols.txt');
-	const lines = result.recs.map((r) => r.value.toString(16).padStart(4, '0') + '  ' + r.type + '  ' + r.name);
+	const lines = result.recs.map((r) => r.value.toString(16).padStart(6, '0') + '  ' + r.type + '  ' + r.name);
 	fs.writeFileSync(out, 'addr  type  name\n' + lines.join('\n') + '\n');
 	console.log('\nwrote ' + out + ' (' + result.recs.length + ' symbols)');
 }

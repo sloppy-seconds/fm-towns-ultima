@@ -722,6 +722,44 @@ eq('ENCHANT contains "PAL"', enchantText.includes('PAL'), false);
 		if (cat.has(n) && disc.get(cat, n).indexOf(Buffer.from('SYM1')) !== -1) withSym.push(n);
 	}
 	eq('binaries containing SYM1', withSym.join(','), 'TMENU.EXP');
+
+	// The record is [u8 namelen][name][u32 value][u16 type] and the values are file offsets
+	// into TMENU's load image. Asserted because tools/sym1.js read them as a u16 for long
+	// enough to print a 16-bit range and a phantom "reserved field", and because an exact
+	// walk validates the STRIDE and not the field widths: the walk is exact either way, which
+	// is how the width error survived. A u16 parser cannot produce a value above 0xffff, so
+	// the maximum is the control that separates the two readings.
+	const tmenu = disc.get(cat, 'TMENU.EXP');
+	const blob = tmenu.subarray(tmenu.indexOf(Buffer.from('SYM1')));
+	let p = 0x0e;
+	let firstRecord = true;
+	let records = 0;
+	let min = Infinity;
+	let max = 0;
+	let inside = true;
+	while (p + 1 <= blob.length) {
+		const len = blob[p];
+		const nameEnd = p + 1 + len;
+		if (len < 1 || nameEnd + 6 > blob.length) break;
+		const value = blob.readUInt32LE(nameEnd);
+		if (value) {
+			min = Math.min(min, value);
+			max = Math.max(max, value);
+			if (value < 0x200 || value >= 0x33892) inside = false;
+		}
+		records++;
+		p = nameEnd + 6;
+		if (firstRecord) {
+			p += 6;
+			firstRecord = false;
+		}
+	}
+	eq('SYM1 record count', records, 1725);
+	eq('SYM1 value range', '0x' + min.toString(16) + '-0x' + max.toString(16), '0x238-0x33848');
+	if (inside) ok('SYM1 values lie inside the declared load image', '0x200-0x33892');
+	else bad('SYM1 values lie inside the declared load image', 'at least one value is outside 0x200-0x33892');
+	if (max > 0xffff) ok('SYM1 values need 32 bits, so a u16 read is wrong', 'max 0x' + max.toString(16));
+	else bad('SYM1 values need 32 bits, so a u16 read is wrong', 'max 0x' + max.toString(16));
 }
 
 // ---------------------------------------------------------------------------
