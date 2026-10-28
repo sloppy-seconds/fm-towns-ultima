@@ -157,6 +157,38 @@ fault at 0110:00000dd4: no code at this entry: in a no-code range 0xb91-0xe1c
 means two recompilation passes and a `modules.cpp` naming both modules, since the emitter writes one
 `modules.cpp` per run. That is the next step and it is plumbing, not research.
 
+**Done, and it works.** Two passes now, each with its own ranges, merged into one build directory with a
+hand-written `modules.cpp` naming both. `tools/codelimits.js` grew `--file` so it can derive the ranges for
+any image rather than ENCHANT alone, and TBIOS's own zero fill is **3 runs**. The result for both modules:
+
+```
+game:  783 functions, 40902 instructions, 0 refused, 0 conflicts
+tbios: 5573 functions, 15288 instructions, 0 refused, 0 conflicts
+```
+
+TBIOS went from 6 functions to **5,573**, and from 2,166 refusals to **none**. The program now calls into
+TBIOS, runs it, and comes back.
+
+**The next wall names a service rather than a place.** The program's own start-up calls three BIOS
+services and the third is not implemented:
+
+```
+int 21h AX=3000 EBX=0000000C            get the DOS version
+int 90h AX=0000 EBX=00000004            succeeded
+int 90h AX=0101 EBX=00000004            succeeded
+int 90h AX=0400 EBX=00000004            fault: no service
+```
+
+Captured by `U2_TRACE_INT=1 build/port/b/u2port`, a trace knob added to the port for this. The call site is
+`000C:00000054`, in the program's own low stub, and `ecx` is `0xFFFF` throughout.
+
+**Why the kit cannot answer this one for us.** `Machine::int90()` implements `AH` 00, 01, 02, 05, 06, 09 and
+0A, and its comment says those were read on the oracle with **no key ever pressed**. This program asks for
+`AH=04`, which that recording never saw. So the behaviour of `AH=04` is not in the kit and must not be
+guessed. Two honest routes: run the same oracle recording with U2 at this point, or check the FM Towns
+databook for the function, and only then patch `int90()` and record the patch, since the kit is a vendored
+clone and its changes are documented rather than made silently.
+
 **What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
 finish. It is the difference between "the code does not run" and "the code runs until the machine is

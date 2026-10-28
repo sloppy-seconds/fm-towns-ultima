@@ -23,6 +23,7 @@
 // Usage:
 //   node tools/codelimits.js                     the ranges, one per line, hex
 //   node tools/codelimits.js --args              the same as --no-code flags, for a shell
+//   node tools/codelimits.js --file TBIOS.BIN --args   the same for another module's image
 //   node tools/codelimits.js --min 64            a different threshold
 //   node tools/codelimits.js --density           nonzero percentage per 64 KiB block
 //   node tools/codelimits.js --check             assert the table in docs/code-analysis.md
@@ -63,10 +64,10 @@ const DOCUMENTED = [
 	[0x00e5f2, 207322],
 ];
 
-function loadImage() {
+function loadImage(file) {
 	// Raw file, not header-stripped: every address in docs/ is a raw file offset for this
 	// binary, proved in docs/two-frames-of-reference.md by the pixel writer at 0xf3e24.
-	const local = path.join(ROOT, 'ENCHANT.EXP');
+	const local = file || path.join(ROOT, 'ENCHANT.EXP');
 	if (!fs.existsSync(local)) {
 		throw new Error('ENCHANT.EXP not present; see README section 1');
 	}
@@ -128,7 +129,22 @@ function main() {
 		return 2;
 	}
 
-	const img = loadImage();
+	// A second image, for a module that is not ENCHANT. The ranges are in that file's own frame,
+	// which for the TBIOS module is the runtime frame already, since boot_towns puts the image at a
+	// page boundary and the module is keyed by offsets into it. --check is refused with --file
+	// because DOCUMENTED describes ENCHANT's fill and would be meaningless against another image.
+	const fileIdx = argv.indexOf('--file');
+	const file = fileIdx >= 0 ? argv[fileIdx + 1] : null;
+	if (fileIdx >= 0 && !file) {
+		console.error('--file needs a path');
+		return 2;
+	}
+	if (file && argv.includes('--check')) {
+		console.error('--check asserts the table for ENCHANT.EXP; it means nothing with --file');
+		return 2;
+	}
+
+	const img = loadImage(file);
 	const runs = [...headerRange(img), ...zeroRuns(img, min)];
 
 	if (argv.includes('--density')) {

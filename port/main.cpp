@@ -93,6 +93,10 @@ int main(int argc, char** argv) {
 	}
 	std::printf("machine   TBIOS %zu bytes from %s, low 768 KB mapped by boot_towns\n", tbios.size(),
 	            tbios_path);
+	// U2_TRACE_INT=1 records every BIOS call the program makes. The kit's int90() implements the
+	// services its own recordings saw, and this program asks for one they never did, so the list of
+	// what it asks for is the evidence needed to decide what to add.
+	if (std::getenv("U2_TRACE_INT")) m.trace_int = true;
 	towns::boot_towns(m, tbios);
 
 	// The program, where the running game has it. The image is followed by the program's own BSS and
