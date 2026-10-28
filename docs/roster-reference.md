@@ -162,6 +162,53 @@ field is unused. It took a wrong reading of exactly that to notice.
 both, which is why the position diff of a moongate looked like a time jump only
 until `WORLD` was spotted.
 
+## The field name table, in the binary
+
+The field order above is not a convention, it is in the executable. `ENCHANT.EXP` at `0x2980` to `0x2df8`
+holds **91 `printf` format strings, one per field, in field order**:
+
+```
+0x0029C8  TORCHES=%d          0x002B24  HAND=%d
+0x0029D4  STRENGTH=%d         0x002B30  DAGGER=%d
+0x002A5C  HP=%d               0x002AB0  R_ARMOUR=%c
+0x002A94  KEY=%d              0x002BFC  RED_GEM=%d
+```
+
+**Method.** Every printable ASCII run of three bytes or more in the image, filtered to the ones that
+contain a `=%` conversion. There are 2,497 runs and 91 of them are field formats. Reproduce with a
+`[\x20-\x7e]{3,}` scan over `ENCHANT.EXP` and keep the runs containing `=%`.
+
+Grouped, the block says what the character record holds:
+
+| group | fields |
+|---|---|
+| identity | `NAME` `MODE` `LANGAGE` `SHAPE` `SPID` `RACE` `PROFESSION` `SEX` `SKIN` |
+| statistics | `STRENGTH` `AGILITY` `STAMINA` `CHARISMA` `WISDOM` `INTELLIGENCE` `MAGIC` `HP` `MHP` `EXPERIENCE` |
+| economy | `TORCHES` `FOOD` `GOLD` `KEY` `ERA` `TOOLS` |
+| armour | `CLOTH` `LEATHER` `CHAIN` `PLATE` as counts, and `R_ARMOUR` as the material worn, `%c` |
+| weapons | `DAGGER` `MACE` `AXE` `BOW` `SWORD` `GREAT_SWORD` `LIGHT_SWORD` `PHASER` `QUICK_SWORD`, and `R_WEAPON` as the one readied, `%c` |
+| other gear | `RING` `WAND` `STAFF` `BOOTS` `CLOAK` `HELM` `REFLECT` `POWER` `HAND` |
+| quest items | `GEM` `ANKH` `RED_GEM` `SKULL_KEY` `GREEN_GEM` `BRASS_BUTTON` `BLUE_TASSLE` `STRANGE_COIN` `GREEN_IDOL` `TRI_LITHIUM` |
+| spells | `NONE` `LIGHT` `DOWN` `UP` `PASSWALL` `SURFACE` `PRAYER` `MISSILE` `BLINK` `KILL` `SCORE` |
+| state | `MAP` `MAP_X` `MAP_Y` `DUNG_X` `DUNG_Y` `PLAYER_X` `PLAYER_Y` `TORCH` `SPELL` `VEHICLE` `SEED` `FUEL` `FOUND` `WORLD` `ARM` `FOOT` `SLEEP` `GATE_X` `GATE_Y` `GATE_TIME` |
+
+**Verdict: there is no item table, and looking for one is closed.** Every item word in the printable text
+of the binary appears in this block and nowhere else. The three other runs that contain an item-like word
+are MetaWare allocator symbols (`insert_into_free_chain` and friends). U2's items are therefore **fields in
+the character record**, each a count or a one-byte code, not records in a table. A reimplementation ports
+the struct, and no table extraction is owed.
+
+**What this adds to the tables above:** `PHASER` and `WAND`, which the earlier list did not carry, and
+`REFLECT` `POWER` `HAND`, which sit between the armour materials and the weapons and are unexplained.
+
+**Open, and small.** `TORCHES` is the sixth named field in the block and the table above numbers it 7. The
+one-field offset needs explaining before the block is used as an index by position. The block gives names
+and order, not offsets.
+
+**What is still missing is arithmetic, and it is code rather than data.** What each weapon does, what each
+armour material is worth, what `REFLECT` and `POWER` modify: those are reads inside the routines that test
+these fields, and they belong to [combat-formulas.md](combat-formulas.md) rather than here.
+
 ## Reproducing the schema
 
 ```bash
