@@ -185,26 +185,59 @@ the loop, and on one of those branches, it clears a byte in each of four records
 0xe9dd0  jmp 0xe9db6
 ```
 
-### What the four records are, and a phrase that was wrong
+### What the four records are, and three wrong readings of one loop
 
 An earlier version of this page called them "party slots". **They are not a party.** Ultima II has one
 player character at a time. The four are the four **save slots**, which the player chooses between.
 
-The corroboration is on the save disk: `node tools/savedisk.js slots saves/fresh_game.hdm` reports
-four slots, each 917 bytes, holding characters `E`, `D`, `B` and an empty fourth. So four is the roster
-count, and the in-memory table mirrors it.
+Corroborated on the save disk: `node tools/savedisk.js slots saves/fresh_game.hdm` reports four slots,
+each 917 bytes, holding characters `E`, `D`, `B` and an empty fourth. So four is the roster count, and
+the in-memory table mirrors it. The active one is indexed by `0xceca0`, which has **2,215 references**
+and is the global the food routine at `0xf0a08` uses. The clearing loop does not read it.
 
-The active one is indexed by `0xceca0`, which has **2,215 references** across the image and is the same
-global the food routine at `0xf0a08` uses to find the character it is charging. The clearing loop does
-not read it, so the loop is not about the active character.
+**What the loop does, read with operand detail rather than by eye.** The `lea` chain is:
 
-**What clearing all four means is therefore open.** The reading above, that a death marks every slot
-dead, is not supported by anything measured. A loop that clears the same byte in all four records could
-be marking them all, could be a reset of a shared attribute stored per record, or could be clearing
-something that is simply duplicated. The byte is not named and nothing here shows how it is read.
+```
+mov eax,esi
+lea edx,[eax+eax*4]      ; 5n
+lea edx,[eax+edx*2]      ; 11n
+shl edx,5                 ; 352n
+sub edx,eax               ; 351n
+```
 
-`0xcde4d` is the byte immediately after the record base `0xcde4c` and has **145 references**, so it is a
-core per-record field rather than an obscure one.
+My first reading of that chain had the source and destination registers in the wrong roles. It reached
+351 anyway, by coincidence, which is why the error survived a check. `capstone` settles it, and this is
+exactly the case `docs/tooling-policy.md` describes: parsing or eyeballing an operand is how the wrong
+question gets answered.
+
+Then the store, and what follows it:
+
+```
+0xe9db4  loop 1: sub esi,esi / cmp esi,4 / jge out
+0xe9dc8    mov byte [edx+0xcde4d], 0     ; one byte per record
+0xe9eac  loop 2: mov al,[ebx] / cmp al,0xa / je out
+0xe9ec6    mov byte [ecx+0xcde4d], al    ; write a character
+0xe9ecc    inc [ebp-0x54]                  ; advance into the record
+0xe9ecf    inc ebx                          ; advance along the string
+```
+
+**Loop 1 blanks a byte in each record. Loop 2 copies a string into a record one byte per iteration,
+stopping at newline or NUL.** `0xcde4d` is record base + 1, so this is writing into a name field.
+
+The two readings before this one were both wrong and both are kept here rather than replaced:
+
+| reading | how it failed |
+|---|---|
+| marks every slot dead | an RPG-shaped guess, no measurement behind it |
+| clears the slot letter, emptying the roster | the letters `E`, `D`, `B` survived the store, which is what showed the reading was wrong |
+
+The surviving letters were the clue. A store that demonstrably executed four times could not have been
+writing a byte that read `45 44 42` afterwards, so the address or the meaning had to be wrong. It was
+the meaning: the clear is a prelude to a write, and the write happens on a different branch.
+
+**What is still not established:** whether this is renaming, creating, or restoring, and whether the
+death screen is even the caller. The function was reached during the death capture, but the same code
+may run when a character is created or loaded. Naming it needs the caller's context, not this body.
 
 ### The terminator test earned its keep
 
