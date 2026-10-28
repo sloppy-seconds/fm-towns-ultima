@@ -37,21 +37,44 @@ captures.
 
 Everything else, assets, text, the roster format, is done or close.
 
+## The tools this plan uses, and where they are
+
+The toolkit is `references/vs-sr-dev/fmtownskit/`, cloned rather than vendored, and it is **not** this
+repository's `tools/`. An earlier version of this plan named it once and never said how to call any of it.
+That was a real defect: the plan asked for work the toolkit already does.
+
+| module | what it provides | stage |
+|---|---|---|
+| `fmtownskit/i386emu.py` | **a software emulator**: `CPU.run(code, regs, flags, mem)`, `FlatMemory`, `CPU.step` | **1** |
+| `fmtownskit/recomp/emit.py` | C++ emission, functions taking `X86Cpu&` | 1 |
+| `fmtownskit/recomp/__main__.py` | the CLI, spec `NAME:PATH:CS+seed,seed` | 1, 2 |
+| `fmtownskit/recomp/discover.py` | the guarded walk, `load(path, seeds=...)` | 2, 3 |
+| `fmtownskit/runtime/` | 3,817 lines of platform layer | 1 |
+| `fmtownskit/tablecheck.py` | `confirmed_by_capstone`, `encoded_sites` | 2 |
+| `fmtownskit/x86map.py` | a code/data map, classes `Map` and `Consts` | 2 |
+| `fmtownskit/i386.py` | the decoder this repository's tools already use | 2, 3 |
+
+**`i386emu.py` is the important omission.** It is an i386 interpreter, and stage 1 was describing the
+writing of exactly that. `tablecheck.py`'s `confirmed_by_capstone` is likewise half of stage 2 already.
+
+One caution: `i386emu` contains `_uc_run` and `_ours_run`, which suggests it has been compared against a
+third-party decoder. Confirm that before relying on it, rather than assuming.
+
+**[fmtownskit and seeds](fmtownskit-and-seeds.md)** records what the toolkit already does.
+
 ## Stage 1: make the transpiled output run at all
 
-**Artefact:** a binary that loads `ENCHANT.EXP`, calls one emitted function by address, and exits with a
-stated result. Not a game. A harness that proves the pipeline executes.
+**Artefact:** `0xebb70`, the roster writer, executed **two ways** against one input, both matching a real
+`ROSTER1.UT2` byte for byte. Once through `fmtownskit.i386emu.CPU.run`, and once through the C++ that
+`recomp/emit.py` generates.
 
-The pieces exist. `fmtownskit/runtime/` has `x86_core.cpp`, `towns_mem.cpp`, `towns_io.cpp`, `towns_sdl.cpp`
-and the rest, 3,817 lines. `recomp/emit.py` produces functions taking `X86Cpu&`.
+**Done when:** the emulator and the emitted C++ agree with each other **and** with the save file.
+**Failure case:** if they disagree, say which two agree and which does not. Two of three agreeing is the
+useful result, not a failure.
 
-**Done when:** one named routine, `0xebb70` the roster writer, runs against a synthetically filled
-character record and produces output matching a real save file. **Failure case:** if it cannot be made to
-run, record which of memory, I/O or the CPU struct is missing, because that is the actual blocker and it is
-worth knowing before anything else is built.
-
-This is the highest-value stage because it converts "we have transpiled code" into "we have a program",
-and nothing else in this plan is worth doing until that line is crossed.
+This is the highest-value stage because it converts "we have transpiled code" into "two independent
+executions that agree with the disc", and nothing else is worth doing until that line is crossed. It is
+also cheaper than the first version of this plan assumed, because both executions are existing tools.
 
 ## Stage 2: close the refusals
 
@@ -69,6 +92,13 @@ The page recording them already shows the shape: `ff /7`, `lock on pop`, `mov to
 **Done when:** every refusal has a cause, and the ones caused by bad seeds are gone. **Failure case:** if
 most refusals turn out to be data-as-code, say so and report the corrected function count rather than 738.
 
+**Tools for this stage, already present.** `fmtownskit/tablecheck.py` has `confirmed_by_capstone(image,
+base, offset)`, which asks whether a claimed instruction site decodes the same way in two decoders. That is
+the classification half of this stage and needs no new code. `fmtownskit/x86map.py` has a `Map` class and a
+`Consts` class, which is the code/data map the refusal census is trying to reconstruct.
+
+So the work is running those against the 828, not writing a classifier.
+
 ## Stage 3: the 645 unnamed routines, by reachability not by name
 
 String naming is exhausted at 89. The remaining 645 have no readable text, so they must be identified by
@@ -80,6 +110,12 @@ it reads or writes. Sorted by reachability so the ones on a turn's path come fir
 That is derivable now. `tools/refindex.py` maps global references, `tools/cfgwalk.js` gives call edges, and
 `tools/triagesweep.js` already clusters routines that call the same TBIOS stubs, which is a grouping the
 same way.
+
+**And the toolkit has the structure side.** `fmtownskit/recomp/discover.py` exposes `Program` with
+`entries`, `targets`, `tables`, `indirect`, `refused` and `conflicts` settled by the walk itself, and
+`fmtownskit/recomp/__main__.py` has a `--report` mode. So the caller and callee counts are an existing
+report, not a new tool. What the toolkit does not have is the **record-field** part, which is where
+`tools/refindex.py` comes in.
 
 **Done when:** the top 40 routines by reachability have a written description of their arithmetic, or a
 stated reason they cannot be read. **Failure case:** if reachability does not separate them, the field sets
