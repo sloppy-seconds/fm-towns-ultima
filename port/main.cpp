@@ -172,8 +172,6 @@ int main(int argc, char** argv) {
 									((uint32_t)file[0x16] << 16) | ((uint32_t)file[0x17] << 24);
 	const uint32_t ENTRY = std::getenv("U2_ENTRY") ? (uint32_t)std::strtoul(std::getenv("U2_ENTRY"), nullptr, 16)
 											 : ENTRY_FROM_HEADER;
-	// ESP at the hand-off is measured for ENCHANT (0x11EAC8). A different program is handed a different stack,
-	// so this is overridable and the default is the only one measured.
 	// ESP at the entry, measured twice and corrected once. 0x11EB10 is what STA reports when a breakpoint on
 	// 000C:101A20 fires, and the program's own heap base (DS:0xDFD08) is that same number, so it is the value
 	// the loader hands over. The older 0x11EAC8 was 0x48 lower, which put the heap base and every pointer it

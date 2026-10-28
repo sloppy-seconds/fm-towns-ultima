@@ -141,6 +141,16 @@ const runNode = (script, args = []) => {
 	record('quoted bytes are real', r.ok ? [] : r.out.split('\n').filter((l) => /not found in any binary/.test(l)));
 }
 
+// E3. The port's measured constants, asserted against the source that carries them. Every wall the port has hit
+// was a value it invented, and finding one costs an emulator session while reverting one by accident costs
+// nothing at all, which is the wrong way round. portcheck.js reads port/, tools/ and docs/ only, so this runs
+// on a clone that has downloaded nothing: no emulator, no disc, no recompile. What it cannot cover is runtime
+// behaviour, which is tools/divergence.py against a capture and does need the machine.
+{
+	const r = runNode('portcheck.js');
+	record('port constants', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
+}
+
 // D2. The image tooling audit. Different in kind from every other check here,
 // and its absence is why four separate defects in `preflight.js` reached commits.
 //

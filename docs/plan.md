@@ -94,7 +94,7 @@ from the items below rather than maintained separately.
 | 7a Does the port's screen match the machine's | AUTONOMOUS | **in progress**, second divergence localised to the allocator |
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **yes**, the rules exist |
-| 7e A port regression the checks can run | AUTONOMOUS | **yes**, no emulator needed |
+| 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
 | 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, the reader works and the probe passes |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
@@ -1137,13 +1137,46 @@ more code decoded, and 67 in TBIOS. Each needs the same treatment or a recorded 
 
 ### 7e. A port regression the checks can run
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | autonomous. `checkall.js` already has the shape for it |
+| autonomy | autonomous. `checkall.js` already had the shape for it |
 | done when | `node tools/checkall.js` fails if the port's known-good behaviour regresses, without needing the emulator, the disc or a recompile. Candidates: the seed count, the fact that the emitted module reads a patched vector, and the number of functions per module. The failure case: a check that passes when the port is broken |
 | blocked by | nothing |
+
+**What is now known.** `tools/portcheck.js` is the check, wired into `checkall.js` as `port constants`, and it
+needs no emulator, no disc and no recompile: it reads `port/`, `tools/` and `docs/` and nothing else, which is
+why it runs on a clone that has downloaded nothing. Seventeen checks pass.
+
+It asserts the values this session measured, because each was a wall found the expensive way: `PROGRAM_BASE`
+`0x400000`, hand-off `ESP` `0x11EB10`, descriptor limit `0x377FFF`, profile `prog_phys` `0x76000`, the entry read
+from the header rather than a literal, the floppy geometry, and the four measured seeds. It also asserts the
+superseded values are **absent from the code** (`0x11EAC8`, `0x2000000`, `0x49000`) while allowing them in
+comments, because this repository records corrected numbers as history on purpose and a check that forbade the
+history would forbid the record of how the value was found. Comments are stripped before the scan for exactly
+that reason.
+
+The last check is drift in the other direction: every `U2_*` switch the docs offer must exist in the port, and
+every one in the port must be documented. A switch documented but absent is a promise the tool cannot keep.
+
+**It was made to fail on purpose, three ways**, on throwaway copies under `/var/tmp`, then once in place, and
+`checkall.js` reported each:
+
+```
+port/main.cpp, STACK put back to 0x11EAC8    -> FAIL hand-off ESP, FAIL the 0x48-low ESP is gone
+runtime-seeds.txt, one line malformed        -> FAIL the seed list holds its four measured entries
+main.cpp, U2_WATCH renamed                   -> FAIL every documented switch exists in the port
+```
+
+In place, `checkall.js` printed `FAIL port constants (2)` with the two lines under it, and the value was put
+back in the same session. That is the acceptance criterion met in the sense that matters: the check has been
+seen to fail on the specific breakage it exists for.
+
+**What it does not cover**, stated so the next session does not mistake it for coverage: the port's runtime
+behaviour. Whether it takes the same branch as the machine, and whether its memory holds the same bytes, is
+`tools/divergence.py` against a capture and needs the machine. This is the half that catches a reverted value,
+not the half that catches a wrong one.
 
 ### 6a. One frame of reference per tool, declared and checked
 **State:** OPEN · **Autonomy:** AUTONOMOUS
