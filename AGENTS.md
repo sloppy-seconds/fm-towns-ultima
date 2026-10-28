@@ -417,21 +417,28 @@ requires a proper `MP`/`P3` loader first.
 `TMENU.EXP` contains a **`SYM1`** symbol table at file offset `0x33a92`, with
 thousands of records including `EGB_palette`, `EGB_color`, `EGB_graph`,
 `Palette_data1`, `Common_screen_data1` through `11`, and `Color0` / `Color2` /
-`Color14`. This is the single largest lever available and it is not yet parsed.
+`Color14`. It is parsed, by `tools/sym1.js`: 1,725 records, and the walk consumes
+the blob exactly.
 
-Record framing is **not** settled. It is not a fixed stride, and neither
-`[u8 len][name][u32 val]` nor `[u32 val][u8 len][name]` walks more than one
-record. The visible structure in the hexdump is
-`... 4d 00 00 00 00 | 94 38 04 00 | 0c 00 00 00 | 0a | ACT_HANDLE | f3 d2 00 00 01 00 | 0a | ACT_RC_ADDR ...`,
-which suggests `[u32 value][u8 len][name][pad to 4][u32 type]`, but a walk with
-that assumption terminates early. **Do not assume the framing. Derive it and
-validate that the walk consumes the blob exactly.**
+The record is `[u8 namelen][name bytes][u32 value][u16 type]`, six bytes after the
+name, uniform across 1,724 records. The first record, `PROGRAM`, carries six extra
+bytes before its value field. The values are 32-bit file offsets into `TMENU`'s load
+image, `0x238` to `0x33848`, inside the declared image `0x200` to `0x33892`.
 
-`DARKNESS`, `ENCHANT`, `EXODUS` and `UT3DEMO` **do not** carry `SYM1`. Only
-`TMENU.EXP` does, and `TMENU` is Fujitsu's launcher, not Origins' game code. So
-the symbols give you the **Fujitsu library layer by name**, not the game's own
-functions. That is still very valuable, because the graphics and sound routines
-the games call are Fujitsu's. It does not give you U3's internal variables.
+**Two traps were paid for here.** The stride and the field widths are separate
+questions, and an exact walk validates only the first: the table parsed exactly with
+the value read as a `u16`, printed a 16-bit range, invented a "reserved field", and
+was wrong in every value it reported. `tools/verify.js` now asserts the range and that
+it needs 32 bits. Full record in `docs/palette.md` 6.8 and 6.12.
+
+**The names do not transfer to the game.** `DARKNESS`, `ENCHANT`, `EXODUS` and
+`UT3DEMO` carry no `SYM1`, and probing `TMENU`'s bytes against `ENCHANT` was tried and
+is a measured negative, because the two are different compilers' builds of different
+programs that merely call the same library. See `docs/name-propagation.md`.
+
+So the symbols give you the **Fujitsu library layer by name**, not the game's own
+functions. That is still valuable, because the graphics and sound routines the games
+call are Fujitsu's. It does not give you the games' internal variables.
 
 ### Colour
 
@@ -698,7 +705,7 @@ Do not re-derive these. Everything here is backed by a measurement in
 | `UT3/*.MP3` and `*.DG3` are map data, not MPEG audio | High |
 | No palette in any asset, no `PAL` string in `ENCHANT.EXP` | High |
 | The art uses palette indices 0-7 only, and those eight colours are confirmed | High |
-| `TMENU.EXP` has a `SYM1` symbol table naming the Fujitsu layer | High (framing open) |
+| `TMENU.EXP` has a `SYM1` symbol table naming the Fujitsu layer | High (parsed, 1,725 records) |
 | The four game binaries carry no `SYM1` | High |
 | Every file `ENCHANT.EXP` opens is extracted (23 graphics, 14 sounds) | High |
 | A 1232 KB `-GENFD` disk is a real FM Towns disk. The other sizes are IBM PC | High |

@@ -968,6 +968,7 @@ These have been tried, failed, and explained. Reopening them needs a new method,
 | `WORLD*.UT2` layout from the current save | all four characters are at `MAP=0`, `WORLD=0`. There is no populated world in the file. See [world-format.md](world-format.md) |
 | the `0xe4086` switch table | three explanations ruled out, and it is one branch in a routine that already works |
 | Ghidra as a way to *find* code | it agrees on every established address but under-decodes three to one without seeds. Use it to read, not to find |
+| propagating `TMENU`'s names onto `ENCHANT` by byte probes | tried and measured: 54 "unique" probes, every one audited is mid-instruction or inside a string, and the count does not collapse when the probe is shifted. The two are different compilers' builds of different programs. See [name-propagation.md](name-propagation.md) |
 
 ## Method rules
 

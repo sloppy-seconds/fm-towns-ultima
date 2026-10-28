@@ -200,13 +200,15 @@ including a Fujitsu graphics layer: `EGB_palette`, `EGB_color`, `EGB_graph`,
 Header reads `SYM1`, then u16 fields `0x0e`, `0x14`, `0x0000`, then u32
 `0x00007b58`, then a length-prefixed `PROGRAM` record with value 0x7b58.
 
-**Open:** the record framing is not settled. Neither a fixed 16/19/20-byte
-stride nor `[u32 value][u8 len][name]` nor `[u8 len][name][u32 val]` walks more
-than one record. The hexdump shows
+**Settled below, kept as the record of what failed.** The framing is solved in 6.8 and the field
+widths in 6.12, and the layout is `[u8 namelen][name bytes][u32 value][u16 type]` with six extra
+bytes in the first record. What follows is the state of the question before that. Neither a fixed
+16/19/20-byte stride nor `[u32 value][u8 len][name]` nor `[u8 len][name][u32 val]` walks more than
+one record. The hexdump shows
 `... 00 00 00 | 94 38 04 00 | 0c 00 00 00 | 0a | ACT_HANDLE | f3 d2 00 00 01 00 | 0a | ACT_RC_ADDR ...`
-which suggests `[u32 value][u8 len][name][pad to 4][u32 type]`, but a walk on
-that assumption terminates after the first record. Deriving the framing is the
-highest-value outstanding task in this project.
+which suggests `[u32 value][u8 len][name][pad to 4][u32 type]`, and a walk on that assumption
+terminates after the first record. The 6.8 method anchors on the length-prefixed names instead of
+guessing fields, which is what broke the deadlock.
 
 **Also settled:** `DARKNESS.EXP`, `ENCHANT.EXP`, `EXODUS.EXP` and
 `UT3DEMO.EXP` do **not** contain `SYM1`. Only `TMENU.EXP` does, and `TMENU` is
