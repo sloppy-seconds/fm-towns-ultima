@@ -1,18 +1,24 @@
-# Saving the game, and the separate loader
+# Saving the game, and the roster loader shared by menu and death
 
-Two captures with known actions: a save followed by a quit, and a Journey Onward from the menu. Together
-they separate the write path from the read path, and the two turn out not to share a routine.
+Four captures with known actions separate the write path from the read path, and the read path turns out
+to be one routine with two callers.
 
-## Both paths, measured
+## The four captures
 
-| capture | action | new instructions | save routine `0xeb374` reached |
-|---|---|---|---|
-| `save1` | one save | 4,398 | **yes**, all 75 fields |
-| `savequit` | save then quit to menu | 5,337 | **yes** |
-| `journey` | Journey Onward | 8,347 | **no** |
+| capture | action | new instructions | writer `0xeb374` | reader `0xe9d2c` |
+|---|---|---|---|---|
+| `save1` | one save | 4,398 | **yes**, all 75 fields | no |
+| `savequit` | save then quit | 5,337 | **yes** | no |
+| `journey` | Journey Onward, warm | 8,347 | no | no |
+| `journey3` | Journey Onward, **cold boot** | 7,998 | no | **yes** |
 
-So **Journey Onward does not touch the writer.** `docs/six-named-routines.md` called `0xeb374` "the save
-and load system"; the loader is a different routine, and this is the measurement that separates them.
+The two warm `journey` runs reached neither, because the emulator process was the same one that made the
+save and the character never left memory. **`journey3` is the one that settles it**: the supervisor uptime
+was 8.6 seconds when it was armed, so the character could not have been in memory, and it came back as
+HP 382, gold 141, `gem` set, at (16,17).
+
+So the writer and the reader are separate routines, and `docs/six-named-routines.md` calling `0xeb374`
+"the save and load system" is wrong in the "and load" half.
 
 ## The writer, `0xeb374`
 
@@ -50,7 +56,7 @@ reached `0xeb1f6` and neither reached `0xeb1d6`, so both took the success branch
 uses; the other two addresses it quoted are the field format strings `MAGIC=%d` and `MHP=%d`, which sit
 nearby and are not filenames.
 
-## `0xe0e90` is a general file loader, and Journey Onward calls it for the music
+## `0xe0e90` is a general file loader, and it was reached in a warm run for the music
 
 Found by diffing the captures: instructions present in `journey` and absent from `savequit`, then looking
 for string pushes among them. Exactly one was a mode string.
@@ -81,18 +87,42 @@ music rather than because it reads the save.**
 
 An earlier version of this page called it the menu-side roster loader, on the strength of its mode string
 and its presence in `journey` alone. Both observations were right and the inference was not: a `"rb"` open
-in a capture that has just entered the game is not evidence about the save.
+in a capture that has just entered the game is not evidence about the save. The cold-boot `journey3` does
+**not** reach it, which confirms it is not on the load path.
 
 There is no text parsing in it either. The per-byte call in its read loop, `0xfe220`, sets `ah=0x12` and
 calls `0xfe2c8`, which is a BIOS entry rather than a character handler.
 
-## Death reads the roster, and is the only roster reader found
+## The reader is `0xe9d2c`, called by both menu and death
 
-So the reader identified so far is the one death uses, at `0xe9d2c`, in `"rt"` text mode. Whether Journey
-Onward reads the roster by some other route **is not established**: `journey` contains neither `0xeb374`
-nor `0xe9d2c`, and `0xe0e90` turned out to be the music.
+An earlier version of this page called it "the death-side reader" because death was the first capture to
+reach it. The cold boot shows it is the general roster loader.
 
-## Death reads the roster by a text path
+```
+0xe9d2c  push ebp / mov ebp,esp / sub esp,0x60
+0xe9d35  mov [0xce71c], 0              ; clear a global
+0xe9d3f  push 0x24cc / call 0xe9c44    ; a prompt, before the file opens
+0xe9dd2  push 0x253e                   ; "rt"
+0xe9dd7  push 0x2544                   ; "A:\ROSTER1.UT2"
+0xe9ddc  call 0x100f34                 ; fopen
+0xe9e06  push 0x4f                     ; 79 bytes
+0xe9e0c  call 0x10078c                 ; fgets
+0xe9e14  cmp byte [ebp-0x50], 0x52     ; 'R', the header's first letter
+```
+
+The caller in the cold-boot capture is a plain call at `0xebe3b`:
+
+```
+0xebe3b  call 0xe9d2c
+0xebe40  inc eax
+0xebe41  jne 0xebe63                   ; 0 success, -1 failure
+0xebe43  push 0x2d60                   ; "Can't load Roster! Push [SPACE]"
+```
+
+So the routine returns a status and the caller prints that message when it is -1. `0xebe3b` itself has no
+static caller, which fits a menu dispatch rather than a direct `call`.
+
+## The reader's text path
 
 `death1` was captured before the loader was known, so it was checked afterwards against every candidate.
 The answer was neither of the two routines already found.
@@ -155,33 +185,26 @@ capture taken after a **cold boot** followed by Journey Onward would settle it, 
 |---|---|
 | the writer is `0xeb374` | all 75 format strings reached in `save1` |
 | the writer runs first field to last | no gap in the sequence |
-| Journey Onward does not use the writer | 8,347 instructions, `0xeb374` absent |
-| death reads the roster in `"rt"` mode | `0xe9dd2` pushes the mode and filename, then `fopen` |
+| the reader is `0xe9d2c` | reached in the cold-boot `journey3`, absent from every write capture |
+| menu and death share the reader | both reach `0xe9d2c` and its `fopen` |
+| the reader uses `"rt"` and checks `'R'` | `0xe9dd2` pushes the mode, `0xe9e14` compares the byte |
+| a failed load prints a specific message | `0x2d60` is `Can't load Roster! Push [SPACE]` |
 | `0xe0e90` is a file loader, not the roster | its caller passes `\SOUND\ULTIMA.FMB` |
 | the save succeeded | `0xeb1f6` reached, `0xeb1d6` not |
 
 ## What is not established
 
-- **how the menu restores a character at all.** `journey` reached neither the writer nor a roster reader.
-  `journey2` reached the writer, but only because a `Q` save happened inside its window, so it says nothing
-  about Journey Onward. No capture has yet shown the menu reading the roster
-- whether a **cold boot** changes it. Both menu captures were taken in the same emulator process as the
-  save, and the supervisor had been running 3 hours 33 minutes at the second one, so in neither case can
-  it be shown that the character had to come from disk. A genuine cold boot followed by Journey Onward is
-  the measurement that has not been taken
-- how the death reader parses the text it reads. It checks the header byte `'R'` and then loops, and the loop
-  body was not read
+- how the reader parses the text it reads. It checks the header byte and then loops, and the loop body was
+  not read
+- what the prompt at `0x24cc` asks, which runs before the file is opened
 - what the other 69 function entries in `save1` do. Most are probably text and pane helpers, because a save
   redraws the screen
+- whether the `Q` key and any menu save share a path. Only `Q` has been captured
 
-A caution from the two warm runs, because it affects how to read any future capture: `journey2` reached
-the writer because **a `Q` save happened inside its window**, not because Journey Onward writes. The two
-runs do not disagree about the menu. They contained different actions, and a capture only reports what
-happened during its window.
-
-An earlier version of this page read the difference as the same menu choice producing two behaviours. That
-was wrong, and it was the second time in this area that a capture was interpreted without asking what
-else was in the window.
+A caution that cost two wrong conclusions in this area, and applies to every future capture: a run reports
+what happened during its window, not only the action you intended. `journey2` reached the writer because a
+`Q` save happened inside it, and both warm `journey` runs reached neither writer nor reader because the
+character had never left memory. The cold-boot run is the only one of the four that answers the question.
 
 **[Save files](save-files.md)** **[Six named routines](six-named-routines.md)** **[CFG findings](cfg-findings.md)**
 
