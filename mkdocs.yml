@@ -209,6 +209,7 @@ nav:
       - A CFG dump from the emulator: cfg-dump.md
       - Differential CFG captures: cfg-differential.md
       - What the CFG captures established: cfg-findings.md
+      - Indirect transfers the captures resolve: indirect-resolution.md
       - Monster movement, and the savestate diff method: monster-movement.md
       - Five routines named from their strings: six-named-routines.md
       - The text encoding: text-encoding.md
