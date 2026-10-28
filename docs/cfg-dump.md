@@ -151,30 +151,83 @@ one:
 the image is paged into a handful of places rather than loaded contiguously. That is consistent with a
 swap-file state format, not with the game relocating its own code.
 
-### What this means for the graph
+### One session, one moment: what it settled
 
-A capture and a savestate are **different moments**, so a page-by-page search of one cannot validate
-addresses recorded in the other. Nothing here shows the recorder is wrong. What it shows is that the
-cross-check was built on two samples that do not correspond.
+The next step on the previous version of this page was cheap and it was taken. One console session,
+`STA`, `CFGSTART`, five seconds, `CFGSTOP`, then `PAU`, `SAVESTATE` and `STA` again, with no interval
+between the capture and the state.
 
-**Established, and worth keeping.**
+The two `STA` calls agree:
+
+```
+CS=000C(LIN:00400000)  DS=0014(LIN:00400000)  ES=0014(LIN:00400000)
+CS=000C(LIN:00400000)  DS=0014(LIN:00400000)  ES=0014(LIN:00400000)
+```
+
+So the capture and the savestate describe the same machine, which is the condition that was missing
+before. The capture is 1,433 edges, 373 of them in `000C`.
+
+**The check still fails, and now for a reason that is not a sampling artefact.** Decoding the state at
+`0x400000 + offset` agrees with the emulator's length on 14 of 200 `000C` edges. The disagreements read
+`88 88 88 88 88 88` where the emulator reported a 1-byte, 3-byte or 6-byte instruction. `0x88` is
+`mov`, and a run of it is fill.
+
+The same address appears again: `000C:0001AA91`, and `ENCHANT.EXP` is zero there. Two sessions with
+different fill bytes (`0x99` then `0x88`) both execute at that address.
+
+### Why the savestate cannot answer this
+
+Searching the 7.6 MB state for known `ENCHANT.EXP` pages finds **none of them**, at any offset tried
+(`0x1000`, `0x100000`, and the intervening pages). The state is a structured serialisation, not a flat
+image of guest memory, so indexing it with a linear address was a proxy that happened to work for the
+player record and does not work here. The earlier claim that the image is paged across several state
+regions was a pattern read out of that proxy and should not be relied on.
+
+### `MD` through the emulator, and what it shows
+
+`MD` reads guest memory by segment, which is exactly what the savestate is not. Three reads, each
+compared against the same offset in `ENCHANT.EXP`:
+
+| read | guest memory | `ENCHANT.EXP` at that offset |
+|---|---|---|
+| `MD 000C:0` | `11 20 20 89 11 17 0C 0C` | `4D 50 0E 01 2F 08 00 00` (`MP` header) |
+| `MD 000C:101A00` | `00 00 00 00 00 00 00 00` | `66 89 45 F4 E8 DF 23 00` |
+| `MD 000C:1AB50` | `B8 01 00 00 00 EB 02 33` | all zero |
+
+**No offset in segment `000C` matches `ENCHANT.EXP` at the same offset.** One read has code where the
+file has the header, one has zeros where the file has code, one has code where the file has zeros.
+
+So `CS 000C` with base `0x400000` is **not a view of `ENCHANT.EXP` at offset = address**, in either
+direction. The correspondence is neither shifted nor reversed; it is simply not that relation.
+
+**The function at `000C:1AB50` is not on the disc.** `MD` shows a textbook High C prologue there,
+`55 8B EC 1E 56 57 53` (`push ebp; mov ebp,esp; push ds; push esi; push edi; push ebx`), followed by
+a call. That 17-byte sequence appears in **0 of the 140 files** on the disc, `ENCHANT.EXP` included.
+
+**One hypothesis is refuted.** `docs/decompilation-experiment.md` establishes that `MP` is the
+*unpacked* flat form and `P3` the packed one, so `ENCHANT.EXP` is not compressed and the running code
+should be its own bytes. It is not, at these addresses. So the explanation is not packing, and the
+region at `0x10000` to `0x20000` being zero in the file is not explained by a decompressor writing
+there.
+
+### What is established
 
 | claim | evidence |
 |---|---|
-| The recorder captures a graph | 2,063 edges over 12 segments |
+| The recorder captures a graph | 1,433 edges, 12 segments, one session |
+| Capture and state describe one machine | `CS` identical before and after |
 | Fall-through arithmetic holds | 405 of 415, `pre + len == src` |
-| The image is paged, not contiguous | page search finds `+0x0762B2` for 12 pages, 1 each for others |
-| `0x10000`-`0x20000` is zero in the file | 65,536 bytes measured directly |
-| A capture and a savestate are different moments | `CS=0092` at the `STA`, `000C` from the next read |
+| The savestate is not a guest memory image | image pages not present at any offset tried |
+| `000C` is not `ENCHANT.EXP` at offset = address | three `MD` reads, none matching, both directions |
+| Code executes that is on no disc file | `000C:1AB50` prologue, 0 of 140 files |
 
-**Not established.** A captured address cannot yet be turned into a file offset, because no capture has
-been taken at the same instant as a savestate. Any `J` edge should still be read as an emulator
-transition rather than as a branch.
+**Not established.** A captured address cannot be turned into a file offset. A `J` edge is an
+emulator transition, not a proven branch.
 
-**The next step, and why it is cheap.** Take a savestate, then capture, then `STA` again, all from one
-console session with no interval. If `CS` is the same before and after, the capture and the state
-describe the same machine and the page search becomes a valid check. That is one run, and it removes
-the condition that made three attempts fail.
+**The question this actually leaves.** `CS 000C` is executing a High C program that is not the one on
+the disc. That is either a different executable entirely, or `ENCHANT.EXP` is not what the running game
+was launched from. Checking which executable is loaded, by reading the DOS file table through `MD` at
+`DS`, is the next measurement and it needs no new tooling.
 
 ## Why this instead of reading `SAVEHIST`
 
