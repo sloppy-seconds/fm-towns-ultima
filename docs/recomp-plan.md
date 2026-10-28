@@ -591,6 +591,30 @@ addresses the port executes that the machine has no record of fell from **25 to 
 a `jge` comparing DS `0x0E1C` against a caller's argument. Either they are genuine branch differences or they are
 artefacts of the machine's capture recording block boundaries rather than every instruction, which the tool
 warns about; the way to tell is to read DS `0x0E1C` on both sides at `0x0e07f4`.
+
+**All four were then read, and they are one cause, not four.** At `0x0e07f4`, the machine by breakpoint (7.6 s
+after the icon) and the port by `U2_STOP_AT`:
+
+| | machine | port |
+|---|---|---|
+| `EAX`, which is DS `0x0E1C` | **`0x00000007`** | **`0xFFFFFFFF`** |
+| DS `0x0CE0`, the scanned table | `80 02 00 02 02 00 02 1A 00 05 1A 00 06 2D 00 ...` | all zero |
+| `ESI` | `0x38` | `0x05` |
+
+The file has `FF FF FF FF` at image `0xE1C` and zeros across `0xCE0`, so **both are filled at run time and the
+port never fills them.** That accounts for all four addresses at once:
+
+- `0x0e07f4` and its fall-through `0x0e07f6` compare DS `0x0E1C` against a caller's argument, so `-1` against `7`
+  branches differently.
+- `0x0e081b` and `0x0e081d` are the loop's exit test. The loop walks 99 three-byte records at DS `0x0CE0`
+  counting those whose first byte has bit 7 clear, and stops early when the count reaches the argument. With an
+  empty table every record counts, so the port runs all 99 and exits exhausted, while the machine stops early
+  having matched.
+
+So the four are not four bugs, and they are not capture artefacts either. They are the same class as the last
+three walls: **start-up state the machine has and the port does not**. The next question is which routine fills
+DS `0x0CE0` and DS `0x0E1C`, and which call it makes that the port answers differently. The table's shape, 99
+records of three bytes with a flag bit, is the thing to identify first, because naming it says what fills it.
 sequences, one aligned comparison, and the first difference is the bug.
 
 **Done, and it found a missing floppy drive.**
