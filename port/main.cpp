@@ -170,6 +170,20 @@ int main(int argc, char** argv) {
 	// U2_DUMP=<linear hex> prints 32 bytes of guest memory at the end, so a buffer the program filled can
 	// be compared with the same buffer read live off the machine. That is how the int93 outregs struct at
 	// DS:0x7a634 was checked against the value measured there.
+	// U2_DIFF_CODE=1 compares the program's code in guest memory against the image on disk at the end of the
+	// run and prints every byte that changed. That is item 7c: a program that patches its own instructions is
+	// invisible to a recompiler, and one site found by tripping over it does not prove it is the only one.
+	if (std::getenv("U2_DIFF_CODE")) {
+		std::vector<uint8_t> now(image_size);
+		m.read_block(PROGRAM_BASE, now.data(), image_size);
+		uint32_t diff = 0;
+		for (uint32_t k = 0; k < image_size; ++k) {
+			if (now[k] == image[k]) continue;
+			++diff;
+			std::printf("patched   guest 0x%06x  %02x -> %02x\n", k, image[k], now[k]);
+		}
+		std::printf("patched   %u bytes of %u differ from the image\n", diff, image_size);
+	}
 	if (const char* dump = std::getenv("U2_DUMP")) {
 		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);
 		uint8_t buf[32];

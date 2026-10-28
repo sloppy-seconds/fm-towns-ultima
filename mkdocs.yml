@@ -84,6 +84,7 @@ nav:
       - The character record layout: record-layout.md
       - What the 0xEB runs are: eb-corpus.md
       - Overnight queue: overnight.md
+      - Overnight report: overnight-report.md
       - The 0xEB encoding: eb-encoding.md
       - What renders 0xEB: eb-renderer.md
       - The call graph: call-graph.md
