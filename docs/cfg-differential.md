@@ -268,52 +268,68 @@ press space. A live screenshot read by `qwen3.8-flash-next` confirms it in detai
 
 So the skull is an image and the words are drawn by code.
 
-**`EXTRA.TIF` is not that image, and an earlier version of this section said it was.** The reasoning was
-that `EXTRA.TIF` is loaded by `0xe8bbb` inside `0xe8b90`, which the death capture reached. Being loaded
-during a window is not the same as being what the window displays.
+**`EXTRA.TIF` is not that image, and the reasoning that said it was rests on a false premise.** I saw
+`EXTRA.TIF` loaded by `0xe8bbb`, saw that `0xe8b90` was reached in the death capture, and concluded the
+death screen showed it. Reading `0xe8b90` shows why that was wrong.
 
-Rendered properly and shown to the same model, `EXTRA.TIF` is a **tile bank**:
+### `0xe8b90` is the map loader, and it runs every turn
 
-> not random noise. It is a structured grid of coherent, albeit highly abstract and low-resolution,
-> graphical tiles. **No skull.**
+```
+0xe8b90  load_map(n):
+0xe8bb1    push 0x8000 / push 0x93378 / push 0x218c   ; EXTRA.TIF, fixed buffer
+0xe8bc0    call 0xe6460
+0xe8bc8    edx = [ebp+8]                              ; the argument
+0xe8bcd    if 0: push 0x21a0                         ; MAP2_1.TIF -> 0x7b378
+0xe8bd7    if 1: push 0x21b4                         ; MAP2_2.TIF -> 0x7b378
+0xe8bd7    if 2: push 0x21c8                         ; MAP2_3.TIF -> 0x7b378
+0xe8c30    call 0xe6460
+0xe8c38    call 0xe7958
+```
 
-`GAI.TIF`, also loaded during the capture and 62,464 bytes, was checked the same way and is also a tile
-bank with no skull.
+It loads a map, always into `0x7b378`, and `EXTRA.TIF` into a *different* buffer at `0x93378` as a fixed
+prefix. Its ten callers include **`0xf0b47`, inside the turn routine `0xf0b28`**, which pushes 0 and
+loads map 1. So `EXTRA.TIF` is loaded **on a normal turn**, and reaching `0xe8b90` in the death capture
+says nothing about death at all.
 
-### Two errors in that hunt, both worth keeping
+Two errors compounded here and one caused the other:
 
-The first was reading the wrong render. `extracted/u2/sprites/extra.png` is produced by `extract-u2.js`,
-whose own comment says:
+1. **Reaching a function is not the function doing what you assume.** `0xe8b90` ran during the death
+   window because it runs during *every* window. A differential capture shows what ran, not why.
+2. **Reading the load address is not reading the argument.** `EXTRA.TIF` is at a fixed address in this
+   function and is unconditional. The conditional part is the map, and I never looked at it.
+
+Rendered with the right tool, `EXTRA.TIF` is 32 **coherent tiles and no skull**. `GAI.TIF`, also loaded
+in the window, is a tile bank with no skull. Neither is the death picture.
+
+### The wrong render that started it
+
+`extracted/u2/sprites/extra.png` is produced by `extract-u2.js`, whose own comment says:
 
 > The game reads these as 320x104 sheets. Note these are **tile banks** of 16x16 or 32x32 frames, not
 > single images; `tools/tilesheet.js` renders them properly. This flat output is kept for quick viewing
 > only.
 
-So the "noise" the model saw was a known-rough dump, described as such in the code that wrote it. The
-comment was there and I did not read it before drawing a conclusion from the picture.
-
-The second was testing the wrong string constant. `EXTRA.TIF` appears **twice** in the embedded asset
-paths, at `0x02128` and `0x0218c`. I checked `0x02128`, got "not loaded", and nearly concluded the file
-was uninvolved before finding the second reference. A file named twice needs both checked.
+The "noise" the vision model described was a known-rough dump, and the comment saying so was in the code
+that wrote the file.
 
 ### What is actually established about the death screen
 
-The skull image is **not yet identified**. What the capture does say:
+The skull image is **not identified**. What the capture supports:
 
-| image | loaded during the death capture | is it the skull |
+| image | loaded in the death window | is it the skull |
 |---|---|---|
-| `EXTRA.TIF` | yes | **no**, tile bank |
+| `EXTRA.TIF` | yes, but on **every turn** | **no**, tile bank |
 | `GAI.TIF` | yes | **no**, tile bank |
-| `MAP2_1.TIF` | yes | no, that is a map |
-| `PLAYER.TIF` | 304 code references, none in the captured window | not checked |
-| all remaining TIFs | no | not reached by this capture |
+| `MAP2_1.TIF` | yes | no, a map |
+| `PLAYER.TIF` | **not reached** (304 code references) | unchecked |
+| all remaining TIFs | no | not reached |
 
-So the picture is either in a file this capture did not reach, or it is built at run time from tiles and
-drawn rather than loaded whole. The second is plausible given the skull fills a panel rather than a
-sheet, and it would explain why no TIF matches.
+Since no TIF is the picture and the skull fills a panel rather than a sheet, the plausible untested
+reading is that it is **composed from tiles at run time** rather than loaded whole. That would explain
+the absence. It is not established.
 
-**The next step is not another guess at a file.** It is to read what `0xe8b90` does with the buffer it
-loads, which says whether the picture comes from the file or is composed after loading.
+**The next step is to find what draws the death panel**, which means looking at the callers of the text
+and rectangle routines reached in the window, not at which file was loaded.
 
 ### What the capture cannot say
 
