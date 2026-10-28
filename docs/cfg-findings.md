@@ -85,33 +85,62 @@ a colour index and an attribute are all consistent with the write; nothing measu
 
 ## Seeds: what the captures add to static analysis
 
-This is the question the work was built to answer, so here is the measured answer.
+This is the question the work was built to answer. The answer is smaller than the framing that led here,
+and the correction is recorded below.
 
 **The union of every capture is 4,169 distinct game-segment instructions**, of which **67 are
 prologue-verified function entries**.
 
-Against `tools/seeds.js`, which emits **430** candidates:
+Against `tools/seeds.js`, which emitted **430** candidates at the time:
 
 | | count |
 |---|---|
 | captured entries already in the static seed set | 59 |
-| **captured entries the static set does not have** | **8** |
+| **captured entries the static set did not have** | **8** |
 
-The eight:
+The eight are `0xE2FB0 0xE3FF0 0xE4058 0xF00E8 0xF2810 0xF91AC 0xF931C 0xF9DFC`. All have a High C
+prologue and exactly one caller each, and all were excluded by the seed tool's rule dropping targets
+"named only once", which rejected 635 of them.
 
-```
-0xE2FB0  0xE3FF0  0xE4058  0xF00E8  0xF2810  0xF91AC  0xF931C  0xF9DFC
-```
+### The seed rule change, and what it actually bought
 
-All eight have a High C prologue and **exactly one caller each**. They were excluded by the seed
-tool's own filter, which drops targets "named only once" and rejected **635** of them. A single caller
-is not weak evidence when the caller is a direct `call rel32` that lands on a prologue: that is a
-function the binary states exists.
+A single caller is not weak evidence when the caller is a direct `call rel32` landing on a prologue.
+`tools/seeds.js` now promotes those. Measured on `ENCHANT.EXP`:
 
-**The opportunity is bounded and large.** Scanning the whole image finds **3,993** call sites whose
-target carries a High C prologue. The static seed set keeps 430. So the "named only once" rule is
-discarding most of the provable function set, and the dynamic run is not needed to recover it: a
-`call rel32` to a prologue is a seed whatever its multiplicity.
+| | before | after |
+|---|---|---|
+| seed candidates | 430 | **532** |
+| rejected as named only once | 635 | 533 |
+
+The promotion is a strict superset, and all eight dynamic finds are now in the set.
+
+**But the coverage gain is much smaller than the seed gain, and the first framing of this was wrong.**
+I wrote that 3,993 call sites carry a prologue against 430 kept, implying most of the provable function
+set was being discarded. That number is **call sites**, not distinct targets. The distinct
+prologue-target count is **318**, of which the old rule already kept 184, so only 134 were ever in play.
+And of the 102 that pass the terminator test, **41 were already reachable** by other paths.
+
+Walking the walk with each seed set:
+
+| seed set | instruction starts reached |
+|---|---|
+| 430 | 37,219 |
+| 532 | 37,477 |
+| the 61 genuinely unreached promoted seeds, alone | **324 starts the old walk did not have** |
+
+The seed count rose 24 percent and coverage rose 0.7 percent. Most of the promoted functions were
+reachable already, and the ones that were not are small.
+
+**The rule change is still worth keeping**: it is a strict superset, the evidence behind it is sound,
+and 47 functions the binary states exist are now swept that were not. But it is not the large gain the
+earlier wording claimed, and anyone reading the seed count as a coverage number would be misled.
+
+### The prologue test, and why it needs the terminator
+
+A prologue alone is not enough. Of the 134 single-caller prologue targets, **32 are coincidences inside
+string data** and 102 are real. The giveaway is the byte before: a real function start follows `ret`,
+`ret n`, `leave; ret`, the two-byte nop `8b c0`, a plain nop, a jmp, or a zero pad. The 32 failures are
+all preceded by ASCII fragments such as `ita`, `uf\n`, `tc\r`, `ive`.
 
 ## What the captures cannot do
 

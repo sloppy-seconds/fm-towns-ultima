@@ -80,6 +80,33 @@ function inRanges(addr, ranges) {
 	return false;
 }
 
+// A call rel32 whose target opens with a High C prologue is a function the binary states
+// exists. This is stronger evidence than being named twice, and the two are independent,
+// so the seed set takes the union.
+//
+// Measured on ENCHANT.EXP. Of 5718 call sites, 3993 land on `55 8b ec` and 1725 do not.
+// Every E9 jmp target lacks a prologue (944 of 944), so jumps contribute nothing here and
+// are deliberately excluded: an intra-function jump lands mid-function.
+//
+// The prologue alone is not sufficient. A coincidental `55 8b ec` can occur inside a string,
+// and the giveaway is the byte before it. A real function starts after something that ends
+// the previous one: ret, ret n, leave-then-ret, the `8b c0` two-byte nop, a plain nop, a jmp,
+// or a zero pad. Of the 134 single-caller prologue targets, 102 pass that test and 32 do not,
+// and every one of the 32 is preceded by ASCII fragments (`ita`, `uf\n`, `tc\r`, `ive`).
+function looksLikeFunctionEntry(buf, addr) {
+	if (addr + 3 > buf.length) return false;
+	if (buf[addr] !== 0x55 || buf[addr + 1] !== 0x8b || buf[addr + 2] !== 0xec) return false;
+	if (addr < 2) return true;
+	const p1 = buf[addr - 1];
+	const p2 = buf[addr - 2];
+	if (0xc3 === p1 || 0xc2 === p1) return true;      // ret, ret n
+	if (0xe9 === p1 || 0xeb === p1) return true;      // jmp
+	if (0x90 === p1 || 0xcc === p1 || 0x00 === p1) return true;  // nop, int3, pad
+	if (0xc9 === p2 && 0xc3 === p1) return true;      // leave; ret
+	if (0x8b === p2 && 0xc0 === p1) return true;      // the two-byte nop mov eax,eax
+	return false;
+}
+
 function main() {
 	const argv = process.argv.slice(2);
 	const binIdx = argv.indexOf('--bin');
@@ -115,6 +142,7 @@ function main() {
 
 	const rejected = { zero: 0, outside: 0, once: 0 };
 	const candidates = [];
+	const promoted = [];
 	for (const [addr, count] of all) {
 		if (addr >= buf.length) {
 			rejected.outside++;
@@ -124,14 +152,22 @@ function main() {
 			rejected.zero++;
 			continue;
 		}
-		// a target named exactly once is usually a coincidence inside an operand; the
-		// over-count correction. Measured on ENCHANT: see the note in the report.
+		// A target named exactly once is usually a coincidence inside an operand. That holds for
+		// a jump, and it holds for a call that does not land on a prologue. It does not hold for a
+		// call whose target opens `55 8b ec` after a terminator, which the binary states is a
+		// function. Those are promoted rather than dropped, and counted separately so the
+		// promotion is visible in the report instead of silently inflating the set.
 		if (count < 2) {
+			if (calls.has(addr) && looksLikeFunctionEntry(buf, addr)) {
+				promoted.push(addr);
+				continue;
+			}
 			rejected.once++;
 			continue;
 		}
 		candidates.push([addr, count]);
 	}
+	for (const a of promoted) candidates.push([a, 1]);
 	candidates.sort((a, b) => b[1] - a[1]);
 
 	const out = candidates.map(([a]) => a).sort((a, b) => a - b);
@@ -143,6 +179,7 @@ function main() {
 		zeroBytes: zeros.reduce((t, [a, b]) => t + b - a, 0),
 		unknownBytes: unknown.reduce((t, [a, b]) => t + b - a, 0),
 		candidates: out.length,
+		promoted: promoted.length,
 		rejected,
 	};
 
@@ -160,6 +197,7 @@ function main() {
 		((100 * summary.zeroBytes) / summary.bytes).toFixed(1) + '%)');
 	console.log('  targets rejected: ' + rejected.zero + ' in zero fill, ' +
 		rejected.outside + ' outside, ' + rejected.once + ' named only once');
+	console.log('  single-caller call targets promoted by prologue: ' + summary.promoted);
 	console.log('  candidate seeds: ' + out.length);
 	if (out.length === 0) {
 		console.error('no candidates survived: refusing to emit an empty seed set');
