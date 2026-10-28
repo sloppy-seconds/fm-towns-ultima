@@ -162,10 +162,9 @@ capture taken after a **cold boot** followed by Journey Onward would settle it, 
 
 ## What is not established
 
-- **how the menu restores a character at all.** Two captures of Journey Onward disagree with each other:
-  `journey` reached neither the writer nor a roster reader, while `journey2` reached the writer's full
-  open sequence (`0xeb1c4` through `0xeb1f6`). So the menu path both can write and does something else in
-  other runs, and no capture has separated the cases
+- **how the menu restores a character at all.** `journey` reached neither the writer nor a roster reader.
+  `journey2` reached the writer, but only because a `Q` save happened inside its window, so it says nothing
+  about Journey Onward. No capture has yet shown the menu reading the roster
 - whether a **cold boot** changes it. Both menu captures were taken in the same emulator process as the
   save, and the supervisor had been running 3 hours 33 minutes at the second one, so in neither case can
   it be shown that the character had to come from disk. A genuine cold boot followed by Journey Onward is
@@ -175,9 +174,14 @@ capture taken after a **cold boot** followed by Journey Onward would settle it, 
 - what the other 69 function entries in `save1` do. Most are probably text and pane helpers, because a save
   redraws the screen
 
-A caution from the two warm runs, because it affects how to read any future capture: the same menu choice
-produced two different instruction sets, one of which wrote the roster and one of which did not. A single
-capture of an action is not proof that the action always does the same thing.
+A caution from the two warm runs, because it affects how to read any future capture: `journey2` reached
+the writer because **a `Q` save happened inside its window**, not because Journey Onward writes. The two
+runs do not disagree about the menu. They contained different actions, and a capture only reports what
+happened during its window.
+
+An earlier version of this page read the difference as the same menu choice producing two behaviours. That
+was wrong, and it was the second time in this area that a capture was interpreted without asking what
+else was in the window.
 
 **[Save files](save-files.md)** **[Six named routines](six-named-routines.md)** **[CFG findings](cfg-findings.md)**
 
