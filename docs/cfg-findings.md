@@ -102,7 +102,32 @@ The eight are `0xE2FB0 0xE3FF0 0xE4058 0xF00E8 0xF2810 0xF91AC 0xF931C 0xF9DFC`.
 prologue and exactly one caller each, and all were excluded by the seed tool's rule dropping targets
 "named only once", which rejected 635 of them.
 
-### The seed rule change, and what it actually bought
+### The measurement after all 31 captures
+
+Re-run at the end of the session, across every capture taken:
+
+| | |
+|---|---|
+| capture files | 31 |
+| union of observed game-segment instructions | **13,904** |
+| prologue-verified function entries among them | **174** |
+| bytes covered | 42,072 of 196,725 non-zero, **21.4 percent** |
+| entries already in the 532-seed static set | 156 |
+| **entries the static set did not have** | **18** |
+
+**And all 18 are false positives.** Every one sits at or above `0x100eb0` and is preceded by ASCII:
+`tc\r`, `ve\x07`, `ss\x06`, `ue\x15`, `se\x13`, `ng\x13`. The prologue-plus-terminator test that `seeds.js`
+now applies rejects all of them.
+
+**So 31 captures produced zero new seeds.** The instruction union grew twenty-fold, from 1,213 to 13,904,
+and the seed contribution did not move at all.
+
+The reason is structural. A seed is only useful if the static walk could not already reach it, and a
+capture can only record instructions the game executed, which are by definition instructions something
+called or jumped to. The cases where a capture helps are the ones where the walker genuinely could not
+follow, and the only place that happens is the **indirect transfers**, not the seed set.
+
+## The seed rule change, and what it actually bought
 
 A single caller is not weak evidence when the caller is a direct `call rel32` landing on a prologue.
 `tools/seeds.js` now promotes those. Measured on `ENCHANT.EXP`:
