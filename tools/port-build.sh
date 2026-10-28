@@ -155,6 +155,17 @@ PY
 fi
 
 # 4. Build the port.
+# A one-track cue for the kit's Disc reader, written into the build directory and never committed. It is
+# not a conversion of the disc: the .ccd stays the authoritative descriptor for emulation, because the
+# audio tracks' PREGAP is ambiguous and Tsugaru's author documents that. The kit's reader refuses PREGAP
+# entirely ("a gap not in the files is not read here"), and the program only needs the data track, which
+# begins at index 0 of the image. So this hands it the ISO and nothing else.
+cat > "$OUT/disc.cue" <<CUE
+FILE "../../Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img" BINARY
+  TRACK 01 MODE1/2352
+    INDEX 01 00:00:00
+CUE
+echo "cue       $OUT/disc.cue (track 1 only, for the kit's reader)"
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
@@ -164,4 +175,4 @@ cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 echo "built     $OUT/b/u2port"
 
 # 5. Run it.
-"$OUT/b/u2port" "$ROOT/ENCHANT.EXP" "$FRAMES" "$OUT/tbios.bin"
+"$OUT/b/u2port" "$ROOT/ENCHANT.EXP" "$FRAMES" "$OUT/tbios.bin" "$OUT/disc.cue"

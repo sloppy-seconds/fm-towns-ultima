@@ -56,6 +56,7 @@ int main(int argc, char** argv) {
 	const char* exp_path = argc > 1 ? argv[1] : "ENCHANT.EXP";
 	long frames = argc > 2 ? std::atol(argv[2]) : 0;
 	const char* tbios_path = argc > 3 ? argv[3] : "build/port/tbios.bin";
+	const char* cue_path = argc > 4 ? argv[4] : "build/port/disc.cue";
 
 	std::vector<uint8_t> file = read_file(exp_path);
 	if (file.size() < 0x1000) {
@@ -97,6 +98,18 @@ int main(int argc, char** argv) {
 	// services its own recordings saw, and this program asks for one they never did, so the list of
 	// what it asks for is the evidence needed to decide what to add.
 	if (std::getenv("U2_TRACE_INT")) m.trace_int = true;
+
+	// The program opens its assets by DOS path (Q:\GRAPH\MAP2_1.TIF and friends), so the machine needs a
+	// disc to read them from. Without one, the first int 21h open segfaults inside Disc::handle, which is
+	// what the 600-frame run did before this was here.
+	{
+		std::string err;
+		if (!m.disc.open(cue_path, err)) {
+			std::fprintf(stderr, "disc %s: %s\n", cue_path, err.c_str());
+			return 2;
+		}
+		std::printf("machine   disc opened from %s\n", cue_path);
+	}
 	towns::boot_towns(m, tbios);
 
 	// The program, where the running game has it. The image is followed by the program's own BSS and

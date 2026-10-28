@@ -189,6 +189,54 @@ guessed. Two honest routes: run the same oracle recording with U2 at this point,
 databook for the function, and only then patch `int90()` and record the patch, since the kit is a vendored
 clone and its changes are documented rather than made silently.
 
+**Measured on the live machine, and it corrected the decode.** Recorded over the supervisor API rather than
+by hand: `RESET`, `BP 000C:52`, then `u2flow.py --journey` inside the container, which stops at
+`step 3: waiting for the splash`. The breakpoint fired **3.2 seconds** after the icon was double-clicked, in
+the program's own start-up stub, which is the same place the port stops.
+
+```
+000C:00000052  CD 90        INT 90H (Keyboard)
+  in:  EAX=00000400  EBX=0000002C  ECX=0000FFFF  EDX=00000000
+  out: EAX=00000000        (breakpoint at 000C:54, the instruction after the int)
+```
+
+Three things came out of that, and one is a correction to this page. The function is `KYB_lock`, named in the
+image itself at file `0x240`. **The stub returns in `AH`, not `AL`**: the instruction after the `int` is
+`0F B6 C4`, which is `MOVZX EAX,AH`, and Tsugaru decodes it as such in the live dump. My earlier reading of
+that byte pair as `movzx eax,al` was wrong. And the int is not answered by C code in the port: on the real
+machine it goes through `CS=0008` at linear `0x5C12E`, which is TBIOS's own handler, and it comes back with
+`EAX` fully zeroed.
+
+**The patch, and it is one line.** `case 0x04:` joins the no-op list in `Machine::int90()`. The function's
+closing `c.r[0] &= 0xFFFF00FF` already zeroes `AH`, which reproduces the measured `0x00000400` in and
+`0x00000000` out exactly. One call was measured, with `AL=0`. `AL=1` was not, and this page does not claim
+to know what it does.
+
+**After the patch the port gets through start-up.** It needs one more thing the kit does not ask for by
+default: the program opens its assets by DOS path, so the machine needs a disc. Without one the first
+`int 21h` open segfaults inside `Disc::handle`. `tools/port-build.sh` now writes a one-track cue into the
+build directory for the kit's reader, which refuses this disc's `PREGAP` and needs only track 1. That is not
+a conversion and the `.ccd` stays authoritative for emulation. With it:
+
+```
+60 frames, 15,999,975 guest clocks, no fault, eip 0x000e56f8
+```
+
+That is start-up complete: DOS calls answered, TBIOS entered and returned, assets opened off the disc, and
+the program in its own code.
+
+**The next wall is an indirect transfer, and the walker missed it.** At 1,200 frames:
+
+```
+fault at 000c:00103620: no recompiled function at 000c:00103620 (eip 001037d0, frame 90)
+```
+
+`0x103620` is a runtime address inside the game module. It is one of the 20 indirect transfers the
+recompiler reports as unresolved. Worth stating plainly: `node tools/cfgwalk.js --check 0x103620` and
+`--check 0x103820` both refuse it as an instruction boundary, while the bytes at file `0x103820` are
+`55 8b ec` or `push ebp / mov ebp,esp`. Those two statements cannot both be right, so the frame that
+`--check` expects is itself now a question, and it has to be settled before seeding the address.
+
 **What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
 finish. It is the difference between "the code does not run" and "the code runs until the machine is
