@@ -91,7 +91,7 @@ from the items below rather than maintained separately.
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
 | 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
-| 7a Does the port's screen match the machine's | AUTONOMOUS | **in progress**, second divergence localised to the allocator |
+| 7a Does the port's screen match the machine's | AUTONOMOUS | **open**, instrument built on both sides, no same-moment pair yet |
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
@@ -1098,6 +1098,29 @@ This is the strongest validation available and it is the one that has never been
 counts guest clocks and faults, and a program can do both while writing the wrong pixels. The kit has a
 palette and a CRTC; the machine has a screenshot endpoint; the port has the same memory the machine does, so
 the comparison is two dumps and a diff.
+
+**What is now known, in two parts.**
+
+*The control-flow divergence this item was originally chasing is closed.* `tools/divergence.py` against the
+machine's journey capture now reports **6 port-only addresses out of 6,862**, and all six are explained. Four are
+the instruction after a 2-byte conditional (`0x0e07f4 jge`, `0x0e081b jl`, `0x0e060c jge`) and the port executes
+both the recorded address and its fall-through, which an edge capture never records because it is inside a block.
+The other two are the `y` scan-code handler at `0x0e4ebf`, reached only because a keypress made the port take the
+path the machine's capture did not. Zero remain unexplained, and the divergences that were real were always
+machine state the port lacked: the `A:` drive, the keyboard, and the screen selector `0120`.
+
+*The screen comparison has an instrument on both sides and no valid pair yet.* `U2_SCREEN=1` prints the frame as
+a luminance ramp, character for character as `container/screen.js`'s `toAscii` does, so the port's grid and
+`GET /api/screen?mode=ascii` are the same metric. Sampling the machine once a second through a boot and a
+journey gives a best agreement of **51 percent of cells at t=6s**, which is two *different* moments of a moving
+sequence rather than the same screen: the port's frame is one instant at 600 frames and the machine's samples
+track a boot, a title and a select screen. So the item's allowed outcome here is recorded as **a failure to
+produce a comparable pair**, not as a match or a difference.
+
+**What the next attempt needs**, so it is not rediscovered: pause the machine at the moment the title is fully
+drawn (`PAU`, then read the grid), and step the port to the same screen, which is the point after its loading bar
+finishes rather than a fixed frame count. Two stills of the same screen, then the ramp diff is meaningful, and
+the region-by-region difference becomes statable.
 
 ### 7c. What else the program patches at run time
 

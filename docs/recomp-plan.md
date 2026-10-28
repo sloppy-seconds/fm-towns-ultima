@@ -868,6 +868,7 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_KEYS=<frame>:<scan><ascii>,...` | press keys on given frames, which is how the port is driven past a keyboard wait. Hex, two digits each: `60:1e61` is "at frame 60 press scan code 0x1E with ASCII 0x61", measured as the key 'a'. |
 | `U2_SHOT=<path>` | write the frame the machine is showing when the run ends, with the kit's own renderer, so "it draws" is a picture rather than a byte count. |
 | `U2_PALETTE=1` | print the sixteen palette entries per plane when the run ends, in `PRI PALETTE`'s own `RRGGBB` notation, so the port's table and the machine's can be compared by diff. |
+| `U2_SCREEN=1` | print the frame as a luminance ramp, character for character the way `container/screen.js`'s `toAscii` does it, so the port and `GET /api/screen?mode=ascii` produce the same grid and two screens can be compared by diff. Item 7a's instrument. |
 
 ### The command line
 

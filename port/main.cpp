@@ -33,6 +33,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -593,6 +595,37 @@ int main(int argc, char** argv) {
 				std::printf(" %02x%02x%02x", m.video.pal16[layer][i][0], m.video.pal16[layer][i][1],
 				            m.video.pal16[layer][i][2]);
 			std::printf("\n");
+		}
+	}
+	// U2_SCREEN=1 prints the frame as a luminance ramp, character for character the way container/screen.js's
+	// toAscii does it, so the port and the supervisor's `GET /api/screen?mode=ascii` produce the same grid and the
+	// two screens can be compared by diff rather than by looking. Same cells (width/100, twice as tall), same ramp,
+	// same rounding: a comparison between two different metrics would prove nothing.
+	if (std::getenv("U2_SCREEN")) {
+		std::vector<uint32_t> rgb;
+		int w = 0, h = 0;
+		m.render(rgb, w, h);
+		static const char* ramp = " .:-=+*#%@";
+		const int cols = 100;
+		const int cellW = std::max(1, w / cols), cellH = cellW * 2;
+		const int rows = h / cellH;
+		for (int ry = 0; ry < rows; ++ry) {
+			std::string line;
+			for (int cx = 0; cx < cols; ++cx) {
+				double sum = 0;
+				int n = 0;
+				for (int y = ry * cellH; y < (ry + 1) * cellH; ++y) {
+					for (int x = cx * cellW; x < (cx + 1) * cellW; ++x) {
+						uint32_t p = rgb[(size_t)y * (size_t)w + (size_t)x];
+						sum += 0.299 * ((p >> 16) & 0xFF) + 0.587 * ((p >> 8) & 0xFF) + 0.114 * (p & 0xFF);
+						++n;
+					}
+				}
+				const double v = sum / std::max(1, n);
+				line += ramp[std::min<int>(9, (int)std::floor((v / 256.0) * 10))];
+			}
+			while (!line.empty() && line.back() == ' ') line.pop_back();
+			std::printf("screen    %s\n", line.c_str());
 		}
 	}
 	if (const char* dump = std::getenv("U2_DUMP")) {
