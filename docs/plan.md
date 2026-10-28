@@ -95,7 +95,7 @@ from the items below rather than maintained separately.
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
-| 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, the reader works and the probe passes |
+| 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, floppy and keyboard work, nothing draws |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
@@ -1237,8 +1237,22 @@ discovery.
 
 **Progress.** `port/floppy.h` is that reader, wired through two hooks the runtime calls, and the probe now
 passes: `attributes: A:\ROSTER1.UT2 -> floppy, attr 20, 3701 bytes` and then `handle 5 (floppy, 3701 bytes)`.
-The error dialog is gone. The port still draws nothing, so the item stays open until a run reaches the branch
-the machine takes and puts something on the screen.
+The error dialog is gone. The drive serves four files, from `U2_FLOPPY_LS=1`:
+`roster1.ut2 3701`, `world1.ut2` to `world3.ut2` at 68096 each.
+
+**The keyboard was the next wall, and it is fixed.** With the floppy answering, the port's last instruction moved
+from the error dialog's loop to `000C:0E4B8D`, a KYB_read poll, and `U2_VRAM=1` reported **0 of 524288 bytes**
+non-zero with 0 reads and 0 writes: the program had never touched VRAM. The kit's `int 90h` had no keyboard at all
+and answered "no key" unconditionally, so the wait could not end. The device contract was then measured on the
+machine (no key `BX=0xFF00 DX=0xFFFF`, `a` `BX=0x1E00 DX=0x0061`) and implemented as patch eleven, with
+`U2_KEYS=<frame>:<scan><ascii>` to press keys on given frames. Twenty-seven presses now report
+`27 served, 0 still queued` and the game dispatches each one through its 114-entry scan-code table at `0xE4BD1`.
+
+**What is still missing is drawing.** VRAM stays at zero with input working, so the item stays OPEN on its third
+clause. The next lead is named and measured: the program probes four devices at ports `0x0E51`, `0x0E59`, `0x0E61`,
+`0x0E69` from `0x0FF73A`, `in al, dx` then `cmp al, 0xff`, and the kit implements none of them (patch twelve, in
+[recomp-plan.md](recomp-plan.md#patch-twelve-an-unknown-io-port-now-names-the-instruction-that-wrote-it)). Whether
+that gate is what stops the screen is not established.
 
 ## Phase 8: the toolkit, and what this work owes it
 

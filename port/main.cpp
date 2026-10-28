@@ -305,6 +305,35 @@ int main(int argc, char** argv) {
 		            g_stop_dump ? "" : " (no U2_STOP_DUMP, registers only)");
 	}
 #endif
+	// U2_KEYS=<frame>:<scan><ascii>,... presses keys on given frames, which is how the port is driven past a
+	// keyboard wait. The pair is hexadecimal and both halves are two digits, so `60:1e61` is "at frame 60,
+	// press the key whose scan code is 0x1E and whose ASCII is 0x61", which is what 'a' measured as on the
+	// machine at 000C:000000B6. Two digits each is not a limitation but a safeguard: a scan code is 8 bits and
+	// so is the ASCII, and a longer field would silently mean a different key.
+	struct KeyPress { long frame; uint8_t scan, ascii; };
+	std::vector<KeyPress> keypresses;
+	if (const char* ks = std::getenv("U2_KEYS")) {
+		std::string spec(ks);
+		size_t at = 0;
+		while (at < spec.size()) {
+			size_t comma = spec.find(',', at);
+			std::string item = spec.substr(at, comma == std::string::npos ? std::string::npos : comma - at);
+			at = comma == std::string::npos ? spec.size() : comma + 1;
+			size_t colon = item.find(':');
+			if (colon == std::string::npos || item.size() - colon - 1 != 4) {
+				std::fprintf(stderr, "U2_KEYS: '%s' is not <frame>:<scan><ascii>\n", item.c_str());
+				return 2;
+			}
+			KeyPress k{};
+			k.frame = std::strtol(item.substr(0, colon).c_str(), nullptr, 10);
+			k.scan = (uint8_t)std::strtoul(item.substr(colon + 1, 2).c_str(), nullptr, 16);
+			k.ascii = (uint8_t)std::strtoul(item.substr(colon + 3, 2).c_str(), nullptr, 16);
+			keypresses.push_back(k);
+		}
+		std::printf("keys      %zu presses: ", keypresses.size());
+		for (const KeyPress& k : keypresses) std::printf("%ld:%02x%02x ", k.frame, k.scan, k.ascii);
+		std::printf("\n");
+	}
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
 	// U2_WATCH=<linear>[:<length>] reports every write into one linear range, with the instruction that made
 	// it. This is the port's answer to a physical MEMW watch on the machine, and one thing it does better:
@@ -321,12 +350,16 @@ int main(int argc, char** argv) {
 		}
 		g_watch_lo = (uint32_t)std::strtoul(buf, nullptr, 16);
 		g_watch_hi = g_watch_lo + (len ? len : 1);
-		g_x86_cur = &c;
 		std::printf("watch     [%08x,%08x)\n", g_watch_lo, g_watch_hi);
 	}
+	// The running cpu, always, not only for the watch: an unknown I/O port is reported with the instruction that
+	// wrote it, and a port number with no caller is a lead that has to be found again by watching.
+	g_x86_cur = &c;
 	if (frames) {
 		m.on_vsync = [&](towns::Machine& mm) {
 			if ((long)mm.frame >= frames) throw towns::Stop{0};
+			for (const KeyPress& k : keypresses)
+				if (k.frame == (long)mm.frame) mm.press_key(k.scan, k.ascii);
 		};
 	}
 
@@ -418,6 +451,12 @@ int main(int argc, char** argv) {
 				std::printf(" %02x", m.vram[k]);
 			std::printf("\n");
 		}
+	}
+	// Whether a queued key was ever taken. "The program did not react" and "the program never asked" look
+	// identical from the outside, and the difference decides whether the fault is in the keyboard or in the
+	// program's own path.
+	if (!m.keys.empty() || m.keys_served) {
+		std::printf("keys      %lu served, %zu still queued\n", m.keys_served, m.keys.size());
 	}
 	if (const char* dump = std::getenv("U2_DUMP")) {
 		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);

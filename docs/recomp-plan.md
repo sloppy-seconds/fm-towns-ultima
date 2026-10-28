@@ -865,6 +865,69 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_ENTRY`, `U2_STACK` | override the entry (default: the `MP` header field) and the hand-off `ESP`. |
 | `U2_FLOPPY_LS=1` | list the `A:` image's root directory and exit. |
 | `U2_WATCH=<linear>[:<len>]` | report every write into that linear range, with the instruction that made it. The port's answer to a physical `MEMW` watch, and it does not suffer that watch's blind spot: the machine's page tables move a linear address between physical pages, so a byte watch can miss the write it was armed for. |
+| `U2_KEYS=<frame>:<scan><ascii>,...` | press keys on given frames, which is how the port is driven past a keyboard wait. Hex, two digits each: `60:1e61` is "at frame 60 press scan code 0x1E with ASCII 0x61", measured as the key 'a'. |
+
+## Patch eleven: a keyboard, because the kit's answers "no key" unconditionally
+
+**Tried:** to find out why the port never draws. `U2_VRAM=1` was the instrument: after 600 frames it reported
+`0 of 524288 bytes are non-zero` and `0 writes and 0 reads to it`. The program had never touched VRAM at all.
+The run's last instruction was `000C:0E4B8D`, in this loop:
+
+```
+0x0e4b8d  lea ebx, [ebp - 4]
+0x0e4b90  push ebx
+0x0e4b91  push 1
+0x0e4b93  call 0xa9              ; the KYB_read wrapper
+0x0e4b9b  mov eax, [ebx]
+0x0e4b9d  and eax, 0xff00
+0x0e4ba2  cmp eax, 0xff00       ; 0xff00 is "no key"
+0x0e4ba7  jne 0x0e4bb0          ; otherwise dispatch it
+```
+
+and `0xa9` is `mov ah,9 / mov al,[ebp+8] / int 90h`, the KYB_read BIOS call.
+
+**Measured:** the kit's `int 90h` had no keyboard at all. `case 0x09` answered `DX=0xFFFF, BX=0xFF00`
+unconditionally, because its recordings were taken with no key ever pressed, so a program waiting for a key
+waited for ever. That is a missing device, not a recompilation fault, and it is the fourth of its kind after the
+`A:` drive, the CD probe and the hand-off stack.
+
+**The device contract, measured on the live machine** at `000C:000000B6`, the instruction after the `int 90h` in
+the wrapper, with the break firing first and the key pressed at the break:
+
+| key | `BX` | `DX` |
+|---|---|---|
+| none | `0xFF00` | `0xFFFF` |
+| `a` | `0x1E00` | `0x0061` |
+
+So the scan code is in BX's high byte and the ASCII in DX. ENCHANT reads the scan code: `(BX >> 8) - 1` indexes a
+114-entry jump table at `0xE4BD1`, which contains a distinct handler for every letter, digit, arrow, ESC and
+TAB and sends 56 of the 114 indices to the same "ignore" target. That table is why `DX` is a convenience and the
+scan code is the datum.
+
+**The patch.** `Machine` gains `keys` and `press_key(scan, ascii)`, and `int90`'s `case 0x09` pops one when the
+queue is non-empty and answers "none" when it is not, so behaviour without a key is unchanged. `keys_served`
+counts what was taken, because "the program did not react" and "the program never asked" look identical from
+outside.
+
+**What it produced.** With `U2_KEYS` pressing 27 keys between frames 60 and 580, the port reports
+`keys 27 served, 0 still queued`, so input works end to end: queued, served, and dispatched. VRAM is still `0 of
+524288`, so the keyboard was a real gap and not the whole of this one.
+
+## Patch twelve: an unknown I/O port now names the instruction that wrote it
+
+**Tried:** to identify the ports the program writes that the kit does not implement. `unknown("out %04x", port)`
+gave a port number and nothing else, which is a lead that has to be found again by watching.
+
+**The patch** reuses `g_x86_cur`, the pointer the write watch already added, so the message reads
+`out 0e51 = 40 (at 000c:000ff744)`. `port/main.cpp` now sets that pointer on every run rather than only when
+`U2_WATCH` is armed.
+
+**What it named on its first use** is the next lead: the program probes four devices at ports `0x0E51`, `0x0E59`,
+`0x0E61` and `0x0E69` from `0x0FF73A`, writing `0, 0, 0, 0x40, 0x4E, 0x37` and then reading back with `in al, dx`
+and testing for `0xFF`, in a loop that walks two tables at `0xDF1F5` and `0xDF0F5` with strides `0x20` and
+`0x40`. Those ports are not in the kit's map, so the read returns no device and the program marks all four absent.
+Whether that matters for drawing is not established, and this paragraph is the record of the question rather
+than an answer to it.
 
 ## Patch ten: a linear write watch in the kit, because a physical one has a blind spot
 
