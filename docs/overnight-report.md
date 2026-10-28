@@ -115,8 +115,8 @@ follow would move the failure one call later and hide it. `saves/userdisk.hdm` i
 Paul's order for this morning, recorded because the reasoning matters as much as the list: **defects first, then
 the new seeds through the recompiler to see what falls out, then the rest.** Findings before tidying.
 
-Done since that was written: **8a, 8b, 8c, 8d, 8e** and the second and third port walls. Open: **7a** (in
-progress), **7d**, **7e**, **7f** (the reader works, the item needs the picture), **8f**, **8g**.
+Done since that was written: **8a, 8b, 8c, 8d, 8e**, **7e** and the second and third port walls. Open: **7a**
+(in progress), **7d**, **7f** (the reader works, the item needs the picture), **8f**, **8g**.
 
 1. **7a, and it is one byte.** The port and the machine now agree on the heap base, the heap limit, `ESP`, and the
    hand-off entry. The only remaining divergence is that the machine has `0x80` at DS `0xBAA`, the byte a
@@ -124,12 +124,14 @@ progress), **7d**, **7e**, **7f** (the reader works, the item needs the picture)
    [recomp-plan.md](recomp-plan.md) for what was ruled out: Phar Lap `250F` (the profile was wrong, fixed, no
    change), a differing `DS` selector (it is `0014` base `0x400000` on both sides), and leftover RAM (the image
    load overwrites that region with the file's zeros, so something writes it afterwards)
-2. **The next experiment is port-side, not emulator-side.** Add a write watch to the port for one linear range,
-   which needs a small documented hook in the kit's `wr8`/`wr16`/`wr32`, and ask whether the port's own execution
-   ever writes `0xBAA` at all. If it does not, the writer is something the machine runs and the port does not,
-   which is a much narrower question than physical-page chasing. Two physical watches both missed it because the
-   program's page tables move that linear address between physical pages
-3. then 7d, 7e, 7f, 8f, 8g as before
+2. **The next experiment is port-side, and the watch for it now exists.** `U2_WATCH=<linear>[:<len>]` reports every
+   write into a linear range with the instruction that made it, which is patch ten in [recomp-plan.md](recomp-plan.md).
+   Its first use answered the question behind 7a's byte: the port **never writes** `0x400BAA` in 600 frames, and
+   the three bytes it does write in that block match the machine's, so this is a control-flow divergence, not a
+   data one. `U2_STOP_AT` now also prints eight dwords of stack, so the call chain at a stop is visible on both
+   sides without a debugger
+3. then 7d, 7f, 8f, 8g as before. **7e is done**: `tools/portcheck.js` holds 17 checks, needs no emulator, no
+   disc and no recompile, and was made to fail on purpose three ways before it was trusted
 
 Under it all, the rule that has held for three sessions now: when the port and the machine disagree, read the same
 instruction's inputs on both sides before reading any more code. Four walls in a row have been machine state the
