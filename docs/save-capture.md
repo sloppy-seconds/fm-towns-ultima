@@ -50,30 +50,49 @@ reached `0xeb1f6` and neither reached `0xeb1d6`, so both took the success branch
 uses; the other two addresses it quoted are the field format strings `MAGIC=%d` and `MHP=%d`, which sit
 nearby and are not filenames.
 
-## The loader is a different routine, at `0xe0e90`
+## `0xe0e90` is a general file loader, and Journey Onward calls it for the music
 
 Found by diffing the captures: instructions present in `journey` and absent from `savequit`, then looking
 for string pushes among them. Exactly one was a mode string.
 
 ```
 0xe0ed0  push 0x106a              ; "rb"
-0xe0ed5  push edi                 ; the filename
+0xe0ed5  push edi                 ; the filename, passed as an argument
 0xe0ed6  call 0x100f34            ; fopen
 0xe0ede  mov [0xe45c], eax        ; store the FILE*
-0xe0ee3  and eax, eax
-0xe0ee5  jne 0xe0ef1              ; opened
-0xe0ee7  mov eax, -1              ; failure returns -1
-0xe0ef1  push 0
-0xe0ef3  push 0x354               ; 852 bytes
+0xe0ef1  push 0                    ; whence = SEEK_SET
+0xe0ef3  push 0x354                ; offset 852
 0xe0ef8  push [0xe45c]
-0xe0efe  call 0x101524            ; fread
+0xe0efe  call 0x101524            ; fseek
+0xe0f13  push 0x20                ; 32
+0xe0f17  lea eax,[ebp-0x88]
+0xe0f1e  call 0x100c58            ; fread
 ```
 
-**`0x354` is 852**, and the roster slot on the save disk is 917 bytes with the record region beginning at
-byte 47, so 917 minus the 65-byte gap is consistent with an 852-byte read. That is a match worth noting
-rather than a proof, since the exact partition of the 917 has not been re-measured here.
+**`0x101524` is `fseek`, not `fread`.** It bounds-checks its third argument against 0 to 2, which is a
+seek origin, while `0x100c58` is the one that pulls a FILE* and tests its flags at `+0xc`. So the sequence
+is "seek to 852, then read 32 bytes", not "read 852 bytes".
 
-## Death loads the roster too, by a third path
+### It loads music, not the roster
+
+The filename is an argument, and the caller at `0xe0e50` passes `\SOUND\ULTIMA.FMB`. So `0xe0e90` is a
+general file loader, used here for the soundtrack, and **Journey Onward reaches it because it starts the
+music rather than because it reads the save.**
+
+An earlier version of this page called it the menu-side roster loader, on the strength of its mode string
+and its presence in `journey` alone. Both observations were right and the inference was not: a `"rb"` open
+in a capture that has just entered the game is not evidence about the save.
+
+There is no text parsing in it either. The per-byte call in its read loop, `0xfe220`, sets `ah=0x12` and
+calls `0xfe2c8`, which is a BIOS entry rather than a character handler.
+
+## Death reads the roster, and is the only roster reader found
+
+So the reader identified so far is the one death uses, at `0xe9d2c`, in `"rt"` text mode. Whether Journey
+Onward reads the roster by some other route **is not established**: `journey` contains neither `0xeb374`
+nor `0xe9d2c`, and `0xe0e90` turned out to be the music.
+
+## Death reads the roster by a text path
 
 `death1` was captured before the loader was known, so it was checked afterwards against every candidate.
 The answer was neither of the two routines already found.
@@ -114,16 +133,21 @@ That also explains why the slot letters `E`, `D`, `B` survived the clear when it
 The clear happens first and the read then writes the value from the file, which is exactly what was
 observed and misread as "the store did not run".
 
-### So there are three file paths, not one
+### What the file paths actually are
 
 | path | routine | mode | use |
 |---|---|---|---|
-| write | `0xeb374` | `"w"`, header then 75 fields | saving |
-| read, menu | `0xe0e90` | `"rb"` | Journey Onward |
-| read, death | `0xe9d2c` | `"rt"` | death |
+| write | `0xeb374` | header then 75 fields | saving |
+| read | `0xe9d2c` | `"rt"` | death |
+| not the roster | `0xe0e90` | `"rb"` | loads `\SOUND\ULTIMA.FMB` |
 
-The two readers use different modes, which is consistent with the writer producing a text file and the
-menu path reading it as a block while the death path parses it line by line.
+Only one roster reader has been found, and it is the death path. The menu path is **open**: `journey`
+reached neither `0xeb374` nor `0xe9d2c`, so either it finds another reader that has not been noticed, or
+the character state it restored had already been in memory.
+
+That second possibility is worth stating because it would be easy to miss. `journey` was taken from the
+starting menu in the same emulator run as the save, so the process may never have lost the record. A
+capture taken after a **cold boot** followed by Journey Onward would settle it, and none has been taken.
 
 ## What this establishes
 
@@ -132,15 +156,17 @@ menu path reading it as a block while the death path parses it line by line.
 | the writer is `0xeb374` | all 75 format strings reached in `save1` |
 | the writer runs first field to last | no gap in the sequence |
 | Journey Onward does not use the writer | 8,347 instructions, `0xeb374` absent |
-| the loader is separate, at `0xe0e90` | present in `journey`, absent in `savequit` |
-| the loader opens with `"rb"` and reads 852 bytes | instruction operands |
+| death reads the roster in `"rt"` mode | `0xe9dd2` pushes the mode and filename, then `fopen` |
+| `0xe0e90` is a file loader, not the roster | its caller passes `\SOUND\ULTIMA.FMB` |
 | the save succeeded | `0xeb1f6` reached, `0xeb1d6` not |
 
 ## What is not established
 
-- whether the `"rb"` and `"rt"` readers are the same data in different modes or genuinely different
-  handling. Both read `ROSTER1.UT2` and neither parse has been fully read
-- whether `852` is the whole record or a prefix. The arithmetic is suggestive and not measured
+- **how the menu restores a character at all.** `journey` reached neither the writer nor the death reader, and
+  `0xe0e90` is the music loader. A capture after a cold boot, then Journey Onward, would show whether the
+  process ever lost the record
+- how the death reader parses the text it reads. It checks the header byte `'R'` and then loops, and the loop
+  body was not read
 - what the other 69 function entries in `save1` do. Most are probably text and pane helpers, because a save
   redraws the screen
 
