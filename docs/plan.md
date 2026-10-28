@@ -78,7 +78,7 @@ from the items below rather than maintained separately.
 | 4b Combat formulas | BLOCKED ON HUMAN | no, neither half closed |
 | 4c `WORLD*.UT2` layout | BLOCKED ON HUMAN | no, needs a save taken mid-game |
 | 4d `.SND` playback rate | BLOCKED ON HUMAN | no, needs the running game |
-| 4e Confirm the U2 palette in-game | BLOCKED ON HUMAN | no, needs a coloured screen |
+| 4e Confirm the U2 palette in-game | AUTONOMOUS | **done**, the running game's table recorded, a human confirmed the screen |
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
@@ -744,7 +744,7 @@ long run rather than in the middle of one.
 
 ### 4e. Confirm the U2 palette in-game
 
-**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -764,6 +764,19 @@ boot and look like the BIOS default set rather than the game's own install.
 compare. If the table changes, that is U2's real palette and the index mapping is solved. If it does not,
 the alternative is a breakpoint at `EGB_palette` (`0x103c84` in `ENCHANT.EXP`) catching `[edi+8]` when the
 game installs its own. Everything needed is vendored and scripted.
+
+**What is now known.** The blocking condition is gone: the recompiled port renders the game in colour, in a
+browser, and a person looked at the title screen and said the colours are right. `U2_PALETTE=1` prints the
+machine's sixteen entries per plane in `PRI PALETTE`'s own `RRGGBB` notation, and the recorded table is neither
+empty nor the initial set: entries 8 and 9 are black and 10 to 15 hold `0a7878`, `ffff50`, `14c828`, `0028e6`,
+`ff0000`, `ffffff`. That is the running game's table for that screen, and 6.15 stays what its caveat calls it, the
+BIOS initial values. The measurement and the caveat are in
+[palette.md](palette.md#616-the-palette-the-recompiled-port-holds-and-a-human-check-on-it).
+
+**What was not obtained.** A numeric machine-versus-port diff. `PRI PALETTE` on the live machine at the
+character-creation screen reports a 256-colour table of sixteen rows, entirely `FFFFFF`, because the game is in a
+different colour mode there than the port's frame at 600. Two modes, one dump, no comparison, and that is stated
+in the page rather than papered over.
 
 **Why it matters for the corpus.** All current output is greyscale. Until this lands, every rendered asset
 in `extracted/` is a documented limitation rather than a decoder bug.

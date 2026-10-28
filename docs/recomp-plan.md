@@ -867,6 +867,7 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_WATCH=<linear>[:<len>]` | report every write into that linear range, with the instruction that made it. The port's answer to a physical `MEMW` watch, and it does not suffer that watch's blind spot: the machine's page tables move a linear address between physical pages, so a byte watch can miss the write it was armed for. |
 | `U2_KEYS=<frame>:<scan><ascii>,...` | press keys on given frames, which is how the port is driven past a keyboard wait. Hex, two digits each: `60:1e61` is "at frame 60 press scan code 0x1E with ASCII 0x61", measured as the key 'a'. |
 | `U2_SHOT=<path>` | write the frame the machine is showing when the run ends, with the kit's own renderer, so "it draws" is a picture rather than a byte count. |
+| `U2_PALETTE=1` | print the sixteen palette entries per plane when the run ends, in `PRI PALETTE`'s own `RRGGBB` notation, so the port's table and the machine's can be compared by diff. |
 
 ### The command line
 

@@ -520,6 +520,36 @@ pre-game palette rather than U2's own.
 Running 25 seconds in, past the point where the game draws its menu, `PRI
 PALETTE` returns exactly the same two rows. So this is not a transient boot
 default that gets replaced, it is the palette the game runs with at that stage.
+
+### 6.16 The palette the recompiled port holds, and a human check on it
+
+**Tried:** read the palette from the port, for item 4e. `U2_PALETTE=1` prints the machine's sixteen entries per plane
+in the same `RRGGBB` notation `PRI PALETTE` uses, so the two are comparable by diff rather than by eye.
+
+**Measured,** at 600 frames with the three keypresses that reach the title (the run that draws):
+
+```
+palette   page0: 000000 0000ff ff0000 000000 00ff00 00ffff ffff00 ffffff 000000 000000 0a7878 ffff50 14c828 0028e6 ff0000 ffffff
+palette   page1: 000000 0000ff ff0000 000000 00ff00 00ffff ffff00 ffffff 000000 000000 0a7878 ffff50 14c828 0028e6 ff0000 ffffff
+```
+
+That is clearly the game's own table for that screen and not the BIOS defaults in 6.15: entries 8 and 9 are black, and
+the half from 10 to 15 holds `0a7878`, `ffff50`, `14c828`, `0028e6`, `ff0000`, `ffffff`, none of which is in the
+initial table. So 6.15 stays what its own caveat says it is, the initial values, and this stands as the running game's
+table for the title screen.
+
+**What was NOT obtained, and why.** A numeric comparison against the machine at the same screen. `PRI PALETTE` on
+the live machine at the character-creation screen reports a **256-colour** table, printed as sixteen rows of sixteen
+entries and entirely `FFFFFF`, because the game is in a different colour mode there than the port's 600-frame frame.
+Two modes, one dump, so there is no comparison to make, and inventing one from a 16-entry table against a 256-entry
+dump would be the same class of error as the byte sequences this project stopped quoting from memory.
+
+**A different kind of evidence, labelled as such.** A person looked at the port's window in a browser, at the title
+screen, and reported that the colours are right. Item 4e was blocked on "needs a coloured screen" for a long time,
+and this is that screen: not a measurement, a human check, and worth recording because no measurement was available.
+
+**Verdict:** POSITIVE for the port's palette agreeing with the game, on a rendered picture and a human check; OPEN
+on a numeric machine-versus-port diff, which needs both sides read in the same colour mode.
 Whether a later screen (title art, in-game map) installs a different one is
 still untested, and would need `PRI PALETTE` capturing at several points.
 

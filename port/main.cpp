@@ -422,6 +422,10 @@ int main(int argc, char** argv) {
 	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this
 	// (it is how its own ports save frames at a VSYNC).
 	const char* shot_path = std::getenv("U2_SHOT");
+	// U2_PALETTE=1 prints the palette the machine holds when the run ends, in the same `RRGGBB` form the emulator's
+	// `PRI PALETTE` prints, one line per layer. Item 4e wants the running game's palette recorded and compared, and
+	// two tables in the same notation can be compared by eye and by diff; a rendered picture cannot.
+	const bool show_palette = std::getenv("U2_PALETTE") != nullptr;
 	// The window, when asked for. `open` failing is not fatal: the run continues headless and says so, because a
 	// missing display should cost a picture and not a measurement. The keystrokes the front-end reads are handed
 	// straight to the keyboard queue the KYB_read patch serves, so typing works in the window.
@@ -581,6 +585,15 @@ int main(int argc, char** argv) {
 		m.render(rgb, w, h);
 		if (w > 0 && h > 0 && towns::write_png(shot_path, rgb, w, h)) std::printf("shot      %s (%dx%d)\n", shot_path, w, h);
 		else std::printf("shot      %s: the machine has no frame to render\n", shot_path);
+	}
+	if (show_palette) {
+		for (int layer = 0; layer < 2; ++layer) {
+			std::printf("palette   page%d:", layer);
+			for (int i = 0; i < 16; ++i)
+				std::printf(" %02x%02x%02x", m.video.pal16[layer][i][0], m.video.pal16[layer][i][1],
+				            m.video.pal16[layer][i][2]);
+			std::printf("\n");
+		}
 	}
 	if (const char* dump = std::getenv("U2_DUMP")) {
 		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);
