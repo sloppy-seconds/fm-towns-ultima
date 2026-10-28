@@ -535,14 +535,17 @@ the fall-through edges and prints the agreement rate. That is the check that the
 way `Execute_SaveCFG` writes them, and every earlier reading of this format got it wrong.
 
 The image offset maps to `segment:(offset - 0x200)` for `000C`, because the game runs the file with its
-`MP` header stripped. `--offset` overrides it.
+`MP` header stripped, so `--image` takes a **file offset** and `--address` takes a **segment
+offset**. They differ by 0x200, and the `MP` header's `EIP` is an address.
 
 `--out` is a path **inside the container**, so `/data/analysis/...` rather than a host path. `saves/` is
 mounted at `/data`.
 
-It closed the question of whether the `MP` header `EIP` is an entry point: 23,987 executed instructions
-in segment `000C` and not one of them at the address the header names, while the byte it points at is
-the immediate of a `jge` that did run. See [entry-point-question.md](../docs/entry-point-question.md).
+It answered the entry-point question, and the answer needed the question corrected. `--address
+0x101a20` reports the header's address as the first game instruction, a `jmp` whose bytes sit at file
+offset `0x101c20`. Asking for `--image 0x101a20` looks 0x200 away, at a byte that is not an
+instruction boundary, and returns a correct negative to the wrong question. See
+[entry-point-question.md](../docs/entry-point-question.md).
 
 ### Console quirks worth knowing
 

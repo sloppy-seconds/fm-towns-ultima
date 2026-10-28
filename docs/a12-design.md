@@ -174,13 +174,13 @@ list of `CALL` destinations will ever include it.
 That is the honest boundary of this technique: **it can only sweep functions that something
 `call`s directly.**
 
-**CORRECTION:** this section originally said the rest could be reached "with a control-flow walk
-from the entry point at `0x101a20`". **`0x101a20` is not an entry point.** It is the `MP` header's
-`EIP` field, and it points one byte into a real instruction. Disassembling there gives
-`add al,[ebx]` / `rol dword [ebx],1`.
-
-See [entry-point-question.md](entry-point-question.md) for the measurement and for what a real
-control-flow walk would have to do.
+> **CORRECTION: this section withdrew a correct sentence.** It originally said the rest could be
+> reached "with a control-flow walk from the entry point at `0x101a20`", which is right. The
+> withdrawal rested on reading that field as a **file offset**: at file `0x101a20` the bytes are
+> `02 03` and no instruction begins. But `0x101a20` is an **address**, and the code it names is at
+> file `0x101c20`, which is `EB 56`, a jump to `000C:101A78`. The loader's `IRETD` transfers control
+> there, and a live capture shows it as the first game instruction. See
+> [entry-point-question.md](entry-point-question.md).
 
 This project's own `code-analysis.md` records that direct:indirect dispatch is 58:1, so the
 missed functions are a minority, and 13 of 14 found false positives is a large improvement on

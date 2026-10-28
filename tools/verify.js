@@ -229,30 +229,29 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 	else bad('ENCHANT EIP past header', '0x' + e.eip.toString(16));
 }
 
-// The `MP` header EIP is not an entry point, and the file shows why.
+// The `MP` header EIP is the program entry, and the file shows it once the
+// 0x200-byte header and stub are accounted for.
 //
-// A boot-to-game control-flow capture executes 23,987 distinct instructions in
-// segment 000C and never reaches the header's address. The bytes there explain
-// it: `0x101a20` is the second byte of a two-byte conditional branch.
+// The loader hands over with `IRETD` at `0008:3dd3`, which pops `000C:101a20`
+// off the stack. A capture from reset through the load shows that as the first
+// game instruction, and its bytes are `EB 56`, a jump to `000C:101a78`.
 //
-//   0x101a1f: 7d 02   jge +2, target 0x101a23, so 0x101a20 is an immediate
-//
-// The runtime address is image - 0x200 (see docs/cfg-findings.md), so the field
-// points at 000C:101820, which was read live and matches these bytes. Asserted
-// statically because a different rip that shifted the text would move the
-// boundary and the claim would stop being true without anything failing.
-// Recorded in docs/entry-point-question.md.
+// The field is an ADDRESS, not a file offset. The code it names sits at file
+// offset `EIP + 0x200`, because the file's first 0x200 bytes are the header and
+// stub and are not loaded into segment `000C`. Reading the field as a file
+// offset lands 0x200 early, where the bytes are `02 03` and no instruction
+// begins, and that slip produced two wrong docs before it was caught. See
+// docs/entry-point-question.md.
 {
 	const e = disc.get(cat, 'ENCHANT.EXP');
 	const h = mpHeader('ENCHANT.EXP');
 	eq('ENCHANT header EIP value', h.eip, 0x101a20);
-	eq('ENCHANT header EIP is a jge immediate',
-		e.slice(0x101a1f, 0x101a21).toString('hex'), '7d02');
-	// The control: the byte before the pair must end an earlier instruction, so
-	// the pair cannot be asserted from the wrong offset and still pass.
-	if ('7d' !== e.slice(0x101a1e, 0x101a1f).toString('hex'))
-		ok('ENCHANT header EIP boundary is not one byte early', '0x101a1e is 0xd2');
-	else bad('ENCHANT header EIP boundary is not one byte early', '0x101a1e is 0x7d');
+	eq('ENCHANT entry instruction at EIP + 0x200',
+		e.slice(h.eip + 0x200, h.eip + 0x202).toString('hex'), 'eb56');
+	// The control: 0x200 early is not a jump, so a reader who takes the field
+	// for a file offset fails here rather than passing quietly.
+	eq('ENCHANT entry read as a file offset is not code',
+		e.slice(h.eip, h.eip + 2).toString('hex'), '0203');
 }
 
 // Where the game code lives in memory, and how to read a captured address.

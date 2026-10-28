@@ -52,13 +52,14 @@ falls inside that range.
 So the load address is **0**, and a file offset equals a virtual address. That is
 convenient, and it is the opposite of what the header suggests.
 
-**`EIP` is also not a usable code entry.** Disassembling at `0x101a20` gives `add al,[ebx]`
-then `rol dword [ebx],1`, which is not a prologue. Sweeping from the real prologue at
-`0x101984` puts an instruction boundary at `0x101a1f`, so `0x101a20` is **one byte into a
-real instruction**.
+**`EIP` is a usable code entry, once it is read as an address.** The field holds `0x101a20`, and
+because the first 0x200 bytes of the file are header and stub, the code is at file offset
+`0x101c20`. Disassembling *that* gives `EB 56`, which is `jmp 000C:101A78`. A boot capture shows the
+loader's `IRETD` delivering control to `000C:101A20` as the first game instruction.
 
-Treat the header `EIP` as unverified. The only entries this project trusts are `CALL` targets,
-because the instruction that reaches them proves them. See
+Disassembling at file `0x101a20`, which is what earlier sessions did, gives `add al,[ebx]` then
+`rol dword [ebx],1`, which is not a prologue. That reading is 0x200 early. It produced the claim
+that the field was not an entry at all, and that claim was wrong. See
 [entry-point-question.md](entry-point-question.md).
 
 ## Dispatch is direct, unlike the DOS build

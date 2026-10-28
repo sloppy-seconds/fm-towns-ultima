@@ -38,15 +38,26 @@ QUERY
     python3 tools/cfgprobe.py query saves/analysis/entry-boot.txt \
         --segment 000C --image 0x101a20 --image 0x10538e
 
-    --image takes an ENCHANT.EXP file offset. For segment 000C the runtime
-    address is `offset - 0x200`, because the game runs the file with its `MP`
-    header stripped: `MD 000C:0` returns `KYB_init`, which is at file offset
-    0x200. `--offset` overrides the 0x200 for a future case.
+    --image takes an ENCHANT.EXP file offset. `--address` takes a segment offset
+    directly, which is what the MP header's EIP is. They differ by 0x200, and
+    conflating them is the error that hid the entry point.
 
     For each address it reports whether the address appears as the start of an
     executed instruction, whether it appears as a branch destination, and the
     nearest executed instructions either side, which is what distinguishes "not
     reached" from "not in the capture at all".
+
+The file offset and the address are not the same number, and confusing them is
+how the entry point was missed twice.
+
+    address  = file offset - 0x200     for segment 000C, because the file's first
+                                       0x200 bytes are the MP header and stub
+    file off = address + 0x200
+
+`--image` takes a **file offset**, `--address` takes a **segment offset**. The
+MP header's `EIP` field is an address, so ask for it with `--address 0x101a20`.
+Asking for `--image 0x101a20` looks at file offset 0x101a20, which is 0x200 bytes
+away from the entry and is not even an instruction boundary.
 
     Before answering, it re-derives the instruction-length arithmetic on the
     fall-through edges (`preEIP + preLen == src`) and prints the agreement rate.
@@ -211,12 +222,15 @@ def do_query(args):
         print("  image range: 0x%X to 0x%X" % (lo, hi))
 
     rc = 0
+    wants = []
     for want in args.image or []:
-        image = int(want, 16)
-        addr = image - off
+        wants.append(("file offset 0x%X" % int(want, 16), int(want, 16) - off))
+    for want in args.address or []:
+        wants.append(("address 0x%X" % int(want, 16), int(want, 16)))
+    for label, addr in wants:
         hit = addr in executed
         isdst = addr in dests
-        print("\nimage 0x%X  ->  %s:%X" % (image, seg, addr))
+        print("\n%s  ->  %s:%X" % (label, seg, addr))
         print("  executed as an instruction start: %s" % ("YES" if hit else "no"))
         print("  reached as a branch destination:  %s" % ("YES" if isdst else "no"))
         if addr in executed or addr in dests:
@@ -253,7 +267,10 @@ def main(argv):
     q.add_argument("--segment", default="000C")
     q.add_argument("--offset", type=lambda s: int(s, 16), default=None,
                    help="image = address + offset. Defaults to 0x200 for 000C, 0 otherwise")
-    q.add_argument("--image", action="append", help="ENCHANT.EXP offset, e.g. 0x101a20. Repeatable")
+    q.add_argument("--image", action="append",
+                   help="file offset into ENCHANT.EXP, e.g. 0x101c20. Repeatable")
+    q.add_argument("--address", action="append",
+                   help="segment offset, e.g. 0x101a20 for the MP header EIP. Repeatable")
     q.set_defaults(func=do_query)
 
     args = ap.parse_args(argv)
