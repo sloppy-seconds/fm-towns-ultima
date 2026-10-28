@@ -6,6 +6,24 @@ is the plan of record and this page is a view of it. See `docs/plan-process.md` 
 **Which items an agent can start right now is answered by `node tools/plancheck.js --todo`, not by reading
 this page.** That tool reads `plan.md`, which is authoritative.
 
+## Work Phase 7 first
+
+The current line of work is the port: the recompiled program running under fmtownskit's machine. It completes
+start-up, opens its real assets and survives 3,000 frames without a fault, and everything worth doing next
+moves that forward. So the order for unattended work is
+
+1. `7a` the port's screen against the machine's, which no check has ever made
+2. `7c` what else the program patches at run time, because each one is a latent port fault of the same kind
+   as the `int86` vector
+3. `7d` the indirect transfers the port meets next
+4. `7e` a port regression the checks can run
+5. `6a` one frame of reference per tool, which has now cost three walls
+
+Only when those are done does Phase 1 to 5 work start, and then in plan order. This paragraph exists because
+the queue below is chronologically oldest first, and on 2026-10-28 the thirteen startable items
+were all Track A corpus work with no port item anywhere in `plan.md`. Following that order would have been
+the sidetrack the queue was supposed to prevent.
+
 Track B is not in this queue and never will be: it needs keypresses, and every keypress has to be explicitly
 requested. That is why [plan.md](plan.md) Phase 3 has never run.
 
@@ -17,7 +35,17 @@ requested. That is why [plan.md](plan.md) Phase 3 has never run.
 3. **Never invent a value to make a table look complete.** Write `unknown` and say what would name it.
 4. **A negative is a finished item.** Record the measurement and move on. No cosmetic retries.
 5. **If an item is blocked, stop it and write why.** Do not substitute an easier question.
-6. **No emulator, no container, no keypress.**
+6. **The emulator is allowed, with a discipline.** Before this changed, this rule said no emulator and no
+   container. That was written when a live session meant a person clicking. It no longer does: the supervisor
+   API takes console commands, `u2flow.py` drives the menus, `MD` reads memory and `SAVESTATE` writes a file
+   a script can diff. Tonight's two best measurements came that way.
+
+   The discipline, because it went wrong once: run `BC *` and `BRKON OFF` **before** every live session and
+   again after it, restart the container if `u2flow` reports `splash never animated`, never leave the VM
+   paused, never arm more than one breakpoint, never write to `saves/`, and treat three live runs on one item
+   as the budget. A wedged emulator cost more time than the measurement was worth.
+7. **Track A items are not the current line of work.** The port is. Phase 1 to 5 work can wait; a port
+   regression found late costs more than a routine page found late.
 
 ## Item 0: before starting
 

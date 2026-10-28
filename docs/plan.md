@@ -91,6 +91,10 @@ from the items below rather than maintained separately.
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
 | 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
+| 7a Does the port's screen match the machine's | AUTONOMOUS | **yes**, both sides can dump |
+| 7c What else the program patches at run time | AUTONOMOUS | **yes**, a savestate diff |
+| 7d The indirect transfers the port meets next | AUTONOMOUS | **yes**, the rules exist |
+| 7e A port regression the checks can run | AUTONOMOUS | **yes**, no emulator needed |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports twelve of twenty-seven startable now, with 2b and 4a held back by item order. That is
@@ -1050,6 +1054,62 @@ field the live value.
 
 Not assertable in `tools/verify.js`, because it needs the live machine rather than the disc. It is recorded
 in [recomp-plan.md](recomp-plan.md) instead, with the breakpoint and the frame the reading was taken in.
+
+## Phase 7: the port, which is the current line of work
+
+The recompiled program runs under fmtownskit's machine. It completes start-up, opens its real assets and
+survives 3,000 frames with no fault, which is the furthest this has ever got. Everything below moves that
+forward, and nothing in Phase 7 may be swapped for Phase 1 to 5 work: the corpus items can wait, and a port
+regression found late costs more than a routine page found late.
+
+### 7a. Does the port's screen match the machine's
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Both sides can produce a framebuffer without a human: the machine through the supervisor's screenshot endpoint, the port through a VRAM dump added to it |
+| done when | the port emits its VRAM as an image or a hash, the machine's VRAM is read at a comparable point, and the result is stated as a match, a difference characterised by region, or a failure to produce one. The failure case it must catch: the port runs cleanly and draws nothing, which no frame count can see |
+| blocked by | nothing |
+
+This is the strongest validation available and it is the one that has never been attempted. Every check so far
+counts guest clocks and faults, and a program can do both while writing the wrong pixels. The kit has a
+palette and a CRTC; the machine has a screenshot endpoint; the port has the same memory the machine does, so
+the comparison is two dumps and a diff.
+
+### 7c. What else the program patches at run time
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. A savestate of the running game plus the file is enough |
+| done when | every byte of the code range that differs between the file and live memory is listed, and each is either explained by a named routine or recorded as unexplained. The `int` vector at guest `0x10241b` is the known one and must be recovered by the diff rather than assumed to be alone |
+| blocked by | nothing |
+
+The `int86` routine writes the caller's vector into its own instruction, and the recompiler cannot see that.
+One such site was found by tripping over it. If there are others, each is a latent port fault of the same
+kind, and the diff is a page of work now against a debugging session later.
+
+### 7d. The indirect transfers the port meets next
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The recompiler already reports them, and two resolution rules are established |
+| done when | each of the 26 unresolved transfers in the game module and the 67 in the TBIOS module is either resolved by a rule (a callback immediate pointing at a prologue, a jump table, a measured seed) or shown to be unreachable, and the port's frame count before and after is recorded |
+| blocked by | nothing |
+
+### 7e. A port regression the checks can run
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. `checkall.js` already has the shape for it |
+| done when | `node tools/checkall.js` fails if the port's known-good behaviour regresses, without needing the emulator, the disc or a recompile. Candidates: the seed count, the fact that the emitted module reads a patched vector, and the number of functions per module. The failure case: a check that passes when the port is broken |
+| blocked by | nothing |
 
 ### 6a. One frame of reference per tool, declared and checked
 **State:** OPEN · **Autonomy:** AUTONOMOUS
