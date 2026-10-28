@@ -88,7 +88,7 @@ nav:
       - The call graph: call-graph.md
       - The game loop: game-loop.md
       - Inside a turn: inside-a-turn.md
-      - Transport: one field, five values: transport-field.md
+      - Transport, one field and five values: transport-field.md
       - The tick: the-tick.md
       - The map draw chain: map-draw-chain.md
       - Savestate session: savestate-session.md
