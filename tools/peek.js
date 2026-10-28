@@ -53,10 +53,20 @@ const FIELDS = {
 	// the order in that file is the order in memory, anchored at HP as field 18:
 	//   offset = 0xcde81 + 4*(field - 18)
 	// Checked against live memory: maxhp reads 400 and era reads 2 at these addresses.
-	tassle: 0xcdf1d,
-	ankh: 0xcdf0d,
-	gem: 0xcdf09,
+	// Quest items, fields 51 to 60 in the roster order (docs/roster-reference.md).
+	// Anchor HP as field 18 at 0xcde81, so field n is 0xcde81 + 4*(n-18).
+	// Calibrated against live memory: maxhp reads 400, era reads 2, gold reads the
+	// value the screen shows. GEM is field 51 at 0xcdf05 and NOT 0xcdf09, which is
+	// ANKH; an earlier version of this table was one field out and read the wrong item.
+	gem: 0xcdf05,
+	ankh: 0xcdf09,
+	redgem: 0xcdf0d,
+	skullkey: 0xcdf11,
+	greengem: 0xcdf15,
 	brass: 0xcdf19,
+	tassle: 0xcdf1d,
+	coin: 0xcdf21,
+	idol: 0xcdf25,
 	trilithium: 0xcdf29,
 	px: 0xcdf6b,
 	py: 0xcdf6f,
