@@ -1,33 +1,45 @@
 #!/usr/bin/env python3
 """tools/divergence.py - find where the port's execution parts company with the machine's.
 
-WHY THIS EXISTS. The port runs 24,000 frames and draws nothing, while the machine runs the same start-up and
-draws a title. The port settles into a keyboard wait at guest 0x0e25ae and the machine never executes that
-address at all (breakpoint, with a control at 0x10241a that fired in six seconds). So the port is on a path
-the real program does not take, and the difference is upstream. Guessing which BIOS return we answered
-wrongly is how this project has wasted time before.
+WHY THIS EXISTS. The port ran 24,000 frames and drew nothing, while the machine ran the same start-up and drew
+a title. The port settled into a keyboard wait and the machine never executed that address at all (breakpoint,
+with a control at 0x10241a that fired in six seconds). So the port was on a path the real program does not
+take, and the difference was upstream. Guessing which BIOS return we answered wrongly is how this project has
+wasted time before.
 
 WHAT IT COMPARES. Two records of the same program:
 
   - the machine's control-flow capture, from `tools/cfgprobe.py capture --journey`. An edge map: for each
     executed basic block it gives the block's start, the block's last instruction (`preEIP`), the next
-    instruction, and whether that next step was a fall-through or a branch.
-  - the port's instruction trace, from a build with -DU2_TRACE=ON and U2_TRACE_FILE set. Every instruction's
-    address, in order.
+    instruction, and whether that step was a fall-through or a branch.
+  - the port's trace, from a build with -DU2_TRACE=ON and U2_TRACE_FILE set. That trace logs each address the
+    first time it executes, so its lines are in first-execution order but **are not adjacent instructions**.
 
-ALIGNMENT, AND WHY IT IS APPROXIMATE. The capture records block boundaries, not every instruction, so a port
-address is not comparable directly. What is comparable is a *decision*: the port leaves address A for target T,
-and the machine, when it executed the block starting at B (the greatest machine block start at or before A),
-took one of its recorded edges. If the machine has an edge out of B but none to T, the port branched
-differently from the same place, and that is the divergence.
+THE METHOD IS SET SUBTRACTION, AND ADJACENCY WAS REMOVED ON PURPOSE. An earlier version of this tool tried to
+reason about consecutive lines and report "the port left A for B where the machine went to C". On a deduplicated
+trace that is meaningless: the line after an address is the next *new* address, not the next instruction, and the
+result is a list of off-by-one artefacts that look exactly like findings. It produced four of them before this
+was caught. A plausible artefact is worse than no output.
 
-Each candidate is printed with the port's last few instructions and the machine's actual edges from that
-block, so a reader can judge it rather than trust it. Verify the one that matters with
-`tools/cfgprobe.py query` before acting on it: this tool narrows the search, it does not prove a case.
+So what is compared is coverage. Take every address the port executed, subtract the machine's recorded set, and
+what remains is code the port ran that the machine has no record of. Each is printed with the nearest machine
+record below it and the gap, because "0x100b0f, nearest machine record 0x100b00, gap 0x0f" says far more than
+the address by itself.
+
+This is the method that found the missing A: drive. On the trace taken before the floppy existed it named
+**0x102345** first, which is the `jb` error target inside the get-file-attributes wrapper at 0x102317, and the
+next few were the message print and the key wait that follow at 0x0e25a1 onward. That is the failure read off
+the instruction stream rather than guessed: the probe returned an error, and everything after it is the
+error path.
+
+WHAT IT DOES NOT PROVE. A port-only address in the middle of a block can be an artefact of the machine's capture
+recording block boundaries rather than every instruction, so the low counts should be read as a shortlist of
+places to look, not as evidence. Confirm the one that matters by disassembling around it and, where it is a
+branch, by breaking there on the live machine.
 
 USAGE
 
-    tools/divergence.py saves/analysis/divergence-capture.txt /var/tmp/port-trace.txt
+    tools/divergence.py saves/analysis/divergence-capture.txt /var/tmp/port-first.txt
     tools/divergence.py ... --show 12 --segment 000C
 """
 
@@ -36,9 +48,9 @@ import sys
 
 
 def read_edges(path):
-    edges = set()
-    starts = set()
-    by_src = {}
+    """Every address in the segment the machine has a record of: block starts, block ends, and branch targets."""
+    seen = set()
+    edges = 0
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
             f = line.split()
@@ -53,13 +65,12 @@ def read_edges(path):
                 continue
             sseg, dseg = sseg.upper(), dseg.upper()
             if sseg == "000C":
-                starts.add(src)
-                by_src.setdefault(src, set()).add((dseg, dst))
+                seen.add(src)
+                seen.add(pre_eip)
+                edges += 1
             if dseg == "000C":
-                starts.add(dst)
-            if sseg == "000C":
-                starts.add(pre_eip)
-    return starts, by_src, edges
+                seen.add(dst)
+    return seen, edges
 
 
 def read_trace(path, segment):
@@ -84,67 +95,60 @@ def main(argv):
     ap.add_argument("capture")
     ap.add_argument("trace")
     ap.add_argument("--segment", default="000C")
-    ap.add_argument("--show", type=int, default=8, help="how many candidate divergences to print")
-    ap.add_argument("--skip", type=int, default=0, help="skip the first N candidates, to look further")
+    ap.add_argument("--show", type=int, default=8, help="how many port-only addresses to print")
+    ap.add_argument("--skip", type=int, default=0, help="skip the first N, to look further")
     a = ap.parse_args(argv)
 
-    starts, by_src, _ = read_edges(a.capture)
-    if not starts:
-        print("no edges for segment %s in %s" % (a.segment, a.capture), file=sys.stderr)
+    machine, edges = read_edges(a.capture)
+    if not machine:
+        print("the capture has no addresses for segment %s" % a.segment, file=sys.stderr)
         return 1
     trace = read_trace(a.trace, a.segment)
     if not trace:
         print("no %s instructions in %s" % (a.segment, a.trace), file=sys.stderr)
         return 1
 
-    sorted_starts = sorted(starts)
-    print("machine: %d block starts in %s, %d blocks with recorded edges"
-          % (len(sorted_starts), a.segment, len(by_src)))
-    print("port:    %d %s instructions traced" % (len(trace), a.segment))
+    print("method:   set subtraction, not adjacency. The port's trace records first executions, so consecutive")
+    print("          lines are not consecutive instructions and ordering is first-execution only.")
+    if len(set(trace)) < len(trace):
+        print("          This trace repeats addresses, so it is a full instruction trace; the set method still")
+        print("          applies and is still the only one used here.")
+    print("machine:  %d addresses recorded in %s, from %d edges" % (len(machine), a.segment, edges))
+    print("port:     %d distinct addresses executed in %s" % (len(set(trace)), a.segment))
 
-    def block_start_at_or_before(addr):
-        lo, hi = 0, len(sorted_starts) - 1
+    sorted_machine = sorted(machine)
+
+    def nearest(addr):
+        lo, hi = 0, len(sorted_machine) - 1
         best = None
         while lo <= hi:
             mid = (lo + hi) // 2
-            if sorted_starts[mid] <= addr:
-                best = sorted_starts[mid]
+            if sorted_machine[mid] <= addr:
+                best = sorted_machine[mid]
                 lo = mid + 1
             else:
                 hi = mid - 1
         return best
 
-    found = []
-    for i in range(1, len(trace) - 1):
-        here, nxt = trace[i], trace[i + 1]
-        # An instruction that neither falls through to a nearby address nor is a small step is a transfer.
-        if nxt > here and nxt - here <= 15:
-            continue
-        block = block_start_at_or_before(here)
-        if block is None:
-            continue
-        outs = by_src.get(block)
-        if not outs:
-            continue
-        if (a.segment, nxt) in outs or any(d == nxt for _s, d in outs):
-            continue
-        found.append((i, block, here, nxt, sorted(outs)))
-        if len(found) >= a.show + a.skip:
-            break
-
-    if not found:
-        print("\nno divergence found in this trace: every transfer whose block the machine executed "
-              "matched an edge the machine took")
+    only = [a_addr for a_addr in trace if a_addr not in machine]
+    shared = len(set(trace)) - len(only)
+    print("overlap:  %d of the port's addresses match a machine record; %d do not"
+          % (shared, len(only)))
+    if not only:
+        print("\nno divergence found: every address the port executed is one the machine has a record of. "
+              "That is not proof of identical behaviour, because the capture records block boundaries rather "
+              "than every instruction, but it rules out the port being somewhere the machine never was")
         return 0
 
-    print("\n%d candidate divergences, showing %d from %d\n"
-          % (len(found), min(a.show, max(0, len(found) - a.skip)), a.skip))
-    for n, (i, block, here, nxt, outs) in enumerate(found[a.skip:a.skip + a.show], 1):
-        print("candidate %d: port leaves 0x%06x for 0x%06x (trace line %d)" % (n, here, nxt, i + 1))
-        print("  machine block 0x%06x recorded these transfers: %s"
-              % (block, ", ".join("0x%06x" % d for _s, d in outs[:8])))
-        print("  the port arrived by: %s" % ", ".join("0x%06x" % v for v in trace[max(0, i - 6):i + 1]))
-        print()
+    show = only[a.skip:a.skip + a.show]
+    print("\nshowing %d of %d port-only addresses, in first-execution order\n" % (len(show), len(only)))
+    for n, addr in enumerate(show, 1):
+        nb = nearest(addr)
+        gap = "none" if nb is None else "0x%06x (gap 0x%x)" % (nb, addr - nb)
+        print("port-only %d: 0x%06x   nearest machine record below it: %s" % (n, addr, gap))
+    print("\nThe earliest line is the place to start: it is the first address the port reached that the machine "
+          "has no record of at all. Disassemble around it, find the branch that leads there, and check that "
+          "branch on the live machine.")
     return 0
 
 
