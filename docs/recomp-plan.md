@@ -359,7 +359,9 @@ Q:\GRAPH\CHEST.TIF    then the fourteen sound effects, then \UT2\MAP.MP2
 `int90` (KYB_lock), `AL=0x20` in `int93` (the CD probe, with the measured returns above), `case 0x43` in
 `int21`. `towns_cpu.cpp`: the self-patched `int` vector, which
 [self-modifying-int.md](self-modifying-int.md) shows is needed by every Origins game on this disc and not just
-this one. They are edits to `references/`, which is not
+this one. `towns_disc.cpp`: three null guards, because `data_` is null until a disc is opened and `read_data`
+dereferenced it, which is what the crash that looked like `Disc::handle` really was. They are edits to
+`references/`, which is not
 committed, so this paragraph is the record of them.
 
 **The emulator trouble was mine, not the disc.** It stopped launching the game partway through this work:

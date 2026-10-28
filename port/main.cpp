@@ -162,10 +162,13 @@ int main(int argc, char** argv) {
 	{
 		std::string err;
 		if (!m.disc.open(cue_path, err)) {
-			std::fprintf(stderr, "disc %s: %s\n", cue_path, err.c_str());
-			return 2;
+			// A missing disc is a warning, not the end of the port. The DOS layer now returns an error to the
+			// program instead of dereferencing a null track (item 8c), and a program whose first asset open fails
+			// is a more useful diagnostic than a port that refuses to start.
+			std::printf("machine   no disc: %s\n", err.c_str());
+		} else {
+			std::printf("machine   disc opened from %s\n", cue_path);
 		}
-		std::printf("machine   disc opened from %s\n", cue_path);
 	}
 
 	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the

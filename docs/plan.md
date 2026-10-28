@@ -1253,17 +1253,34 @@ separate change, not part of this item.
 
 ### 8c. `Disc::handle` with no disc opened
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | autonomous. It is a null `FILE*` and the DOS layer already knows how to return an error |
+| autonomy | autonomous. It is a null pointer and the DOS layer already knows how to return an error |
 | done when | an `int 21h` open when no disc is opened returns a DOS error with `CF` set rather than segfaulting, and a run with the disc deliberately not opened reaches a visible "no drive" state. The failure case: a segfault in `Disc::handle`, which is what happened |
 | blocked by | nothing |
 
 A 600-frame run died in `Disc::handle` because nothing had opened the disc. The kit assumes the program is
 launched by something that mounted it, which is reasonable for its own ports and not for a program fed to it by
 a second tool.
+
+**What is now known.** The crash was not in `Disc::handle` at all, which is where the backtrace pointed.
+`Disc::data_` is null until `open()` finds a data track, and `read_data` dereferenced it on its first line, so
+`*data_` read a null `Track` and `handle()` was then handed a garbage path for `fopen`. Three guards fix it:
+`read_data` returns false with no data track, `index()` returns without walking so `find()` answers "no such
+file", and `handle()` refuses an empty path.
+
+`port/main.cpp` also stopped treating a missing disc as fatal, which is what made the case testable. The
+acceptance run, 600 frames each:
+
+```
+with the disc:    Q:\GRAPH\HEADTTL.TIF -> handle 5
+without a disc:   Q:\GRAPH\HEADTTL.TIF: not on the disc
+```
+
+The same asset list in the same order, one returning file handles and the other returning DOS errors, with the
+program running to its frame limit either way. No crash, and a diagnostic that names the drive.
 
 ### 8d. Run the new seed rules through the recompiler, and measure what falls out
 
