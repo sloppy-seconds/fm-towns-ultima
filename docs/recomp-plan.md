@@ -529,6 +529,28 @@ memory.
 
 That is where this stands. The next step is the emitted `f_00103478` (the search) against the chunk that
 `f_00103718` links, or the same two globals read on the live machine at `0x1037d9` by breakpoint.
+
+**Both sides were then read at the same instruction**, the machine by breakpoint at `000C:1037D9` (first hit,
+4.0 s after the icon) and the port by `U2_STOP_AT=1037d9 U2_STOP_COUNT=1`:
+
+| value | machine | port |
+|---|---|---|
+| `EDI` request | `0x214` | `0x214` |
+| `ESI` returned | `0x0011EB20` | `0x0011EAD8` |
+| heap base, DS `0xDFD08` | `0x0011EB10` | `0x0011EAC8` |
+| heap limit, DS `0xDFD10` | **`0x00377FFF`** | **`0x02000000`** |
+| free-list head, DS `0xE00F4` | `0x0011EB20` | `0x0011EAD8` |
+| break, DS `0xE00FC` | `0x0011ED34` | `0x0011ECEC` |
+
+**So the port invents its heap limits.** The base is `0x48` lower than the machine's, the returned pointer is
+`0x48` lower with it, and the limit is `0x02000000` where the machine has `0x00377FFF`, which is nine times
+larger. Both are values the program reads rather than computes, so the difference is something the port answers
+differently at start-up, not a decode or a code fault.
+
+**And the limit being larger does not explain a failure**, since a bigger heap should allocate more, not less.
+The port's own sysalloc failure return (`0x1036e9`) never executes, so its break is never refused. That leaves
+the free-list search, which returns zero at a moment when the machine's equivalent list is populated by a chunk
+the same code had just linked in.
 sequences, one aligned comparison, and the first difference is the bug.
 
 **Done, and it found a missing floppy drive.**
