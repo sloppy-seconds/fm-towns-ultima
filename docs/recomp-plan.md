@@ -74,7 +74,7 @@ This stage is small and it gates everything.
 | `0xfdeb0` | returns, same shape, its twin one dword lower |
 | `0x209` | executes 43 clocks and **stops at `int 0x90`**, which is exactly what its body is: `enter 0,0 / mov ah,0 / int 0x90 / movzx eax,ah / leave / ret` |
 | `0xfe11c` | **not emitted**, so there is nothing to call |
-| `0x101c20` | **not emitted.** This is the entry point at runtime `0x101a20`, and recomp never emitted it because nothing `CALL`s it |
+| `0x101c20` | **the entry point**, and 73 clocks to `lsl` once it is in the seed list. `615` clocks to `int 21h` once `lsl` is answered, below |
 
 The `0x209` result is the useful one: the code ran correctly and the stop is the *machine*, not the code.
 The boundary of what `run1` can do is `int 0x90` and the port I/O that follows it, which is the TBIOS layer
@@ -83,6 +83,27 @@ The boundary of what `run1` can do is `int 0x90` and the port I/O that follows i
 **The entry point is not emitted and that is the next fix, not a defect in the runtime.** Seeding the
 recompilation with it is one added address in the seed list, in the module's frame: runtime `0x101a20` is
 file **`0x101c20`**.
+
+**Done, and it walks.** With `0x101c20` appended to the seed list the entry emits, and the start-up path
+runs in two measurable stages:
+
+```
+$ tools/recomp-build.sh /var/tmp/recomp4 0x101c20      # before lsl
+  ... 73 clocks, traps 0, stopped at "lsl"
+
+$ tools/recomp-build.sh /var/tmp/recomp4 0x101c20      # after implementing LSL
+  STOP  int 21h at eip 0x0 (the machine, not the code)
+  eax 0x00003000  esi 0x00000081  edi 0x0011effc  clocks 615  traps 1
+```
+
+**`LSL` is not a guess and is now implemented.** It asks a selector for its limit, and under a flat model
+with 4 GB segments the answer is `0xFFFFF`. That alone took the entry from 73 clocks to 615, because the
+start-up code queries segment limits before it does anything else.
+
+**The wall is now `int 21h`**, which is DOS rather than the game: the C runtime's start-up asking the
+extender for memory. `runtime/towns_dos.cpp` exists in the kit and belongs to the larger `towns` library
+rather than to `x86.h`, so the next decision is whether `run1` grows a DOS layer or links the kit's machine.
+Either way the stop is named, and it is a boundary in the host, not a failure in the recompiled code.
 
 **Artefact:** a `main()` that maps `ENCHANT.EXP` into `X86Cpu` memory, registers the module, calls the
 roster writer `0xebb70` by address, and exits with a stated result.

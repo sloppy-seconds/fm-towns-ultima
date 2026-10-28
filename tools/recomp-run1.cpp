@@ -82,7 +82,15 @@ void x86_far(X86Cpu& c, uint32_t, uint32_t, bool, int, uint32_t) { stop("far tra
 void x86_retf(X86Cpu& c, int, uint32_t) { stop("retf"); }
 void x86_iret(X86Cpu& c, int) { stop("iret"); }
 void x86_system(X86Cpu& c, uint32_t, const char* what) { stop(what); }
-bool x86_lsl(X86Cpu& c, uint32_t, uint32_t&) { stop("lsl"); }
+// LSL and LAR ask for a selector's limit and access rights. Everything here runs in a flat model with
+// 4 GB segments, so the limit is the whole address space and the rights are fully permissive. Answering
+// them is not a guess about the game, it is the answer a flat descriptor gives.
+bool x86_lsl(X86Cpu& c, uint32_t selector, uint32_t& limit) {
+	(void)c;
+	(void)selector;
+	limit = 0xFFFFFu;
+	return true;
+}
 void x86_poll(X86Cpu& c) { c.budget = 1 << 30; }
 [[noreturn]] void x86_fault(X86Cpu& c, uint32_t at, const char* why) {
 	std::printf("  STOP  fault at 0x%x: %s\n", at, why);
