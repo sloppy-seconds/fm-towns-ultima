@@ -90,6 +90,7 @@ from the items below rather than maintained separately.
 | 5f Shops and transports | AUTONOMOUS | **yes** |
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
+| 6b What int 93h returns for AL=0x20 | BLOCKED ON HUMAN | no, needs a working emulator |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports twelve of twenty-seven startable now, with 2b and 4a held back by item order. That is
@@ -1024,8 +1025,23 @@ Every one came from getting it wrong first, and the list is longer than it shoul
 - `overnight.md` is the unattended queue, derived from this plan.
 - Any number in this plan must be re-measured before being quoted, because three have already been wrong.
 
-### 6a. One frame of reference per tool, declared and checked
+### 6b. What `int 93h` returns for `AL=0x20`
 
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+
+| field | value |
+|---|---|
+| autonomy | blocked. The container no longer launches the game (`u2flow` stops with `splash never animated` and the machine sits at `F000:FFF0`), so this needs someone to bring the emulator back before any probe can run |
+| done when | the value the live machine leaves in DS:0x7a635 after start-up is recorded, and the `AL=0x20` case in the port's `int93` is either confirmed as `AH=0` or corrected. The failure case: the port is left with an unverified constant that changes which code path the program takes |
+| blocked by | the emulator, not the code |
+
+The program probes the CD at guest `0xe2445` with `int86(0x93)` carrying `AX=0x0220`, then reads the
+returned `AH` from outregs at DS:0x7a635: `AH==2` returns -1, otherwise two status bits at DS:0x7a640 are
+consulted and a second call goes out with `AH=0x07`. The port returns `AH=0` so that the program reports
+success, and that is a choice rather than a measurement. See
+[recomp-plan.md](recomp-plan.md) for the surrounding wall.
+
+### 6a. One frame of reference per tool, declared and checked
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
 | field | value |

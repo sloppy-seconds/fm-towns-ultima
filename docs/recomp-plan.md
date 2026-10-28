@@ -280,6 +280,63 @@ this repository documents `int 0` on the Towns, and the kit has no handler, so w
 an open question rather than a missing case. The fault falls between machine frames 160 and 165, so it is
 roughly 2.7 seconds of emulated time into start-up.
 
+**Worked through, and the program patches its own `int` instruction.** The bytes at DS:0x10241A are `CD 00`
+at program entry and `CD 93` at the moment of the call, read live with `MD` on both sides of the launch.
+Tsugaru decodes the second as `INT 93H`. The other eleven `CD 00` in the image are still `CD 00` live
+because they are never executed, and a scan for a `mov [mem], 0x93` finds nothing at all.
+
+The writer is the routine the image names **`int86`**, at guest `0x1023f6`, found by disassembling backwards
+from the faulting address:
+
+```
+1023fc  8a 45 08        mov al, [ebp+8]        the interrupt number is the first argument
+1023ff  a2 1b241000     mov [0x10241b], al     written into the next instruction
+102418  eb 00           jmp $+2
+10241a  cd 00           int 0                  the slot it just filled
+```
+
+**So this is self-modifying code, and a recompiled module cannot see it.** The emitter compiles `int` from
+the bytes on disk, so the port trapped vector 0 forever no matter what the program wrote. Patched in
+`towns_cpu.cpp`: when the dispatched vector is 0, the vector is taken from the code immediately before the
+instruction, which is where the program put it. One bug of mine hid this for a round: the first version
+masked the offset to 16 bits and read `0x241b` instead of `0x10241b`, so it read the wrong byte while the
+trace beside it showed DS holding `93` all along.
+
+**The next two walls were ordinary services, and one of them is not measured.**
+
+`int 93h AX=0x0220` faulted the kit's `int93`, which only accepts `AL=0xC0`, the CD-DA interface. The caller
+at guest `0xe2445` is a CD probe: it makes that call, reads the returned `AH` out of its outregs at
+DS:0x7a635, returns -1 when `AH==2`, consults two status bits at DS:0x7a640, and otherwise makes a second
+call with `AH=0x07`. All of that is read off the code. What the machine actually returns for `AL=0x20` is
+**not measured**, so the port returns `AH=0` and that choice is marked UNVERIFIED in the source. Settling it
+needs one live read of DS:0x7a635 after start-up.
+
+`int 21h AX=0x4300` is get file attributes, added to the kit's `int21` with `CX` reporting 0x10 for a
+directory and 0x20 otherwise, from the disc reader's own directory flag, and DOS error 2 with `CF` set when
+`find()` misses.
+
+**With those in, start-up completes and the program keeps running.** No fault at 1,200 frames or at 3,000,
+which is about 50 seconds of emulated time and 800 million guest clocks. It opens its real assets, in order,
+from the disc:
+
+```
+Q:\GRAPH\HEADTTL.TIF   \SOUND\ULTIMA.FMB   Q:\GRAPH\MAP2_1.TIF   Q:\GRAPH\PLAYER.TIF
+Q:\GRAPH\ENEMY2.TIF    Q:\GRAPH\EXTRA.TIF    Q:\GRAPH\DUNG1.TIF    Q:\GRAPH\DUNG2.TIF
+Q:\GRAPH\CHEST.TIF    then the fourteen sound effects, then \UT2\MAP.MP2
+```
+
+1,098,593 BIOS calls go past in those 1,200 frames, which is the game polling rather than spinning.
+
+**The patches, all in the vendored clone and all marked in place.** `towns_dos.cpp`: `case 0x04` in
+`int90` (KYB_lock), `AL=0x20` in `int93` (the CD probe, unverified), `case 0x43` in `int21`.
+`towns_cpu.cpp`: the self-patched `int` vector. They are edits to `references/`, which is not committed, so
+this paragraph is the record of them.
+
+**One thing is blocked, and it is the emulator rather than the code.** The container stopped launching the
+game partway through this work: `u2flow` reports `STOP: splash never animated` and the machine sits at the
+reset vector `F000:FFF0`. That is why the `AL=0x20` return value is unmeasured. It needs a fresh emulator,
+not a different probe.
+
 **What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
 finish. It is the difference between "the code does not run" and "the code runs until the machine is
