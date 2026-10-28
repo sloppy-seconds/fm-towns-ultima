@@ -137,6 +137,63 @@ Nothing here is named beyond `spend_food`. The remaining 47 function entries, th
 the collision check are all unreached by this analysis. The run conflates walking, refusal, combat and
 the stats page, so separating them needs separate runs, one action each.
 
+## Experiment 5: a death
+
+**Action.** One hit at HP 6, then another at HP 1. The screen flashed red, then a skull with "thou art
+dead" and a prompt to press space. The character then reset to HP 400, food 40,000, gold 400,
+position (20,20), map 0.
+
+This is the largest capture taken, and it is the one the earlier pages said had never been recorded.
+
+| | |
+|---|---|
+| edges | 17,540 |
+| game-segment instructions | 6,232 |
+| addresses never seen in any earlier capture | **3,373** |
+| new prologue-verified function entries, after the terminator test | **12** |
+
+### The terminator test earned its keep
+
+Of 25 candidate entries, **13 were string-data false positives** and were rejected because the byte
+before them is ASCII. The rejected addresses are preceded by `sts`, `tc\r`, `ree`, `loc`, `sss`, `gth`,
+`t86`, `buf`, `_dx`, `ose`, `ame`, `pen`, ` tem`. A naive count of prologues would have reported 25 and
+overstated the result by more than double.
+
+The 12 real entries are all game code: `0xE23CC 0xE23EC 0xE2554 0xE5700 0xE6438 0xE6460 0xE6550
+0xE7958 0xE8B90 0xE9C44 0xE9D2C 0xF0A80`.
+
+### What is in the new code
+
+Eight of the new instructions reference the HP field `0xcde81` and three reference FOOD `0xcde8d`, so
+the death path does touch the character record directly rather than only through helpers.
+
+The most suggestive entry is `0xe9d2c`, which clears a global and then calls with what look like
+message identifiers:
+
+```
+0xe9d2c  push ebp
+0xe9d2d  mov ebp,esp
+0xe9d2f  sub esp,0x60
+0xe9d32  push ebx / push esi / push edi
+0xe9d36  mov [0xce71c], 0        ; clear a global
+0xe9d40  push 0x24cc
+0xe9d45  call ...
+0xe9d4d  push 0x24f0
+```
+
+**This is not named.** Clearing `0xce71c` and pushing two constants is consistent with a state reset
+and a message selection, and that is as far as the bytes go. The text it produces is not in the
+`0xeb` table that `tools/ebdecode.py` decodes, and `"art dead"` appears in **none of the 140 files on
+the disc** in plain ASCII, so the death message is either encoded differently or assembled at run time.
+That is open.
+
+### What the capture cannot say
+
+The capture proves these 3,373 addresses ran during a death. It does not separate the killing blow from
+the skull screen from the reset to a new character, because all three happened inside one window. The
+score screen, the input that dismisses it, and the creation of the replacement character are one path
+until a run is taken that stops between them.
+
 ## What to run next
 
 The method works, so the useful experiments are ones where the expected answer is already known, which
@@ -147,6 +204,9 @@ tests the method rather than producing data:
 - **a shop purchase**, where the gold change and the item write are both known quantities
 - **one combat round**, the largest prize and the noisiest, because damage is a roll
 - **one action per run**, since experiment 2 shows how quickly a compound action becomes unreadable
+- **a death, split into parts.** Experiment 5 captured one but conflated the killing blow, the skull
+  screen and the character reset. Stopping between them needs the game paused at the prompt, which the
+  console can do.
 
 ## Tools involved
 
