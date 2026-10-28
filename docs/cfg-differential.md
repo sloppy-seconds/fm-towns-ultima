@@ -258,57 +258,62 @@ Checked: every one of the 12 is already in the 532-seed static set. So the death
 reachable, and this capture **confirms it runs** rather than discovering it. That is a smaller and
 different kind of value than new coverage, and it should not be counted as the latter.
 
-### The skull is `EXTRA.TIF`, the death path loads it, and the extractor renders it as noise
+### The skull is NOT `EXTRA.TIF`, and that conclusion was withdrawn
 
 Reported from play: the death screen shows a skull with the words "thou art dead" and a prompt to
-press space. A live screenshot fed to `qwen3.8-flash-next` confirms it in detail:
+press space. A live screenshot read by `qwen3.8-flash-next` confirms it in detail:
 
 > A large, high-contrast, dithered image of a human skull against a black background. The eye sockets
 > glow with orange/red pixels. Below the skull, inside a red-bordered box with white text: `Thou art dead!`
 
-So the skull is an image and the words are drawn by code, which settles what the previous version of
-this section left open.
+So the skull is an image and the words are drawn by code.
 
-**The image is `EXTRA.TIF`.** That is measured, and the route to it was indirect.
+**`EXTRA.TIF` is not that image, and an earlier version of this section said it was.** The reasoning was
+that `EXTRA.TIF` is loaded by `0xe8bbb` inside `0xe8b90`, which the death capture reached. Being loaded
+during a window is not the same as being what the window displays.
 
-`ENCHANT.EXP` embeds its own asset paths. Twenty-six `Q:\GRAPH\*.TIF` strings are present, and
-`EXTRA.TIF` appears **twice**, at segment offsets `0x02128` and `0x0218c`. Asking which pushed string
-was referenced by code the capture reached:
+Rendered properly and shown to the same model, `EXTRA.TIF` is a **tile bank**:
 
-| image | string | loaded during the death capture |
+> not random noise. It is a structured grid of coherent, albeit highly abstract and low-resolution,
+> graphical tiles. **No skull.**
+
+`GAI.TIF`, also loaded during the capture and 62,464 bytes, was checked the same way and is also a tile
+bank with no skull.
+
+### Two errors in that hunt, both worth keeping
+
+The first was reading the wrong render. `extracted/u2/sprites/extra.png` is produced by `extract-u2.js`,
+whose own comment says:
+
+> The game reads these as 320x104 sheets. Note these are **tile banks** of 16x16 or 32x32 frames, not
+> single images; `tools/tilesheet.js` renders them properly. This flat output is kept for quick viewing
+> only.
+
+So the "noise" the model saw was a known-rough dump, described as such in the code that wrote it. The
+comment was there and I did not read it before drawing a conclusion from the picture.
+
+The second was testing the wrong string constant. `EXTRA.TIF` appears **twice** in the embedded asset
+paths, at `0x02128` and `0x0218c`. I checked `0x02128`, got "not loaded", and nearly concluded the file
+was uninvolved before finding the second reference. A file named twice needs both checked.
+
+### What is actually established about the death screen
+
+The skull image is **not yet identified**. What the capture does say:
+
+| image | loaded during the death capture | is it the skull |
 |---|---|---|
-| `EXTRA.TIF` | `0x02128` | no |
-| `EXTRA.TIF` | `0x0218c` | **yes** |
-| `MAP2_1.TIF` | `0x021a0` | yes |
-| `GAI.TIF` | `0x04f78` | yes |
-| all others | | no |
+| `EXTRA.TIF` | yes | **no**, tile bank |
+| `GAI.TIF` | yes | **no**, tile bank |
+| `MAP2_1.TIF` | yes | no, that is a map |
+| `PLAYER.TIF` | 304 code references, none in the captured window | not checked |
+| all remaining TIFs | no | not reached by this capture |
 
-The load is at `0xe8bbb`, inside `0xe8b90`, and **`0xe8b90` is one of the twelve new function entries
-this capture found**. So the death screen's picture is `EXTRA.TIF` and the loading function was not
-previously known to run.
+So the picture is either in a file this capture did not reach, or it is built at run time from tiles and
+drawn rather than loaded whole. The second is plausible given the skull fills a panel rather than a
+sheet, and it would explain why no TIF matches.
 
-**The first check was against the wrong string.** I tested `0x02128`, got "not loaded", and would have
-concluded the image was not involved. A file with two string constants needs both checked, and one
-negative is not a negative for the file.
-
-### The extractor is wrong for this file
-
-`extracted/u2/sprites/extra.png` is 320 by 104 and 16 colours, the same shape as the other sheets, and
-it is **noise**. Asked directly, the vision model says:
-
-> best described as noise, specifically digital or analog signal interference. **Not a skull.**
-
-`chest.png`, the same size and known to contain a chest, renders the same way, so this is not specific
-to `EXTRA.TIF`. The shared decoder produces static for both.
-
-**So the failure is in the decode, not in the disc data and not in the choice of file.** That matters
-because it means any conclusion drawn from a rendered sheet in this project could be a conclusion about
-static. `docs/assets-and-graphics.md` owns what is known about TIF decoding, and this is evidence that
-its current decode is not producing pictures for these sheets.
-
-**What is not established:** why. Whether it is the 4bpp unpacking, the palette, or the strip geometry
-is not determined here, and guessing at it is how five palette approaches already failed. The next step
-is to read the decoder against this file, not to try another mapping.
+**The next step is not another guess at a file.** It is to read what `0xe8b90` does with the buffer it
+loads, which says whether the picture comes from the file or is composed after loading.
 
 ### What the capture cannot say
 
