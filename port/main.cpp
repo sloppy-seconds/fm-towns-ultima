@@ -163,10 +163,20 @@ int main(int argc, char** argv) {
 		code = s.code;
 		std::printf("stopped\n");
 	}
-	std::printf("after     eax 0x%08x ecx 0x%08x edx 0x%08x ebx 0x%08x\n", c.r[0], c.r[1], c.r[2], c.r[3]);
-	std::printf("          esp 0x%08x ebp 0x%08x esi 0x%08x edi 0x%08x eip 0x%08x\n", c.r[4], c.r[5],
+	std::printf("after     eax 0x%08x ecx 0x%08x edx 0x%08x ebx 0x%08x\n", c.r[0], c.r[1], c.r[2], c.r[3]);	std::printf("          esp 0x%08x ebp 0x%08x esi 0x%08x edi 0x%08x eip 0x%08x\n", c.r[4], c.r[5],
 	            c.r[6], c.r[7], c.eip);
 	std::printf("          machine frames %llu  guest clocks %llu\n", (unsigned long long)m.frame,
 	            (unsigned long long)c.clocks);
+	// U2_DUMP=<linear hex> prints 32 bytes of guest memory at the end, so a buffer the program filled can
+	// be compared with the same buffer read live off the machine. That is how the int93 outregs struct at
+	// DS:0x7a634 was checked against the value measured there.
+	if (const char* dump = std::getenv("U2_DUMP")) {
+		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);
+		uint8_t buf[32];
+		m.read_block(at, buf, sizeof buf);
+		std::printf("memory    %08x:", at);
+		for (unsigned char ch : buf) std::printf(" %02x", ch);
+		std::printf("\n");
+	}
 	return code;
 }

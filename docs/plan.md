@@ -90,7 +90,7 @@ from the items below rather than maintained separately.
 | 5f Shops and transports | AUTONOMOUS | **yes** |
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
-| 6b What int 93h returns for AL=0x20 | BLOCKED ON HUMAN | no, needs a working emulator |
+| 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports twelve of twenty-seven startable now, with 2b and 4a held back by item order. That is
@@ -1027,19 +1027,29 @@ Every one came from getting it wrong first, and the list is longer than it shoul
 
 ### 6b. What `int 93h` returns for `AL=0x20`
 
-**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | blocked. The container no longer launches the game (`u2flow` stops with `splash never animated` and the machine sits at `F000:FFF0`), so this needs someone to bring the emulator back before any probe can run |
+| autonomy | autonomous. It needed the emulator running, and the emulator trouble was accumulated debugger state rather than anything external |
 | done when | the value the live machine leaves in DS:0x7a635 after start-up is recorded, and the `AL=0x20` case in the port's `int93` is either confirmed as `AH=0` or corrected. The failure case: the port is left with an unverified constant that changes which code path the program takes |
-| blocked by | the emulator, not the code |
+| blocked by | nothing |
 
-The program probes the CD at guest `0xe2445` with `int86(0x93)` carrying `AX=0x0220`, then reads the
-returned `AH` from outregs at DS:0x7a635: `AH==2` returns -1, otherwise two status bits at DS:0x7a640 are
-consulted and a second call goes out with `AH=0x07`. The port returns `AH=0` so that the program reports
-success, and that is a choice rather than a measurement. See
-[recomp-plan.md](recomp-plan.md) for the surrounding wall.
+**What is now known.** The return is measured, not chosen. At `000C:0E244D`, the instruction after the
+first `int86(0x93)` call, the outregs struct at DS:0x7a634 holds:
+
+| in | EAX | EBX | ECX | EDX |
+|---|---|---|---|---|
+| `AX=0x0220` | `0x00000020` | 0 | 0 | 4 |
+| `AX=0x0720` | `0x00000000` | 1 | 1 | 0 |
+
+`AH` is 0 in both, which is neither of the values the caller branches on, so the program takes the path that
+consults two bits at DS:0x7a640 and then makes the second call. The port reproduces the second row exactly:
+`U2_DUMP=47a634` after 3,000 frames prints `00 00 00 00 01 00 00 00 01 00 00 00 00 00 00 00`, field for
+field the live value.
+
+Not assertable in `tools/verify.js`, because it needs the live machine rather than the disc. It is recorded
+in [recomp-plan.md](recomp-plan.md) instead, with the breakpoint and the frame the reading was taken in.
 
 ### 6a. One frame of reference per tool, declared and checked
 **State:** OPEN · **Autonomy:** AUTONOMOUS

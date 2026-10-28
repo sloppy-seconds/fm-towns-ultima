@@ -307,9 +307,24 @@ trace beside it showed DS holding `93` all along.
 `int 93h AX=0x0220` faulted the kit's `int93`, which only accepts `AL=0xC0`, the CD-DA interface. The caller
 at guest `0xe2445` is a CD probe: it makes that call, reads the returned `AH` out of its outregs at
 DS:0x7a635, returns -1 when `AH==2`, consults two status bits at DS:0x7a640, and otherwise makes a second
-call with `AH=0x07`. All of that is read off the code. What the machine actually returns for `AL=0x20` is
-**not measured**, so the port returns `AH=0` and that choice is marked UNVERIFIED in the source. Settling it
-needs one live read of DS:0x7a635 after start-up.
+call with `AH=0x07`. All of that is read off the code.
+
+**And then measured, once the emulator was working again.** A breakpoint at `000C:0E244D`, the instruction
+after the first call, with the outregs struct read at DS:0x7a634:
+
+| in | EAX | EBX | ECX | EDX |
+|---|---|---|---|---|
+| `AX=0x0220` | `0x00000020` | 0 | 0 | **4** |
+| `AX=0x0720` | `0x00000000` | 1 | 1 | 0 |
+
+The second row was read from the same struct after start-up finished, because the second call is the last to
+write it. So `AH` is 0 in both cases, which is the path the code takes when it is neither 2 nor flagged by
+the two `0x7a640` bits.
+
+**The port now reproduces that buffer.** `U2_DUMP=<linear hex>` on the port prints 32 bytes of guest memory
+at the end, and after 3,000 frames the outregs struct reads `00 00 00 00 01 00 00 00 01 00 00 00 00 00 00 00`,
+which is the live value read after start-up, field for field. That is the first differential agreement
+between the recompiled program and the machine on a buffer the program itself filled.
 
 `int 21h AX=0x4300` is get file attributes, added to the kit's `int21` with `CX` reporting 0x10 for a
 directory and 0x20 otherwise, from the disc reader's own directory flag, and DOS error 2 with `CF` set when
@@ -328,14 +343,16 @@ Q:\GRAPH\CHEST.TIF    then the fourteen sound effects, then \UT2\MAP.MP2
 1,098,593 BIOS calls go past in those 1,200 frames, which is the game polling rather than spinning.
 
 **The patches, all in the vendored clone and all marked in place.** `towns_dos.cpp`: `case 0x04` in
-`int90` (KYB_lock), `AL=0x20` in `int93` (the CD probe, unverified), `case 0x43` in `int21`.
-`towns_cpu.cpp`: the self-patched `int` vector. They are edits to `references/`, which is not committed, so
-this paragraph is the record of them.
+`int90` (KYB_lock), `AL=0x20` in `int93` (the CD probe, with the measured returns above), `case 0x43` in
+`int21`. `towns_cpu.cpp`: the self-patched `int` vector. They are edits to `references/`, which is not
+committed, so this paragraph is the record of them.
 
-**One thing is blocked, and it is the emulator rather than the code.** The container stopped launching the
-game partway through this work: `u2flow` reports `STOP: splash never animated` and the machine sits at the
-reset vector `F000:FFF0`. That is why the `AL=0x20` return value is unmeasured. It needs a fresh emulator,
-not a different probe.
+**The emulator trouble was mine, not the disc.** It stopped launching the game partway through this work:
+`u2flow` reported `STOP: splash never animated` and the machine sat at the reset vector `F000:FFF0`. After
+`BC *`, `BRKON OFF` and one `podman restart fmtowns`, the Towns menu came up in **5 seconds** and the full
+journey ran, so the cause was a dozen accumulated `RESET`s, six duplicate breakpoints and a `BRKON MEMW`
+monitor armed at a physical address that a later reset remapped. Clearing the debugger state is the fix, not
+re-imaging anything.
 
 **What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
