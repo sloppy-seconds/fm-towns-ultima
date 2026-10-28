@@ -54,12 +54,12 @@ const TSUGARU = opt('api', 'http://127.0.0.1:8096');
 const IMAGE_HOST = path.resolve(ROOT, opt('image', 'saves/dos62v6.hdm'));
 const CONTAINER = opt('container', 'dosboot');
 
-// This host needs `sudo podman`; a bare `podman exec` fails with "no such
-// container" even when the container is up, which reads like a missing container
-// rather than a permission problem. mtools does not need it because it edits the
-// image file directly. --podman lets a caller pass 'sudo podman' or just 'podman'.
-// execFileSync takes a binary name, not a shell string, so "sudo podman" has to
-// be split or it is looked up as a single executable named "sudo podman".
+// Project containers run rootless, so the default is plain `podman`. A container built
+// under `sudo podman` lives in root's store and a rootless `podman exec` cannot see it,
+// which reads as "no such container" rather than a permission problem; --podman lets a
+// caller pass 'sudo podman' to reach one in the other store. mtools does not need it
+// because it edits the image file directly. execFileSync takes a binary name, not a shell
+// string, so a two-word value has to be split or it is looked up as one executable.
 const PODMAN_ARG = opt('podman', 'podman');
 const PODMAN_PARTS = PODMAN_ARG.split(/\s+/).filter(Boolean);
 const PODMAN = PODMAN_PARTS[0];

@@ -30,7 +30,7 @@ This is the exact host command, verified this session from
 adding a boot key or a different CMOS is what made an earlier attempt fail.
 
 ```bash
-sudo podman run --name tosprobe --rm -d \
+podman run --name tosprobe --rm -d \
   -p 6082:6080 -p 5902:5900 -p 8099:8080 \
   -v "$PWD/vendor/emulator:/emulator:ro,z" \
   -v "$PWD/vendor/roms:/roms:ro,z" \

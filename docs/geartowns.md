@@ -4,6 +4,114 @@
 boot itself is NOT yet confirmed.** This page records what was proven and what was not,
 because the difference matters for what to do next.
 
+## RESOLVED 2026-10-27: the disc boots and Ultima II launches
+
+The boot is now confirmed. The trilogy disc reaches the Towns OS CD browser
+(`TownsMENU V1.1L20`, volume `TRILOGY`, icons for Ultima I/II/III) and a double-click
+launches Ultima II to its title screen. The earlier "GL presentation" blocker below was a
+misdiagnosis: the window was rendering fine, the emulated machine was hung.
+
+**Root cause: the machine model lacks the free-running timer the IPL waits on.**
+
+**Tried:** boot the `.cue` on the default `model1_2`. The Towns BIOS showed
+`システムが遅いです` ("the system is slow") and froze. The frame counter advanced at full
+speed and `get_screenshot` changed from black to the BIOS screen, so the emulator was
+running, not crashed.
+
+**Measured:** the CPU sat in the boot ROM. `get_disassembly` at the loop PC (`FC00:13D3`)
+shows a timed delay that polls I/O port `0x26`:
+
+```
+FC00:13D3  IN  AX,0x26      ; read free-running timer
+FC00:13D7  IN  AX,0x26
+FC00:13DB  SUB DX,BX        ; elapsed ticks
+FC00:13E3  SUB ECX,EDX
+FC00:13E6  JA  0x13D7       ; spin until the delay expires
+```
+
+`pit.cpp` decodes port `0x26` only when the profile carries
+`GT_MACHINE_FEATURE_FREE_RUN_TIMER`. `machine_profiles.h` gives that feature to `ug`,
+`marty`, `hg` and `hr`, but **not** to `model1_2`, `1f`, `10f`, `cx` or `ux`. On those the
+port reads a constant, the delay never expires, and the IPL hangs. The CD head stops at
+LBA 59 (just past the `IPL4` boot sector and the `CDROM` directory), which is where the
+delay loop first runs.
+
+**Verdict: POSITIVE.** Boot with `--model hr` (or `hg`). On `hr` the AUTO boot reaches the
+browser with no extra steps. `marty` also has the timer but stalls as a console (this is a
+Towns OS computer CD, and the Marty firmware `MAR_EX0-3.ROM` is not present). The fix is
+wired into `container/entrypoint-geartowns.sh` (`MODEL`, default `hr`) and
+`tools/geartowns-run.sh`.
+
+**Two more things headless needs, both now handled by `tools/mcp-geartowns.py`:**
+
+- A headless instance starts with the CPU **paused** at the reset vector, so nothing runs
+  and `get_screenshot` is black until `debug_continue` is issued.
+- The IPL only reads the CD when the boot device is forced. `debug_reset` takes a `boot`
+  argument (`cdrom`, `floppy1`, `hard_disk0` and so on) and `boot:"cdrom"` holds the system
+  ROM's CD boot key through the reset. On `model1_2` this was still needed after the timer
+  fix. On `hr` the AUTO boot is enough.
+
+**MCP HTTP is unusable under podman NAT, confirmed from source.** `mcp_transport.h`
+rejects any request whose `Host` header is not the address the socket was accepted on
+(DNS-rebinding guard). Under podman port-forwarding that address is the container IP, so
+the published port always returns a bare `403`. stdio has no such check and is the
+transport. The old client also closed stdin after writing its batch, so Geartowns exited
+before answering a `tools/call`. The rewrite keeps stdin open and reads replies on a
+thread.
+
+**Launch a game:** `python3 tools/mcp-geartowns.py --launch 2` boots the disc on `hr`,
+double-clicks the Ultima II icon and writes `analysis/geartowns-u2.png`. The game then
+prints `ディスクを読み込んでいます!` ("loading disk"), which is Ultima II asking for its
+in-game data disk, not an emulator fault.
+
+## Playing a game: input and speed limitations
+
+Booting to the Towns OS browser and launching Ultima II to its title screen works. Getting
+from there to comfortable interactive play has three findings, all measured this session.
+
+**The save disk must be one U2 initialised, not the shipped blank.** The pristine
+`[UserDisk].hdm` is a formatted-but-empty volume and the launcher rejects it with
+`A WRONG DISK! Push [space]` (the string is in TMENU, not the game, per
+`docs/save-disk.md`). `saves/u2_working.hdm` already contains `ROSTER1.UT2` and
+`WORLD1.UT2`, so it is a disk U2 wrote itself and it is accepted. Mount it **writable**
+(`--fd1` on a read-write path). A brand-new game instead needs U2's own "initialise disk"
+prompt accepted, which writes the filesystem itself.
+
+**Interactive input through noVNC does not reach the game.** This is the headline
+limitation. With the windowed container under Xvfb, keyboard and mouse events delivered
+through X never arrive at the SDL3 window, so arrow keys and clicks in the browser do
+nothing. This was isolated, not assumed:
+
+- The Geartowns window is the only client and holds `_NET_ACTIVE_WINDOW`, and `openbox`
+  runs as a window manager, so it is not a focus problem.
+- `xdotool key Down`, `xdotool windowactivate`/`windowfocus` first, and a real XTEST
+  `mousemove`+`click` followed by a key all left the menu selection unchanged (screenshot
+  byte-identical each time). XTEST is the same delivery class noVNC uses, so noVNC input
+  fails for the same reason.
+- MCP `keyboard_key` (`DOWN`, `press_and_release`) and `mouse_click` DO work, because they
+  inject at the emulated device layer and bypass X entirely. That is how the menu highlight
+  was moved and how the game was launched.
+
+So the game is fully controllable, but only over MCP, not through the VNC keyboard. The
+rendering path is fine (frames present and update), it is SDL3's X event pump under Xvfb
+that is not delivering input.
+
+**"Slow" is the CD read, not the CPU.** `get_system_status` on `hr` reports FM Towns II HR,
+80486SX at 20 MHz, 4096 KB RAM, and the emulator runs at full speed (about 61 fps
+emulated). The long "loading disk" pause is the CD read, governed by `CDROMSpeed` in
+`config.ini`, not the core being slow.
+
+**Options for interactive play, none built yet:**
+
+1. **MCP input bridge.** A small page served by the container that forwards browser
+   keystrokes and clicks to MCP `keyboard_key`/`mouse_click`. Real play over the network,
+   no X dependency. Fits the "MCP is the interface" design.
+2. **Play in Tsugaru, debug in Geartowns.** Tsugaru's input path already works
+   (`supervisor.js` `/api/mouse`), so keep interactive play there and use Geartowns
+   headless for the debugger and palette work.
+3. **Run Geartowns on a real display** where SDL gets input normally. Not viable headless
+   over SSH.
+
 ## What is proven
 
 **The container builds.** `container/Containerfile.geartowns`, Fedora 44, SDL3-devel from
@@ -189,14 +297,25 @@ a second instrument for a different class of question.
 
 ## Reproducing
 
+Rootless podman is enough on this host (the image lives in the invoking user's storage).
+
 ```bash
-sudo -v
-sudo podman build -t geartowns -f container/Containerfile.geartowns .
+# build once (compiles the C++ emulator, several minutes)
+podman build -t geartowns -f container/Containerfile.geartowns .
+
+# headless is the primary mode: boots the disc and launches Ultima II, writes a screenshot
+python3 tools/mcp-geartowns.py --launch 2
+
+# a long-lived headless container for logs/status
 ./tools/geartowns-run.sh start
-python3 tools/mcp-geartowns.py --find palette
+
+# a live browser view of the Towns OS CD browser instead
+./tools/geartowns-run.sh start --vnc
 ```
 
-The container needs `/roms` populated with the four Model 1/2 ROMs, the disc at `/cdrom`,
-and a seeded `[Firmware]` section in `config.ini`. `tools/geartowns-run.sh` seeds it.
-
-Ports, all bound `0.0.0.0`: **6082** noVNC, **5902** raw VNC, **7778** MCP HTTP.
+`tools/geartowns-run.sh` seeds `config.ini` (the `[Firmware]` path has no command line
+flag), forces `--model hr`, and mounts the disc from a scratch dir of hardlinks so podman
+never relabels the whole repo. `--vnc` binds noVNC and raw VNC on `6082`/`5902` by default.
+Override with `GEARTOWNS_VNC_PORT`/`GEARTOWNS_RFB_PORT` if those are taken. MCP runs over
+stdio, not HTTP, because the HTTP transport's Host-header guard rejects every request that
+arrives through a podman port-forward.

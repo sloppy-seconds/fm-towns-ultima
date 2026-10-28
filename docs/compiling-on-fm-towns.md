@@ -145,7 +145,6 @@ Points that are load bearing:
 If the container is not running:
 
 ```bash
-sudo -v                                     # ask for the sudo ticket once
 podman run -d --name dosboot --rm \
   -p 6080:6080 -p 5900:5900 -p 8096:8080 \
   -v "$PWD/vendor/emulator:/emulator:ro,z" \
@@ -467,7 +466,6 @@ cp <sdk cd>.img  saves/hc.img         # 2352-byte raw sectors
 cp <sdk cd>.ccd  saves/hc.ccd
 cp <dos62 floppy>.hdm saves/dos62v6.hdm
 cp disk/CMOS.DAT saves/CMOS_HDD.bin   # from the TownsOS HDD release
-sudo -v
 ./tools/container-run.sh start
 sleep 45
 ./tools/compile-proof.sh              # expect PASS

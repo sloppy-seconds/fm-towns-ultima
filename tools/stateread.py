@@ -196,7 +196,9 @@ def main():
     ap.add_argument('state')
     ap.add_argument('--json', action='store_true', help='one JSON object')
     ap.add_argument('--check', action='store_true', help='verify the address mapping and exit')
-    ap.add_argument('--at', help='read a raw image offset, hex')
+    ap.add_argument('--at', help='read a raw image offset from the RECORD region, hex')
+    ap.add_argument('--code', action='store_true',
+                    help='with --at or --diff, use the code mapping instead of the record')
     ap.add_argument('--len', type=int, default=4, help='bytes for --at, default 4')
     ap.add_argument('--diff', help='compare one image offset against ENCHANT.EXP')
     ap.add_argument('--expect', action='append', default=[], metavar='FIELD=VALUE',
@@ -248,9 +250,16 @@ def main():
         return 0 if (ok and not bad) else 1
 
     if a.at:
+        # --at is for the RECORD region by default, because that is what the field addresses in
+        # this tool mean and what a caller is almost always after. Using the code formula here
+        # was wrong: at image offset 0xcdf6b the code rule applies the mirrored 0x4392d2 - o and
+        # returns zeros, while the record really lives at 0x29d4b2 + o. Pass --code to get the
+        # image-mapping instead.
         off = int(a.at, 0)
-        raw = state[state_addr(off): state_addr(off) + a.len]
-        print('image+0x%x -> state 0x%x  %s' % (off, state_addr(off), raw.hex(' ')))
+        region = 'code' if a.code else 'record'
+        a0 = state_addr(off, region)
+        print('image+0x%x -> state 0x%x (%s)  %s'
+              % (off, a0, region, state[a0:a0 + a.len].hex(' ')))
         return 0
 
     if a.diff:

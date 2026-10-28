@@ -1,0 +1,152 @@
+# Containerfile.geartowns - Geartowns, headless, driven over MCP.
+#
+# WHY A SECOND EMULATOR. Tsugaru is what the compile pipeline uses and is proven
+# end to end: cserve.js, the CMOS behaviour, the -HD0 UNZ images. It has a console
+# (PRI PALETTE, RESET, FD0LOAD) that we drive through supervisor.js and a screenshot
+# loop, which works but is clumsy: every interaction is keystrokes into a VNC session
+# and a PNG round trip.
+#
+# Geartowns exposes a Model Context Protocol server with execution control, memory
+# inspection, breakpoints and disassembly as STRUCTURED TOOL CALLS. That is a different
+# kind of instrument, and it targets the two questions currently blocked:
+#
+#   the palette      docs/palette.md records five failed static probes and a console
+#                    PRI PALETTE that returned what looked like a BIOS default. A
+#                    breakpoint on EGB_palette plus memory inspection answers it.
+#   the allocation   the 0xe6a58 attempt failed on register allocation, not logic.
+#                    That is what a trace logger answers empirically.
+#
+# There is a MCP_README in the Geartowns repo with the tool list. This container only
+# gets as far as proving the machine boots the trilogy disc.
+#
+# HEADLESS IS THE POINT. `--headless` requires MCP and runs no GUI, so this needs no
+# Xvfb, no x11vnc and no noVNC, unlike container/Containerfile. The MCP HTTP transport
+# is the only interface.
+#
+# FEDORA AND NOT UBUNTU. The other two containers use ubuntu:24.04, where Geartowns
+# needs SDL3 built from source and that is a multi-minute cmake step with a dozen dev
+# packages. Fedora carries SDL3-devel directly. The host is Fedora 44.
+#
+# Nothing copyrighted is baked in. The disc image and the FM Towns ROMs are
+# bind-mounted at run time, same posture as the other containers.
+#
+#   build: sudo podman build -t geartowns -f container/Containerfile.geartowns .
+#   run:   ./tools/geartowns-run.sh
+#
+# Build is slow: Geartowns is a C++ emulator compiled from source. Expect several
+# minutes on first build.
+
+# Firmware is a GUI setting (Machine -> Firmware), not a command line flag in the usage
+# block this container was written against. So it is not passed here.
+#
+# WHAT FIRMWARE WILL BE USED, and why it works despite a checksum mismatch. This
+# repository vendors the FreeTOWNS clean-room ROMs, and none of their CRCs match the
+# set Geartowns documents for model 1/2:
+#
+#   file          ours        Geartowns expects
+#   FMT_SYS.ROM   EAB9C9DC    937311F6
+#   FMT_DOS.ROM   95ECC6E4    2BC2AF96
+#   FMT_FNT.ROM   736D9CB1    DD6FD544
+#   FMT_DIC.ROM   504BF849    82D1DAA2
+#
+# Geartowns' BIOS_README says unrecognized ROMs LOAD WITH A WARNING, and that a folder
+# holding a single set is used as-is "even with unrecognized ROMs". So they are usable.
+# If the boot fails with a missing-ROM message instead, the firmware path is the first
+# thing to check, not the disc.
+#
+# /roms must contain the four files DIRECTLY, not in a subfolder: the README's rule is
+# that for Model 1/2 alone, FMT_SYS.ROM, FMT_DOS.ROM, FMT_FNT.ROM and FMT_DIC.ROM in the
+# folder are enough.
+
+# MCP OVER STDIO, NOT HTTP, and this was measured rather than chosen.
+#
+# HTTP on a non-loopback address needs a bearer token (GEARTOWNS_MCP_HTTP_TOKEN), and
+# even with the token accepted and "HTTP client connected" logged, every JSON-RPC request
+# came back as a bare `403 Forbidden` with a text/plain body and no JSON error. stdio
+# works on the first attempt.
+#
+# `--headless` alone is not enough for stdio: without it the binary tries to open a GUI
+# window and dies with "XDG_RUNTIME_DIR is invalid or not set". `--headless --mcp-stdio`
+# together is the working combination.
+#
+# So the interface is newline-delimited JSON-RPC on stdin, responses on stdout. A driver
+# writes requests and reads replies; tools/mcp-geartowns.py is the client for it.
+#
+# THE DISC MUST BE PASSED AS THE .cue, NOT THE .img. The image is 2352-byte sectors and
+# Geartowns dispatches on extension: `--cd trilogy.img` produced "Not a floppy disk
+# image", because .img is also a floppy extension. The .cue unambiguously marks a CD and
+# parses the 8 tracks correctly. The .img must sit beside the .cue or the FILE line does
+# not resolve.
+
+FROM docker.io/library/fedora:44
+
+# @development-tools is the Fedora group metapackage; it is what the Fedora build
+# instructions in the Geartowns README assume.
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc gcc-c++ make git pkgconf-pkg-config \
+        SDL3-devel \
+        mesa-libGL-devel \
+        mesa-libEGL-devel \
+        libX11-devel \
+        libXext-devel \
+        libxkbcommon-devel \
+        xorg-x11-server-Xvfb \
+        x11vnc \
+        novnc \
+        python3-websockify \
+        xdpyinfo \
+        procps-ng \
+        ImageMagick \
+        xwd \
+    && dnf clean all
+
+# The README's Fedora recipe says `dnf install @development-tools`, but that group did
+# not bring in g++ in this image: the build failed with "g++: command not found" for
+# every object file. The packages are therefore listed explicitly rather than relying on
+# the group, which is what the group is meant to expand to anyway.
+
+# Pin to a commit rather than main, so a rebuild is reproducible and a surprise
+# upstream change cannot silently alter behaviour we are measuring. Bump deliberately.
+ARG GEARTOWNS_REPO=https://github.com/drhelius/Geartowns.git
+ARG GEARTOWNS_REF=main
+
+RUN git clone --depth 1 --branch "${GEARTOWNS_REF}" "${GEARTOWNS_REPO}" /src/geartowns \
+    && cd /src/geartowns/platforms/linux \
+    && make -j"$(nproc)" \
+    && find /src/geartowns -maxdepth 3 -type f -perm -u+x -name 'geartowns*' -exec cp {} /usr/local/bin/ \; \
+    && ls -l /usr/local/bin/
+
+# The README's Fedora recipe puts the binary under platforms/linux. Make sure it is on
+# PATH and named predictably, whatever the makefile calls it.
+RUN if ! command -v geartowns >/dev/null; then \
+        candidate=$(find /src/geartowns -type f -perm -u+x -name '*geartowns*' | head -1); \
+        echo "falling back to $candidate"; \
+        [ -n "$candidate" ] && cp "$candidate" /usr/local/bin/geartowns; \
+    fi \
+    && geartowns -v 2>&1 | head -3 || (echo "geartowns did not build" >&2; exit 1)
+
+# Runtime layout, matching the other containers so the run scripts look alike:
+#   /roms    FM Towns system ROMs (bind-mounted, copyrighted)
+#   /disc    the trilogy CD image      (bind-mounted, copyrighted)
+#   /data    saves and floppies        (bind-mounted, writable)
+#   /config  Geartowns user data, so --portable keeps it all in one place
+RUN mkdir -p /roms /disc /data /config
+
+# A window manager is needed so the Geartowns window gets keyboard focus under Xvfb
+# (noVNC keystrokes otherwise reach X but not the SDL window). Installed in its own layer,
+# after the compile, so adding it does not invalidate the cached C++ build.
+RUN dnf install -y --setopt=install_weak_deps=False openbox && dnf clean all
+
+# The Xvfb + x11vnc + noVNC stack, so the screen can be watched in a browser exactly as
+# with the Tsugaru container. Geartowns runs WINDOWED for this, not --headless: headless
+# draws nothing, which left no independent way to confirm the game booted.
+COPY container/entrypoint-geartowns.sh /usr/local/bin/entrypoint-geartowns.sh
+RUN chmod +x /usr/local/bin/entrypoint-geartowns.sh
+
+ENV HOME=/config
+WORKDIR /config
+
+# 6080 is noVNC, 5900 plain VNC, 7777 MCP HTTP.
+EXPOSE 6080 5900 7777
+
+ENTRYPOINT ["/usr/local/bin/entrypoint-geartowns.sh"]

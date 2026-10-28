@@ -31,7 +31,13 @@ PORT_WEB=6080
 PORT_API=8080
 RESOLUTION="${RESOLUTION:-1024x800x24}"
 
-PODMAN() { sudo podman "$@"; }
+# Rootless podman is the default on this host. Fall back to sudo only if plain podman is
+# unavailable. The two keep separate image stores, so a project should stay in one.
+if podman info >/dev/null 2>&1; then
+	PODMAN() { podman "$@"; }
+else
+	PODMAN() { sudo podman "$@"; }
+fi
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*"; }
 

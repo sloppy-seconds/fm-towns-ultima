@@ -34,9 +34,7 @@ Prerequisites are in `docs/compiling-on-fm-towns.md`. The container and the API
 server are separate, and both must be running.
 
 ```bash
-sudo -v                                  # podman needs sudo on this host
-
-sudo podman run -d --name dosboot --rm \
+podman run -d --name dosboot --rm \
   -p 6080:6080 -p 5900:5900 -p 8096:8080 \
   -v "$PWD/vendor/emulator:/emulator:ro,z" \
   -v "$PWD/vendor/roms:/roms:ro,z" \
@@ -48,12 +46,13 @@ sudo podman run -d --name dosboot --rm \
 
 sleep 50
 
-node tools/cserve.js --container dosboot --podman "sudo podman" \
+node tools/cserve.js --container dosboot \
   --api http://127.0.0.1:8096 &
 ```
 
-`--container` must match the container name, and `--podman "sudo podman"` is
-required because podman needs sudo here. A `cserve` left running from an earlier
+`--container` must match the container name. `cserve` uses rootless `podman` by default,
+so `dosboot` must have been started rootless too; if it lives in root's store, pass
+`--podman "sudo podman"`. A `cserve` left running from an earlier
 session will still be pointed at whatever container it started with, and the
 result is the confusing error `no container with name or ID "hcboot" found`.
 That was hit in practice. Check with:

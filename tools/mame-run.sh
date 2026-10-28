@@ -43,7 +43,13 @@ DISC_CUE="$ROOT/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).cue"
 DISC_CCD="$ROOT/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).ccd"
 DISC_IMG="$ROOT/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img"
 
-PODMAN() { sudo podman "$@"; }
+# Rootless podman is the default on this host. Fall back to sudo only if plain podman is
+# unavailable. The two keep separate image stores, so a project should stay in one.
+if podman info >/dev/null 2>&1; then
+	PODMAN() { podman "$@"; }
+else
+	PODMAN() { sudo podman "$@"; }
+fi
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 note() { printf '%s\n' "$*"; }
 
