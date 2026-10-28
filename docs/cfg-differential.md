@@ -84,15 +84,69 @@ instruction addresses to read.
 In particular, **no routine here is named.** A name needs a string reference, a caller, or arithmetic
 that identifies a job. Nothing in this capture supplies that.
 
+## Experiment 2: walking west into a mountain, with a monster and a stats page
+
+**Action.** Nine steps west from (19,17) on map 8, refused at the mountain. During the walk a monster
+attacked and hit, and the stats page was opened with `Z`.
+
+This run is deliberately less clean than experiment 1: four things happened, so the diff is the union
+of their paths and cannot attribute anything to one of them on its own. It is still worth recording,
+because of what the state arithmetic proves.
+
+**State, measured with `tools/peek.js`:**
+
+| field | before | after | reading |
+|---|---|---|---|
+| px | 19 | 10 | nine steps west |
+| py | 17 | 17 | stayed on the row |
+| food | 39865 | 39700 | minus 165 |
+| map | 8 | 19 | eleven turns |
+| hp | 400 | 370 | minus 30 |
+
+Nine successful steps at 15 food is 135, two blocked attempts at 15 is 30, and 135 plus 30 is the 165
+observed. Eleven turns is nine steps plus two refusals. The damage is a separate 30 from the monster.
+Every figure reconciles, so the action set is known even though the code is not yet separated.
+
+**Result: 2,611 newly reached instructions, 48 of them function entries.**
+
+### What it found, and what it corrected
+
+The documented `spend_food` routine appeared in the diff, and then did not match. The page
+`docs/movement-and-wrap.md` gave it at `0xf0c08`, and no address near `0xf0c08` was reached. The
+differential reported `0xf0a08` instead, and its body is the listed function instruction for
+instruction: `2b d0` for the 351 stride, then `29 82 8d de 0c 00` for `sub [edx+0xcde8d], eax`.
+
+**The documented figure was a file offset, not an address.** They differ by `0x200`, the `MP` header
+that the running image strips. `ENCHANT.EXP[0xf0c08]` and the bytes executed at segment `0xf0a08` are
+identical, so both figures describe the same code and neither is wrong about the bytes. What was wrong
+was presenting a file offset as an address, which is the same confusion that cost several sessions
+over the mapping itself.
+
+Two further checks on the corrected address, both run rather than inferred:
+
+- scanning the image for `call` instructions targeting `0xf0a08` finds **exactly two**, at `0xf0943`
+  and `0xfacc0`, matching the two callers the page always claimed
+- the immediate before each call is `6a 0f` (**push 15**) and `6a 0a` (**push 10**), which is the
+  two-cost finding confirmed at the new addresses
+
+`docs/movement-and-wrap.md` is corrected in the same commit.
+
+### What is not established
+
+Nothing here is named beyond `spend_food`. The remaining 47 function entries, the damage of 30, and
+the collision check are all unreached by this analysis. The run conflates walking, refusal, combat and
+the stats page, so separating them needs separate runs, one action each.
+
 ## What to run next
 
 The method works, so the useful experiments are ones where the expected answer is already known, which
 tests the method rather than producing data:
 
-- **a successful step** on open terrain, where the food decrement at `0xf0c08` must appear
+- **a successful step** on open terrain, where the food decrement at `0xf0a08` must appear
 - **a menu key** such as `A`, `T` or `G`, each of which should light up a distinct cluster
 - **a shop purchase**, where the gold change and the item write are both known quantities
 - **one combat round**, the largest prize and the noisiest, because damage is a roll
+- **one action per run**, since experiment 2 shows how quickly a compound action becomes unreadable
 
 ## Tools involved
 

@@ -298,21 +298,31 @@ single-direction case was run.
 Measured 15 on a step and 15 on a kill, which suggested one constant. **It is not.** The food
 routine takes the amount as an argument, and it has exactly two callers, passing different values.
 
-### The routine: `0xf0c08`
+### The routine: `0xf0a08` in memory, `0xf0c08` in the file
+
+**The address to use is `0xf0a08`.** A differential CFG capture of a live walk reached this function
+at `0xf0a08`, called from `0xf0943`, and its body matches the listing below instruction for
+instruction. The figure `0xf0c08` quoted in earlier versions of this page is the **file offset**, which
+is `0x200` higher because the running image has its `MP` header stripped. Both are correct about the
+same bytes: `ENCHANT.EXP[0xf0c08]` and the bytes executed at segment `0xf0a08` are identical.
+
+This confusion matters because every other address in this repository's docs may carry the same
+ambiguity. A capture reports segment offsets. A `xxd` command reports file offsets. They differ by
+`0x200` and look identical in prose.
 
 ```
-0xf0c08  spend_food(amount):
-0xf0c0b    r0 = [0xceca0]           ; the party index
-0xf0c10    r2 = r0*11
-0xf0c16    r2 <<= 5                 ; r2 = r0*352
-0xf0c19    r2 -= r0                 ; r2 = r0*351   <- the record stride
-0xf0c1b    r0 = [r5+0x8]            ; THE AMOUNT, from the argument
-0xf0c1e    sub [r2+0xcde8d], r0     ; FOOD -= amount
-0xf0c24    cmp [r2+0xcde8d], 0
-0xf0c2b    jge 0xf0c37
-0xf0c2d    mov [r2+0xcde8d], 0      ; clamp at zero, never negative
-0xf0c47    cmp [r2+0xcde8d], 0
-0xf0c4e    jne 0xf0c7b              ; still fed, return
+0xf0a08  spend_food(amount):        (file offset 0xf0c08)
+0xf0a0b    r0 = [0xceca0]           ; the party index
+0xf0a10    r2 = r0*11
+0xf0a16    r2 <<= 5                 ; r2 = r0*352
+0xf0a19    r2 -= r0                 ; r2 = r0*351   <- the record stride
+0xf0a1b    r0 = [r5+0x8]            ; THE AMOUNT, from the argument
+0xf0a1e    sub [r2+0xcde8d], r0     ; FOOD -= amount
+0xf0a24    cmp [r2+0xcde8d], 0
+0xf0a2b    jge 0xf0a37
+0xf0a2d    mov [r2+0xcde8d], 0      ; clamp at zero, never negative
+0xf0a47    cmp [r2+0xcde8d], 0
+0xf0a4e    jne 0xf0a7b              ; still fed, return
 ```
 
 When food reaches zero it falls through to a starvation path that pushes `0x8`, `0x2` and `0xa`,
@@ -326,8 +336,14 @@ in the caller, so both are readable from this function.
 
 | caller | amount | what the caller does |
 |---|---|---|
-| `0xf0b43` in `0xf0b28` | **15** | the turn: spends food, decrements the hour counter `[0xd3710]` rolling 0 to 16, advances `[r6+0x35]` capped at `[r6+0x39]` when `[0xcdf57]` is set, decays `[r6+0x14f]`, then torches `[r6+0x147]` and `[r6+0x14b]` |
-| `0xfaec0` in `0xfae9c` | **10** | the per-turn game step, which checks HP first and returns early when the player is dead |
+| `0xf0943` in `0xf0928` | **15** | the turn: spends food, decrements the hour counter `[0xd3710]` rolling 0 to 16, advances `[r6+0x35]` capped at `[r6+0x39]` when `[0xcdf57]` is set, decays `[r6+0x14f]`, then torches `[r6+0x147]` and `[r6+0x14b]` |
+| `0xfacc0` in `0xfae9c` | **10** | the per-turn game step, which checks HP first and returns early when the player is dead |
+
+Both caller addresses are also `0x200` lower than the file offsets an earlier version quoted, and both
+were re-measured rather than adjusted. Scanning the whole image for `call` instructions whose target is
+`0xf0a08` finds **exactly two**, at `0xf0943` and `0xfacc0`, which matches the two callers this page
+has always claimed. The immediates immediately before each call are `6a 0f` (**push 15**) and `6a 0a`
+(**push 10**), which is the two-cost finding confirmed at the new addresses.
 
 A step and a kill both cost 15 because both go through the **turn** path. The 10 is a
 different, smaller charge on the other path.
