@@ -241,6 +241,44 @@ previously blocking the naming of every routine that referenced them. `tools/fns
 reports those references as `(0xEB run, N markers)`; with this transform they become text, and
 the routines holding most of them become nameable.
 
+### Resident NPCs are a separate table, with names baked into the string
+
+Reported from play: talking to an NPC in a town gave "john mayer orders... take the trash out", and
+offering 1 gold gave "thank you".
+
+**No such text exists in the `0xEB` NPC table at `0x61d0` to `0x6600`**, and the words `Mayer`, `trash`
+and `orders` appear in **none of the 140 disc files** as plain ASCII. A sweep of every `0xEB` run in the
+whole image (1,394 of them) found them at `0x0cf54`:
+
+```
+John Mayer\norders:\nTake out the\ntrash!!!
+```
+
+One string, with newlines. The format is **name, verb, quoted speech**, and its neighbours in the same
+NUL-separated block confirm the shape:
+
+| address | decoded |
+|---|---|
+| `0x0cf00` | `...an the\nwench calls:\nMake me an offer\nsailor!` |
+| `0x0cf54` | `John Mayer\norders:\nTake out the\ntrash!!!` |
+| `0x0cfa0` | `Gerry Mayer\nproclaims:\nWe know small\ncomputers!` |
+| `0x0cffc` | `Keith says:\nNo thanks,trying\nto cut down!` |
+
+The code that pushes the `John Mayer` string is at `0xd8ed8`, five references in the usual pattern, and
+that address was **not** reached by the capture taken, because the run ended before this NPC was spoken to.
+
+**So there are two dialogue systems, not one.** The class speakers (`A guard says:`, `A merchant says:`
+and the rest) live in the `0xeb` table and are dispatched from `0xf1cac` upward. The residents are a
+separate block at `0x0cf00`, with a **name in the string itself** rather than a speaker label. They were
+not previously documented together because the `0xeb` region is where the transform was demonstrated and
+these strings sit well outside it.
+
+**What is not established:** how the name is chosen, whether the verb varies with the NPC, the gold offer
+path, and what `0xd8ed8`'s function does with the pointer. Two entries share the surname `Mayer`, which
+suggests the table is authored rather than generated per utterance, but that is an inference from two
+samples. The anecdotal "thank you" after offering gold is consistent with `Thank you!` at `0x08574` and
+`0x08b18`, but neither string was observed being pushed.
+
 ### The first routine this named: the town dialogue dispatcher
 
 A differential capture of talking to a guard in a town (the `T` key, then a direction) showed the
