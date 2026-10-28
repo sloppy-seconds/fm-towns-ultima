@@ -1156,6 +1156,26 @@ The cost of not declaring it, measured twice in one session: `cfgwalk --check` r
 head because it was asked in the guest frame, and the instruction in `AGENTS.md` to verify addresses with
 `--check` does not say which frame to use, so following it correctly is not possible from the text.
 
+### 7f. Give the port a floppy drive
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The image format is already implemented in `tools/savedisk.js`, the kit's DOS layer takes files through one object, and `saves/userdisk.hdm` is on disk |
+| done when | `A:\ROSTER1.UT2` resolves for attributes and opens for reading in the port, the program's start-up takes the same branch as the machine at guest `0x0e259b`, and the port draws something. The failure case: a shim that answers the attribute query without serving the reads, which moves the failure one call later and hides it |
+| blocked by | nothing |
+
+This is where the port stops and it is not a code fault. The program probes `A:\ROSTER1.UT2` at start-up, the
+port has no `A:` drive, the probe fails, and the program takes its "insert the disk, press the key" path and
+waits forever. Every one of those 24,000 frames was an error dialog. `docs/recomp-plan.md` has the differential
+trace that found it: 4,200 of the port's 4,216 executed addresses match the machine's, and the one that does
+not is the `je` at `0x0e259b` that chooses between the error path and the rest of the game.
+
+The work is a FAT12 reader behind the same interface the CD uses, driven by the `.hdm` image the machine mounts.
+`tools/savedisk.js` already walks FAT12 and knows the keep-list quirks, so this is a translation rather than a
+discovery.
+
 ---
 
 **[Distance to reimplementation](reimplementation-gap.md)** **[Unattended queue](overnight.md)** **[All pages](index.md)**

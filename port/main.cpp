@@ -37,6 +37,32 @@
 
 extern const X86Module g_mod_p_game;
 
+// An instruction trace, for differential debugging against the machine. The kit calls this for every
+// instruction when the build defines X86_TRACE_ON (see x86.h), and the point is to compare the port's sequence
+// with a control-flow capture taken off the emulator: the first place they part is the bug. Without it the
+// only way to find a divergence is to guess which BIOS return was answered wrongly, which is the failure this
+// project keeps paying for.
+#ifdef X86_TRACE_ON
+static FILE* g_trace_file = nullptr;
+static unsigned long long g_trace_written = 0, g_trace_limit = 0;
+static std::vector<uint8_t> g_trace_seen;     // one byte per 4 KB page of a 64 MB window, then bit set per byte
+// First executions only, in the order they happen. A full instruction trace of a real start-up is hundreds of
+// millions of lines and would have to be paged through; the order in which each address is *first* executed is
+// a few tens of thousands of lines, is bounded whatever the run length, and is what a comparison against the
+// machine's block-level capture actually needs.
+void x86_trace(X86Cpu& c, uint32_t at) {
+	if (!g_trace_file || g_trace_written >= g_trace_limit) return;
+	uint64_t key = ((uint64_t)(c.sreg[1] & 0xFFFF) << 32) | at;
+	if (g_trace_seen.empty()) g_trace_seen.assign((size_t)1 << 22, 0);   // 4 MB of bits covers 32 M addresses
+	size_t slot = (size_t)(key >> 3) & ((1u << 22) - 1);
+	uint8_t bit = (uint8_t)(1u << (key & 7));
+	if (g_trace_seen[slot] & bit) return;
+	g_trace_seen[slot] |= bit;
+	std::fprintf(g_trace_file, "%04x:%08x\n", (unsigned)c.sreg[1], at);
+	++g_trace_written;
+}
+#endif
+
 static std::vector<uint8_t> read_file(const char* path) {
 	std::vector<uint8_t> v;
 	FILE* f = std::fopen(path, "rb");
@@ -150,6 +176,20 @@ int main(int argc, char** argv) {
 
 	std::printf("entry     000C:%x  esp 0x%x  cs base 0x%x\n", ENTRY, STACK, PROGRAM_BASE);
 	// The VRAM access counters have to be on before the program runs, not after it has finished.
+	// U2_TRACE_FILE=<path> writes the instruction trace, and U2_TRACE_LIMIT caps it (default two million
+	// instructions, which is a few hundred MB of text at worst and enough to cover start-up).
+#ifdef X86_TRACE_ON
+	if (const char* tf = std::getenv("U2_TRACE_FILE")) {
+		g_trace_file = std::fopen(tf, "w");
+		if (!g_trace_file) {
+			std::fprintf(stderr, "trace: cannot write %s\n", tf);
+			return 2;
+		}
+		const char* lim = std::getenv("U2_TRACE_LIMIT");
+		g_trace_limit = lim ? std::strtoull(lim, nullptr, 10) : 200000ull;	// first executions, not instructions
+		std::printf("trace     %s, first executions up to %llu\n", tf, g_trace_limit);
+	}
+#endif
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
 	if (frames) {
 		m.on_vsync = [&](towns::Machine& mm) {
@@ -169,6 +209,13 @@ int main(int argc, char** argv) {
 	            c.r[6], c.r[7], c.eip);
 	std::printf("          machine frames %llu  guest clocks %llu\n", (unsigned long long)m.frame,
 	            (unsigned long long)c.clocks);
+#ifdef X86_TRACE_ON
+	if (g_trace_file) {
+		std::printf("trace     %llu instructions written\n", g_trace_written);
+		std::fclose(g_trace_file);
+		g_trace_file = nullptr;
+	}
+#endif
 	// U2_DUMP=<linear hex> prints 32 bytes of guest memory at the end, so a buffer the program filled can
 	// be compared with the same buffer read live off the machine. That is how the int93 outregs struct at
 	// DS:0x7a634 was checked against the value measured there.

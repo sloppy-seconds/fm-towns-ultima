@@ -466,8 +466,51 @@ thing, and only the screen check could have shown it, because a spinning program
 `-DX86_TRACE_ON` and define `x86_trace(X86Cpu&, uint32_t)` in the port, and every instruction calls it with its
 guest address. The machine's side of the same comparison already exists as a tool: `tools/cfgprobe.py capture
 --journey` arms the recorder before boot and writes an ordered control-flow capture of a whole start-up. Two
-sequences, one aligned comparison, and the first difference is the bug. That is the next step, and it is the
-only way this gets found without guessing.
+sequences, one aligned comparison, and the first difference is the bug.
+
+**Done, and it found a missing floppy drive.**
+
+`tools/divergence.py` compares the two records. The port's trace logs each address the first time it executes,
+which stays small however long the run, and the machine's capture gives block starts, block ends and branch
+targets. After 600 frames the port had executed **4,216** distinct addresses in segment `000C` and **4,200 of
+them exactly matched** a machine record, so the alignment is real rather than coincidental. Sixteen did not.
+
+The first of those sixteen is `0x0e259b`, and the code either side of it is unambiguous:
+
+```
+0x0e2591  call 0xe23cc
+0x0e2599  and eax, eax
+0x0e259b  je 0xe2623        the machine takes this jump and skips all of it
+0x0e25a1  push 0x1930       message 0x1930
+0x0e25a6  call 0xe75f8      print it
+0x0e25ae  push 2            then read a key, in a loop
+```
+
+**That is an error dialog.** The machine jumps over the message and the key wait, the port prints and waits.
+And `0xe23cc` leads to the check in three hops, ending at guest `0x102317`:
+
+```
+0x102320  mov al, 0
+0x102322  mov ah, 0x43
+0x102325  int 0x21           get file attributes
+0x102327  jb 0x102345       error
+```
+
+**It is `int 21h AX=4300`, get file attributes, and the path is `A:\ROSTER1.UT2`.** Instrumented in the kit and
+run with `U2_TRACE_INT=1`, the only line it prints is:
+
+```
+  attributes: A:\ROSTER1.UT2 -> not found
+```
+
+So the whole picture falls out: the game probes for the save disk's roster file on drive `A:` at start-up, the
+port has no `A:` drive at all, the probe fails, and the program shows "insert the disk" and waits for a keypress
+that never comes. That is why nothing is drawn: the error path draws nothing. The 24,000 frames were spent in
+an error dialog.
+
+The machine has `saves/userdisk.hdm` mounted as drive `A:`, so its probe succeeds. **The port needs a floppy
+drive, not a different return value.** Faking the attributes would get past the check and fail on the read that
+follows, and it would be a lie about the machine rather than a model of it.
 
 ## Stage 1: make it execute one function
 

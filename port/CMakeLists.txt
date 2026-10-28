@@ -20,6 +20,15 @@ endif()
 
 include(${FMT_RUNTIME}/towns.cmake)
 
+# -DU2_TRACE=ON builds a binary that can write an instruction trace (U2_TRACE_FILE), for comparing the
+# port's sequence against the machine's control-flow capture. Off by default because it costs a call per
+# instruction and makes the emitted code slower.
+option(U2_TRACE "record execution for differential debugging" OFF)
+if(U2_TRACE)
+  add_compile_definitions(X86_TRACE_ON)
+  message(STATUS "u2port: instruction tracing on")
+endif()
+
 file(GLOB RECOMP_SRC ${RECOMP_DIR}/p_*.cpp)
 add_library(game_recomp STATIC ${RECOMP_SRC})
 target_include_directories(game_recomp PUBLIC ${FMT_RUNTIME})
