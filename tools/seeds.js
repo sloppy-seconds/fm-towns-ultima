@@ -75,6 +75,32 @@ function scanTransfers(buf) {
 	return { calls, jumps };
 }
 
+// Callbacks. A function pointer passed as an argument has no call site to find: the address is an
+// immediate in the code and the call goes through `call dword ptr [ebp+8]`. Measured on ENCHANT.EXP,
+// dwords whose value points at a `55 8b ec` prologue come to exactly 7, and two of them were confirmed
+// by running the recompiled program, which faulted on them: guest 0x103620 and guest 0x10388c. Two of
+// the seven the call scan already found, so the rule adds five.
+//
+// The values are guest addresses, meaning image base 0 in the runtime frame, which is 0x200 below this
+// tool's raw file frame. The target to seed is therefore value + 0x200, not value.
+// The prologue is tested alone here, without the terminator test that looksLikeFunctionEntry applies to
+// call sites, and that difference is measured rather than convenient. Guest 0x103620, which the recompiled
+// program transferred into and executed, is preceded by the bytes `42 4f 44 59 3e` or "BODY>", a string
+// constant. Guest 0x102e20 and 0x1039f4 are preceded by the same string, and guest 0x10168c by "ceive". So
+// this image interleaves string constants with code and a real function head can follow a string. A
+// coincidental dword is the risk the terminator test guards against at a call site, where a random operand
+// can land on a prologue; a dword that equals a code address with a prologue is not that kind of accident.
+function scanCallbacks(buf) {
+	const out = new Set();
+	for (let i = 0; i + 4 <= buf.length; i++) {
+		const v = buf.readUInt32LE(i);
+		const f = v + 0x200;
+		if (v < 0x200 || f + 3 > buf.length) continue;
+		if (buf[f] === 0x55 && buf[f + 1] === 0x8b && buf[f + 2] === 0xec) out.add(f);
+	}
+	return out;
+}
+
 function inRanges(addr, ranges) {
 	for (const [lo, hi] of ranges) if (lo <= addr && addr < hi) return true;
 	return false;
@@ -171,6 +197,10 @@ function main() {
 	candidates.sort((a, b) => b[1] - a[1]);
 
 	const out = candidates.map(([a]) => a).sort((a, b) => a - b);
+	const callbacks = scanCallbacks(buf);
+	const fromTransfers = out.length;
+	for (const a of callbacks) if (!out.includes(a)) out.push(a);
+	out.sort((a, b) => a - b);
 	const summary = {
 		binary: name,
 		bytes: buf.length,
@@ -180,6 +210,8 @@ function main() {
 		unknownBytes: unknown.reduce((t, [a, b]) => t + b - a, 0),
 		candidates: out.length,
 		promoted: promoted.length,
+		callbacks: callbacks.size,
+		callbacksNew: out.length - fromTransfers,
 		rejected,
 	};
 
@@ -198,6 +230,9 @@ function main() {
 	console.log('  targets rejected: ' + rejected.zero + ' in zero fill, ' +
 		rejected.outside + ' outside, ' + rejected.once + ' named only once');
 	console.log('  single-caller call targets promoted by prologue: ' + summary.promoted);
+	console.log('  callback immediates pointing at a prologue: ' + summary.callbacks + ' (' +
+		summary.callbacksNew + ' not already found by a transfer)');
+	console.log('  seeds from transfers: ' + fromTransfers);
 	console.log('  candidate seeds: ' + out.length);
 	if (out.length === 0) {
 		console.error('no candidates survived: refusing to emit an empty seed set');

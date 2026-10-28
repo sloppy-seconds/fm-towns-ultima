@@ -89,6 +89,7 @@ from the items below rather than maintained separately.
 | 5e Combat formulas | AUTONOMOUS | **yes** |
 | 5f Shops and transports | AUTONOMOUS | **yes** |
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
+| 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports twelve of twenty-seven startable now, with 2b and 4a held back by item order. That is
@@ -923,7 +924,6 @@ See [movement-and-wrap.md](movement-and-wrap.md).
 | blocked by | nothing |
 
 ### 5g. Name the call graph above a caller threshold
-
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
 | field | value |
@@ -1023,6 +1023,26 @@ Every one came from getting it wrong first, and the list is longer than it shoul
 - `reimplementation-gap.md` carries the scoreboard and the named-routine count.
 - `overnight.md` is the unattended queue, derived from this plan.
 - Any number in this plan must be re-measured before being quoted, because three have already been wrong.
+
+### 6a. One frame of reference per tool, declared and checked
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The inventory is measurement over the tools that already exist, and nothing here waits on a human |
+| done when | `docs/two-frames-of-reference.md` names the frame of every tool that emits or accepts an address, `node tools/cfgwalk.js --check` prints which frame it is answering in, and `tools/verify.js` asserts one known address resolving in each of the three. The failure case it must catch: a tool handed an address in the wrong frame answering plausibly instead of refusing |
+| blocked by | nothing |
+
+Three frames are in use and nothing declares them: raw file offsets, stripped (`file - 0x20`, which is
+`cfgwalk.js` and `docs/call-graph.md`), and guest (`file - 0x200`, which is the running machine and the
+recompiled modules). They are `32` and `480` bytes apart respectively, and the guest frame was the one
+nothing was checking. The measurement is in
+[two-frames-of-reference.md](two-frames-of-reference.md#a-third-frame-the-one-the-program-runs-in).
+
+The cost of not declaring it, measured twice in one session: `cfgwalk --check` refused a real function
+head because it was asked in the guest frame, and the instruction in `AGENTS.md` to verify addresses with
+`--check` does not say which frame to use, so following it correctly is not possible from the text.
 
 ---
 

@@ -237,6 +237,49 @@ recompiler reports as unresolved. Worth stating plainly: `node tools/cfgwalk.js 
 `55 8b ec` or `push ebp / mov ebp,esp`. Those two statements cannot both be right, so the frame that
 `--check` expects is itself now a question, and it has to be settled before seeding the address.
 
+**Settled, and it was a third frame.** `cfgwalk.js` slices `0x20` off the file, so its addresses are
+`file - 0x20`. The running program's addresses are `file - 0x200`. Those are `0x1e0` apart, and asking
+`--check` in the guest frame is what produced two refusals for a real function head. In its own frame it
+agrees: `--check 0x103800` reports a boundary with a prologue and calls it a function head. The full
+measurement, and the fact that `docs/call-graph.md` writes the stripped frame while the pixel-writer page
+writes the raw one, is in [two-frames-of-reference.md](two-frames-of-reference.md).
+
+**The target is a callback, and there are only seven.** The dword `0x00103620` sits at file `0x1037f9`,
+inside the code, so these addresses are immediates passed as arguments and called through
+`call dword ptr [ebp+8]`. No call site points at them and the transfer scan cannot see them. A scan for
+dwords whose value points at a `55 8b ec` prologue finds **7** in the whole image, **2** of which the
+transfer scan already had, so `tools/seeds.js` now adds **5**. That took the module from 784 to **796**
+functions without seeding anything by hand.
+
+**The rule needed its own measurement, and it contradicts the one for call sites.** `looksLikeFunctionEntry`
+rejects a prologue whose preceding byte is not a terminator, because a call operand can land on `55 8b ec`
+by accident. Applied to callbacks it rejects three of the seven, including guest `0x103620`, which the
+recompiled program transferred into and executed. The bytes before it are `42 4f 44 59 3e`, the string
+"BODY>". This image interleaves string constants with code, so a real function head can follow a string, and
+the callback scan tests the prologue alone.
+
+**The next wall is `int 0`, and it is not a service this project has any record of.**
+
+```
+fault at 000c:0010241c: int 00h, AX=0220: no service (eip 0010241c, frame 164)
+```
+
+The instruction is `CD 00` at guest `0x10241a`, and it is preceded by a context save:
+
+```
+0x102415  8b 76 10   mov esi, [esi+0x10]
+0x102418  eb 00      jmp 0x10241a
+0x10241a  cd 00      int 0
+0x10241c  57         push edi
+0x10241d  8b 7d 10   mov edi, [ebp+0x10]
+0x102420  89 07      mov [edi], eax
+```
+
+A save of `eax`/`ebx`/`ecx`/`edx` into a pointer passed on the stack, immediately after `int 0`. Nothing in
+this repository documents `int 0` on the Towns, and the kit has no handler, so what it is supposed to do is
+an open question rather than a missing case. The fault falls between machine frames 160 and 165, so it is
+roughly 2.7 seconds of emulated time into start-up.
+
 **What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
 finish. It is the difference between "the code does not run" and "the code runs until the machine is

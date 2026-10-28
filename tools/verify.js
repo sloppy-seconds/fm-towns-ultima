@@ -290,16 +290,27 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 // The seed set must promote single-caller call targets that open a High C prologue,
 // and must still be a strict superset of the multiplicity rule it replaces.
 //
-// Measured: 430 by multiplicity alone, 532 with the promotion, 102 promoted, and 32
-// single-caller prologue targets rejected as coincidences inside string data.
+// Measured: 430 by multiplicity alone, 532 from transfers with the promotion, 102 promoted,
+// and 32 single-caller prologue targets rejected as coincidences inside string data.
 // A regression here silently shrinks the swept function set, which no other check sees.
+//
+// 532 stays the number for the transfer-derived set so the measurements that cite it stay
+// literally true. The callback rule adds 5 more (7 immediates, 2 already reached by a
+// transfer), giving 537 in total. Callbacks are addresses passed as arguments, so no call
+// site points at them and the transfer scan cannot see them at all.
 {
 	const { execFileSync } = require('child_process');
 	const out = execFileSync('node', [path.join(ROOT, 'tools/seeds.js')], { encoding: 'utf8' });
 	const m = /candidate seeds: (\d+)/.exec(out);
 	const p = /promoted by prologue: (\d+)/.exec(out);
-	if (m && 532 === Number(m[1])) ok('seed candidates after prologue promotion', '532');
-	else bad('seed candidates after prologue promotion', m ? m[1] : 'no line');
+	const t = /seeds from transfers: (\d+)/.exec(out);
+	const c = /callback immediates pointing at a prologue: (\d+) \((\d+) not/.exec(out);
+	if (m && 537 === Number(m[1])) ok('seed candidates, transfers plus callbacks', '537');
+	else bad('seed candidates, transfers plus callbacks', m ? m[1] : 'no line');
+	if (t && 532 === Number(t[1])) ok('seed candidates from transfers', '532');
+	else bad('seed candidates from transfers', t ? t[1] : 'no line');
+	if (c && 7 === Number(c[1]) && 5 === Number(c[2])) ok('callback seeds', '7 found, 5 new');
+	else bad('callback seeds', c ? c[1] + ' found, ' + c[2] + ' new' : 'no line');
 	if (p && 102 === Number(p[1])) ok('single-caller seeds promoted', '102');
 	else bad('single-caller seeds promoted', p ? p[1] : 'no line');
 }

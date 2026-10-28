@@ -105,3 +105,60 @@ other is broken, and its output will look plausible while being 32 bytes adrift.
 
 `tools/globrefs.js` now reads raw throughout and carries the measurement in a comment at
 `loadImage()` so the next reader does not repeat the slip.
+
+## A third frame, the one the program runs in
+
+**Two frames was already wrong.** There are three, and the one nothing was checking is the one the
+program runs in. Found by reversing the port failure, not by looking for it.
+
+| frame | offset of a given byte | who speaks it |
+|---|---|---|
+| raw file | `f` | `xxd`, `codelimits.js` including `--args` and its `DOCUMENTED` table, `seeds.js` |
+| stripped | `f - 0x20` | `cfgwalk.js` (`HEADER = 0x20`), and `docs/call-graph.md` |
+| **guest** | `f - 0x200` | the running machine: `CS=000C` at base `0x400000`, and the recompiled modules |
+
+So guest = stripped minus `0x1e0`, and the two conventions this page already documents are 32 bytes apart
+while these are 480. The measurement, on the entry this project established:
+
+```
+guest 0x101a20   raw file 0x101c20 holds EB 56   stripped would call it 0x101c00
+```
+
+And on the address the port died on:
+
+```
+port fault: no recompiled function at 000c:00103620     <- guest
+raw file 0x103820: 55 8b ec                            <- the prologue
+node tools/cfgwalk.js --check 0x103800  -> boundary: true, prologue: true, "function head"
+node tools/cfgwalk.js --check 0x103620  -> NOT an instruction boundary
+node tools/cfgwalk.js --check 0x103820  -> NOT an instruction boundary
+```
+
+**This is why `--check` refused a real function head.** It was asked in the wrong frame twice. The tool
+was right both times and the question was wrong, which is the same shape as the failure this page
+already records: a tool that says one frame and reads another.
+
+**The documentation is not internally consistent about which frame it writes.** Sampled 95 distinct
+addresses from `docs/call-graph.md` and tested for a `55 8b ec` prologue at the address as written, at
++`0x20`, and at +`0x200`:
+
+| where the prologue is | addresses |
+|---|---|
+| at the address as written (raw) | 0 |
+| at address + `0x20` (stripped) | 54 |
+| at address + `0x200` (guest) | 0 |
+| no frame-pointer prologue in any of the three | 41 |
+
+So `call-graph.md` writes stripped addresses, and the 41 are consistent with the measurement that only
+half the routines open with a frame pointer. Meanwhile `highc-authentic-toolchain.md` records the pixel
+writer at `0xf3e24`, which is the raw offset, and searching for its bytes finds them there and nowhere
+else. Both pages are right about their own subject and neither says which frame it is using.
+
+**The practical guard, extended.** The old guard is still true and still insufficient: it distinguishes
+raw from stripped. For anything the emulator or a recompiled module will execute, the guest frame
+applies, and it is a further `0x1e0` below stripped. The cheapest check is the entry, whose position is
+recorded in all three:
+
+```
+raw 0x101c20 = EB 56     stripped 0x101c00     guest 0x101a20
+```
