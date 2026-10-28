@@ -298,10 +298,10 @@ single-direction case was run.
 Measured 15 on a step and 15 on a kill, which suggested one constant. **It is not.** The food
 routine takes the amount as an argument, and it has exactly two callers, passing different values.
 
-### A conditional value on a text path, and a reading that was wrong
+## An HP-conditional colour, and two wrong readings on the way
 
-The function at `0xe9010` chooses a value from the character's HP and passes it, with a constant 10, to
-`0xe74d8`:
+The function at `0xe9010` chooses a value from the character's HP, and that value sets the colour of
+the status readouts.
 
 ```
 0xe9027  cmp [edx+0xcde81], 0x32      ; HP against 50
@@ -315,24 +315,46 @@ The function at `0xe9010` chooses a value from the character's HP and passes it,
 
 `0xcde81` is the HP field, the same address `tools/peek.js` reads as `hp`.
 
-**The branch is real and was observed both ways.** At HP 338 a fight capture took the edge
-`0xe902e -> 0xe9036` and never reached `0xe9030`. At HP 37 a later capture took `0xe902e -> 0xe9032`,
-reached `0xe9030`, and never reached `0xe9034`. So the test and both paths are established.
+**The branch was observed both ways.** At HP 338 a fight capture took `0xe902e -> 0xe9036` and never
+reached `0xe9030`. At HP 37 a later capture took `0xe902e -> 0xe9032`, reached `0xe9030`, and never
+reached `0xe9034`.
 
-**What the value is was misread, and is corrected here.** An earlier version of this section called the
-11 and 15 food amounts, on the reasoning that this function sits near the food code. It does not.
-`0xe74d8` stores its first argument into `[edx+0x7af09]`, which is `0x25` past the text record table at
-`0x7aee4`, and then calls `0xe64bd`. It is a text path, and the 11 or 15 is a **payload written into a
-text record**, not a cost.
+**What the value does is established, after two wrong readings.** The chain from the branch is:
 
-The refutation was measurement rather than argument: at HP 37 the 11 branch ran and food still fell by
-**15**, not 11. Food fell 15 because the ordinary turn cost at `0xf0a08` was charged from `0xf0943`
-with `push 0x0f`, and this function never touches the food field at all.
+```
+0xe74dc  mov edi,[ebp+0x0c]     ; the constant 10
+0xe74df  mov eax,[ebp+0x08]     ; the 11 or 15
+0xe74e2  lea eax,[eax+eax*2]    ; eax = 3n
+0xe74e5  lea edx,[eax+eax*8]    ; edx = 27n
+0xe74e8  lea edx,[edx+edx*4]    ; edx = 135n
+0xe74eb  mov [edx+0x7af09],edi  ; store the 10 into a display record
+0xe74f2  call 0xe5748           ; pass the 11 or 15 on
+```
 
-**So the docstring for the value is open.** What 11 and 15 mean as text payloads is not established.
-They are two small integers written to the same field depending on whether HP is below 50, and the
-plausible readings (a message variant, a colour, an index) are not distinguished by anything measured
-yet.
+and `0xe5748` is a three-instruction wrapper:
+
+```
+0xe574b  movsx eax,[ebp+0x08]   ; the 11 or 15
+0xe574f  push eax
+0xe5750  push 0
+0xe5752  push 0x7a7d8           ; the display context from docs/display-context.md
+0xe5757  call 0x0020e           ; a TBIOS graphics entry
+```
+
+`0x7a7d8` is the 0x600-byte display context, and the call lands in the TBIOS stub region rather than
+in game code. So **the 11 and 15 are graphics attribute values**, one for HP below 50 and one for HP
+at or above it.
+
+**Confirmed from the screen, not from the code.** With HP below 50 the game displays the HP, E, F and
+G readouts in **yellow**; at HP 400 they are not. That is the observable effect of the value, and it
+was reported from play before the call chain was read.
+
+**Two readings were wrong before this one, and both are recorded rather than replaced.** The 11 and 15
+were first called food amounts, which a measurement refuted: at HP 37 the 11 branch ran and food still
+fell by 15, because the ordinary turn cost at `0xf0a08` is charged separately from `0xf0943`. They
+were then called a text payload, on the strength of the store at `[edx+0x7af09]`, which is close but
+incomplete: the store writes the *constant* 10, and the HP-dependent value goes to the graphics call
+instead. Reading the whole function rather than its first half would have avoided both.
 
 ### The routine: `0xf0a08` in memory, `0xf0c08` in the file
 
