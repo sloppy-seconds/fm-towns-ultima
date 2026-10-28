@@ -47,6 +47,16 @@ const FIELDS = {
 	exp: 0xcde89,
 	food: 0xcde8d,
 	gold: 0xcde91,
+	key: 0xcde95,
+	era: 0xcde99,
+	// Quest items, from the roster format in docs/save-files.md. Every field is a dword and
+	// the order in that file is the order in memory, anchored at HP as field 18:
+	//   offset = 0xcde81 + 4*(field - 18)
+	// Checked against live memory: maxhp reads 400 and era reads 2 at these addresses.
+	tassle: 0xcdf1d,
+	ankh: 0xcdf0d,
+	gem: 0xcdf09,
+	trilithium: 0xcdf29,
 	px: 0xcdf6b,
 	py: 0xcdf6f,
 	map: 0xcdf53,
