@@ -96,11 +96,108 @@ The real gaps are the ones this did not touch:
 | conflicts | 334,300 | overlap and seed quality |
 | no game loop, timer, input, file I/O | structural | reading and writing code, not resolution |
 
+## The 21, enumerated, and the one that is game code
+
+**Reproduced, so the list is not taken from a page.** The seed set and the zero ranges come from this
+project's own tools:
+
+```
+SEEDS=$(node tools/seeds.js --emit)
+RANGES=$(node tools/codelimits.js --args)
+cd references/vs-sr-dev
+python3 -m fmtownskit.recomp.discover ../../ENCHANT.EXP --raw --seed "$SEEDS" $RANGES --report
+```
+
+That reports **696 functions, 71 jump tables (67 bounded), 21 indirect transfers unresolved, 910
+refused, 503 conflicts**, and prints each site. All addresses below are file offsets, because `--raw`
+loads the whole file at base 0. The dispatcher bytes quoted further down are in the same frame.
+
+| kind | count | sites (file offset) |
+|---|---|---|
+| `call dword [0xdfc5c]` | 10 | `0x102826`, `0x104a96`, `0x104ba8`, `0x104bde`, `0x104d00`, `0x104d24`, `0x104dec`, `0x104e25`, `0x104eb1`, `0x105088` |
+| `call [ebp+8]` | 4 | `0x103647`, `0x10364d`, `0x103656`, `0x1036c2` |
+| `call [ebp+0xc]` | 2 | `0x102a4f`, `0x102b95` |
+| `call [ebp+0x10]` | 1 | `0x103a25` |
+| `call eax` | 2 | `0x103ea2`, `0x1051ca` |
+| `call cs:[ebx]` | 1 | `0x10005e` |
+| `jmp cs:[edx*4+0xe034b]` | 1 | `0xe0543` |
+
+> **CORRECTION: two of the 21 are not in the library block.** This page said every site sits between
+> `0x102604` and `0x1051CA`. That is false for `0xe0543`, a `cs:`-relative switch in the game's code
+> band, and for `0x10005e`. The conclusion, that the library sites recover no game behaviour, survives.
+
+**Four are resolved by the captures**, asked with the project's own tool:
+
+```
+$ SEEDS=$(node tools/seeds.js --emit)
+$ ./tools/.venv/bin/python3 tools/indirect-sites.py --seeds "$SEEDS"
+resolved by the captures: 4 of 21
+   image 0x10005E (segment 0xFFE5E) -> 0xFFEC1
+   image 0x102A4F (segment 0x10284F) -> 0x102E21
+   image 0x1036C2 (segment 0x1034C2) -> 0x103621
+   image 0x103A25 (segment 0x103825) -> 0x10388D
+```
+
+The earlier figure of 1 of 21 was measured when fewer captures existed, and it is stale rather than
+wrong.
+
+## The one that is game code, resolved by reading
+
+`0xe0543` is a `jmp dword cs:[edx*4+0xe034b]`. Reading the dispatcher above it settles the table's size
+without guessing:
+
+```
+000E0529  8BD7              mov edx,edi
+000E052B  83FA20            cmp edx,0x20
+000E052E  775B              ja 0xE058B
+000E0530  83FA20            cmp edx,0x20
+000E0533  0F8491000000      jz 0xE05CA
+000E0539  4A                dec edx
+000E053A  83FA0F            cmp edx,0xf
+000E053D  0F878E000000      ja 0xE05D1     <- the default case
+000E0543  2E FF 24 95 4B030E00   jmp dword cs:[edx*4+0xe034b]
+```
+
+`cmp edx,0xf` bounds the index at 15, so the table has **16 entries**. Sixteen is what the data says
+too: entries 0 to 15 are all in `0xe03a5`-`0xe03de`, and entry 16 is `0x0080fa81`, which is not an
+address in this image. The table is at file `0xe054b` and its entries are runtime addresses, so the
+file offset of a target is entry `+ 0x200`.
+
+There are five distinct targets, and each one selects a string and then leaves:
+
+| target (runtime) | file | bytes | what it does |
+|---|---|---|---|
+| `0xe03b5` | `0xe05b5` | `68 78 0e 00 00 eb 1a` | `push 0xe78`, jump on |
+| `0xe03bc` | `0xe05bc` | `68 b4 0e 00 00 eb 13` | `push 0xeb4`, jump on |
+| `0xe03c3` | `0xe05c3` | `68 f0 0e 00 00 eb 0c` | `push 0xef0`, jump on |
+| `0xe03d1` | `0xe05d1` | `68 68 0f 00 00 e8` | `push 0xf68`, call |
+| `0xe03de` | `0xe05de` | `8b c7 5f 5b c9 c3` | `mov eax,edi`, `pop ebx`, `leave`, `ret` |
+
+So the switch picks one of four message strings and returns. It is an error reporter, not a game rule.
+
+**Why the walker left it.** Its entries are not ascending, because case order is not address order, and
+the branch is the `2E FF 24 95` `cs:`-relative form. That is the same shape as the `0xe4086` table in
+[core-routines.md](core-routines.md), which is also unresolved and also has no monotonic ordering to
+key on. A table test that assumes ascending dwords will refuse both.
+
+## What is left, and why it is not the cap
+
+Sixteen sites remain: ten `call [0xdfc5c]`, four `[ebp+8]`, two `[ebp+0xc]`, one `[ebp+0x10]`, and two
+`call eax`. The live value of `0xdfc5c` read **zero** at the player-select screen, so those ten sites
+would fault if they ran there and they are not on any path a boot-to-play capture takes. They are the
+`printf` output callback and the allocator's chain walking, and resolving them recovers no game
+behaviour.
+
+**The cap on recompilation coverage is not these 21, it is the 910 refusals.** Sixteen unresolved
+indirect transfers is 0.8 percent of the transfer census and they sit in library code. The refusals are
+where game code stops being emitted.
+
 ## What was still worth building
 
-`tools/indirect-sites.py` asks every capture which sites it resolves. It answered "1 of 21", and then
-asked the next question by itself: why. That led to the string names, which led to the answer. The tool
-stays, because the same question will be asked of any other binary in this family and the answer may
-differ there.
+`tools/indirect-sites.py` asks every capture which sites it resolves. With the 31 captures now on disk
+it answers **4 of 21**, and it asks the next question by itself: why. That led to the string names,
+which led to the answer. The tool stays, because the same question will be asked of any other binary in
+this family and the answer may differ there. The four, and the full enumeration, are in the section
+above.
 
 **[CFG findings](cfg-findings.md)** **[Recompilation](recompilation-clean.md)** **[Plan](plan.md)**

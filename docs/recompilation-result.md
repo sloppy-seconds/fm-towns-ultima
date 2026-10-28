@@ -91,8 +91,9 @@ The conflicts are the concrete defect: each one is a place where two instruction
 body contains something that is not an instruction. They are named in the report and are the
 cheapest thing to chase, because each is a specific address rather than a general doubt.
 
-The 24 unresolved indirect transfers are the second. Most are `call [ebp+8]`, a function pointer
-passed as an argument, which needs the caller's argument rather than anything local.
+The 21 unresolved indirect transfers are the second. Most are `call [ebp+8]`, a function pointer
+passed as an argument, which needs the caller's argument rather than anything local. The enumeration,
+and the one of the 21 that is game code, are in [indirect-resolution.md](indirect-resolution.md).
 
 A playable port would need both, plus an entry point, plus a first claim stably reached through the
 recompiled code rather than through a seed. None of that is blocked on the kit, it is blocked on
