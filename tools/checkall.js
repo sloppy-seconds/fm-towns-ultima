@@ -406,6 +406,21 @@ const runNode = (script, args = []) => {
 	const zr = runNode('codelimits.js', ['--check']);
 	record('zero regions match the docs', zr.ok ? [] : zr.out.split('\n').filter((l) => /FAIL/.test(l)));
 
+	// G2. The walk's zero guard actually refuses. codelimits proves the ranges are right, and
+	// nothing until now proved that anything consumes them: cfgwalk could lose the call and its
+	// counts would merely get larger, which no check would see. The assertion is on the seed
+	// refusals by address, because those three need no decoder to derive: a CALL target inside a
+	// zero run is arithmetic on bytes. They are also the three addresses the corpus had already
+	// classified not-entry, which is why fixing them is calibration rather than tuning.
+	{
+		const cw = runNode('cfgwalk.js', ['--refusals']);
+		const got = (cw.out.match(/^seed 0x[0-9a-f]+/gm) || []).map((s) => s.replace(/\s+/, ' '));
+		const want = ['seed 0x174e9', 'seed 0x9b44b', 'seed 0x9847b'];
+		const missing = want.filter((w) => !got.includes(w));
+		record('cfgwalk refuses seeds inside zero fill',
+			missing.length ? ['missing: ' + missing.join(', ') + '   got: ' + (got.join(', ') || 'nothing')] : []);
+	}
+
 	// H. The TBIOS dispatch chain. tools/tbios.js maps each AH value the game uses to its handler in
 	// TBIOS.BIN, through the header slot, the dispatcher and the table at 0x2b4. Every link is
 	// asserted against the bytes; a corrupt table entry was tested and the check fails.

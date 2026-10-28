@@ -30,14 +30,70 @@ is either lost or misjudged.
 
 ## Measured
 
+> **CORRECTION: these counts were inflated by zero fill.** 75.6 percent of this image is zeros, and
+> zeros decode as `add [eax], al` forever, with no error, so the walk was decoding padding and
+> counting it as code. With the guard described in [the next section](#the-zero-guard) the same walk
+> reports **39,190** instructions from **5** refusals. The `randMod` result below is unaffected,
+> because that is a boundary question rather than a count.
+
 ```
-instructions decoded: 79,470
-distinct boundaries:  79,470
-unresolved edges:     144
-elapsed:              ~2.1 s
+instructions decoded: 39,190
+zero-region refusals: 5
+distinct boundaries:  39,190
+unresolved edges:     135
+elapsed:              ~1.4 s
 ```
 
 **`randMod` sites: 85 raw → 83 on real instruction boundaries.**
+
+That line and the two rejections below are identical with and without the guard, which is why the
+change is safe to make: it alters how much padding is counted, not which addresses are boundaries.
+The 79,470 recorded here before the guard does not reproduce even with `--no-guard`, which gives
+79,303 today, and the 167-instruction difference is unverified.
+
+## The zero guard
+
+A descent that reaches zero fill does not fail. `00 00` decodes as `add [eax], al`, two bytes,
+forever, so the walk succeeds silently and reports instructions that are real in the only sense that
+matters to a decoder. [fmtownskit-and-seeds.md](fmtownskit-and-seeds.md) records the measured case on
+this image: one seed produced a single 152,933-byte extent whose first byte was zero, and all 354,904
+instructions it reported agreed with Capstone.
+
+The walk now refuses a transfer whose target lands inside a zero run, and names it:
+
+```
+$ node tools/cfgwalk.js --refusals
+seed 0x174e9 seed in zero fill
+seed 0x9b44b seed in zero fill
+seed 0x9847b seed in zero fill
+0xd2ea3 0xd2f06 jmp into zero fill
+0xd2ea1 0xd2ef5 jmp into zero fill
+total 5
+```
+
+Those addresses are stripped, so raw file offsets are `+0x20`: `0x17509`, `0x9b46b`, `0x9849b`. **All
+three are already classified `not-entry` in this project's own corpus**, which is the best available
+evidence that the ranges are calibrated rather than tuned.
+
+The effect is out of proportion to the number of refusals:
+
+| run | instructions decoded |
+|---|---|
+| `--no-guard` | 79,303 |
+| guard on | **39,190** |
+
+Five decisions remove 40,113 instructions, 50.6 percent. That is what a runaway path looks like: one
+refused transfer ends an unbounded decode, so the count does not grow in proportion to the refusals.
+
+The ranges come from `tools/codelimits.js`, which derives them from the bytes and whose table
+`checkall.js` asserts against [code-analysis.md](code-analysis.md). `checkall.js` also asserts these
+three seed refusals by address, because a guard that silently stopped firing would only make a number
+larger and would fail nothing.
+
+**What it does not do.** It excludes zero fill, which is 75.6 percent of the image, and nothing else.
+The other 21.9 percent is real data that decodes as valid x86, so 39,190 is an upper bound on code
+rather than a count of it. It also refuses only runs of 64 bytes or more, the threshold
+`codelimits.js` measured as insensitive between 64 and 4096.
 
 Two rejected, and both are provably wrong:
 

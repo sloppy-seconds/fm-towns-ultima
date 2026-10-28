@@ -54,7 +54,11 @@ entry. That is not a heuristic. Our seeds are inferred by this project's own ana
 the candidate set is already classified as not being real entries (the breakdown is owned by
 [call-graph.md](call-graph.md)), so a share of the seeds is known to be wrong before it is used.
 
-**And he never needed a zero-region guard**, because `_edata` and `_end` told him where data began.
+**He never needed a zero-region guard for his own games**, because `_edata` and `_end` told him where
+data began. Our branch had to add one: commit `05810fa` gives `x86map.py` a `no_code` parameter and
+the CLI a `--no-code LO:HI` flag, so a descent cannot walk into zero fill and the refusal names
+itself. The same guard now sits in this project's own walk, where it removed 40,113 instructions from
+the count. See [cfgwalk.md](cfgwalk.md).
 There is no BSS-detection code anywhere in `fmtownskit`, only a "hole" in a jump table, which is a
 different thing.
 
@@ -188,7 +192,8 @@ The seeds are **not** the fault. Every corpus row that starts inside a zero run 
 ```
 
 The mask would refuse exactly what this project already doubts, which is the best available evidence
-that it is calibrated rather than over-broad.
+that it is calibrated rather than over-broad. That is now measured rather than expected: the walk in
+[cfgwalk.md](cfgwalk.md) refuses three seeds, and they are the three addresses listed above.
 
 Whether the seeds are **sufficient** is still unmeasured, and cannot be measured until the inflation is
 removed. With a guard in place the instruction count becomes a real number, and only then does
@@ -204,7 +209,7 @@ removed. With a guard in place the instruction count becomes a real number, and 
 | `x86map.py` table detection | **7 sites reported, 7 real, 0 false positives** |
 | `recomp` | **works**: the pixel writer recompiles and passes its self-test, 4 vectors 0 failures |
 | `x86map` call/port/interrupt naming | **the large win**: names DOS, Phar Lap, CD BIOS, TBIOS far calls and `int 90h` traps in one pass |
-| its zero-region handling | **absent, and never needed** |
+| its zero-region handling | **added by our branch**, not absent: `05810fa`, `--no-code LO:HI`, refusals named |
 
 The lesson is not that the toolkit is weaker for lacking a zero guard. It is that his seeds came from
 the linker and ours do not, and a toolkit built on linker-supplied seeds never has to ask where the

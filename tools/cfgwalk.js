@@ -33,6 +33,8 @@
 //   node tools/cfgwalk.js --check 0xef4bb is this an instruction boundary per the walk
 //   node tools/cfgwalk.js --at 0xe3904    show the walk from one entry
 //   node tools/cfgwalk.js --retmap        who pops arguments: plain ret against ret imm16
+//   node tools/cfgwalk.js --refusals      every transfer the zero guard refused, one per line
+//   node tools/cfgwalk.js --no-guard      follow transfers into zero fill anyway
 
 'use strict';
 
@@ -40,6 +42,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { Disc, defaultDisc } = require('./cd.js');
+const { zeroRuns, DEFAULT_MIN } = require('./codelimits.js');
 
 const ROOT = path.join(__dirname, '..');
 const HEADER = 0x20;
@@ -61,6 +64,31 @@ function loadImage() {
 	const buf = d.get(cat, name).slice(HEADER);
 	d.close();
 	return buf;
+}
+
+// THE ZERO GUARD. 75.6 percent of this image is zero fill, and zeros are valid x86: `00 00`
+// decodes as `add [eax], al`, two bytes, forever, with no error and no disagreement between
+// decoders. A descent that reaches zero fill therefore succeeds silently and endlessly, and
+// every instruction it reports is real. docs/fmtownskit-and-seeds.md records the measured
+// case: one seed produced a single 152,933-byte extent whose first byte was zero, and all
+// 354,904 instructions it reported agreed with Capstone.
+//
+// The ranges are derived by tools/codelimits.js, which checkall.js asserts against
+// docs/code-analysis.md, and they are derived from THIS buffer. That matters: zeroRuns
+// returns offsets into whatever buffer it is given, and loadImage() has already removed the
+// header, so addresses and ranges here are in the same frame by construction. Converting
+// between frames is how this project has now made the same mistake twice.
+//
+// A transfer into a range is REFUSED AND NAMED, not silently dropped. That is the shape
+// fmtownskit's `--no-code` landed in, and the difference matters: a silent skip lowers a
+// count without saying so, which is indistinguishable from a smaller program.
+function zeroRanges(img) {
+	return zeroRuns(img, DEFAULT_MIN);
+}
+
+function inRanges(addr, ranges) {
+	for (const [lo, hi] of ranges) if (addr >= lo && addr < hi) return true;
+	return false;
 }
 
 // Per-path instruction decoding.
@@ -163,8 +191,17 @@ function callTargets(img) {
 
 function walk(img, seeds, opts = {}) {
 	const boundary = new Set();
-	const work = [...seeds];
-	const queue = new Set(seeds);
+	const noCode = opts.noCode || [];
+	const refused = [];
+	const work = [];
+	for (const s of seeds) {
+		if (inRanges(s, noCode)) {
+			refused.push({ at: null, target: s, why: 'seed in zero fill' });
+			continue;
+		}
+		work.push(s);
+	}
+	const queue = new Set(work);
 	const unresolved = [];
 	const visitedStarts = new Set();
 	let decoded = 0;
@@ -196,7 +233,9 @@ function walk(img, seeds, opts = {}) {
 
 			// A call target is a function entry: queue it.
 			if (cf.target !== null && (cf.kind === 'call' || cf.kind === 'jcc' || cf.kind === 'jmp')) {
-				if (cf.target >= 0 && cf.target < img.length && !queue.has(cf.target) && !visitedStarts.has(cf.target)) {
+				if (inRanges(cf.target, noCode)) {
+					refused.push({ at: addr, target: cf.target, why: cf.kind + ' into zero fill' });
+				} else if (cf.target >= 0 && cf.target < img.length && !queue.has(cf.target) && !visitedStarts.has(cf.target)) {
 					work.push(cf.target);
 					queue.add(cf.target);
 				}
@@ -229,8 +268,12 @@ function walk(img, seeds, opts = {}) {
 						break;
 					}
 					if (skip > 0 && next < img.length && !visitedStarts.has(next) && !queue.has(next)) {
-						work.push(next);
-						queue.add(next);
+						if (inRanges(next, noCode)) {
+							refused.push({ at: addr, target: next, why: 'gap recovery into zero fill' });
+						} else {
+							work.push(next);
+							queue.add(next);
+						}
 					}
 				}
 				break;
@@ -242,18 +285,32 @@ function walk(img, seeds, opts = {}) {
 		}
 	}
 
-	return { boundary, decoded, unresolved, budget, visitedStarts };
+	return { boundary, decoded, unresolved, budget, visitedStarts, refused };
+}
+
+// Refusals are reported, not just counted, because a guard that quietly lowers a number
+// reads exactly like a smaller program. The first five name themselves.
+function reportRefusals(r) {
+	const n = r.refused.length;
+	console.log(`  zero-region refusals: ${n}` + (n ? '  (transfers into zero fill were not followed)' : ''));
+	for (const x of r.refused.slice(0, 5)) {
+		const from = x.at === null ? 'seed' : '0x' + x.at.toString(16);
+		console.log(`    ${from} -> 0x${x.target.toString(16)}  ${x.why}`);
+	}
 }
 
 function main() {
 	const img = loadImage();
 	const args = process.argv.slice(2);
+	const noGuard = args.includes('--no-guard');
+	const ranges = noGuard ? [] : zeroRanges(img);
+	const walkOpts = { noCode: ranges };
 
 	if (args.includes('--check')) {
 		const i = args.indexOf('--check');
 		const check = Number(args[i + 1]);
 		const seeds = callTargets(img);
-		const r = walk(img, seeds);
+		const r = walk(img, seeds, walkOpts);
 		const isBoundary = r.boundary.has(check);
 		const isCallTarget = seeds.has(check);
 		const prologueHere = startsWithPrologue(img, check);
@@ -269,6 +326,7 @@ function main() {
 		console.log(`  instructions decoded: ${r.decoded}`);
 		console.log(`  distinct boundaries:  ${r.boundary.size}`);
 		console.log(`  unresolved edges:     ${r.unresolved.length}`);
+		reportRefusals(r);
 		console.log(`  is 0x${check.toString(16)} a boundary:    ${isBoundary}`);
 		console.log(`  is 0x${check.toString(16)} a CALL target: ${isCallTarget}`);
 		console.log(`  0x${check.toString(16)} starts with a standard prologue: ${prologueHere}`);
@@ -288,6 +346,20 @@ function main() {
 		return;
 	}
 
+	if (args.includes('--refusals')) {
+		// One line per refused transfer, in a shape a check can assert. This exists so the
+		// guard can be tested by its effect: turning it off makes these lines disappear, and
+		// a guard that quietly stopped firing would otherwise only lower a number.
+		const seeds = callTargets(img);
+		const r = walk(img, seeds, walkOpts);
+		for (const x of r.refused) {
+			const from = x.at === null ? 'seed' : '0x' + x.at.toString(16);
+			console.log(`${from} 0x${x.target.toString(16)} ${x.why}`);
+		}
+		console.log(`total ${r.refused.length}`);
+		return;
+	}
+
 	if (args.includes('--retmap')) {
 		// WHO POPS THE ARGUMENTS. Two conventions look identical in a byte scan and different in an instruction
 		// stream: `c3` returns plainly and the caller cleans, `c2 imm16` returns and pops the arguments itself.
@@ -298,10 +370,11 @@ function main() {
 		// So this counts only where the walk has PROVED an instruction starts, and asks ndisasm what the
 		// instruction at that boundary actually is.
 		const seeds = callTargets(img);
-		const r = walk(img, seeds);
+		const r = walk(img, seeds, walkOpts);
 		console.log(`walk from ${seeds.size} CALL targets`);
 		console.log(`  instructions decoded: ${r.decoded}`);
 		console.log(`  distinct boundaries:  ${r.boundary.size}`);
+		reportRefusals(r);
 
 		const bounds = [...r.boundary].sort((a, b) => a - b);
 		let plain = 0;
@@ -352,11 +425,12 @@ function main() {
 	if (args.includes('--at')) {
 		const i = args.indexOf('--at');
 		const entry = Number(args[i + 1]);
-		const r = walk(img, new Set([entry]));
+		const r = walk(img, new Set([entry]), walkOpts);
 		console.log(`walk from 0x${entry.toString(16)}`);
 		console.log(`  instructions decoded: ${r.decoded}`);
 		console.log(`  distinct boundaries:  ${r.boundary.size}`);
 		console.log(`  unresolved edges:     ${r.unresolved.length}`);
+		reportRefusals(r);
 		const sorted = [...r.boundary].sort((a, b) => a - b);
 		console.log(`  first: ${sorted.slice(0, 6).map((a) => '0x' + a.toString(16)).join(' ')}`);
 		console.log(`  last:  ${sorted.slice(-6).map((a) => '0x' + a.toString(16)).join(' ')}`);
@@ -367,12 +441,13 @@ function main() {
 	console.log(`image ${img.length} bytes`);
 	console.log(`seeding with ${seeds.size} CALL targets\n`);
 	const t0 = Date.now();
-	const r = walk(img, seeds);
+	const r = walk(img, seeds, walkOpts);
 	const ms = Date.now() - t0;
 
 	console.log(`instructions decoded: ${r.decoded}`);
 	console.log(`distinct boundaries:  ${r.boundary.size}`);
 	console.log(`unresolved edges:     ${r.unresolved.length}`);
+	reportRefusals(r);
 	console.log(`budget remaining:     ${r.budget}`);
 	console.log(`elapsed:              ${ms} ms`);
 
