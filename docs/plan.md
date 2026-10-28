@@ -1218,6 +1218,27 @@ break on both sides at the same address (`BP 000C:<addr>` on the machine, `U2_ST
 VRAM there, at a point both reach exactly once. The obvious candidate is the instruction after the title art is
 blitted, which needs the blit located first, and locating it is the same read that would give 5b its viewport.
 
+### The attempt at that anchor, and what it found (all of it useful)
+
+**Chosen anchor: `0x0e4b8d`**, the KYB_read call site, first hit, on both sides. The port side works and is
+informative: `U2_VRAM_HASH` now runs from a stop as well as from the end of a run, and at the first hit the port
+reports **`ab20d2db`** with blocks 2 to 11 all `d6aa05c5`, which is a nearly uniform array. So **the first hit of
+that address happens before anything has been drawn** (it is the disk-wait path, caller `0xe9a83`), and as an
+anchor it is wrong on its own terms. That is a measured answer, not a guess.
+
+**The machine side did not produce a reading, twice, and the reason is the emulator rather than the code.**
+`ENA DEBUG` then `BP 000C:000E4B8D` arms (`BL` lists it), but with the breakpoint live the boot wedges:
+`u2flow` reports `splash never animated`, then `neither the Towns menu nor Ultima II is on screen`, so the machine
+never reaches U2 and the breakpoint never fires. A container restart, arming after the menu, and arming before a
+`RESET` were all tried. The machine was left running each time and its clock checked afterwards.
+
+**What that establishes for the next attempt**, and it is the useful part: a bare `CS:offset` breakpoint is armed
+*before U2 is loaded*, so it is not selective, and freezing the machine mid-boot also defeats the flow that drives
+it. Two workable shapes follow: arm the breakpoint only once `u2flow` reports `in_ultima2`, or find an address that
+only U2's own image can reach (the title art's load, which happens once per run) and anchor there. Either way the
+comparison needs a stop that is **after** the first screen is drawn, which the port-side measurement above now
+rules out `0x0e4b8d`'s first hit as being.
+
 ### 7c. What else the program patches at run time
 
 **State:** DONE · **Autonomy:** AUTONOMOUS
