@@ -864,3 +864,39 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_DUMP=<linear hex>` | 32 bytes of guest memory at exit. |
 | `U2_ENTRY`, `U2_STACK` | override the entry (default: the `MP` header field) and the hand-off `ESP`. |
 | `U2_FLOPPY_LS=1` | list the `A:` image's root directory and exit. |
+| `U2_WATCH=<linear>[:<len>]` | report every write into that linear range, with the instruction that made it. The port's answer to a physical `MEMW` watch, and it does not suffer that watch's blind spot: the machine's page tables move a linear address between physical pages, so a byte watch can miss the write it was armed for. |
+
+## Patch ten: a linear write watch in the kit, because a physical one has a blind spot
+
+**Tried:** to find which instruction writes DS `0xBAA` on the machine, twice, with `BRKON MEMW` on the
+physical address behind it. The first attempt armed before the program launched, so the watch was on TownsOS's
+pre-load mapping, `PHYS:00077BAA`. The second armed at the entry, which is the method that worked for DS
+`0xCE0`, and it did catch a write, but the wrong one: `CS=0256` (TownsOS) storing `0x00` through `ES:DI` at
+`0256:0000246C`, which is the loader zeroing what it is about to fill. Neither caught the store that leaves
+`0x80` there.
+
+**Measured:** the reason is in the kit's own code. Writes into mapped RAM never reach `Machine::mem_write`;
+they go straight through the inline `wr8`/`wr16`/`wr32` fast path in `x86.h`. A watch implemented in `mem_write`
+would therefore miss exactly the writes worth seeing. Worse, on the machine the physical address behind a linear
+one changes when the program installs its own page tables, so a physical watch is aimed at a page that may no
+longer hold the byte.
+
+**The patch, and it is a header plus one function.** `x86.h` gains `g_watch_lo`, `g_watch_hi`, `g_x86_cur`, a
+`x86_watch_write` and an `X86_WATCH(a, v, n)` macro, called at the top of all three store fast paths. The test
+is `(a) - lo < hi - lo`, which is one unsigned compare and handles the wrap case. `towns_mem.cpp` defines the
+three globals at global scope and prints the hit with its caller, capped at 64 so a store in a loop cannot bury
+the first one. Unarmed it is one predictable branch per store, and the 24,000-frame run is unchanged.
+
+**What it found on its first use, which was worth the patch.** The port **never writes** linear `0x400BAA`:
+600 frames, a watch over `[0x400B90, 0x400BC0)` and three addresses written in the whole block,
+`0x400B94 = 0x93`, `0x400B96 = 0x76BA` and `0x400B9E = 0x54C0`, at `0x0e0c8e` and friends. Those are the same
+bytes the machine has at the same offsets, so the block *is* built identically and the earlier reading of it as
+zeros was another comparison across different moments. The byte the table loop copies at `0x0E05B5`, DS `0xBAA`,
+is simply not written by anything in the recompiled program.
+
+That makes the divergence a control-flow question rather than a data one, and it is now cheap to ask: the port's
+`U2_STOP_AT` also prints eight dwords from the stack, so the call chain at any stop is visible without a
+debugger, and the same stop on the machine gives its own chain from `STA`.
+
+**The port switch** is `U2_WATCH=<linear>[:<length>]`, parsed in `port/main.cpp` beside the others, and it points
+`g_x86_cur` at the running cpu so a hit names `cs:eip` as well as the address and value.

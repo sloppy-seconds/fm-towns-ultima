@@ -76,6 +76,20 @@ void x86_trace(X86Cpu& c, uint32_t at) {
 		            (unsigned)c.sreg[1], (unsigned)c.sbase[1], (unsigned)c.sreg[3], (unsigned)c.sbase[3],
 		            (unsigned)c.sreg[0], (unsigned)c.sbase[0], (unsigned)c.sreg[2], (unsigned)c.sbase[2],
 		            (unsigned)c.sreg[4], (unsigned)c.sbase[4], (unsigned)c.sreg[5], (unsigned)c.sbase[5]);
+		// The call stack, because a divergence this early is usually "the machine got here through a path that
+		// initialised something and the port got here through one that did not", and the return address names the
+		// path. The first dword is the return address; the rest is whatever the caller had pushed.
+		{
+			std::vector<uint8_t> sbuf(32);
+			towns::g_towns->read_block(c.sbase[2] + c.r[4], sbuf.data(), (uint32_t)sbuf.size());
+			std::printf("stack    ");
+			for (int i = 0; i < 8; ++i) {
+				uint32_t v = 0;
+				std::memcpy(&v, sbuf.data() + i * 4, 4);
+				std::printf("%s%08x", i ? " " : "", v);
+			}
+			std::printf("   (ss:%08x)\n", c.sbase[2] + c.r[4]);
+		}
 		if (g_trace_file) std::fclose(g_trace_file);
 		std::exit(0);
 	}
@@ -294,6 +308,24 @@ int main(int argc, char** argv) {
 	}
 #endif
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
+	// U2_WATCH=<linear>[:<length>] reports every write into one linear range, with the instruction that made
+	// it. This is the port's answer to a physical MEMW watch on the machine, and one thing it does better:
+	// the machine's page tables move a linear address between physical pages, so a watch armed on a physical
+	// byte can miss the write it was set for. Linear is what the program's code addresses.
+	if (const char* w = std::getenv("U2_WATCH")) {
+		char buf[64];
+		std::snprintf(buf, sizeof buf, "%s", w);
+		char* colon = std::strchr(buf, ':');
+		uint32_t len = 1;
+		if (colon) {
+			*colon = 0;
+			len = (uint32_t)std::strtoul(colon + 1, nullptr, 16);
+		}
+		g_watch_lo = (uint32_t)std::strtoul(buf, nullptr, 16);
+		g_watch_hi = g_watch_lo + (len ? len : 1);
+		g_x86_cur = &c;
+		std::printf("watch     [%08x,%08x)\n", g_watch_lo, g_watch_hi);
+	}
 	if (frames) {
 		m.on_vsync = [&](towns::Machine& mm) {
 			if ((long)mm.frame >= frames) throw towns::Stop{0};
