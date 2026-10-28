@@ -96,6 +96,7 @@ from the items below rather than maintained separately.
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
 | 7f Give the port a floppy drive | AUTONOMOUS | **done**, floppy, keyboard and screen, the title draws |
+| 7g Watch the port from another machine | AUTONOMOUS | **done**, a generic X container, the title draws in a browser |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
@@ -1268,6 +1269,34 @@ and 83173 reads` to VRAM, and `U2_SHOT` renders the frame at 704x525. That frame
 identified by reading it with the vision model: title banner, the logo with the sword through it, the robed figure
 before the castle, the loading bar. Nothing in this item settled the palette, and the picture's colours are the
 kit's. All three patches are recorded in [recomp-plan.md](recomp-plan.md), eleven to thirteen.
+
+### 7g. Watch the port from another machine
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| done when | the port plays in a browser on another machine, driven from the working tree, without a host build being required or the working tree being written to by root. The failure case: a container that only runs on the machine it was built on, or one that writes root-owned files into the repository |
+| autonomy | autonomous. `tools/container-run.sh` already shows the shape: Xvfb, x11vnc and noVNC |
+| blocked by | nothing |
+
+**What is now known.** `container/Containerfile.x` and `tools/x-run.sh` are a generic X container: a virtual display
+with VNC and noVNC, plus the toolchain, which runs whatever command it is given. It builds the port inside the
+container from a read-only mount of the working tree, into a named volume, so nothing root-owned lands in the
+repository and no host build is needed.
+
+**The measurement that chose the base image.** The host is Bazzite with glibc 2.43 and SDL3 from linuxbrew, so a
+host-built binary cannot run in an Ubuntu 24.04 container (glibc 2.39, and no `libsdl3-dev` at all: checked, no
+candidate). Debian trixie has `libsdl3-dev` 3.2.10, Xvfb, x11vnc, noVNC and websockify, so the container compiles
+and runs the port itself.
+
+**Verified, end to end:** `./tools/x-run.sh start` builds and starts it, `http://ai:6081/vnc.html` answers 200, the
+virtual display shows the Ultima II title screen (captured from the container and read back with the vision model),
+and `xdotool key Return` inside the container changes the screen, which exercises the same SDL path a browser's
+keystrokes take. Audio has no device in the container and the front-end says so and carries on.
+
+**Ports** are 6081 for the browser and 5901 for raw VNC, chosen so they do not collide with the emulator's 6080 and
+5900. `XWEB`, `XVNC`, `RESOLUTION` and `ARGS` override them, and `NOBUILD=1` reuses what is in the build volume.
 
 ## Phase 8: the toolkit, and what this work owes it
 
