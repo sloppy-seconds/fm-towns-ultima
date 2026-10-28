@@ -472,12 +472,55 @@ container gets `Permission denied` on every host directory, and the Tsugaru
 window is titled `FM Towns Emulator - TSUGARU` with a 640x496 geometry rather
 than 640x480, so matching on 640x480 finds nothing.
 
+### Reading the screen: vision when the question is visual, census when it is not
+
+**You can look at the screen.** `qwen3.8-flash-next` reads images and it works. Use it when the
+question is what a thing *looks like*: which picture a screen shows, whether a decoded asset is a
+picture or static, whether text is drawn by code or baked into an image. Use the census below when the
+question is a measurement, because a model describing colours is not a colour count.
+
+Call it through litellm on the local provider. The endpoint, key and model ids are in
+`~/.pi/agent/models.json` under `providers.local`:
+
+```
+baseUrl  https://ai.lan:8284/v1
+api      openai-completions
+auth     Bearer litellm
+```
+
+Three models accept `input: ["text", "image"]`, and **only one of them works**:
+
+| model id | state |
+|---|---|
+| `qwen3.8-flash-next` | **works.** Use this one. |
+| `gemini-flash` | 500. Google reports `RESOURCE_EXHAUSTED`, prepayment credits depleted. Not a tooling fault and not fixed by retrying. |
+| `qwen3.8-27b-dense` | 500, `OpenAIException - Connection error`. Backend not reachable. |
+
+The image goes in an `image_url` part as a data URL:
+
+```python
+{"type": "image_url", "image_url": {"url": "data:image/png;base64," + b64}}
+```
+
+**Grab the live screen from the container**, because `import` needs the display that only exists there:
+
+```
+podman exec fmtowns sh -c 'DISPLAY=:99 import -window root /tmp/s.png'
+podman cp fmtowns:/tmp/s.png /var/tmp/mpwork/s.png
+```
+
+Two cautions from the session that established this. A model asked to read a **corrupt decode** will
+describe it confidently: `extra.png` came back as "noise, specifically digital or analog signal
+interference" when the truth was that the decoder is wrong, not the disc. And a model asked about a
+**screenshot** read the skull and the words `Thou art dead!` correctly, which no amount of greyscale
+dumping had managed. The difference is that the second image was real.
+
 ### Reading the screen without vision
 
 `GET /api/screen?mode=stats` returns a colour census, which answers "is this
 screen in colour yet" without any image interpretation. `mode=ascii` gives a
 luminance ramp for layout and `mode=text` a character grid for reading menus and
-dialogue. Use these rather than asking for a screenshot and hoping.
+dialogue.
 
 The palette command needs the `PRI` prefix: `PRI PALETTE`. Bare `PALETTE`
 returns "Do what?".
