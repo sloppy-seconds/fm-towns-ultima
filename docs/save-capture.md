@@ -1,126 +1,97 @@
-# Saving the game: the full serialiser, captured
+# Saving the game, and the separate loader
 
-A save was taken with a differential capture armed, and the whole roster writer ran inside the window.
-This is the largest clean capture in the project so far and the first with a fully understood action.
+Two captures with known actions: a save followed by a quit, and a Journey Onward from the menu. Together
+they separate the write path from the read path, and the two turn out not to share a routine.
 
-## What the capture contains
+## Both paths, measured
 
-| | |
-|---|---|
-| action | one save, plus the returns to the game |
-| new instructions | **4,398** |
-| function entries among them | **70** |
-| state change | food minus 15, map plus 1, nothing else |
+| capture | action | new instructions | save routine `0xeb374` reached |
+|---|---|---|---|
+| `save1` | one save | 4,398 | **yes**, all 75 fields |
+| `savequit` | save then quit to menu | 5,337 | **yes** |
+| `journey` | Journey Onward | 8,347 | **no** |
 
-The state check is what makes it clean: only the turn counter moved. No damage, no gold, no position
-change, so the capture is the save path and not a fight that happened to be nearby.
+So **Journey Onward does not touch the writer.** `docs/six-named-routines.md` called `0xeb374` "the save
+and load system"; the loader is a different routine, and this is the measurement that separates them.
 
-## The roster serialiser is `0xeb374`, and it ran to completion
+## The writer, `0xeb374`
 
-`0xeb374` formats every character field as `NAME=%d` or `NAME=%c` in roster order. **All 75 of its format
-strings were pushed during the capture**, which means the writer ran from its first field to its last and
-the capture is not a partial view.
-
-The head of it:
+It formats every character field as `NAME=%d` or `NAME=%c` in roster order, and **all 75 of its format
+strings were pushed** during `save1`, so it ran first field to last and that capture is not a partial view.
 
 ```
-0xeb36e  push [edx+0xcde72]     ; WISDOM
-0xeb374  push 0x280c            ; "WISDOM=%d\n"
-0xeb379  push esi
-0xeb37c  call 0x101748          ; the formatted write
-0xeb381  push [ebx+0xcde76]     ; INTELLIGENCE
-0xeb387  push 0x2818            ; "INTELLIGENCE=%d\n"
-0xeb392  movzx eax,[ebx+0xcde7a]  ; RACE, a byte
-0xeb399  push eax
-0xeb39a  push 0x282c            ; "RACE=%c\n"
+0xeb36e  push [edx+0xcde72]      ; WISDOM
+0xeb374  push 0x280c             ; "WISDOM=%d\n"
+0xeb37c  call 0x101748           ; the formatted write
+0xeb392  movzx eax,[ebx+0xcde7a] ; RACE, a byte
+0xeb39a  push 0x282c             ; "RACE=%c\n"
 ```
 
-Two details fall out of that. The field order in the writer matches `docs/save-files.md` exactly, and the
-`%c` fields (`RACE`, `PROFESSION`, `SEX`) are read with `movzx` from a **byte** while the `%d` fields use a
-dword, which is why the file's field widths differ from a naive 4 bytes each.
+The `%c` fields are read with `movzx` from a byte while `%d` fields use a dword, which is why the file's
+field widths are not uniform four-byte slots. **`0xeb374` has no static caller**: the capture entered it
+from `0xeb36e` inside the same function, so it is reached by fall-through rather than by `call`. That is
+one of the indirect-entry cases the recompiler lists as unresolved, and this is the answer for it.
 
-**`0xeb374` has no static caller.** The capture entered it from `0xeb36e`, which is inside the same
-function, so the whole thing was reached by falling into it rather than by a `call`. That is one of the
-indirect-entry cases the recompiler lists as unresolved, and this capture is the answer for this routine.
-
-## The string constants sit in the writer, interleaved
-
-The format strings are pushed from addresses in `0x280c` upward, immediately before each field's value is
-pushed. So the routine is not a loop over a table: **each field is written by its own straight-line code**,
-and the format string is an immediate in the instruction stream.
-
-That explains why `docs/save-files.md` could read the whole schema out of the binary in order, and it means
-a reimplementation needs the field list rather than a format-string table.
-
-## What this establishes
-
-| claim | evidence |
-|---|---|
-| `0xeb374` is the roster writer | all 75 `NAME=` format strings reached |
-| the writer runs first field to last | no gap in the sequence |
-| field order matches `docs/save-files.md` | `WISDOM`, `INTELLIGENCE`, `RACE`, `PROFESSION`, `SEX`, `MAGIC`, `HP` |
-| `%c` fields are bytes, `%d` fields are dwords | `movzx` against a byte for RACE |
-| the writer is entered by fall-through, not `call` | no static caller for `0xeb374` |
-| the save is one turn | food minus 15, map plus 1 |
-
-## What is not established
-
-- where the file is opened and written, and under what name. `0xeb1c4` pushes `A:ROSTER1.UT2` but that is
-  a different site and its role was not read
-- whether a load reuses the same routine, which the format strings cannot distinguish
-- what the 70 function entries reached alongside the writer do. Most are probably in `0xe5xxx`, the text
-  and pane helpers, because a save redraws the screen
-- whether the "exit to menu?" prompt that appeared afterwards writes anything else. It was declined and
-  no capture was running
-
-## There is no load option, and that changes how to read the routine
-
-Reported from play: **the game has no load command outside the starting menu.** The only ways a save is
-read are choosing Journey Onward at the start, and dying.
-
-That matters because `docs/six-named-routines.md` describes `0xeb374` as "the save and load system" and
-lists "what its three `ROSTER1.UT2` uses each do" as an open question. The observation narrows that
-question considerably.
-
-### What the three `ROSTER1.UT2` sites actually are
-
-The addresses the page quotes were not the strings. Reading them shows three different constants:
-
-| site | constant | text |
-|---|---|---|
-| `0xeb1c4` | `0x26e4` | `A:\ROSTER1.UT2` |
-| `0xeb3d4` | `0x2850` | `MAGIC=%d\n` |
-| `0xeb3f6` | `0x2864` | `MHP=%d\n` |
-| `0xeb6ca` | `0x2a28` | `BRASS_BUTTON=%d\n` |
-
-So `ROSTER1.UT2` appears **once** as a filename, and the other two sites quoted on that page are field
-format strings that happen to sit near it. The filename is pushed at `0xeb1c4`, and every field after it
-is written by straight-line code.
-
-### The open sequence, read
+### Opening the file for writing
 
 ```
 0xeb1b3  cmp edi, 6                  ; a retry count
-0xeb1b8  push 0x2698                 ; the give-up message
-0xeb1bf  push 0x26e0
 0xeb1c4  push 0x26e4                 ; "A:\ROSTER1.UT2"
 0xeb1c9  call 0x100f34               ; fopen
-0xeb1d1  xchg esi, eax
-0xeb1d2  and esi, esi
 0xeb1d4  jne 0xeb1f6                 ; success -> write the header
 0xeb1d6  push 0x26f4                 ; "Data Save Error!"
 0xeb1f6  push 0x2748                 ; "Roster data:ULTIMA II for FM-TOWNS"
 ```
 
-`0x26f4` is `Data Save Error!` and `0x2748` is `Roster data:ULTIMA II for FM-TOWNS`, which is the file
-header recorded in `docs/save-files.md`. **The capture reached `0xeb1f6` and did not reach `0xeb1d6`**, so
-the save succeeded and took the success branch.
+That header string is the one `docs/save-files.md` records at the start of the roster file. Both captures
+reached `0xeb1f6` and neither reached `0xeb1d6`, so both took the success branch.
 
-### What this leaves open
+`ROSTER1.UT2` appears **once** as a filename. An earlier reading of `six-named-routines.md` counted three
+uses; the other two addresses it quoted are the field format strings `MAGIC=%d` and `MHP=%d`, which sit
+nearby and are not filenames.
 
-Since the write path is now traced from filename to header to all 75 fields, the remaining question is the
-**read** path: which code opens the same file and parses it back, and whether that is a separate routine or
-the same one entered at a different offset. A death and a Journey Onward would each exercise it, and neither
-has been captured.
+## The loader is a different routine, at `0xe0e90`
+
+Found by diffing the captures: instructions present in `journey` and absent from `savequit`, then looking
+for string pushes among them. Exactly one was a mode string.
+
+```
+0xe0ed0  push 0x106a              ; "rb"
+0xe0ed5  push edi                 ; the filename
+0xe0ed6  call 0x100f34            ; fopen
+0xe0ede  mov [0xe45c], eax        ; store the FILE*
+0xe0ee3  and eax, eax
+0xe0ee5  jne 0xe0ef1              ; opened
+0xe0ee7  mov eax, -1              ; failure returns -1
+0xe0ef1  push 0
+0xe0ef3  push 0x354               ; 852 bytes
+0xe0ef8  push [0xe45c]
+0xe0efe  call 0x101524            ; fread
+```
+
+**`0x354` is 852**, and the roster slot on the save disk is 917 bytes with the record region beginning at
+byte 47, so 917 minus the 65-byte gap is consistent with an 852-byte read. That is a match worth noting
+rather than a proof, since the exact partition of the 917 has not been re-measured here.
+
+## What this establishes
+
+| claim | evidence |
+|---|---|
+| the writer is `0xeb374` | all 75 format strings reached in `save1` |
+| the writer runs first field to last | no gap in the sequence |
+| Journey Onward does not use the writer | 8,347 instructions, `0xeb374` absent |
+| the loader is separate, at `0xe0e90` | present in `journey`, absent in `savequit` |
+| the loader opens with `"rb"` and reads 852 bytes | instruction operands |
+| the save succeeded | `0xeb1f6` reached, `0xeb1d6` not |
+
+## What is not established
+
+- whether death uses the same loader. It is the other place a save is read, and `death1` predates knowing
+  what to look for, so it was not checked
+- how the loader parses the text back. It reads 852 bytes into a buffer and the parse has not been read
+- whether `852` is the whole record or a prefix. The arithmetic is suggestive and not measured
+- what the other 69 function entries in `save1` do. Most are probably text and pane helpers, because a save
+  redraws the screen
 
 **[Save files](save-files.md)** **[Six named routines](six-named-routines.md)** **[CFG findings](cfg-findings.md)**
+
