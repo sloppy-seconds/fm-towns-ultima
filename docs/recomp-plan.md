@@ -34,6 +34,25 @@ important fact about the current state.
 
 ## Stage 0: make the existing output build
 
+> **DONE. It builds, in 8.6 seconds, with no errors.** `cmake` configures, `librecomp.a` links, and two
+executables fall out: the kit's `selftest` and this project's `run1`. Both of the defects recorded below
+were real and both are fixed.
+
+Build and run:
+
+```
+$ tools/recomp-build.sh /var/tmp/recomp3 0xfdeb6
+module   GAME  image 1072398 bytes  base 0x0  794 functions
+call     0xfdeb6
+after    eax 0x000000ff ecx 0x00000000 edx 0x00000000 ebx 0x00000000
+         esp 0x0011f000 ebp 0x00000000 esi 0x00000000 edi 0x00000000 eip 0xfffffff0
+         eflags 0x202  clocks 14  traps 0  returned
+```
+
+`tools/recomp-build.sh` patches the path, drops in `tools/recomp-run1.cpp` as the `main()`, adds the
+target, builds, and runs one address. The module reports **794 functions**, which is the 770-seed run and
+not the 709 in the table above.
+
 Before anything else, prove the 709 emitted functions compile against the real runtime.
 
 **Artefact:** `cmake` and `ninja` produce `librecomp.a` and `libfmt_towns.a` with the correct
@@ -46,6 +65,24 @@ being out of step, and it is worth more than any amount of further reading.
 This stage is small and it gates everything.
 
 ## Stage 1: make it execute one function
+
+> **PARTLY DONE. It executes and returns. The three-way comparison with the save file has not been run.**
+
+| address | result |
+|---|---|
+| `0xfdeb6` | **returns**, 14 clocks, `eax` = `0xff`, `eip` = the pushed sentinel. A getter for the int global at `0xdea40`, so the whole call/return path works. |
+| `0xfdeb0` | returns, same shape, its twin one dword lower |
+| `0x209` | executes 43 clocks and **stops at `int 0x90`**, which is exactly what its body is: `enter 0,0 / mov ah,0 / int 0x90 / movzx eax,ah / leave / ret` |
+| `0xfe11c` | **not emitted**, so there is nothing to call |
+| `0x101c20` | **not emitted.** This is the entry point at runtime `0x101a20`, and recomp never emitted it because nothing `CALL`s it |
+
+The `0x209` result is the useful one: the code ran correctly and the stop is the *machine*, not the code.
+The boundary of what `run1` can do is `int 0x90` and the port I/O that follows it, which is the TBIOS layer
+`docs/display-context.md` already maps by name.
+
+**The entry point is not emitted and that is the next fix, not a defect in the runtime.** Seeding the
+recompilation with it is one added address in the seed list, in the module's frame: runtime `0x101a20` is
+file **`0x101c20`**.
 
 **Artefact:** a `main()` that maps `ENCHANT.EXP` into `X86Cpu` memory, registers the module, calls the
 roster writer `0xebb70` by address, and exits with a stated result.
@@ -110,6 +147,7 @@ to 5 are all work on top of it.
 | `fmtownskit/recomp/discover.py` | the guarded walk, `load(path, seeds=...)` | 2, 4 |
 | `fmtownskit/tablecheck.py` | `confirmed_by_capstone`, `encoded_sites` | 3 |
 | `fmtownskit/x86map.py` | a code/data map, classes `Map` and `Consts` | 3 |
+| `run1` (this project) | **the missing `main()`**, as `tools/recomp-run1.cpp` | 156 |
 | `fmtownskit/i386.py` | the decoder this repository's own tools use | 3 |
 
 **`i386emu.py` matters** because stage 1 needs a second execution to compare against, and it is already an
