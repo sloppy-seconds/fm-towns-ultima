@@ -55,6 +55,7 @@ static std::vector<uint8_t> read_file(const char* path) {
 int main(int argc, char** argv) {
 	const char* exp_path = argc > 1 ? argv[1] : "ENCHANT.EXP";
 	long frames = argc > 2 ? std::atol(argv[2]) : 0;
+	const char* tbios_path = argc > 3 ? argv[3] : "build/port/tbios.bin";
 
 	std::vector<uint8_t> file = read_file(exp_path);
 	if (file.size() < 0x1000) {
@@ -79,11 +80,20 @@ int main(int argc, char** argv) {
 	towns::Machine m;
 	std::printf("machine   townsos profile, %u MB\n", m.profile->ram_mb);
 	m.townsos();
-	// TownsOS hands a program low RAM with the BIOS work areas in it, and this program reads and writes
-	// around 0xdf000. townsos() sets the PIC, the CRTC and the palette but maps no memory, so the RAM
-	// the hand-off implies is mapped here: the low 2 MB, which is what the profile says the machine has.
-	m.map_ram(0x000000, 0x200000);
-	std::printf("machine   TownsOS hand-off state set, low 2 MB mapped\n");
+
+	// TBIOS. This disc does not carry the modular set that TBIOS.INI composes: it ships a finished
+	// TBIOS.BIN beside TBIOS.SYS, so there is nothing to compose. It is read as a plain file rather than
+	// through the kit's Disc, because the kit's cue reader refuses this disc's PREGAP on the audio tracks
+	// ("a gap not in the files is not read here"), and tool 21 in this repository already reads the ISO
+	// correctly. tools/port-build.sh extracts it from the disc with tools/cd.js.
+	std::vector<uint8_t> tbios = read_file(tbios_path);
+	if (tbios.empty()) {
+		std::fprintf(stderr, "TBIOS: cannot read %s\n", tbios_path);
+		return 2;
+	}
+	std::printf("machine   TBIOS %zu bytes from %s, low 768 KB mapped by boot_towns\n", tbios.size(),
+	            tbios_path);
+	towns::boot_towns(m, tbios);
 
 	// The program, where the running game has it. The image is followed by the program's own BSS and
 	// heap: it writes past the image end at 0x51e000, so the mapping is generous rather than exact.
@@ -95,10 +105,9 @@ int main(int argc, char** argv) {
 	// The two selectors, as measured. 000C is the code segment, 0014 the data one, same base.
 	m.set_desc(0x000C, PROGRAM_BASE, 0x2000000);
 	m.set_desc(0x0014, PROGRAM_BASE, 0x2000000);
-	// 0110 is the TBIOS code segment, and its linear base was read live: STA reports CS=0110 at
-	// linear 0x19EF4 (docs/live-session.md). Mapping it as a flat window is enough to let the program
-	// address it; putting real TBIOS code there is a separate step and is what boot_towns() does.
-	m.set_desc(0x0110, 0x19EF4, 0x100000);
+	// 0110 is the TBIOS code segment. Live STA reported CS=0110 at linear 0x19EF4, and boot_towns puts
+	// the TBIOS image at 0x100000, so the segment's base is 0x100000 and 0x19EF4 is its offset 0x9EF4.
+	m.set_desc(0x0110, 0x100000, (uint32_t)tbios.size());
 	// 0024 and 002C are selectors the start-up loads and TownsOS would have created. Their bases are
 	// NOT measured, so this is a flat descriptor standing in for one, and it is marked as a guess: if
 	// the program reads through them and gets nonsense, this is the first place to look.

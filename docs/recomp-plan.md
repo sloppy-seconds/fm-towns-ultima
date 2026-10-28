@@ -126,8 +126,36 @@ program that has been doing work: `edi 0x7a7d8` is the window record base this p
 linear 0 is zero-filled here, because nothing has populated it. A far call or an interrupt taken through
 a zero vector lands on `0000:0000`, which is what the fault says. Filling it is what
 `boot_towns(m, tbios)` does: low RAM plus **TBIOS composed from the disc's own modules** at `0x100000`.
-That needs the disc image, a `cue` for the kit's `Disc::open`, and `compose_tbios` against the disc's
-`TBIOS.INI`. It is the next step rather than a change of plan.
+
+**Done, and the hypothesis was right, and two more things came out of it.**
+
+**This disc does not compose TBIOS, it ships it.** `compose_tbios()` wants `TBIOS.INI` and a set of `MQ`
+modules, and the disc has neither. Its 140 catalogue entries include exactly two TBIOS files and **no
+`.INI` at all**: a finished `TBIOS.BIN` of **81,920 bytes** and its loader `TBIOS.SYS`. So there is nothing
+to compose and the image is loaded as a file. It is extracted with this repository's own `tools/cd.js`
+rather than the kit's `Disc`, whose cue reader refuses this disc's `PREGAP` on the audio tracks with "a gap
+not in the files is not read here", which is the same ambiguity the project already avoids by using `.ccd`.
+
+With `boot_towns()` in place the far transfer goes to `CS=0110`, the TBIOS segment, instead of `CS=0000`.
+
+**TBIOS is a module too, and the capture seeds it far better than the kit's table.** `towns_cpu` dispatches
+by `CS:offset`, so TBIOS has to be recompiled as a second module at selector `0x110`. The kit's own ports
+seed it from a far-pointer table near the start of the image (`@110:20-100`), which produced **6
+functions** here and faulted on the first real call, at `0110:19b8`. Seeding instead from every distinct
+offset that executed in segment `0110` in the live captures, via `tools/tbios-seeds.py`, produces **5,443
+functions**.
+
+**And that exposed the next coordinate-space error.** The recompiler applies `--no-code` to **every**
+module, and those ranges are derived from `ENCHANT`'s zero fill. Applied to TBIOS they refuse its real
+code:
+
+```
+fault at 0110:00000dd4: no code at this entry: in a no-code range 0xb91-0xe1c
+```
+
+`0xb91`-`0xe1c` is padding in the game image and ordinary TBIOS code. The fix is per-module ranges, which
+means two recompilation passes and a `modules.cpp` naming both modules, since the emitter writes one
+`modules.cpp` per run. That is the next step and it is plumbing, not research.
 
 **What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can

@@ -43,6 +43,21 @@ fi
 
 mkdir -p "$OUT"
 
+# 3a. TBIOS.BIN, extracted from the disc with this repository's own ISO reader, and needed BEFORE the
+#     recompilation because TBIOS is a module too. Not the kit's Disc: its cue reader refuses this
+#     disc's PREGAP on the audio tracks, and this is a one-file read from the data track, which
+#     tools/cd.js already does correctly.
+node - "$ROOT" "$OUT/tbios.bin" <<'JS'
+const nodePath = process.argv[2], out = process.argv[3];
+const { Disc, defaultDisc } = require(nodePath + '/tools/cd.js');
+const d = new Disc(defaultDisc(nodePath));
+const cat = d.catalogue();
+const name = [...cat.keys()].find((k) => k.toUpperCase().endsWith('TBIOS.BIN'));
+if (!name) { console.error('TBIOS.BIN is not on the disc'); process.exit(1); }
+require('fs').writeFileSync(out, d.get(cat, name));
+console.log('tbios     ' + out + ' (' + require('fs').statSync(out).size + ' bytes, from ' + name + ')');
+JS
+
 if [[ $REUSE -eq 0 ]]; then
 	# 1. The stripped image: the file minus the 0x200 header and stub.
 	FILE_SIZE=$(stat -c %s "$ROOT/ENCHANT.EXP")
@@ -88,8 +103,25 @@ PY
 	#    kit's Exp parser cannot identify it, and `--raw` takes the image at base 0 with the code selector
 	#    from the spec. 0x0c is the selector this project measured live (docs/live-session.md).
 	rm -rf "$RECOMP"
+	#    TBIOS is a second module, keyed by its own code selector 0x110, with its entry table at
+	#    offsets 0x20..0x100 seeding the functions. That is the shape the kit's own ports use
+	#    (pc-thequeenofduellist docs/09-recompiler.md): "--raw tbios=...TBIOS.BIN@110:20-100".
+	#    TBIOS's seeds come from the live captures: every distinct offset that executed in segment 0110
+	#    is a function the game really called, which beats guessing at its entry table (six functions
+	#    from the far table alone, then a fault on the first real call at 0110:19b8).
+	TB_CAPTURE="$ROOT/saves/analysis/entry-boot-tool.txt"
+	TB_SEEDS=""
+	if [[ -f "$TB_CAPTURE" ]]; then
+		TB_SEEDS=$(python3 "$ROOT/tools/tbios-seeds.py" "$TB_CAPTURE")
+		echo "tbios     $(python3 "$ROOT/tools/tbios-seeds.py" --count "$TB_CAPTURE") distinct 0110 offsets as seeds"
+	fi
+	TB_SPEC="tbios=$OUT/tbios.bin@110:20-100"
+	if [[ -n "$TB_SEEDS" ]]; then
+		TB_SPEC="$TB_SPEC+$TB_SEEDS"
+	fi
 	(cd "$ROOT/references/vs-sr-dev" && python3 -m fmtownskit.recomp --out "$RECOMP" \
-		--raw "game=$STRIPPED@0xc+$SEED_LIST,0x101a20" $NO_CODE) | tail -3
+		--raw "game=$STRIPPED@0xc+$SEED_LIST,0x101a20" \
+		--raw "$TB_SPEC" $NO_CODE) | tail -4
 fi
 
 # 4. Build the port.
@@ -102,4 +134,4 @@ cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 echo "built     $OUT/b/u2port"
 
 # 5. Run it.
-"$OUT/b/u2port" "$ROOT/ENCHANT.EXP" "$FRAMES"
+"$OUT/b/u2port" "$ROOT/ENCHANT.EXP" "$FRAMES" "$OUT/tbios.bin"
