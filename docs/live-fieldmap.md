@@ -124,10 +124,29 @@ byte at `0xcdea6` is `1`. Either `SKIN` sits at a different offset than the budg
 value is stored in a form this reading does not capture. **Unresolved**, and it is the one thing that
 stops the item table from being finished.
 
-**No artefact on disk can settle it.** All 29 savestates and the save disk's roster were checked: every
-character has **zero** in every item field (`TORCHES`, `KEY`, `GEM`, `ANKH`, `SKULL_KEY` and the rest),
-so there is nothing to match against. A character holding one item would fix `SKIN` and the item
-addresses in the same reading.
+**The roster file has the values, and the savestates are of a different character.** Reading
+`ROSTER1.UT2` off the save disk with `node tools/savedisk.js cat saves/userdisk.hdm ROSTER1.UT2`
+gives four slots. Slot 1 is the interesting one:
+
+```
+HP=382  FOOD=38905  GOLD=141  ERA=2  R_ARMOUR=B  R_WEAPON=B
+SKIN=1  CLOTH=1  HAND=1  DAGGER=1  RED_GEM=4   (everything else 0)
+```
+
+Slots 2 and 3 carry the same **`SKIN=1 CLOTH=1 HAND=1 DAGGER=1`** with `R_ARMOUR=A R_WEAPON=A` and
+zero everywhere else. So `SKIN` and `HAND` are the base entries, the unarmoured and unarmed case, and
+every character has them. `CLOTH` and `DAGGER` are starting equipment. Slot 1 additionally holds
+**four red gems**, which is the one item count on this machine that is not zero.
+
+**That is why the 33 savestates could not label these fields.** None of them is slot 1: their record
+reads `HP=216`, `FOOD=39460`, `GOLD=431`, against slot 1's `382 / 38905 / 141`. The item counts in
+every state are genuinely zero because those characters hold no items, not because the addresses are
+wrong. The three states whose spans are full of non-zero bytes (`hdd_desktop`, `hdd_dos`, `oasys`) are
+not Ultima II at all, and their content at that offset is x86 code.
+
+**What would finish it**, in one action: load slot 1 and read the four bytes where `RED_GEM` should be.
+A `4` there confirms the address and the shift together, and `SKIN=1 CLOTH=1 HAND=1 DAGGER=1` gives
+four more positions to check at the same time.
 
 ## The deltas and what they mean
 
