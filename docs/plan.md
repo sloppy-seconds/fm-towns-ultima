@@ -99,7 +99,7 @@ from the items below rather than maintained separately.
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
-| 8d Run the new seed rules through the recompiler | AUTONOMOUS | **yes**, and this is where findings may fall out |
+| 8d Run the new seed rules through the recompiler | AUTONOMOUS | **done**, and it corrected a number |
 | 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **yes**, a scan answers it |
 | 8f The disc layer: `PREGAP` and a composed TBIOS | AUTONOMOUS | later, it is other titles only |
 | 8g Package the patches | AUTONOMOUS | last, once the set stops moving |
@@ -1267,7 +1267,7 @@ a second tool.
 
 ### 8d. Run the new seed rules through the recompiler, and measure what falls out
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -1275,7 +1275,38 @@ a second tool.
 | done when | the address-taken rule (`lea reg, [disp32]`), the callback rule (an immediate pointing at a prologue) and the capture-derived TBIOS seeds are run through the kit's own interface, and the change in functions, refusals, conflicts and unresolved indirect transfers is recorded for this game. Any finding that falls out is written where it belongs. The failure case: a rule that adds seeds whose decode produces a conflict, which would mean the rule is finding data rather than functions |
 | blocked by | nothing |
 
-The measured starting point on this game: 532 transfer-derived seeds, plus 5 callbacks and 6 address-taken functions. The callback rule is worth 5 functions and the address-taken rule 6. The TBIOS capture seeds are worth far more: the kit's far-table seed `@110:20-100` gave **6** functions and faulted on the first real call, and the capture gave **5,443** with none refused. That number is the one to see reproduced through the kit's own path.
+**What is now known.** Run through the kit's own `--exp` path on the unmodified `ENCHANT.EXP`, with no seed list
+except the rule under test. The header entry alone is the baseline, which only works because item 8b fixed the
+image offset:
+
+| run | seed rule | functions | instructions | jump tables | indirect | refused | conflicts |
+|---|---|---|---|---|---|---|---|
+| A | none, the header entry | 622 | 38,486 | 86 | 10 | 0 | 0 |
+| B | 7 callback immediates | 683 | 40,814 | 88 | 26 | 0 | 0 |
+| C | 6 address-taken by `lea` | 672 | 39,340 | 88 | 14 | 0 | 0 |
+| D | both, 13 seeds | 733 | 41,668 | 90 | 30 | 0 | 0 |
+
+**No conflicts and no refusals in any run**, which is the item's failure case passed: the rules are finding
+functions rather than data. Thirteen seeds pull in 111 functions, because each is an entry point into a region
+the call-target walk never reached: 61 from the callbacks, 50 from the address-taken set.
+
+The unresolved indirect count rising with more code (10, 14, 26, 30) is not a regression. More decoded code
+means more indirect call sites, and that number is a measure of the work left, not of the walk's quality.
+
+The port's own build has 818 functions from 543 seeds, so the 532 transfer-derived seeds are still worth 85
+functions over and above these two rules.
+
+**TBIOS, and a correction to our own earlier number:**
+
+| seeds | functions | instructions | indirect | refused | conflicts |
+|---|---|---|---|---|---|
+| the kit's far table `@110:20-100` | 307 | 12,590 | 39 | 0 | 0 |
+| plus 5,395 capture offsets | 5,573 | 15,288 | 67 | 0 | 0 |
+
+Earlier in this session the far table was recorded as giving **6 functions with 2,166 refusals**. That run had
+the game's `--no-code` ranges applied to TBIOS, which is exactly the bug item 8a fixed, so the number described
+the bug rather than the seed rule. The capture seeds are worth 5,266 functions, 18 times the table, and the table
+itself is a reasonable seed. `docs/recomp-plan.md` carries the correction where the old number was quoted.
 
 ### 8e. Test the self-patching `int` against the other binaries
 

@@ -170,7 +170,17 @@ game:  783 functions, 40902 instructions, 0 refused, 0 conflicts
 tbios: 5573 functions, 15288 instructions, 0 refused, 0 conflicts
 ```
 
-TBIOS went from 6 functions to **5,573**, and from 2,166 refusals to **none**. The program now calls into
+~~TBIOS went from 6 functions to **5,573**, and from 2,166 refusals to **none**.~~ **Both halves of that sentence
+are wrong and the correction is below: 307 from the kit's own seed, 5,573 with the capture seeds, no refusals in
+either.**
+
+**CORRECTED, and the 6 was ours, not the kit's.** That figure was measured with the game's `--no-code` ranges
+applied to TBIOS, which is the bug item 8a fixed. Run again with the ranges scoped per module, the kit's own
+far-table seed `@110:20-100` gives **307** functions with 0 refused, and the capture seeds take it to **5,573**.
+So the capture seeds are worth 5,266 functions, which is still 18 times the table, and the table was never as
+useless as a contaminated measurement made it look. The lesson is the one this project keeps relearning: a
+number produced while a known bug was in the pipeline is not a measurement of the thing being discussed. The
+program now calls into
 TBIOS, runs it, and comes back.
 
 **The next wall names a service rather than a place.** The program's own start-up calls three BIOS
