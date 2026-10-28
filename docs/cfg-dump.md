@@ -51,41 +51,70 @@ A busy loop costs one entry with a high count rather than one entry per iteratio
 real program stays small. The hook runs once per instruction, in the same function that already
 increments `instHist[opCode]`, so the added cost is one map lookup.
 
-## Build and verification
+## What was built and verified
 
-The clone carries a `Containerfile`, added on the same branch, because `Tsugaru_CUI` links
-`fssimplewindow_connection`, which pulls `<GL/gl.h>` and `<X11/Xlib.h>`. The CUI never opens a
-window, but the link dependency is there regardless.
-
-The package list is the one upstream CI already uses for `build-linux` in
-`.github/workflows/autorelease.yml`: `mesa-common-dev`, `libglu1-mesa-dev`, `libasound2-dev`. The
-X11 development packages are added explicitly because the GitHub runner image happens to ship them
-and this image should not depend on that.
+**The recorder runs and produces a graph.** From the `fmtowns` container, booting the disc:
 
 ```
-podman build -t tsugaru-build -f Containerfile .
-podman run --rm -v "$PWD:/src:z" tsugaru-build
+>CFG capture stopped. 1427 distinct edges.
+>Saved 1427 edges.
 ```
 
-**Verified: it builds and the commands are in the binary.**
+Edge kinds in a boot capture: `F 305, J 941, C 39, R 65, S 73`. From a state loaded into the game:
+`F 649, J 2550, C 94, R 162, S 336`, 3,791 edges.
 
-```
-[100%] Built target Tsugaru_CUI
--rwxr-xr-x. 3641640 build/main_cui/Tsugaru_CUI
+**The arithmetic check passes completely.** Every fall-through edge satisfies `dst == src + numBytes`:
 
-$ strings build/main_cui/Tsugaru_CUI | grep -E 'CFGSTART|CFGSTOP|SAVECFG'
-CFGSTART
-CFGSTOP
-SAVECFG
-```
+| capture | F edges | correct |
+|---|---|---|
+| boot | 305 | **305** |
+| in-game savestate | 649 | **649** |
 
-So `CFGSTART`, `CFGSTOP` and `SAVECFG` are present in a shipped executable along with their help
-text, and this is no longer the "compiles but was never linked" claim an earlier version of this
-page made.
+The file also carries the source opcode, its length, the exception flag and the linear base of CS, so
+a reader can re-derive every classification rather than trust it.
 
-**Still not run.** Nothing has been fed a game and asked for a graph. The next step is to start
-that binary with the disc, `CFGSTART`, play a few turns, `CFGSTOP` and `SAVECFG`, and see whether
-the edge counts make sense. That is a different kind of check from a build and it is not done.
+## Three defects found by running it
+
+1. **`CFGSTART` recorded nothing at all**, reporting 0 edges on a busy machine. The hook lives on the
+debugger and `i486runinstruction.h` guards its call with `nullptr!=debuggerPtr`, so a default CUI run
+has no hook. `CFGSTART` now calls `EnableDebugger()` itself.
+2. **`SAVECFG` wrote too little to audit.** Source opcode and length were added, which is what made
+the next defect visible.
+3. **The linear base was missing**, and without it a segment selector is not an identity: `CS 000C`
+is boot code early and the game image later. That absence caused a long stretch of comparing
+captured addresses against zero fill in `ENCHANT.EXP` and concluding wrongly.
+
+A wrong fix was attempted and reverted: storing the source as `dst - numBytes` instead of `dst`.
+That produced 1268 `J` edges and **zero** `F` edges, which is the worst failure this tool can have,
+because an all-branches graph looks like data.
+
+## The one measurement that does not close
+
+**Captured source addresses are mostly not instruction boundaries.** Decoding the state linearly
+from the lowest captured address in each segment and asking whether each captured source lands on a
+boundary gives **210 of 3791, or 5.5 percent**.
+
+A concrete case. `STA` reports `CS=0110(LIN:00019F34)`, and the recorder stores the same base, so
+the two agree. At base + `0x9AEA` the bytes are `f6 d0 65 8a 95 22 02 00`, which decodes `not al`
+(2 bytes), `mov` (7 bytes), landing at `9AF3`. The capture instead reports frequent edges at `9AF1`
+and `9AF2`, with opcodes (`0x1A5`) that do not appear in that byte stream at all. `9AF1` is inside
+the 7-byte `mov`.
+
+So either the base being recorded is not the base EIP is relative to at that moment, or the
+emulator is genuinely executing misaligned addresses. **This is not resolved.** The same 5.5 percent
+appears from a normal boot and from a `LOADSTATE` boot, so it is not a savestate artefact.
+
+**What it does not invalidate.** The fall-through arithmetic is self-consistent: `dst == src + len`
+for every `F` edge in both captures. Whatever the addresses mean, the recorder is reporting them
+faithfully. What cannot yet be claimed is that a `J` edge is a branch, because a third of them
+point at `src+1` for multi-byte instructions.
+
+## Where to look next
+
+Add the **pre-execution EIP and `numBytes`** to the record (both available in
+`BeforeRunOneInstruction`) and check that the before-EIP plus the after-EIP differ by `numBytes` for
+`F` edges. If they do not, the fault is in which value is being read. If they do, the base is wrong
+and the fix is to resolve the descriptor rather than read `baseLinearAddr`.
 
 ## Why this instead of reading `SAVEHIST`
 
