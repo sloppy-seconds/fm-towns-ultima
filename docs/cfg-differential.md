@@ -169,29 +169,42 @@ distinct from a torn read and from a paused one.**
 ### What the death path does to the record
 
 `0xe9d2c` is a menu loop. It clears `[0xce71c]`, reads a value, and branches on `-1`, `0` and `1`. After
-the loop, and on one of those branches, it clears a byte in every party slot:
+the loop, and on one of those branches, it clears a byte in each of four records:
 
 ```
 0xe9db4  sub esi,esi                  ; esi = 0
-0xe9db6  cmp esi, 4
-0xe9db9  jge ...                      ; done after four slots
+0xe9db6  cmp esi, 4                   ; exactly four iterations
+0xe9db9  jge ...
 0xe9dbb  mov eax,esi
 0xe9dbd  lea eax,[eax+eax*2]          ; 3n
 0xe9dc0  lea edx,[eax+eax*8]          ; 27n
 0xe9dc3  shl edx,5                     ; 864n
-0xe9dc6  sub edx,eax                   ; 863n ... then the stride completes to 351n
-0xe9dc8  mov byte [edx+0xcde4d], 0    ; clear a byte field in the slot
-0xe9dcf  inc esi
+0xe9dc6  sub edx,eax                   ; then the stride completes to 351n
+0xe9dc8  mov byte [edx+0xcde4d], 0    ; clear one byte in the record
+0xe9dcc  inc esi
 0xe9dd0  jmp 0xe9db6
 ```
 
-`0xcde4d` is the byte immediately after the record base `0xcde4c`, and the field has **145 references**
-across the image, so it is a core per-slot flag rather than an obscure one. Clearing it for all four
-slots is consistent with marking the party dead without destroying the records, which is what the
-screen still being up implies.
+### What the four records are, and a phrase that was wrong
 
-**What is not established:** the field is not named, and nothing here shows it is read as "dead" rather
-than as something else that happens to be cleared at the same moment.
+An earlier version of this page called them "party slots". **They are not a party.** Ultima II has one
+player character at a time. The four are the four **save slots**, which the player chooses between.
+
+The corroboration is on the save disk: `node tools/savedisk.js slots saves/fresh_game.hdm` reports
+four slots, each 917 bytes, holding characters `E`, `D`, `B` and an empty fourth. So four is the roster
+count, and the in-memory table mirrors it.
+
+The active one is indexed by `0xceca0`, which has **2,215 references** across the image and is the same
+global the food routine at `0xf0a08` uses to find the character it is charging. The clearing loop does
+not read it, so the loop is not about the active character.
+
+**What clearing all four means is therefore open.** The reading above, that a death marks every slot
+dead, is not supported by anything measured. A loop that clears the same byte in all four records could
+be marking them all, could be a reset of a shared attribute stored per record, or could be clearing
+something that is simply duplicated. The byte is not named and nothing here shows how it is read.
+
+`0xcde4d` is the byte immediately after the record base `0xcde4c` and has **145 references**, so it is a
+core per-record field rather than an obscure one.
 
 ### The terminator test earned its keep
 
