@@ -145,6 +145,38 @@ What selects the index, and how the index relates to a map position, is **not es
 measurement is a capture of the conversation with John or Gerry, which would show the read of the table
 and the computation of the offset.
 
+## The barkeeper's hint is in the binary, and it names the item correctly
+
+Reported from play: a barkeeper sold something for 5 gold and then said "saylors wear blue tassles",
+read as a hint that a blue tassle in the inventory is needed to board a boat.
+
+All of that is in the image:
+
+```
+0x072BC  "Saylors wear bluetassles!"
+0x080C0  "The barkeeper\nsays:"
+0xD0E67  "LMBlue tassle"          (a display name)
+```
+
+Note the spelling: the game writes **tassles**, consistently, in the hint, in the save field and in the
+display name. A search for `tassels` would find nothing.
+
+### The hint is a two-step building-block chain, and the first is a purchase
+
+The barkeeper is a **shop**, like the transport shoppe, and the sequence reported is buy then speak. So
+this is another instance of the idiom already recorded: a transaction followed by a line of dialogue.
+The 5 gold is the item price and not a tassle, which is consistent with the hint naming the *condition*
+for a later action rather than being the item itself.
+
+**What is established:** the strings exist, the barkeeper speaks them, and `BLUE_TASSLE` is inventory
+field 57 with the documented function "authority to commandeer any sailing vessel" (see
+`roster-reference.md`).
+
+**What is not established, and was reported as a belief rather than a measurement:** that tassles come
+from random drops when fighting thieves. Nothing in this repository documents the source of any quest
+item, and the drop table has not been located. It may well be true. It is unverified here, and it is
+worth recording as the next thing a thief kill could settle.
+
 ## What is established
 
 | claim | evidence |
