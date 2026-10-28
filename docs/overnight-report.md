@@ -115,22 +115,25 @@ follow would move the failure one call later and hide it. `saves/userdisk.hdm` i
 Paul's order for this morning, recorded because the reasoning matters as much as the list: **defects first, then
 the new seeds through the recompiler to see what falls out, then the rest.** Findings before tidying.
 
-1. **8a** per-module `--no-code` ranges, which deletes the two-pass merge
-2. **8b** the `MP` header's `EIP` is an address, which deletes the `0x200` shift in `port-build.sh`
-3. **8c** `Disc::handle` with no disc, which is a null pointer rather than an error
-4. **8d** the new seed rules through the kit's recompiler, measured: callbacks worth 5 functions,
-   address-taken 6, and the capture-derived TBIOS seeds worth 5,443 against the kit's 6. This is the item where
-   something may fall out, which is why it comes before the tidying
-5. **8e** whether `DARKNESS`, `EXODUS` and `TMENU` also patch their own `int`, which is a scan
-6. **7a** the port's next divergence, `0x10386b` from `tools/divergence.py`
-7. **7d** the 30 and 67 unresolved indirect transfers
-8. **7e** a port regression `checkall.js` can run without the emulator
-9. **8f** the disc layer, `PREGAP` and a pre-composed `TBIOS.BIN`, which is other titles only
-10. **8g** package the patches, last, once the set stops moving
+Done since that was written: **8a, 8b, 8c, 8d, 8e** and the second and third port walls. Open: **7a** (in
+progress), **7d**, **7e**, **7f** (the reader works, the item needs the picture), **8f**, **8g**.
 
-Under it all, the rule that has held for two sessions now: when the port and the machine disagree, run
-`tools/divergence.py` rather than guessing which BIOS return is wrong. It has found two divergences in a row and
-the second one is already named.
+1. **7a, and it is one byte.** The port and the machine now agree on the heap base, the heap limit, `ESP`, and the
+   hand-off entry. The only remaining divergence is that the machine has `0x80` at DS `0xBAA`, the byte a
+   table-building loop copies, and the port has `0x00`. See the last section of
+   [recomp-plan.md](recomp-plan.md) for what was ruled out: Phar Lap `250F` (the profile was wrong, fixed, no
+   change), a differing `DS` selector (it is `0014` base `0x400000` on both sides), and leftover RAM (the image
+   load overwrites that region with the file's zeros, so something writes it afterwards)
+2. **The next experiment is port-side, not emulator-side.** Add a write watch to the port for one linear range,
+   which needs a small documented hook in the kit's `wr8`/`wr16`/`wr32`, and ask whether the port's own execution
+   ever writes `0xBAA` at all. If it does not, the writer is something the machine runs and the port does not,
+   which is a much narrower question than physical-page chasing. Two physical watches both missed it because the
+   program's page tables move that linear address between physical pages
+3. then 7d, 7e, 7f, 8f, 8g as before
+
+Under it all, the rule that has held for three sessions now: when the port and the machine disagree, read the same
+instruction's inputs on both sides before reading any more code. Four walls in a row have been machine state the
+port fabricates, not bad instructions.
 
 ## Standing hazards, written down because each one already cost time
 
