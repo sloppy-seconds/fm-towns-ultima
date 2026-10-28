@@ -54,20 +54,24 @@ const FIELDS = {
 	//   offset = 0xcde81 + 4*(field - 18)
 	// Checked against live memory: maxhp reads 400 and era reads 2 at these addresses.
 	// Quest items, fields 51 to 60 in the roster order (docs/roster-reference.md).
-	// Anchor HP as field 18 at 0xcde81, so field n is 0xcde81 + 4*(n-18).
-	// Calibrated against live memory: maxhp reads 400, era reads 2, gold reads the
-	// value the screen shows. GEM is field 51 at 0xcdf05 and NOT 0xcdf09, which is
-	// ANKH; an earlier version of this table was one field out and read the wrong item.
-	gem: 0xcdf05,
-	ankh: 0xcdf09,
-	redgem: 0xcdf0d,
-	skullkey: 0xcdf11,
-	greengem: 0xcdf15,
-	brass: 0xcdf19,
-	tassle: 0xcdf1d,
-	coin: 0xcdf21,
-	idol: 0xcdf25,
-	trilithium: 0xcdf29,
+	//
+	// VERIFIED LIVE, not derived. Loaded roster slot (0), whose roster text reads
+	// RED_GEM=4 SKIN=1 CLOTH=1 HAND=1 DAGGER=1, and searched the record for the only
+	// dword equal to 4: it is at 0xcdf07. That is RED_GEM, the third of the ten, so the
+	// block starts at 0xcdeff. The previous table was six bytes high and read
+	// 262144 for `gem` because it was reading the 4 two bytes into the wrong dword.
+	// The far anchor confirms it: TRI_LITHIUM at 0xcdf23, plus the eleven spells
+	// 0xcdf27-0xcdf52, lands MAP on 0xcdf53, which docs/live-fieldmap.md measured.
+	gem: 0xcdeff,
+	ankh: 0xcdf03,
+	redgem: 0xcdf07,
+	skullkey: 0xcdf0b,
+	greengem: 0xcdf0f,
+	brass: 0xcdf13,
+	tassle: 0xcdf17,
+	coin: 0xcdf1b,
+	idol: 0xcdf1f,
+	trilithium: 0xcdf23,
 	px: 0xcdf6b,
 	py: 0xcdf6f,
 	map: 0xcdf53,

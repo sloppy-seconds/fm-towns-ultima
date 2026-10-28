@@ -58,6 +58,47 @@ Values present and matching the format string's identity, though not independent
 0xcdfa3  28
 ```
 
+## The item block, verified live against the roster
+
+Roster slot (0) on the save disk reads `RED_GEM=4 SKIN=1 CLOTH=1 HAND=1 DAGGER=1 R_ARMOUR=B
+R_WEAPON=B`. The game was loaded on that slot, and the record searched for the only dword equal to 4.
+It is at **`0xcdf07`**. That is `RED_GEM`, the third of the ten quest items, so the block starts at
+`0xcdeff`, and every item address follows:
+
+```
+GEM        0xcdeff   DAGGER      0xcdec3   SKIN      0xcdea2
+ANKH       0xcdf03   MACE        0xcdec7   CLOTH     0xcdea6
+RED_GEM    0xcdf07   AXE         0xcdecb   LEATHER   0xcdeaa
+SKULL_KEY  0xcdf0b   BOW         0xcdecf   CHAIN     0xcdeae
+GREEN_GEM  0xcdf0f   SWORD       0xcded3   PLATE     0xcdeb2
+BRASS_BUTTON 0xcdf13 GREAT_SWORD 0xcded7   REFLECT   0xcdeb6
+BLUE_TASSLE  0xcdf17 LIGHT_SWORD 0xcdedb   POWER     0xcdeba
+STRANGE_COIN 0xcdf1b PHASER      0xcdedf   R_WEAPON  0xcdebe
+GREEN_IDOL   0xcdf1f QUICK_SWORD 0xcdee3   HAND      0xcdebf
+TRI_LITHIUM  0xcdf23 RING        0xcdee7   BOOTS     0xcdef3
+                    WAND        0xcdeeb   CLOAK     0xcdef7
+                    STAFF       0xcdeef   HELM      0xcdefb
+```
+
+**Five independent checks in one reading.** `RED_GEM` reads 4. `SKIN`, `CLOTH`, `HAND` and
+`DAGGER` each read 1, at the four addresses predicted for them. Two bytes read `0x42`, which is `B`,
+and they sit exactly where `R_ARMOUR` and `R_WEAPON` must be. They are single bytes, which is what
+makes the two-character groups `(R_ARMOUR, SKIN, ...)` and `(R_WEAPON, HAND, ...)` and explains the
+2-byte step in the grid.
+
+**The far anchor closes.** `TOOLS` at `0xcde9d`, then 25 fields to `GEM` is `2 + 23*4 = 94` bytes,
+which lands `GEM` exactly on `0xcdeff`. From the other side, `TRI_LITHIUM` at `0xcdf23` plus the
+eleven spells `0xcdf27`-`0xcdf52` puts `MAP` on `0xcdf53`, which this page measured
+independently. The block is exact at both ends.
+
+**`tools/peek.js` was six bytes high** on all ten quest items, which is why it reported `gem` as
+`262144`: it was reading a dword whose third byte was the 4. Now corrected, and it reads
+`redgem: 4, gem: 0` against the same character.
+
+**Still open, and it does not touch the items:** `PLAYER_X` needs four more bytes than the field
+order gives between `DUNG_Y` and `PLAYER_X`. Everything up to `MAP` is exact, so that gap is after
+the whole item block.
+
 ## The deltas, and where they come from
 
 > **CORRECTION: the −4 is not a mystery and `MAGIC` is not a byte.** Both are explained below, from a
