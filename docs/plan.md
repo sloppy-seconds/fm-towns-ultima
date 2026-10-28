@@ -95,6 +95,14 @@ from the items below rather than maintained separately.
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **yes**, the rules exist |
 | 7e A port regression the checks can run | AUTONOMOUS | **yes**, no emulator needed |
+| 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, the reader works and the probe passes |
+| 8a Per-module `--no-code` ranges | AUTONOMOUS | **yes**, both sides are ours |
+| 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **yes**, one line in `_read_mp` |
+| 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
+| 8d Run the new seed rules through the recompiler | AUTONOMOUS | **yes**, and this is where findings may fall out |
+| 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **yes**, a scan answers it |
+| 8f The disc layer: `PREGAP` and a composed TBIOS | AUTONOMOUS | later, it is other titles only |
+| 8g Package the patches | AUTONOMOUS | last, once the set stops moving |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports twelve of twenty-seven startable now, with 2b and 4a held back by item order. That is
@@ -1175,6 +1183,118 @@ not is the `je` at `0x0e259b` that chooses between the error path and the rest o
 The work is a FAT12 reader behind the same interface the CD uses, driven by the `.hdm` image the machine mounts.
 `tools/savedisk.js` already walks FAT12 and knows the keep-list quirks, so this is a translation rather than a
 discovery.
+
+**Progress.** `port/floppy.h` is that reader, wired through two hooks the runtime calls, and the probe now
+passes: `attributes: A:\ROSTER1.UT2 -> floppy, attr 20, 3701 bytes` and then `handle 5 (floppy, 3701 bytes)`.
+The error dialog is gone. The port still draws nothing, so the item stays open until a run reaches the branch
+the machine takes and puts something on the screen.
+
+## Phase 8: the toolkit, and what this work owes it
+
+Everything in this phase was found by building the port, and every item removes either a bug or a workaround we
+currently carry. The order below is Paul's for this morning: **defects first, then the new seeds through the
+recompiler to see what falls out, then the rest.** The reason is that the seed work may produce findings, and
+findings are worth more than tidying, so they should not be the thing that gets squeezed at the end.
+
+Order: 8a, 8b, 8c, then 8d, then 8e, then the port's own next divergence (7a), then 7d and 7e, then 8f, then 8g.
+
+### 8a. Per-module `--no-code` ranges
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The flag is in the kit's `recomp/__main__.py` and the merge is in `tools/port-build.sh`, so both sides are in reach |
+| done when | the recompiler accepts a range scoped to a module (`--no-code game=0xb91:0xe1c` or equivalent), `tools/port-build.sh` makes one invocation instead of two, and the per-module function and refusal counts are byte-for-byte what they are now. The failure case: a range that silently applies to the wrong module, which is the bug this fixes |
+| blocked by | nothing |
+
+`--no-code` is one global list applied to every module. The ranges describe ENCHANT's zero fill, and applied to
+TBIOS they refused its real code at `0xb91-0xe1c`, so we run two recompilations and merge the output with a
+hand-written `modules.cpp`. That works and it is a workaround around a limitation that costs one parameter.
+
+### 8b. The `MP` header's `EIP` is an address, not a file offset
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. One expression in `_read_mp`, and the cross-check against the other two `MP` binaries is a scan |
+| done when | `_read_mp` sets `eip = dword@0x14 + 0x200`, `Exp.eip` for `ENCHANT.EXP` reads `0x101a20` as an address with image base `0x200`, and the shift in `port-build.sh` that exists only to compensate is deleted. Checked against `DARKNESS` and `EXODUS`, which share the container. The failure case: a file offset used as an address, which cost this project three commits and two retractions |
+| blocked by | nothing |
+
+Measured: the header's `EIP` field is `0x101a20` and the code for it is at file `0x101c20`, where `EB 56` is
+`jmp 000C:101A78`. The loader delivers it, observed at step 46,254 of a 65,536-step history dump.
+
+### 8c. `Disc::handle` with no disc opened
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. It is a null `FILE*` and the DOS layer already knows how to return an error |
+| done when | an `int 21h` open when no disc is opened returns a DOS error with `CF` set rather than segfaulting, and a run with the disc deliberately not opened reaches a visible "no drive" state. The failure case: a segfault in `Disc::handle`, which is what happened |
+| blocked by | nothing |
+
+A 600-frame run died in `Disc::handle` because nothing had opened the disc. The kit assumes the program is
+launched by something that mounted it, which is reasonable for its own ports and not for a program fed to it by
+a second tool.
+
+### 8d. Run the new seed rules through the recompiler, and measure what falls out
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Every rule is implemented and every count is already reported by the recompiler |
+| done when | the address-taken rule (`lea reg, [disp32]`), the callback rule (an immediate pointing at a prologue) and the capture-derived TBIOS seeds are run through the kit's own interface, and the change in functions, refusals, conflicts and unresolved indirect transfers is recorded for this game. Any finding that falls out is written where it belongs. The failure case: a rule that adds seeds whose decode produces a conflict, which would mean the rule is finding data rather than functions |
+| blocked by | nothing |
+
+The measured starting point on this game: 532 transfer-derived seeds, plus 5 callbacks and 6 address-taken functions. The callback rule is worth 5 functions and the address-taken rule 6. The TBIOS capture seeds are worth far more: the kit's far-table seed `@110:20-100` gave **6** functions and faulted on the first real call, and the capture gave **5,443** with none refused. That number is the one to see reproduced through the kit's own path.
+
+### 8e. Test the self-patching `int` against the other binaries
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. A scan for the store pattern and for the `int86` name answers it |
+| done when | it is measured whether `DARKNESS`, `EXODUS` and `TMENU` also write a vector into their own `int` instruction, the fix is recorded as a diff, and the answer is stated for each binary. The failure case: assuming this is U2-only and having another title trap vector zero |
+| blocked by | nothing |
+
+The routine the image names `int86` at guest `0x1023f6` does `mov al, [ebp+8]` then `mov [0x10241b], al` and then
+`int 0`, so the vector is a runtime argument written into code. A recompiled module compiles the `int` from disk
+and traps vector zero forever. The scan to run on the others is the store of a register byte into an immediate
+address followed by `CD 00`, plus the name string.
+
+### 8f. The disc layer: `PREGAP` and a pre-composed TBIOS
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Both are measured facts about this disc and both have a reproduction on it |
+| done when | the kit's cue reader either accepts `PREGAP` or records why it will not, and `boot_towns` accepts a finished TBIOS image as well as a composed one. Measured on this disc, where `compose_tbios` cannot be used because there is no `TBIOS.INI`. The failure case: reading the wrong track silently, or composing from an absent INI and calling it a failure of the disc |
+| blocked by | nothing |
+
+This disc ships `TBIOS.BIN`, 81,920 bytes, beside `TBIOS.SYS`, and no `.INI` at all. The cue carries
+`PREGAP 00:02:00` on the audio tracks and the kit refuses it with "a gap not in the files is not read here".
+Neither matters for U2 now, and both matter for the other titles.
+
+### 8g. Package the patches
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. It is writing down what is already applied |
+| done when | `docs/fmtownskit-patches.md` carries every patch with its exact diff, the file it touches, and the reproduction that motivated it, and each is checked by applying to a clean clone of the kit. The failure case: a patch described but not reproducible, or a patch whose description has drifted from the code |
+| blocked by | nothing |
+
+`references/` is not committed, so a patch that is only in the clone is a patch that will be lost. There are nine
+now: `int90` case `0x04`, `int93` `AL=0x20` with its measured returns, `int21` case `0x43`, the floppy hooks and
+their two call sites in the DOS layer, the self-patched `int` vector, the tracing hook's use, and the two
+attribute-path prints. Written last, because the set is still moving, and every entry needs the measurement that
+justifies it rather than a description of what it does.
 
 ---
 

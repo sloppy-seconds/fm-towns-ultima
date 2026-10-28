@@ -27,11 +27,18 @@ Three rules were settled with Paul before he went to bed:
 6,399,984,003 guest clocks with no fault**, with 818 functions in the game module and 5,573 in the TBIOS module,
 0 refused and 0 conflicts in both.
 
-**But those frames are not progress, and that is the most important thing on this page.** The machine was put
+**But those frames were not progress at the time, and that is worth keeping on the page.** The machine was put
 under breakpoints during a complete start-up and it **never executes guest `0x0e25ae`**, which is where the port
-sits forever waiting for a key, while a control breakpoint at `0x10241a` fired after 6.0 seconds in the same
-run. So the port is on a path the real program does not take. A spinning program is not a faulting one, which
-is why only a screen check could show this.
+sat forever waiting for a key, while a control breakpoint at `0x10241a` fired after 6.0 seconds in the same
+run. The port was on a path the real program does not take. A spinning program is not a faulting one, which is
+why only a screen check could show it.
+
+**That cause is now fixed.** The divergence was a missing `A:` drive: the program probes `A:\ROSTER1.UT2` before
+it draws anything, the port had no floppy, and the probe failure put it in an "insert the disk" prompt. The port
+now has a FAT12 reader over `saves/userdisk.hdm` and prints
+`attributes: A:\ROSTER1.UT2 -> floppy, attr 20, 3701 bytes` followed by `handle 5 (floppy, 3701 bytes)`. The
+prompt is gone. It still draws nothing, so there is a second divergence, and it is already named: `0x10386b`,
+the first of 25 addresses the port executed that the machine has no record of.
 
 Live measurements against the emulator agree with it on one buffer the program itself filled, the `int93`
 outregs at DS:0x7a634.
@@ -105,13 +112,25 @@ follow would move the failure one call later and hide it. `saves/userdisk.hdm` i
 
 ## What to do next, in order
 
-1. **7f: give the port a floppy drive.** A FAT12 reader behind the interface the CD already uses, driven by
-   `saves/userdisk.hdm`, translating `tools/savedisk.js`. Success is the port taking the `je` at `0x0e259b` the
-   way the machine does and drawing something. Do not shim the attribute query
-2. then re-run `tools/divergence.py` against the same capture: the next divergence is the next missing piece
-3. 7d, the 30 and 67 unresolved indirect transfers
-4. 7e, a port regression `checkall.js` can run without the emulator
-5. 6a, one frame of reference per tool
+Paul's order for this morning, recorded because the reasoning matters as much as the list: **defects first, then
+the new seeds through the recompiler to see what falls out, then the rest.** Findings before tidying.
+
+1. **8a** per-module `--no-code` ranges, which deletes the two-pass merge
+2. **8b** the `MP` header's `EIP` is an address, which deletes the `0x200` shift in `port-build.sh`
+3. **8c** `Disc::handle` with no disc, which is a null pointer rather than an error
+4. **8d** the new seed rules through the kit's recompiler, measured: callbacks worth 5 functions,
+   address-taken 6, and the capture-derived TBIOS seeds worth 5,443 against the kit's 6. This is the item where
+   something may fall out, which is why it comes before the tidying
+5. **8e** whether `DARKNESS`, `EXODUS` and `TMENU` also patch their own `int`, which is a scan
+6. **7a** the port's next divergence, `0x10386b` from `tools/divergence.py`
+7. **7d** the 30 and 67 unresolved indirect transfers
+8. **7e** a port regression `checkall.js` can run without the emulator
+9. **8f** the disc layer, `PREGAP` and a pre-composed `TBIOS.BIN`, which is other titles only
+10. **8g** package the patches, last, once the set stops moving
+
+Under it all, the rule that has held for two sessions now: when the port and the machine disagree, run
+`tools/divergence.py` rather than guessing which BIOS return is wrong. It has found two divergences in a row and
+the second one is already named.
 
 ## Standing hazards, written down because each one already cost time
 
