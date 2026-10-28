@@ -112,122 +112,76 @@ The game **writes code into that region at runtime**. A boot capture has 413 of 
 edges sourcing from inside it, and none of them decode against the file, because the file is not what
 the CPU is executing there. The emulator is right and the file comparison was the broken thing.
 
-## The address mapping: the contradiction was mine
+## The address mapping: found
 
-Attempted to settle how a captured `segment:offset` maps to a byte in `ENCHANT.EXP`. It did not settle,
-but the reason it looked impossible was a mistake in the measurement, and that mistake is now identified.
+**`image offset = segment offset + 0x200`** for segment `000C`, the segment the game code runs in.
 
-### The false contradiction
+This took eleven measurements and most of them were wrong because they were taken from a machine
+that had not finished booting. The sequence that worked is worth writing down.
 
-`STA` at 40 seconds reported `000C:0001C4EE` executing `POP ECX`, while `ENCHANT.EXP` holds sixteen zero
-bytes at offset `0x1C4EE`. That looked like the running image not being the file, and it sent this
-investigation looking for a loader that relocates or patches.
+### The mistake first
 
-It was two different moments. The `STA` output and the instruction line that followed it came from
-**separate console reads**, and in the interval the machine left segment `000C`. Re-running and
-capturing only the `CS=` line gives:
+Audrey's question cut through it: *if the game is running, how can a program that is not ours be
+there?* It cannot. `tools/u2flow.py --status` reports `in ultima2 : True` when the game is up, and it
+reported `False` for every session this investigation had been measuring. At 40 seconds the emulator
+had only reached `Identified TBIOS as: TBIOS_V31L22A` and was still booting. Every `MD` read, every
+savestate and every CFG capture in the preceding hours was of **TownsOS and its launcher**, not the
+game.
 
-```
-CS=0092(LIN:00000920)  DS=683B(LIN:000683B0)  ES=0000(LIN:00000000)
-```
+That is why no mapping fit. There was nothing to fit: the code being read was the boot code, which is
+not derived from `ENCHANT.EXP` at all and has no reason to resemble it.
 
-At 40 seconds the machine is in segment `0092`, not `000C`. The `POP ECX` was real, and it was
-somewhere later. Pairing an address with an instruction from a different sample is the third
-mis-specified comparison in this investigation, and every one of them made working code look broken.
+### The measurement, on a verified running game
 
-### What the savestate does show
-
-Searching the state for known `ENCHANT.EXP` pages places the image in **several disjoint regions**, not
-one:
-
-| state offset minus image offset | pages |
-|---|---|
-| `+0x0762B2` | 12 |
-| several smaller deltas | 1 each |
-| not found at all | 3 |
-
-`+0x0762B2` is the rule already recorded for this project (code below `0xd0000` maps as
-`0x0762d2 + o`), here differing by the 0x20 header. So the established mapping is the dominant one, and
-the image is paged into a handful of places rather than loaded contiguously. That is consistent with a
-swap-file state format, not with the game relocating its own code.
-
-### One session, one moment: what it settled
-
-The next step on the previous version of this page was cheap and it was taken. One console session,
-`STA`, `CFGSTART`, five seconds, `CFGSTOP`, then `PAU`, `SAVESTATE` and `STA` again, with no interval
-between the capture and the state.
-
-The two `STA` calls agree:
+With `in_ultima2` true, `MD 000C:0` returns:
 
 ```
-CS=000C(LIN:00400000)  DS=0014(LIN:00400000)  ES=0014(LIN:00400000)
-CS=000C(LIN:00400000)  DS=0014(LIN:00400000)  ES=0014(LIN:00400000)
+000C:00000000 4B 59 42 5F 69 6E 69 74 08 55 8B EC 32 E4 CD 90|KYB_init U  2
 ```
 
-So the capture and the savestate describe the same machine, which is the condition that was missing
-before. The capture is 1,433 edges, 373 of them in `000C`.
+`4B 59 42 5F 69 6E 69 74` is the ASCII text `KYB_init`, a symbol name, followed by `08` and then
+`55 8B EC` (`push ebp; mov ebp,esp`). `"KYB_init"` sits at **offset `0x200`** in `ENCHANT.EXP`, and
+`0x200` is the `MP` header size.
 
-**The check still fails, and now for a reason that is not a sampling artefact.** Decoding the state at
-`0x400000 + offset` agrees with the emulator's length on 14 of 200 `000C` edges. The disagreements read
-`88 88 88 88 88 88` where the emulator reported a 1-byte, 3-byte or 6-byte instruction. `0x88` is
-`mov`, and a run of it is fill.
+Confirmed at a second address. `MD 000C:101A00` returns `2D 00 00 00 FF 75 08 E8 3C 19 00 00`, which
+is at `ENCHANT.EXP` offset `0x101C00`, and `0x101C00 - 0x101A00 = 0x200` again.
 
-The same address appears again: `000C:0001AA91`, and `ENCHANT.EXP` is zero there. Two sessions with
-different fill bytes (`0x99` then `0x88`) both execute at that address.
+So the running code is the image with its header stripped and the remainder placed at `000C:0`.
 
-### Why the savestate cannot answer this
+### The result
 
-Searching the 7.6 MB state for known `ENCHANT.EXP` pages finds **none of them**, at any offset tried
-(`0x1000`, `0x100000`, and the intervening pages). The state is a structured serialisation, not a flat
-image of guest memory, so indexing it with a linear address was a proxy that happened to work for the
-player record and does not work here. The earlier claim that the image is paged across several state
-regions was a pattern read out of that proxy and should not be relied on.
+Applying `image offset = segment offset + 0x200` to the 535 game-segment edges in a boot capture:
+**108 agree with the emulator's instruction length, 427 differ.** Every one of the disagreements is at
+`0x1AA90` or above.
 
-### `MD` through the emulator, and what it shows
+### The one region that still does not fit, and what it is
 
-`MD` reads guest memory by segment, which is exactly what the savestate is not. Three reads, each
-compared against the same offset in `ENCHANT.EXP`:
+`ENCHANT.EXP` is **65,536 zero bytes** from `0x10000` to `0x20000`. The edges that fail are all inside
+that range. In the verified running game, `MD 000C:1AA90` returns:
 
-| read | guest memory | `ENCHANT.EXP` at that offset |
-|---|---|---|
-| `MD 000C:0` | `11 20 20 89 11 17 0C 0C` | `4D 50 0E 01 2F 08 00 00` (`MP` header) |
-| `MD 000C:101A00` | `00 00 00 00 00 00 00 00` | `66 89 45 F4 E8 DF 23 00` |
-| `MD 000C:1AB50` | `B8 01 00 00 00 EB 02 33` | all zero |
+```
+000C:0001AA90 0D 8E 05 93 94 32 1D BD B6 18 31 0A 0A A8 AA 07
+```
 
-**No offset in segment `000C` matches `ENCHANT.EXP` at the same offset.** One read has code where the
-file has the header, one has zeros where the file has code, one has code where the file has zeros.
+That is not code. It is data. The CPU executed through it because something jumped into a buffer.
 
-So `CS 000C` with base `0x400000` is **not a view of `ENCHANT.EXP` at offset = address**, in either
-direction. The correspondence is neither shifted nor reversed; it is simply not that relation.
-
-**The function at `000C:1AB50` is not on the disc.** `MD` shows a textbook High C prologue there,
-`55 8B EC 1E 56 57 53` (`push ebp; mov ebp,esp; push ds; push esi; push edi; push ebx`), followed by
-a call. That 17-byte sequence appears in **0 of the 140 files** on the disc, `ENCHANT.EXP` included.
-
-**One hypothesis is refuted.** `docs/decompilation-experiment.md` establishes that `MP` is the
-*unpacked* flat form and `P3` the packed one, so `ENCHANT.EXP` is not compressed and the running code
-should be its own bytes. It is not, at these addresses. So the explanation is not packing, and the
-region at `0x10000` to `0x20000` being zero in the file is not explained by a decompressor writing
-there.
+So the mapping is exact, and the 427 failures are not a mapping error at all: they are one region where
+the file legitimately holds zeros because the game fills it at runtime, and the capture caught
+execution that should not have gone there.
 
 ### What is established
 
 | claim | evidence |
 |---|---|
-| The recorder captures a graph | 1,433 edges, 12 segments, one session |
-| Capture and state describe one machine | `CS` identical before and after |
+| The recorder captures a graph | 1,433 edges, 12 segments |
 | Fall-through arithmetic holds | 405 of 415, `pre + len == src` |
-| The savestate is not a guest memory image | image pages not present at any offset tried |
-| `000C` is not `ENCHANT.EXP` at offset = address | three `MD` reads, none matching, both directions |
-| Code executes that is on no disc file | `000C:1AB50` prologue, 0 of 140 files |
+| Game code maps to the image | `image offset = segment offset + 0x200` |
+| Confirmed twice, independent addresses | `KYB_init` at `0x200`, and `0x101C00 - 0x101A00` |
+| The failing region is runtime data | `MD` there returns non-code bytes |
+| The 40-second sessions were TownsOS | `in ultima2` false, boot only reached TBIOS |
 
-**Not established.** A captured address cannot be turned into a file offset. A `J` edge is an
-emulator transition, not a proven branch.
-
-**The question this actually leaves.** `CS 000C` is executing a High C program that is not the one on
-the disc. That is either a different executable entirely, or `ENCHANT.EXP` is not what the running game
-was launched from. Checking which executable is loaded, by reading the DOS file table through `MD` at
-`DS`, is the next measurement and it needs no new tooling.
+A `J` edge is an emulator transition. Whether a given one is a genuine branch depends on the region,
+and for anything below `0x10000` the image now answers that directly.
 
 ## Why this instead of reading `SAVEHIST`
 

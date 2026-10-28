@@ -229,6 +229,24 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 	else bad('ENCHANT EIP past header', '0x' + e.eip.toString(16));
 }
 
+// Where the game code lives in memory. `MD 000C:0` on a verified running game
+// returns the ASCII text `KYB_init` followed by a High C prologue, and that text
+// sits at offset 0x200 in ENCHANT.EXP. So the running image is the file with its
+// header stripped: image offset = segment offset + 0x200.
+//
+// This is the mapping the CFG work needed and could not find, because every
+// capture before it was taken from a machine that had not finished booting.
+{
+	const e = disc.get(cat, 'ENCHANT.EXP');
+	const at = e.toString('latin1', 0x200, 0x208);
+	if ('KYB_init' === at) ok('ENCHANT code base: KYB_init at 0x200', at);
+	else bad('ENCHANT code base: KYB_init at 0x200', JSON.stringify(at));
+	// The control: the assert must be able to fail one byte away.
+	const near = e.toString('latin1', 0x1ff, 0x207);
+	if ('KYB_init' !== near) ok('ENCHANT code base is exact, 0x1ff differs', '');
+	else bad('ENCHANT code base is exact, 0x1ff differs', 'matched one byte off');
+}
+
 // ---------------------------------------------------------------------------
 // 4. Toolchain
 // ---------------------------------------------------------------------------
