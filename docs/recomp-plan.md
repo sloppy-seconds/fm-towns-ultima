@@ -551,6 +551,46 @@ differently at start-up, not a decode or a code fault.
 The port's own sysalloc failure return (`0x1036e9`) never executes, so its break is never refused. That leaves
 the free-list search, which returns zero at a moment when the machine's equivalent list is populated by a chunk
 the same code had just linked in.
+
+## The audit, and two values the port was inventing
+
+Rather than chase that search, the faster question was the one the comparison suggested: **what does the program
+read at start-up that the port fabricates?** Two values, both found in one pass, both measured by breakpoint on
+the machine and by `U2_STOP_AT` on the port at the same instruction.
+
+**1. The hand-off `ESP`.** The port used `0x11EAC8`. At `000C:101A20` the machine reports `ESP = 0x0011EB10`, and
+the program's first instruction of its own start-up stores `esp` into DS `0xDFD08` as the heap base, so that
+figure is the base the allocator uses. The old constant was `0x48` low, which put the heap base, the pointers
+returned from it and the break `0x48` below the machine's. That earlier measurement was evidently taken after
+the loader's frame had been popped, not at the entry.
+
+**2. The `DS` descriptor limit.** Where the heap *top* comes from was not a constant at all:
+
+```
+0x101ae2  mov dword ptr [0xdfd08], esp    base = ESP
+0x101ae8  mov eax, ds
+0x101aea  lsl eax, eax                    the DS descriptor's limit
+0x101aed  mov dword ptr [0xdfd10], eax    heap limit
+```
+
+The port had invented `0x2000000` for the code and data descriptor limits, so the program sized its heap nine
+times larger than the machine's `0x00377FFF`. Both descriptors now use the measured value, and the port maps the
+three megabytes above the image so the heap can actually grow into what it is promised.
+
+**The result, measured.** Heap base `0x0011EB10` and limit `0x00377FFF` now match the machine byte for byte at
+the first allocation, the allocator's failure path at `0x10386b` **is no longer taken**, and the number of
+addresses the port executes that the machine has no record of fell from **25 to 4**:
+
+| | before | after |
+|---|---|---|
+| port-only addresses in `000C` | 25 | 4 |
+| first port-only address | `0x10386b` (allocator error path) | `0x0e07f6` |
+
+**What is left.** The four remaining are all tight conditional branches, `0x0e07f4`, `0x0e07f6`, `0x0e081b` and
+`0x0e081d`, the last two inside a loop that scans a table at DS `0x0CE0` for bytes with bit 7 clear. The first is
+a `jge` comparing DS `0x0E1C` against a caller's argument. Either they are genuine branch differences or they are
+artefacts of the machine's capture recording block boundaries rather than every instruction, which the tool
+warns about; the way to tell is to read DS `0x0E1C` on both sides at `0x0e07f4`.
 sequences, one aligned comparison, and the first difference is the bug.
 
 **Done, and it found a missing floppy drive.**

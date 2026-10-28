@@ -154,8 +154,12 @@ int main(int argc, char** argv) {
 											 : ENTRY_FROM_HEADER;
 	// ESP at the hand-off is measured for ENCHANT (0x11EAC8). A different program is handed a different stack,
 	// so this is overridable and the default is the only one measured.
+	// ESP at the entry, measured twice and corrected once. 0x11EB10 is what STA reports when a breakpoint on
+	// 000C:101A20 fires, and the program's own heap base (DS:0xDFD08) is that same number, so it is the value
+	// the loader hands over. The older 0x11EAC8 was 0x48 lower, which put the heap base and every pointer it
+	// returned 0x48 below the machine's, and the allocator then failed on its 28th allocation.
 	const uint32_t STACK = std::getenv("U2_STACK") ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16)
-										  : 0x11EAC8;
+										  : 0x11EB10;
 
 	towns::Machine m;
 	std::printf("machine   townsos profile, %u MB\n", m.profile->ram_mb);
@@ -211,13 +215,18 @@ int main(int argc, char** argv) {
 	// The program, where the running game has it. The image is followed by the program's own BSS and
 	// heap: it writes past the image end at 0x51e000, so the mapping is generous rather than exact.
 	m.map_ram(PROGRAM_BASE, image_size + 0x40000);
+	// And the space the program's own heap is allowed to grow into. Measured: the start-up reads the DS
+	// descriptor's limit with LSL and stores it as the heap limit, and on the machine that limit is 0x377FFF.
+	// The port used to fabricate 0x2000000, so the program was told its heap was nine times larger than the
+	// machine's. Mapping has to cover it, because the heap grows up from the stack pointer inside this segment.
+	m.map_ram(0x500000, 0x300000);
 	m.write_block(PROGRAM_BASE, image, image_size);
 	std::printf("program   %u bytes at linear 0x%x, %u KB of clear space after it\n", image_size,
 	            PROGRAM_BASE, 0x40000 / 1024);
 
 	// The two selectors, as measured. 000C is the code segment, 0014 the data one, same base.
-	m.set_desc(0x000C, PROGRAM_BASE, 0x2000000);
-	m.set_desc(0x0014, PROGRAM_BASE, 0x2000000);
+	m.set_desc(0x000C, PROGRAM_BASE, 0x377FFF);	// the machine's DS/CS limit, measured with LSL
+	m.set_desc(0x0014, PROGRAM_BASE, 0x377FFF);
 	// 0110 is the TBIOS code segment. Live STA reported CS=0110 at linear 0x19EF4, and boot_towns puts
 	// the TBIOS image at 0x100000, so the segment's base is 0x100000 and 0x19EF4 is its offset 0x9EF4.
 	m.set_desc(0x0110, 0x100000, (uint32_t)tbios.size());
