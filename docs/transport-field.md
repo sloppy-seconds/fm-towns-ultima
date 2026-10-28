@@ -86,11 +86,20 @@ recorded as unverified.
 Claimed from play: quest items drop from creatures. Three `BRASS_BUTTON` were reported after fighting on
 the way to a town, and a separate claim was that `BLUE_TASSLE` comes from thieves.
 
-**The mechanism to test it now exists.** `tools/peek.js` reads the quest-item dwords, derived from the
-roster field order in `save-files.md` anchored at `HP` as field 18, so `offset = 0xcde81 + 4*(field-18)`.
-Checked against live memory before use: `maxhp` read 400 and `era` read 2 at the computed addresses.
+**The mechanism to test it now exists.** `tools/peek.js` reads the quest-item dwords.
 
-`BRASS_BUTTON` is field 56, so `0xcdf19`.
+> **CORRECTION: the addresses below were derived by arithmetic and are six bytes wrong.** The page said
+> `offset = 0xcde81 + 4*(field-18)`, which gives `BRASS_BUTTON` at `0xcdf19`. The verified address is
+> **`0xcdf13`**: the block starts at `GEM` `0xcdeff` and `BRASS_BUTTON` is the sixth of the ten. The
+> derivation and the live check that settled it are in [live-fieldmap.md](live-fieldmap.md), and
+> `tools/peek.js` carried the same six-byte error until it was corrected against a character holding
+> four red gems.
+>
+> The conclusion of this section is unaffected, because the read came back zero against a report of
+> three and the test was recorded as unverified either way. What is affected is the mechanism: a read
+> at `0xcdf19` would have answered a question about whatever lives there, not about brass buttons.
+
+`BRASS_BUTTON` is `0xcdf13`.
 
 **The test was not completed, and the reason is worth recording.** By the time the field was read, the
 character had died, and a death clears the record: every quest-item address returned `0xFFFFFFFF` fill.
