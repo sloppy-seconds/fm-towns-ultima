@@ -298,6 +298,37 @@ single-direction case was run.
 Measured 15 on a step and 15 on a kill, which suggested one constant. **It is not.** The food
 routine takes the amount as an argument, and it has exactly two callers, passing different values.
 
+### The starvation path, and a third cost
+
+The last two sections described two amounts, 15 and 10. There is a third, on the starvation path
+itself, and it is conditional on HP.
+
+The function at `0xf0a08` (file offset `0xf0c08`) is not the only caller. The function at `0xe9010`
+also spends food, and it chooses the amount from the character's HP:
+
+```
+0xe9027  cmp [edx+0xcde81], 0x32      ; HP against 50
+0xe902e  jge 0xe9034                  ; HP >= 50, skip the small cost
+0xe9030  push 0x0b                     ; HP < 50  -> 11
+0xe9032  jmp 0xe9036
+0xe9034  push 0x0f                     ; HP >= 50 -> 15
+0xe9036  push 0x0a                     ; then 10, always
+0xe9038  call 0xe74d8
+0xe9042  call 0xe693c
+```
+
+`0xcde81` is the HP field, the same address `tools/peek.js` reads as `hp`.
+
+**Confirmed against a live capture rather than inferred.** A fight capture at HP 338 reached
+`0xe9010`, `0xe9027` and `0xe902e`, took the edge `0xe902e -> 0xe9036`, and **never reached
+`0xe9030`**. HP 338 is above 50, so the `jge` was taken and the 15 branch ran, which is what the code
+says should happen.
+
+**What this does not establish.** The HP<50 branch was not exercised in that capture, so the 11 is
+read from the code and not observed. Whether 11 is a reduced cost for a weakened character, or
+something else keyed to the same test, is not settled by the arithmetic alone. The two calls that
+follow, at `0xe74d8` and `0xe693c`, are not identified.
+
 ### The routine: `0xf0a08` in memory, `0xf0c08` in the file
 
 **The address to use is `0xf0a08`.** A differential CFG capture of a live walk reached this function
