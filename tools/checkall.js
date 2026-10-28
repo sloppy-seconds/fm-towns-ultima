@@ -151,6 +151,16 @@ const runNode = (script, args = []) => {
 	record('port constants', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
 }
 
+// E4. The vendored kit's patches. `references/` is gitignored, so the only surviving record of every edit to the
+// kit is patches/fmtownskit-mp-support.patch, and an untested record drifts. patchcheck.js clones the kit to a
+// temporary directory, applies the patch and compares the result byte for byte with the working clone, and fails
+// if the clone holds a change the patch does not describe. It skips with a printed note when the clone is absent,
+// which is the normal case for a stranger with only the zip.
+{
+	const r = runNode('patchcheck.js');
+	record('kit patches', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
+}
+
 // D2. The image tooling audit. Different in kind from every other check here,
 // and its absence is why four separate defects in `preflight.js` reached commits.
 //

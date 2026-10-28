@@ -1,0 +1,625 @@
+diff --git a/exp.py b/exp.py
+index 0b13830..8e040be 100644
+--- a/exp.py
++++ b/exp.py
+@@ -200,18 +200,26 @@ class Exp:
+         return [(n, getattr(self, n)) for n, _, _ in table]
+ 
+     def _read_mp(self, data):
+-        """The "MP" form: 30-byte header, image is everything after it, no entry point.
+-
+-        THE ENTRY POINT IS DELIBERATELY None. MP has no EIP field. The u16 at 0x18
+-        reads as 30 on ENCHANT.EXP, which is the header size and is consistent with
+-        where the zero padding begins, but reading it as an entry would start a walk
+-        at address 0x1E, inside the header, and produce a confidently wrong map.
+-        Callers must supply a seed. `i386.py` already does this for the `--raw` and
+-        `--base`/`--far-table` paths, which is the same situation.
+-
+-        The base is 0 for the same reason `docs/` gives: every absolute operand in
+-        ENCHANT.EXP is below 0x110000, which is only possible if the image loads at
+-        0 rather than the 0x100000 that a 16-bit-header MP conventionally suggests.
++        """The "MP" form: 30-byte header, image is everything after it, and an entry at 0x14.
++
++        THE ENTRY POINT IS THE DWORD AT 0x14, AND THE IMAGE BEGINS AT FILE 0x200.
++
++        An earlier version of this docstring said MP had no EIP field, that the u16 at 0x18 was the header
++        size and so the field at 0x14 could not be an entry. The u16 at 0x18 is 0x1E and it is the header
++        size, which is why that looked right, but the entry is a separate dword at 0x14 and it is an ADDRESS
++        in the loaded image, not a file offset.
++
++        Measured on this branch's ENCHANT.EXP: dword@0x14 is 0x101A20; at file offset 0x101A20 the bytes are
++        `02 03 D1 03`, which is not an instruction boundary; at file offset 0x101C20 they are `EB 56`,
++        `JMP 00101A78`, and a breakpoint there is delivered by the loader's IRETD at 0008:3DD3. The header
++        itself is 0x1E bytes and the rest of the first 0x200 is zero, so the image starts at 0x200 because
++        that is where the loader maps it, not because a field says so. File length agrees with the header's
++        page count either way: pages*512 - 512 + last_page is 1072398.
++
++        So: image_offset 0x200, image is the file after it, and the entry is the 0x14 field unchanged. Before
++        this, the reader kept the whole file as the image with base 0 and reported no entry, which walked
++        from file offset 0x101C20 as if it were address 0x101C20, so every immediate in the code missed its
++        target by 0x200. That walk gave 498,320 instructions and 284,785 conflicts.
+         """
+         self.kind = 'MP'
+         self.data = data
+@@ -249,11 +257,19 @@ class Exp:
+         # This is the same finding as docs/two-frames-of-reference.md in the project
+         # this branch was written for, and it is why an MP cannot be handled by reusing
+         # the P3 image_offset field.
+-        self.image_offset = 0
+-        self.image = data
++        # The image begins where the loader maps it, 0x200 into the file, and the header's addresses are
++        # offsets into that image. The first 0x1E bytes are the header and the rest of the first 0x200 is
++        # zero, so there is no field to read this from: it is the load convention, measured as described in
++        # the docstring.
++        if len(data) <= 0x200:
++            raise ValueError('MP: %d bytes is too short to hold an image at 0x200' % len(data))
++        self.image_offset = 0x200
++        self.image = data[0x200:]
+         self.image_size = len(self.image)
+         self.base_offset = 0
+-        self.eip = None
++        # The entry, unchanged: it is already an address in the image.
++        entry = struct.unpack_from('<I', data, 0x14)[0]
++        self.eip = entry if 0 < entry < len(self.image) else None
+         self.esp = self.image_size + self.min_extra
+         self.segments, self.symbols = [], []
+         self.rtp = b''
+diff --git a/recomp/__main__.py b/recomp/__main__.py
+index e622120..baa27ee 100644
+--- a/recomp/__main__.py
++++ b/recomp/__main__.py
+@@ -164,14 +164,32 @@ def main(argv=None):
+     ap.add_argument('--slice', metavar='LO-HI', help="vectors only for the functions in LO-HI (hex), to "
+                     "selftest/<name>_<lo>-<hi>.txt")
+     ap.add_argument('--jobs', type=int, default=1, help='processes making vectors')
+-    ap.add_argument('--no-code', action='append', default=[], metavar='LO:HI',
+-                    help='a half-open range where code cannot be, hex, repeatable, applied to '
+-                         'every module; zeros decode as instructions without error, so a '
+-                         'descent into zero fill otherwise succeeds silently and endlessly')
++    ap.add_argument('--no-code', action='append', default=[], metavar='[NAME=]LO:HI',
++                    help='a half-open range where code cannot be, hex, repeatable. A plain LO:HI applies to '
++                         'every module, and NAME=LO:HI applies to the module called NAME. Zeros decode as '
++                         'instructions without error, so a descent into zero fill otherwise succeeds '
++                         'silently and endlessly')
+     a = ap.parse_args(argv)
+     os.makedirs(os.path.join(a.out, 'selftest'), exist_ok=True)
+     from .. import exp as expmod
+-    nocode = expmod.parse_no_code(a.no_code)
++    # --no-code is per module as well as global.
++    #
++    # WHY. One list applied to every module is wrong as soon as a build has two modules made from
++    # different images, because the ranges are derived from one image's zero fill. Measured on the FM
++    # Towns Ultima II port: ENCHANT's ranges, applied to TBIOS, refused its real code at 0xb91-0xe1c,
++    # which is padding in the game and ordinary TBIOS code. The workaround was two recompilations
++    # merged by hand, which is exactly what a parameter exists to avoid.
++    nocode_all = expmod.parse_no_code([s for s in a.no_code if '=' not in s])
++    per_module = {}
++    for spec in a.no_code:
++        if '=' not in spec:
++            continue
++        mname, _, rng = spec.partition('=')
++        per_module.setdefault(mname, []).append(rng)
++    nocode_mod = {k: expmod.parse_no_code(v) for k, v in per_module.items()}
++
++    def nocode_for(name):
++        return list(nocode_all) + list(nocode_mod.get(name, ()))
+     mods = []
+     for spec in a.exp:
+         name, path, cs, symend, seeds = parse(spec, False)
+@@ -188,13 +206,19 @@ def main(argv=None):
+             entry, seeds = seeds[0], seeds[1:]
+         prog = discover.Program(e.image, e.base_offset, [entry] + seeds, name,
+                                 table_end=e.table_end if e.symbols else None, names=e.names(),
+-                                no_code=nocode)
++                                no_code=nocode_for(name))
+         mods.append(Module(name, prog, cs, e.image, e.base_offset))
+     for spec in a.raw:
+         name, path, cs, far, seeds = parse(spec, True)
+         data = open(path, 'rb').read()
+-        prog = discover.Program(data, 0, seeds, name, far, no_code=nocode)
++        prog = discover.Program(data, 0, seeds, name, far, no_code=nocode_for(name))
+         mods.append(Module(name, prog, cs, data, 0))
++    # A --no-code that names a module this build does not have would silently do nothing, which is
++    # indistinguishable from a range that was not needed. Say so instead.
++    unknown = sorted(set(nocode_mod) - {m.name for m in mods})
++    if unknown:
++        raise SystemExit('--no-code names module(s) %s; this build has %s'
++                         % (', '.join(unknown), ', '.join(sorted(m.name for m in mods))))
+     if a.optest:
+         image, entries = ST.optest_image([m.prog for m in mods])
+         prog = discover.Program(image, ST.OPTEST_BASE, entries, 'optest')
+diff --git a/runtime/towns.h b/runtime/towns.h
+index 08029b9..07911df 100644
+--- a/runtime/towns.h
++++ b/runtime/towns.h
+@@ -255,6 +255,13 @@ public:
+     void int93(X86Cpu& c, uint32_t eax, uint32_t& ret_eax, uint32_t buf);
+     bool cd_paused = false;
+     void int90(X86Cpu& c);              // the keyboard BIOS (KYB_*), as FORRBIOS.NSD answers it
++    // PATCH, this repository: the keyboard the kit did not have. Its recordings were taken with no key ever
++    // pressed, so KYB_read (AH=09h) answered "none" unconditionally and a program waiting for a key waited
++    // for ever. The pair is (scan code, ASCII), and the measured contract is in towns_dos.cpp's int90.
++    void press_key(uint8_t scan, uint8_t ascii);
++    struct Key { uint8_t scan, ascii; };
++    std::vector<Key> keys;              // pending presses, served in order by KYB_read
++    unsigned long keys_served = 0;      // how many KYB_read calls took one, for reports
+     void int8e(X86Cpu& c);              // KimG (the kanji input manager), as FORRBIOS.NSD answers it
+     void intfd(X86Cpu& c);
+     // the timer BIOS, int 97h (the ROM's, which FORRBIOS.NSD hands protected-mode calls to; read
+diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
+index 75d5dad..7344066 100644
+--- a/runtime/towns_cpu.cpp
++++ b/runtime/towns_cpu.cpp
+@@ -158,6 +158,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
+     towns::Machine& m = *g_towns;
+     m.advance(m.machine_time(c.clocks));
+     c.eip = next;
++    // PATCH, this repository. This program patches its own `int` instruction, so the vector in the
++    // recompiled module is not the vector the program executes.
++    //
++    // The routine named "int86" at guest 0x1023f6 is:
++    //
++    //   1023fc  8a 45 08        mov al, [ebp+8]        the interrupt number is the first argument
++    //   1023ff  a2 1b241000     mov [0x10241b], al     written into the next instruction
++    //   102418  eb 00           jmp $+2
++    //   10241a  cd 00           int 0                  which the loader left as CD 00
++    //
++    // Measured live, and it settles what is happening: at program entry the bytes at DS:0x10241A are
++    // `CD 00`, and at the moment the call is made they are `CD 93`, which Tsugaru decodes as INT 93H.
++    // The other eleven `CD 00` in the image are never patched because they are never executed, and a
++    // scan for a `mov [mem], 0x93` finds nothing at all, because the store is the one above and its
++    // value comes from a register.
++    //
++    // A recompiled module compiles the `int` from the bytes on disk, so it traps vector 0 forever. The
++    // vector is therefore taken from the code immediately before the instruction, which is where the
++    // program put it. `next` is the address after the two-byte instruction, so the vector is at
++    // next - 1.
++    if (n == 0) {
++        int live = (int)rd8(c.sbase[1] + (next - 1));
++        if (m.trace_int)
++            std::fprintf(stderr, "  int 0 at %08x: vector byte %02x, cs base %08x, ds base %08x, ds byte %02x\n",
++                         next - 2, (unsigned)live, (unsigned)c.sbase[1], (unsigned)c.sbase[3],
++                         (unsigned)rd8(c.sbase[3] + 0x10241bu));
++        if (live != 0) n = live;
++    }
+     switch (n) {
+     case 0x21: m.int21(c); break;
+     case 0x93: {
+diff --git a/runtime/towns_disc.cpp b/runtime/towns_disc.cpp
+index 4d13162..a91e9f7 100644
+--- a/runtime/towns_disc.cpp
++++ b/runtime/towns_disc.cpp
+@@ -26,6 +26,10 @@ static long file_size(const std::string& p) {
+ }
+ 
+ FILE* Disc::handle(const std::string& path) {
++    // PATCH, this repository. An empty path means a track with no file was reached, which happens when nothing
++    // was opened. fopen would take the empty string happily, so this is not the crash itself, but it turns a
++    // silent nonsense open into a refusal.
++    if (path.empty()) return nullptr;
+     for (auto& h : handles_) if (h.first == path) return h.second;
+     FILE* f = std::fopen(path.c_str(), "rb");
+     if (f) handles_.push_back({path, f});
+@@ -39,8 +43,10 @@ bool Disc::open(const std::string& cue, std::string& err) {
+     size_t slash = base.find_last_of("/\\");
+     base = slash == std::string::npos ? "" : base.substr(0, slash + 1);
+     char line[1024];
++    int line_no = 0;
+     std::string cur;
+     while (std::fgets(line, sizeof line, f)) {
++        ++line_no;
+         char* p = line;
+         while (*p == ' ' || *p == '\t') ++p;
+         if (!std::strncmp(p, "FILE", 4)) {
+@@ -68,7 +74,27 @@ bool Disc::open(const std::string& cue, std::string& err) {
+             if (n == 0) tracks_.back().index0 = (int32_t)msf(t);
+             if (n == 1) tracks_.back().index1 = (int32_t)msf(t);
+         } else if (!std::strncmp(p, "PREGAP", 6) || !std::strncmp(p, "POSTGAP", 7)) {
+-            err = "a gap not in the files is not read here"; std::fclose(f); return false;
++            // PATCH, this repository. The old message was "a gap not in the files is not read here": correct and
++            // unhelpful, because it read like a missing feature. The problem is that the cue does not say enough
++            // to decide, and guessing has a specific cost, so the message now names the line, the track, the gap
++            // and the ambiguity. Seen on this disc's own cue: one FILE, eight tracks, `PREGAP 00:02:00` on track
++            // 2, and every INDEX 01 still relative to that one file. Whether the rip already contains those 150
++            // sectors is a property of the rip, not of the cue, and getting it wrong shifts every later track by
++            // 150 sectors without an error. A CloneCD .ccd states it, and a one-track cue for the data track does
++            // not care, which are the two answers to give a caller.
++            bool is_pre = p[1] == 'R';
++            char gap[32] = {};
++            std::sscanf(p + (is_pre ? 6 : 7), "%31s", gap);
++            char why[512];
++            std::snprintf(why, sizeof why,
++                          "%s:%d: %s %s on track %d cannot be decided from the cue. The gap is not in the file that "
++                          "the track's INDEX 01 counts from, but whether the rip already contains it is a property "
++                          "of the rip and the cue does not say, so accepting it would shift every later track by "
++                          "%s and read the wrong sectors silently. Use the .ccd, which states the layout, or a "
++                          "one-track cue for the data track if only that is wanted.",
++                          cue.c_str(), line_no, is_pre ? "PREGAP" : "POSTGAP", gap,
++                          tracks_.empty() ? 0 : tracks_.back().number, gap);
++            err = why; std::fclose(f); return false;
+         }
+     }
+     std::fclose(f);
+@@ -105,6 +131,11 @@ bool Disc::open(const std::string& cue, std::string& err) {
+ }
+ 
+ bool Disc::read_data(uint32_t n, uint8_t* out) {
++    // PATCH, this repository. `data_` is null until `open()` finds a data track, and this dereferenced it
++    // unconditionally, so a program that opened a file without a disc mounted took a null pointer instead of
++    // getting a DOS error. That is what killed the port's first 600-frame run inside Disc::handle, with a
++    // backtrace pointing at fopen because the null Track's path was garbage.
++    if (!data_) return false;
+     const Track& t = *data_;
+     FILE* f = handle(t.path);
+     if (!f || n >= t.sectors) return false;
+@@ -174,6 +205,9 @@ static std::string upper(std::string s) {
+ void Disc::index() {
+     if (!walked_) {
+         walked_ = true;
++        // PATCH, this repository: with no disc opened there is nothing to walk, and find() should answer
++        // "no such file" so the DOS layer can return an error rather than crash. See read_data.
++        if (!data_) return;
+         uint8_t pvd[2048];
+         for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
+             if (std::memcmp(pvd + 1, "CD001", 5)) break;
+diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
+index 629a87e..54031c7 100644
+--- a/runtime/towns_dos.cpp
++++ b/runtime/towns_dos.cpp
+@@ -35,6 +35,22 @@ static int new_handle(Machine& m) {
+ }
+ 
+ // "Q:\AGUMIX.PX", "A:dueltwn.sav", "DUEL.EXP": the disc's, or a host file in save_dir.
++// PATCH, this repository. Drive A: is a real floppy image, served by the program that links this runtime.
++//
++// WHY. Ultima II probes A:\ROSTER1.UT2 at start-up with int 21h AX=4300 before it draws anything. With no A:
++// drive the probe failed, the program took its "insert the save disk" path, printed message 0x1930 and waited
++// for a key, and the port sat there for 24,000 frames looking healthy. The machine mounts the same image, so the
++// honest fix is to read it rather than to answer the query with a plausible lie.
++//
++// The two hooks are defined in port/main.cpp over port/floppy.h, which is a FAT12 reader. Returning false means
++// "this runtime has no floppy", and every other drive behaves exactly as before.
++bool fm_floppy_attrs(const std::string& path, uint32_t& attrib, uint32_t& size);
++bool fm_floppy_read(const std::string& path, std::vector<uint8_t>& out);
++
++static bool on_floppy(const std::string& name) {
++    return name.size() >= 2 && name[1] == ':' && std::toupper((unsigned char)name[0]) == 'A';
++}
++
+ static bool on_disc(Machine& m, const std::string& name, std::string& path) {
+     char drive = m.drive;
+     path = name;
+@@ -308,6 +324,21 @@ void Machine::int21(X86Cpu& c) {
+     }
+     case 0x3C: case 0x3D: {                         // create, open
+         std::string name = cstr(*this, ds + c.r[2]), path;
++        if (on_floppy(name)) {                      // PATCH, this repository: drive A: is the floppy image
++            int fh = new_handle(*this);
++            if (fh < 0) { set_cf(c, true); s16(c, 0, 4); return; }
++            Handle& hf = handles[fh];
++            if (ah == 0x3C || !fm_floppy_read(name, hf.data)) {
++                if (trace_int) std::fprintf(stderr, "  %s: not on the floppy\n", name.c_str());
++                set_cf(c, true); s16(c, 0, ah == 0x3C ? 5 : 2); return;
++            }
++            hf.host = false; hf.used = true; hf.pos = 0;
++            if (trace_int) std::fprintf(stderr, "  %s -> handle %d (floppy, %u bytes)\n", name.c_str(), fh,
++                                        (unsigned)hf.data.size());
++            s16(c, 0, (uint32_t)fh);
++            set_cf(c, false);
++            return;
++        }
+         int h = new_handle(*this);
+         if (h < 0) { set_cf(c, true); s16(c, 0, 4); return; }
+         Handle& hd = handles[h];
+@@ -408,6 +439,39 @@ void Machine::int21(X86Cpu& c) {
+         set_cf(c, false);
+         return;
+     }
++    case 0x43: {                                    // get file attributes into CX, from DS:EDX. The
++        if (al != 0x00) return;                     // set form (AL=1) changes nothing on a CD, which
++        DiscFile f;                                 // is read only anyway
++        std::string want = cstr(*this, ds + c.r[2]);
++        if (on_floppy(want)) {                      // PATCH, this repository: drive A: is the floppy image
++            uint32_t fattrib = 0, fsize = 0;
++            if (!fm_floppy_attrs(want, fattrib, fsize)) {
++                if (trace_int) std::fprintf(stderr, "  attributes: %s -> not on the floppy\n", want.c_str());
++                c.r[0] = (c.r[0] & 0xFFFF0000u) | 2u;
++                set_cf(c, true);
++                return;
++            }
++            if (trace_int) std::fprintf(stderr, "  attributes: %s -> floppy, attr %02x, %u bytes\n",
++                                        want.c_str(), fattrib, fsize);
++            c.r[1] = fattrib;
++            c.r[0] &= 0xFFFF0000u;
++            set_cf(c, false);
++            return;
++        }
++        if (!disc.find(want, f)) {
++            // This is the check that decides whether the game shows its "press a key" error path, so a miss
++            // here has to be visible rather than silent.
++            if (trace_int) std::fprintf(stderr, "  attributes: %s -> not found\n", want.c_str());
++            c.r[0] = (c.r[0] & 0xFFFF0000u) | 2u;   // file not found, DOS error 2
++            set_cf(c, true);
++            return;
++        }
++        if (trace_int) std::fprintf(stderr, "  attributes: %s -> found%s\n", want.c_str(), f.dir ? " (dir)" : "");
++        c.r[1] = f.dir ? 0x10u : 0x20u;             // a directory, or an ordinary archive file
++        c.r[0] &= 0xFFFF0000u;
++        set_cf(c, false);
++        return;
++    }
+     case 0xFF:                                      // not DOS's (an extender's test, DX=78h):
+         unknown("int 21h AX=%04X DX=%04X: none (as on the Towns)", c.r[0] & 0xFFFF, c.r[2] & 0xFFFF);
+         return;                                     // RUN386 leaves every register as it was
+@@ -451,6 +515,34 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+     if (trace_int) std::fprintf(stderr, "int 93h AX=%04X CX=%04X BX=%04X buffer %05x\n", eax & 0xFFFF, c.r[1] & 0xFFFF,
+                                 c.r[3] & 0xFFFF, buf);
+     if (al != 0xC0) {
++        // PATCH, this repository. AL is not always the CD-DA interface. The program's CD probe calls
++        // int86(0x93) at guest 0xe2445 with AX=0x0220, then reads the returned AH from its outregs at
++        // DS:0x7a635 and branches: AH==2 returns -1, otherwise two bits at DS:0x7a640 are consulted and
++        // a second call goes out with AH=0x07. That is read off the code at guest 0xe2440-0xe24d7.
++        //
++        // The returns are MEASURED, not chosen. Breakpoint at 000C:0E244D, the instruction after the
++        // first call, with the outregs struct the program passes read at DS:0x7a634:
++        //
++        //   in AX=0x0220   out EAX=0x00000020  EBX=0  ECX=0  EDX=4
++        //   in AX=0x0720   out EAX=0x00000000  EBX=1  ECX=1  EDX=0
++        //
++        // The second row was read from the same struct after start-up had finished, since the second
++        // call is the last one to write it. Both are one sample from one machine.
++        if (al == 0x20) {
++            if (ah == 0x02) {
++                ret = 0x20u;
++                c.r[3] = 0;
++                c.r[1] = 0;
++                c.r[2] = 4;
++            } else {
++                ret = 0;
++                c.r[3] = 1;
++                c.r[1] = 1;
++                c.r[2] = 0;
++            }
++            set_cf(c, false);
++            return;
++        }
+         char why[64];
+         std::snprintf(why, sizeof why, "int 93h AX=%04Xh: not the CD", eax & 0xFFFF);
+         x86_fault(c, c.eip, why);
+@@ -522,6 +614,11 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+     x86_fault(c, c.eip, why);
+ }
+ 
++// The keyboard, as a port drives it. One queue, served in order, so a sequence of presses reads back in the order
++// the program asked for them. Nothing else consumes it: this is not a keyboard driver, it is the minimum that lets
++// a program waiting for a key proceed, and the measured contract is in int90's case 0x09.
++void Machine::press_key(uint8_t scan, uint8_t ascii) { keys.push_back(Key{scan, ascii}); }
++
+ // The keyboard BIOS, int 90h, as FORRBIOS.NSD answers it in protected mode (the program
+ // pushes "DOSX" "BIOS" before each call): read on the oracle (tools/oracle.py --trace-calls at
+ // each int and the instruction after it) with no key ever pressed -- AH 0 for every function,
+@@ -531,11 +628,33 @@ void Machine::int90(X86Cpu& c) {
+     uint8_t ah = (c.r[0] >> 8) & 0xFF;
+     if (trace_int) std::fprintf(stderr, "int 90h AX=%04X EBX=%08X ECX=%08X EDX=%08X\n", c.r[0] & 0xFFFF, c.r[3], c.r[1], c.r[2]);
+     switch (ah) {
++    // PATCH, this repository. KYB_lock (AH=04) was not in this kit's recordings, because they were taken
++    // with no key ever pressed. Measured on the live machine with the emulator console at 000C:0052:
++    // EAX goes in as 0x00000400 (AH the function, AL the lock flag from [EBP+8]) and comes back as
++    // 0x00000000. The stub there is `CD 90`, `MOVZX EAX,AH`, `LEAVE`, `RET`, so the result is in AH, and
++    // the `c.r[0] &= 0xFFFF00FF` at the end of this function already delivers it by zeroing AH. One call
++    // measured, with AL=0. The handler is TBIOS's own, reached through CS=0008 at linear 0x5C12E.
++    case 0x04:
+     case 0x00: case 0x01: case 0x02: case 0x05: case 0x06:   // init, buffer, code, click, clear
+         break;
+-    case 0x09:                                      // read a key: none
+-        s16(c, 2, 0xFFFF);
+-        s16(c, 3, 0xFF00);
++    case 0x09:                                      // read a key
++        // PATCH, this repository. The kit had no keyboard, so this answered "none" for ever and a program
++        // polling for input never moved. Measured on the live machine at 000C:000000B6, the instruction after
++        // the `int 90h` in the KYB_read wrapper, with the key 'a' pressed at a break:
++        //     BX = 0x1E00   DX = 0x0061     (the scan code in BX's high byte, the ASCII in DX)
++        // and with no key, BX = 0xFF00 and DX = 0xFFFF, which is what the recordings showed. ENCHANT tests
++        // `(BX & 0xFF00) == 0xFF00` for "none", then indexes a 114-entry table with `(BX >> 8) - 1`, so it reads
++        // the SCAN CODE and DX is a convenience.
++        if (!keys.empty()) {
++            Key k = keys.front();
++            keys.erase(keys.begin());
++            ++keys_served;
++            s16(c, 3, (uint32_t)k.scan << 8);
++            s16(c, 2, k.ascii);
++        } else {
++            s16(c, 2, 0xFFFF);
++            s16(c, 3, 0xFF00);
++        }
+         break;
+     case 0x0A: {                                    // the key matrix
+         static const uint8_t none[16] = {};
+diff --git a/runtime/towns_io.cpp b/runtime/towns_io.cpp
+index 039e526..3e33a0e 100644
+--- a/runtime/towns_io.cpp
++++ b/runtime/towns_io.cpp
+@@ -353,7 +353,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
+     default:
+         if (port >= 0xFD98 && port <= 0xFD9F) { v.degipal[port - 0xFD98] = d; v.dpmd = true; return; }
+         if (port >= 0x3000 && port < 0x5000) { unknown("CMOS write %04x", port); return; }
+-        unknown("out %04x", port);
++        // PATCH, this repository: name the instruction as well as the port. "out 0e51" says a port nobody has
++        // implemented was written and nothing about which chip was being programmed, and the value is the other
++        // half of that question. A port number with no caller is a lead that has to be re-found by watching.
++        if (g_x86_cur)
++            unknown("out %04x = %x (at %04x:%08x)", port, d, (unsigned)g_x86_cur->sreg[1], g_x86_cur->eip);
++        else
++            unknown("out %04x = %x", port, d);
+     }
+ }
+ 
+diff --git a/runtime/towns_mem.cpp b/runtime/towns_mem.cpp
+index 7fd99da..d504de4 100644
+--- a/runtime/towns_mem.cpp
++++ b/runtime/towns_mem.cpp
+@@ -10,6 +10,20 @@
+ #include <set>
+ #include <string>
+ 
++// The linear write watch (declared in x86.h). Global scope, because the inline store paths in that header
++// reference it from outside any namespace. Off unless a port arms it, and bounded so a program that writes
++// the watched byte in a loop cannot bury the useful first hit.
++uint32_t g_watch_lo = 0, g_watch_hi = 0;
++const X86Cpu* g_x86_cur = nullptr;
++static long g_watch_hits = 0;
++void x86_watch_write(uint32_t a, uint32_t v, int n) {
++    if (++g_watch_hits > 64) return;
++    const X86Cpu* c = g_x86_cur;
++    const uint32_t mask = n == 4 ? 0xFFFFFFFFu : n == 2 ? 0xFFFFu : 0xFFu;
++    std::fprintf(stderr, "watch     %08x = %0*x (%dB) at %04x:%08x\n", a, n * 2, v & mask, n,
++                 c ? (unsigned)c->sreg[1] : 0, c ? c->eip : 0);
++}
++
+ namespace towns {
+ 
+ Machine* g_towns;
+diff --git a/runtime/towns_sdl.cpp b/runtime/towns_sdl.cpp
+index 3328d10..e752a68 100644
+--- a/runtime/towns_sdl.cpp
++++ b/runtime/towns_sdl.cpp
+@@ -87,6 +87,57 @@ static unsigned held_pad(SDL_Gamepad* g) {
+     return v;
+ }
+ 
++// PATCH, this repository: SDL's scancode as the Towns' keyboard scan code, and the character SDL computed for it
++// (which already has the shift state applied, so 'shift+1' arrives as '!'). Only keys a program can distinguish are
++// mapped, and an unmapped key reports nothing rather than a guess. The Towns scan codes here are PC/AT set 1, which
++// is what this project measured on the machine: 'a' is 0x1E, and ENCHANT indexes a 114-entry table with it.
++static bool towns_key(const SDL_KeyboardEvent& k, uint8_t& scan, uint8_t& ascii) {
++    switch (k.scancode) {
++    case SDL_SCANCODE_ESCAPE: scan = 0x01; break;
++    case SDL_SCANCODE_1: scan = 0x02; break;  case SDL_SCANCODE_2: scan = 0x03; break;
++    case SDL_SCANCODE_3: scan = 0x04; break;  case SDL_SCANCODE_4: scan = 0x05; break;
++    case SDL_SCANCODE_5: scan = 0x06; break;  case SDL_SCANCODE_6: scan = 0x07; break;
++    case SDL_SCANCODE_7: scan = 0x08; break;  case SDL_SCANCODE_8: scan = 0x09; break;
++    case SDL_SCANCODE_9: scan = 0x0A; break;  case SDL_SCANCODE_0: scan = 0x0B; break;
++    case SDL_SCANCODE_MINUS: scan = 0x0C; break;      case SDL_SCANCODE_EQUALS: scan = 0x0D; break;
++    case SDL_SCANCODE_BACKSPACE: scan = 0x0E; break;  case SDL_SCANCODE_TAB: scan = 0x0F; break;
++    case SDL_SCANCODE_Q: scan = 0x10; break; case SDL_SCANCODE_W: scan = 0x11; break;
++    case SDL_SCANCODE_E: scan = 0x12; break; case SDL_SCANCODE_R: scan = 0x13; break;
++    case SDL_SCANCODE_T: scan = 0x14; break; case SDL_SCANCODE_Y: scan = 0x15; break;
++    case SDL_SCANCODE_U: scan = 0x16; break; case SDL_SCANCODE_I: scan = 0x17; break;
++    case SDL_SCANCODE_O: scan = 0x18; break; case SDL_SCANCODE_P: scan = 0x19; break;
++    case SDL_SCANCODE_LEFTBRACKET: scan = 0x1A; break;  case SDL_SCANCODE_RIGHTBRACKET: scan = 0x1B; break;
++    case SDL_SCANCODE_RETURN: scan = 0x1C; break;      case SDL_SCANCODE_LCTRL: scan = 0x1D; break;
++    case SDL_SCANCODE_A: scan = 0x1E; break; case SDL_SCANCODE_S: scan = 0x1F; break;
++    case SDL_SCANCODE_D: scan = 0x20; break; case SDL_SCANCODE_F: scan = 0x21; break;
++    case SDL_SCANCODE_G: scan = 0x22; break; case SDL_SCANCODE_H: scan = 0x23; break;
++    case SDL_SCANCODE_J: scan = 0x24; break; case SDL_SCANCODE_K: scan = 0x25; break;
++    case SDL_SCANCODE_L: scan = 0x26; break; case SDL_SCANCODE_SEMICOLON: scan = 0x27; break;
++    case SDL_SCANCODE_APOSTROPHE: scan = 0x28; break;   case SDL_SCANCODE_GRAVE: scan = 0x29; break;
++    case SDL_SCANCODE_LSHIFT: scan = 0x2A; break;      case SDL_SCANCODE_BACKSLASH: scan = 0x2B; break;
++    case SDL_SCANCODE_Z: scan = 0x2C; break; case SDL_SCANCODE_X: scan = 0x2D; break;
++    case SDL_SCANCODE_C: scan = 0x2E; break; case SDL_SCANCODE_V: scan = 0x2F; break;
++    case SDL_SCANCODE_B: scan = 0x30; break; case SDL_SCANCODE_N: scan = 0x31; break;
++    case SDL_SCANCODE_M: scan = 0x32; break; case SDL_SCANCODE_COMMA: scan = 0x33; break;
++    case SDL_SCANCODE_PERIOD: scan = 0x34; break;      case SDL_SCANCODE_SLASH: scan = 0x35; break;
++    case SDL_SCANCODE_RSHIFT: scan = 0x36; break;      case SDL_SCANCODE_LALT: scan = 0x38; break;
++    case SDL_SCANCODE_SPACE: scan = 0x39; break;       case SDL_SCANCODE_CAPSLOCK: scan = 0x3A; break;
++    case SDL_SCANCODE_F1: scan = 0x3B; break;  case SDL_SCANCODE_F2: scan = 0x3C; break;
++    case SDL_SCANCODE_F3: scan = 0x3D; break;  case SDL_SCANCODE_F4: scan = 0x3E; break;
++    case SDL_SCANCODE_F5: scan = 0x3F; break;  case SDL_SCANCODE_F6: scan = 0x40; break;
++    case SDL_SCANCODE_F7: scan = 0x41; break;  case SDL_SCANCODE_F8: scan = 0x42; break;
++    case SDL_SCANCODE_F9: scan = 0x43; break;  case SDL_SCANCODE_F10: scan = 0x44; break;
++    case SDL_SCANCODE_HOME: scan = 0x47; break; case SDL_SCANCODE_UP: scan = 0x48; break;
++    case SDL_SCANCODE_PAGEUP: scan = 0x49; break;     case SDL_SCANCODE_LEFT: scan = 0x4B; break;
++    case SDL_SCANCODE_RIGHT: scan = 0x4D; break;      case SDL_SCANCODE_END: scan = 0x4F; break;
++    case SDL_SCANCODE_DOWN: scan = 0x50; break;       case SDL_SCANCODE_PAGEDOWN: scan = 0x51; break;
++    case SDL_SCANCODE_INSERT: scan = 0x52; break;     case SDL_SCANCODE_DELETE: scan = 0x53; break;
++    default: return false;
++    }
++    ascii = (k.key >= 0x20 && k.key < 0x7F) ? (uint8_t)k.key : 0;
++    return true;
++}
++
+ void SdlHost::vsync(Machine& m) {
+     Impl& s = *p_;
+     SDL_Event e;
+@@ -101,6 +152,13 @@ void SdlHost::vsync(Machine& m) {
+             if (e.key.scancode == SDL_SCANCODE_F5) m.set_cpu_rate(m.cpu_rate - 5);
+             if (e.key.scancode == SDL_SCANCODE_F6) m.set_cpu_rate(m.cpu_rate + 5);
+             if (e.key.scancode == SDL_SCANCODE_F7) m.set_cpu_rate(100);
++            // PATCH, this repository: after the front-end's own keys, hand the keystroke to the program as the
++            // Towns' keyboard would, when a caller asked for it. Escape has already quit above, deliberately:
++            // a window needs a way out that the guest cannot swallow.
++            if (on_key) {
++                uint8_t scan = 0, ascii = 0;
++                if (towns_key(e.key, scan, ascii)) on_key(scan, ascii);
++            }
+             break;
+         case SDL_EVENT_MOUSE_MOTION:
+             // the frame's pixels moved, as the mouse in the second port's counts
+diff --git a/runtime/towns_sdl.h b/runtime/towns_sdl.h
+index 2a0e2eb..7c7e0e4 100644
+--- a/runtime/towns_sdl.h
++++ b/runtime/towns_sdl.h
+@@ -17,6 +17,7 @@
+ //             right buttons), the host's pointer hidden over the window
+ #pragma once
+ #include "towns.h"
++#include <functional>
+ #include <memory>
+ #include <string>
+ 
+@@ -34,6 +35,11 @@ public:
+     ~SdlHost();
+     bool open(const SdlOptions& o, std::string& err);
+     void vsync(Machine& m);         // throws Stop{0} when the window is closed
++    // PATCH, this repository: the host's keystrokes as the Towns' own (scan code, ASCII), so a program that
++    // reads the keyboard through int 90h can be typed into. The front-end otherwise maps keys only to the pad,
++    // which is right for the games it was built for and useless for a program waiting on KYB_read. Unset means
++    // no callback and the behaviour is exactly as before.
++    std::function<void(uint8_t scan, uint8_t ascii)> on_key;
+ private:
+     struct Impl;
+     std::unique_ptr<Impl> p_;
+diff --git a/runtime/x86.h b/runtime/x86.h
+index 48bb159..3b4ed2e 100644
+--- a/runtime/x86.h
++++ b/runtime/x86.h
+@@ -34,6 +34,20 @@ struct X86Cpu {
+ };
+ 
+ typedef void (*X86Func)(X86Cpu&);
++
++// A linear write watch, for differential work against the real machine: one range, off unless armed.
++// The fast paths below compare against it on every store, which is one predictable branch when unarmed
++// and is the price of being able to answer "does this program ever write that byte" at all. A watch in
++// Machine::mem_write alone would miss exactly the writes worth seeing, because writes to mapped RAM
++// never reach it.
++extern uint32_t g_watch_lo, g_watch_hi;   // [lo, hi); armed when lo < hi
++extern const X86Cpu* g_x86_cur;          // the cpu running, for the caller's address; may be null
++void x86_watch_write(uint32_t a, uint32_t v, int n);
++#define X86_WATCH(a, v, n)                                                                         \
++    do {                                                                                           \
++        if (X86_UNLIKELY(g_watch_lo != g_watch_hi && (uint32_t)((a) - g_watch_lo) < g_watch_hi - g_watch_lo)) \
++            x86_watch_write((a), (v), (n));                                                        \
++    } while (0)
+ struct X86FuncEntry { uint32_t addr; X86Func fn; };
+ struct X86Module {
+     const char* name;
+@@ -65,15 +79,18 @@ static inline uint32_t rd32(uint32_t a) {
+     uint32_t v; std::memcpy(&v, p + (a & 0xFFF), 4); return v;
+ }
+ static inline void wr8(uint32_t a, uint32_t v) {
++    X86_WATCH(a, v, 1);
+     uint8_t* p = g_x86_page[a >> 12];
+     if (X86_UNLIKELY(!p)) x86_mem_write(a, 1, v); else p[a & 0xFFF] = (uint8_t)v;
+ }
+ static inline void wr16(uint32_t a, uint32_t v) {
++    X86_WATCH(a, v, 2);
+     uint8_t* p = g_x86_page[a >> 12];
+     if (X86_UNLIKELY(!p || (a & 0xFFF) > 0xFFE)) { x86_mem_write(a, 2, v); return; }
+     uint16_t w = (uint16_t)v; std::memcpy(p + (a & 0xFFF), &w, 2);
+ }
+ static inline void wr32(uint32_t a, uint32_t v) {
++    X86_WATCH(a, v, 4);
+     uint8_t* p = g_x86_page[a >> 12];
+     if (X86_UNLIKELY(!p || (a & 0xFFF) > 0xFFC)) { x86_mem_write(a, 4, v); return; }
+     std::memcpy(p + (a & 0xFFF), &v, 4);

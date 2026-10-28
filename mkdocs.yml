@@ -110,6 +110,7 @@ nav:
       - Two jump tables: jump-tables.md
       - Distance to reimplementation: reimplementation-gap.md
       - Plan to get the game recompiled: recomp-plan.md
+      - The fmtownskit patches: fmtownskit-patches.md
       - Unsupervised work prompt: unsupervised-prompt.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md

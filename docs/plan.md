@@ -103,7 +103,7 @@ from the items below rather than maintained separately.
 | 8d Run the new seed rules through the recompiler | AUTONOMOUS | **done**, and it corrected a number |
 | 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **done**, seven binaries, one routine |
 | 8f The disc layer: `PREGAP` and a composed TBIOS | AUTONOMOUS | **done**, the refusal names why, and `boot_towns` takes a shipped image |
-| 8g Package the patches | AUTONOMOUS | last, once the set stops moving |
+| 8g Package the patches | AUTONOMOUS | **done**, one patch file, verified against a clean clone |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
 writing it reports twelve of twenty-seven startable now, with 2b and 4a held back by item order. That is
@@ -1496,7 +1496,7 @@ disc, is avoided by taking the shipped image.
 
 ### 8g. Package the patches
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -1504,11 +1504,26 @@ disc, is avoided by taking the shipped image.
 | done when | `docs/fmtownskit-patches.md` carries every patch with its exact diff, the file it touches, and the reproduction that motivated it, and each is checked by applying to a clean clone of the kit. The failure case: a patch described but not reproducible, or a patch whose description has drifted from the code |
 | blocked by | nothing |
 
-`references/` is not committed, so a patch that is only in the clone is a patch that will be lost. There are nine
-now: `int90` case `0x04`, `int93` `AL=0x20` with its measured returns, `int21` case `0x43`, the floppy hooks and
-their two call sites in the DOS layer, the self-patched `int` vector, the tracing hook's use, and the two
-attribute-path prints. Written last, because the set is still moving, and every entry needs the measurement that
-justifies it rather than a description of what it does.
+**What is now known.** The patches are **one file**, `patches/fmtownskit-mp-support.patch`, and it is the
+authoritative list: the count is whatever it contains, and `node tools/patchcheck.js` derives it rather than
+trusting a number written down. That mattered immediately, because the paragraph this replaced said "there are
+nine" when the real set was larger and still moving.
+
+`docs/fmtownskit-patches.md` is the record: how to apply the patch, and a table of every file it touches with the
+change, the measurement that motivated it and the item it belongs to. It carries the patch itself by reference
+rather than by copy, so there is one artefact to keep in step.
+
+**Checked, not described.** Applying the patch to a **fresh clone at `2203160`** reproduces the working vendored
+tree **byte for byte** across all eleven files, run both ways (`git apply --check`, then `git apply` followed by
+`cmp` per file). `tools/patchcheck.js` repeats that from scratch and is wired into `checkall.js` as `kit patches`:
+it clones the kit to a temporary directory, applies the committed patch, compares, and also fails when the clone
+holds a change the patch does not describe, which is the case that matters when somebody edits the kit and forgets
+to regenerate. When `references/` is absent it skips with a printed line, because a stranger with only the zip has
+no clone and should not be told the check failed.
+
+**One file in the clone is deliberately excluded.** `README.md` there documents the kit's own
+`.agents/skills/fmtownskit/` work in progress, which is not this repository's change. The check names that
+exception rather than silently ignoring it.
 
 ---
 
