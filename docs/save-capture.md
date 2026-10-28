@@ -73,4 +73,54 @@ a reimplementation needs the field list rather than a format-string table.
 - whether the "exit to menu?" prompt that appeared afterwards writes anything else. It was declined and
   no capture was running
 
+## There is no load option, and that changes how to read the routine
+
+Reported from play: **the game has no load command outside the starting menu.** The only ways a save is
+read are choosing Journey Onward at the start, and dying.
+
+That matters because `docs/six-named-routines.md` describes `0xeb374` as "the save and load system" and
+lists "what its three `ROSTER1.UT2` uses each do" as an open question. The observation narrows that
+question considerably.
+
+### What the three `ROSTER1.UT2` sites actually are
+
+The addresses the page quotes were not the strings. Reading them shows three different constants:
+
+| site | constant | text |
+|---|---|---|
+| `0xeb1c4` | `0x26e4` | `A:\ROSTER1.UT2` |
+| `0xeb3d4` | `0x2850` | `MAGIC=%d\n` |
+| `0xeb3f6` | `0x2864` | `MHP=%d\n` |
+| `0xeb6ca` | `0x2a28` | `BRASS_BUTTON=%d\n` |
+
+So `ROSTER1.UT2` appears **once** as a filename, and the other two sites quoted on that page are field
+format strings that happen to sit near it. The filename is pushed at `0xeb1c4`, and every field after it
+is written by straight-line code.
+
+### The open sequence, read
+
+```
+0xeb1b3  cmp edi, 6                  ; a retry count
+0xeb1b8  push 0x2698                 ; the give-up message
+0xeb1bf  push 0x26e0
+0xeb1c4  push 0x26e4                 ; "A:\ROSTER1.UT2"
+0xeb1c9  call 0x100f34               ; fopen
+0xeb1d1  xchg esi, eax
+0xeb1d2  and esi, esi
+0xeb1d4  jne 0xeb1f6                 ; success -> write the header
+0xeb1d6  push 0x26f4                 ; "Data Save Error!"
+0xeb1f6  push 0x2748                 ; "Roster data:ULTIMA II for FM-TOWNS"
+```
+
+`0x26f4` is `Data Save Error!` and `0x2748` is `Roster data:ULTIMA II for FM-TOWNS`, which is the file
+header recorded in `docs/save-files.md`. **The capture reached `0xeb1f6` and did not reach `0xeb1d6`**, so
+the save succeeded and took the success branch.
+
+### What this leaves open
+
+Since the write path is now traced from filename to header to all 75 fields, the remaining question is the
+**read** path: which code opens the same file and parses it back, and whether that is a separate routine or
+the same one entered at a different offset. A death and a Journey Onward would each exercise it, and neither
+has been captured.
+
 **[Save files](save-files.md)** **[Six named routines](six-named-routines.md)** **[CFG findings](cfg-findings.md)**
