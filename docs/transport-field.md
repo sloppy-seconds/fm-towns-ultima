@@ -81,4 +81,44 @@ recorded as unverified.
 - whether `0xec` is really "in town" rather than a related state. It is inferred from the `Exit first!`
   test, which is strong but is one comparison
 
+## Quest-item drops: the test that could not be run
+
+Claimed from play: quest items drop from creatures. Three `BRASS_BUTTON` were reported after fighting on
+the way to a town, and a separate claim was that `BLUE_TASSLE` comes from thieves.
+
+**The mechanism to test it now exists.** `tools/peek.js` reads the quest-item dwords, derived from the
+roster field order in `save-files.md` anchored at `HP` as field 18, so `offset = 0xcde81 + 4*(field-18)`.
+Checked against live memory before use: `maxhp` read 400 and `era` read 2 at the computed addresses.
+
+`BRASS_BUTTON` is field 56, so `0xcdf19`.
+
+**The test was not completed, and the reason is worth recording.** By the time the field was read, the
+character had died, and a death clears the record: every quest-item address returned `0xFFFFFFFF` fill.
+The three brass buttons went with the character. The read showed `brass: 0` against a report of 3, and
+neither reading is wrong: the record had been cleared between the kill and the measurement.
+
+So the drop claim remains **unverified**, and the specific failure was ordering. The field should have
+been read **immediately after the fight and before anything else happened**, which is the same lesson as
+the lost moongate capture: an observation is only measurable while the state that produced it still
+exists.
+
+## A discovery from the death screen
+
+A screenshot of the death screen read by `qwen3.8-flash-new` showed the combat log still visible:
+
+> `Dagger. Direct? West Miss! Attacked! 34 points damaged!`
+
+That named the combat message set, which is in the image:
+
+| address | text |
+|---|---|
+| `0x04598` | `Miss!` |
+| `0x067ec` | `Attack with` |
+| `0x04070` | `Hit points:` |
+| `0x04b88` | `Field causes damage!` |
+| `0x01670` | `A)ttack  J)ump   S)teal ` |
+
+So the attacks available to the player are `A)ttack`, `J)ump` and `S)teal`, and the log strings for a hit,
+a miss and field damage are all present. None of them has been traced to its caller yet.
+
 **[Inside a turn](inside-a-turn.md)** **[Movement and wrap](movement-and-wrap.md)** **[Plan](plan.md)**

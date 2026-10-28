@@ -56,6 +56,7 @@ const FIELDS = {
 	tassle: 0xcdf1d,
 	ankh: 0xcdf0d,
 	gem: 0xcdf09,
+	brass: 0xcdf19,
 	trilithium: 0xcdf29,
 	px: 0xcdf6b,
 	py: 0xcdf6f,
