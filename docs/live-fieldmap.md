@@ -58,6 +58,50 @@ Values present and matching the format string's identity, though not independent
 0xcdfa3  28
 ```
 
+## The deltas, and where they come from
+
+> **CORRECTION: the −4 is not a mystery and `MAGIC` is not a byte.** Both are explained below, from a
+> savestate and the format block, and neither needed a played character.
+
+**The layout is exact from `0xcde54` through `TOOLS`, with %c=1 and %d=4.** Start the model at
+`0xcde54`, skip the two leading oddities in the block (`=%c`, and `(%d)NAME=%s`, which is two
+specifiers in one string and is **not a struct field**), and walk the rest. Fourteen anchors then land
+exactly, in one state:
+
+| field | address | value (live.state) |
+|---|---|---|
+| `STRENGTH` | `0xcde62` | 20 |
+| `AGILITY` | `0xcde66` | 25 |
+| `INTELLIGENCE` | `0xcde76` | 10 |
+| `RACE` | `0xcde7a` | 69, `E` |
+| `PROFESSION` | `0xcde7b` | 70, `F` |
+| `SEX` | `0xcde7c` | 77, `M` |
+| `MAGIC` | `0xcde7d` | 65 |
+| `HP` | `0xcde81` | 216 |
+| `MHP` | `0xcde85` | 400 |
+| `EXPERIENCE` | `0xcde89` | 10 |
+| `FOOD` | `0xcde8d` | 39460 |
+| `GOLD` | `0xcde91` | 431 |
+| `KEY` | `0xcde95` | 0 |
+| `ERA` | `0xcde99` | 2 |
+| `TOOLS` | `0xcde9d` | 0 |
+
+**So the −4 comes from `NAME`.** `fieldmap.js` walks the same block but counts `(%d)NAME=%s` as a
+4-byte field, which pushes everything after it four bytes late. The record does not have that field.
+
+**`MAGIC` is a dword at `0xcde7d`, and that closes the `HFMA` puzzle.** The four bytes at `0xcde7a` read
+as `E F M A` on this character and `H F M A` on the earlier one. Only the first three are
+`RACE`/`PROFESSION`/`SEX`. The fourth is the low byte of `MAGIC`, which is 65, and 65 is `A`. A
+dword whose value happens to be an ASCII letter looked like a fourth character.
+
+**That also explains "`MAGIC` reads as 400".** It does, at the address the format string gives, because
+`0xcde81` is `HP` and the character was at full health. `MAGIC` is at `0xcde7d` and reads 65.
+
+**What this does not fix.** Adding the same model up to `PLAYER_X` gives `0xcdf67`, and the observed
+address is `0xcdf6b`, so **one 4-byte field still has to be added between `TOOLS` and `PLAYER_X`**.
+Every item count sits inside that span, so their addresses are known to within a single 4-byte shift and
+no closer.
+
 ## The deltas and what they mean
 
 `fieldmap.js` predicts addresses from the format string. Comparing:
