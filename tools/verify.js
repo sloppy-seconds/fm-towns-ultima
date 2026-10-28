@@ -229,6 +229,32 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 	else bad('ENCHANT EIP past header', '0x' + e.eip.toString(16));
 }
 
+// The `MP` header EIP is not an entry point, and the file shows why.
+//
+// A boot-to-game control-flow capture executes 23,987 distinct instructions in
+// segment 000C and never reaches the header's address. The bytes there explain
+// it: `0x101a20` is the second byte of a two-byte conditional branch.
+//
+//   0x101a1f: 7d 02   jge +2, target 0x101a23, so 0x101a20 is an immediate
+//
+// The runtime address is image - 0x200 (see docs/cfg-findings.md), so the field
+// points at 000C:101820, which was read live and matches these bytes. Asserted
+// statically because a different rip that shifted the text would move the
+// boundary and the claim would stop being true without anything failing.
+// Recorded in docs/entry-point-question.md.
+{
+	const e = disc.get(cat, 'ENCHANT.EXP');
+	const h = mpHeader('ENCHANT.EXP');
+	eq('ENCHANT header EIP value', h.eip, 0x101a20);
+	eq('ENCHANT header EIP is a jge immediate',
+		e.slice(0x101a1f, 0x101a21).toString('hex'), '7d02');
+	// The control: the byte before the pair must end an earlier instruction, so
+	// the pair cannot be asserted from the wrong offset and still pass.
+	if ('7d' !== e.slice(0x101a1e, 0x101a1f).toString('hex'))
+		ok('ENCHANT header EIP boundary is not one byte early', '0x101a1e is 0xd2');
+	else bad('ENCHANT header EIP boundary is not one byte early', '0x101a1e is 0x7d');
+}
+
 // Where the game code lives in memory, and how to read a captured address.
 //
 // `MD 000C:0` on a running game returns the ASCII text `KYB_init` followed by a

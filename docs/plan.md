@@ -71,6 +71,7 @@ from the items below rather than maintained separately.
 | 2a The high bits of a map cell | AUTONOMOUS | **yes**, but see the circularity |
 | 2b Tile picture per `MAP2_*` value | AUTONOMOUS | not yet, held back by 2a |
 | 3a One savestate during play | BLOCKED ON HUMAN | no, needs keypresses |
+| 3d The savestate's falling addresses | AUTONOMOUS | **yes**, the states exist |
 | 3b Which key is which command | AUTONOMOUS | **done**, the letter before the ) is the key |
 | 3c The `0xEB` font | BLOCKED ON INPUT | no, and should not be opened |
 | 4a The data tables | AUTONOMOUS | not yet, held back by 1a |
@@ -90,7 +91,7 @@ from the items below rather than maintained separately.
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 
 **Run `node tools/plancheck.js --todo` for the answer rather than reading this table.** At the time of
-writing it reports eleven of twenty-six startable now, with 2b and 4a held back by item order. That is
+writing it reports twelve of twenty-seven startable now, with 2b and 4a held back by item order. That is
 the honest answer to "what can an agent do tonight", and before the tool existed the answer had to be
 assembled by reading nine paragraphs and hoping the prose was current.
 
@@ -300,6 +301,27 @@ Not a menu. Start a character, walk a few steps, save state.
 - the **object record size**, 57 or 69, because `0x7a7d0` is all zeros in both menu states
 - the **world file contents**, because a played world is not blank and the current save has nobody who
   has entered the world
+
+
+
+### 3d. Where the savestate's falling addresses come from
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. States already exist under `saves/analysis/` and `tools/statefind.js` reads them, so nothing here waits on a human |
+| done when | either `stateAddress(o) = 0x4392d2 - o` is derived from the state container's own structure and shown to be a storage order, or it is shown to be something else. Whichever it is, `docs/mirrored-region.md` states it and `tools/stateread.py` applies the rule that holds |
+| blocked by | nothing |
+
+`docs/mirrored-region.md` measured that the top of the image is found at falling state-file addresses, and
+read that as a memory layout. A live read contradicts the memory half: while the game ran, image offset `o`
+read at `000C:(o - 0x200)` and matched `ENCHANT.EXP` at eight offsets from `0x200` to `0x10538E`, so the
+region is contiguous in memory. The state windows also appear shifted by a few bytes rather than mirrored,
+which points at the correspondence rather than the content. **The container's layout is unmeasured.**
+
+This matters beyond one page: `tools/stateread.py` picks a rule by address, and the rule it picked was
+established from the state file.
 
 
 

@@ -85,6 +85,65 @@ Any future work should treat the `MP` header `EIP` as **unverified** rather than
 The only entries this project can trust are the ones derived from `CALL` targets, because those
 are proven by the instruction that reaches them.
 
+## The runtime test, which settles it
+
+**Tried:** arm the emulator's edge recorder *before* the machine boots, so a load-time jump cannot
+be missed, then drive the whole way into the game. A capture taken afterwards answers nothing,
+because the recorder only holds what ran while it was armed.
+
+```
+python3 tools/cfgprobe.py capture --journey --out /data/analysis/entry-boot-tool.txt
+```
+
+That issues `RESET`, `CFGSTART`, runs `u2flow.py --journey` inside the container to take the Towns
+menu through Ultima II and load a character, then `CFGSTOP` and `SAVECFG`. Two captures were taken,
+the first by hand and the second with the tool.
+
+**Measured:** 54,013 and 52,423 distinct edges. In the second, segment `000C` contributes 28,294
+edges covering **23,987 distinct executed instructions**, at image offsets `0x209` to `0x10538E`
+after the `+0x200` mapping.
+
+**Image `0x101A20`, which is `000C:101820` under that mapping, is neither an executed instruction
+start nor a branch destination in either capture.**
+
+The instruction boundary is now observed instead of swept. These are the executed instructions
+around the header's address:
+
+| image offset | what ran there |
+|---|---|
+| `0x101A1B`, `0x101A1D` | executed |
+| `0x101A1F` | executed, and the bytes are `7D 02` |
+| `0x101A20` | **the `02` immediate of that `jge`, never an instruction start** |
+| `0x101A23` | executed, and it is the target of `7D 02` |
+
+So the field does not point at unused memory. The bytes there are live text, and they are the
+file's own bytes at that offset:
+
+```
+$ xxd -s 0x101a20 -l 8 ENCHANT.EXP
+00101a20: 0203 d103 55e0 6689
+
+$ MD 000C:101820
+000C:00101820 02 03 D1 03 55 E0 66 89|    U f
+```
+
+Both commands were run in the session that wrote this section, and the memory read matches the
+file exactly. The header's `EIP` points into loaded code, at a byte no instruction begins on.
+
+**Verdict: POSITIVE, and the question is closed.** The `MP` header `EIP` is not an entry point.
+The earlier argument was a static sweep that put a boundary at `0x101a1f`. This is the stronger
+form: the instruction spanning that byte was **executed** during the capture, and the header's
+address is inside it.
+
+**What this does not say.** Why the field holds `0x101a20` is still unknown. A loader may use it
+for something other than a jump, or it may be a value Origins' build left behind. Nothing here
+tests the loader, which is Towns OS code rather than the game.
+
+**Two limits, stated so they are not mistaken for completeness.** Capture starts about three
+seconds after `RESET`, so BIOS POST is outside the window, while the U2 load happens minutes later
+and is well inside it. And an edge map records only what executed, so "not reached" is a claim
+about these two sessions and not a proof about every future one.
+
 ---
 
 **[The A12 design](a12-design.md)** **[The randMod survey](randmod-survey.md)** **[Plan](plan.md)**

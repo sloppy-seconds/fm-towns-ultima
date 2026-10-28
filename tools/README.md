@@ -77,6 +77,7 @@ directory, so run them from the repo root.
 | `debug-session.sh` | Runs U2 under Tsugaru with the debugger, headless over SSH. |
 | `calltrace.py` | **A timeline of what the machine executed**, cheaply. Tsugaru keeps the last 65,536 `CS:EIP` values in memory and `SAVEHIST` dumps them; this reads that dump, separates game from TBIOS steps, and ranks the hottest addresses. `--save` captures a fresh one over the API, `--file` analyses an existing dump offline. **`--save` verifies the clock is advancing first**, because `SAVEHIST` on a paused machine writes 65,536 zero lines and looks like a success. See [the execution timeline](#the-execution-timeline) below. |
 | `container-run.sh` | Start/stop the podman container: Xvfb, VNC, noVNC, and the supervisor API. Playable from a browser. |
+| `cfgprobe.py` | **Answers whether an address ever executed**, by arming the emulator's edge recorder before the boot and querying the result. `capture` reboots, records, drives into the game and saves the graph. `query` reports, per image offset, whether it was an instruction start, whether it was a branch destination, and what ran either side of it. Stdlib only, runs on the host. See [whether an address ever executed](#whether-an-address-ever-executed) below. |
 | `u2flow.py` | Drives the game from the Towns OS menu to a loaded character, checking the screen before every keypress and stopping rather than guessing. `--status` reports the screen without changing it, `--dry-run` checks and sends nothing, `--journey` does the walk. **Run it inside the container** (`podman exec fmtowns python3 /opt/u2/u2flow.py --journey`): it drives `xdotool` against `DISPLAY=:99`, which does not exist on the host. Baked into the image for that reason. |
 | `u2read.py` | Turns a screenshot into text for the panels that do not need vision: status bar, stats, action log. Needs a seeded glyph table (`--teach <panel>`), so it reports `?` until taught. Needs Pillow. |
 | `u2screen.py` | Reads the screen over the supervisor API. Stdlib only, so it runs anywhere. |
@@ -512,6 +513,36 @@ exits 1.
 **What it does not give.** Not a call graph: a `call` and a far `ret` and an interrupt all look
 like the same segment change, so `--calls` reports **transitions** rather than calls and is named
 for what it measures. Per-turn attribution needs a dump either side of the action, taken paused.
+
+### Whether an address ever executed
+
+`tools/cfgprobe.py` answers one question: did the machine ever run the instruction at image offset X.
+
+```bash
+python3 tools/cfgprobe.py capture --journey --out /data/analysis/entry-boot.txt
+python3 tools/cfgprobe.py query saves/analysis/entry-boot.txt --image 0x101a20
+```
+
+`capture` issues `RESET`, `CFGSTART`, drives the Towns menu into the game with `u2flow.py --journey`,
+then `CFGSTOP` and `SAVECFG`. **Arming before the boot is the point**: a load-time jump cannot be
+missed by a recorder that started afterwards. It refuses to write a capture when the machine is
+paused, because a paused machine records nothing and an empty graph reads as a quiet one.
+
+`query` takes ENCHANT.EXP offsets and reports whether each was an instruction start, whether it was a
+branch destination, and the nearest executed instructions either side, which is what separates "not
+reached" from "not in the capture at all". Before answering it re-derives `preEIP + preLen == src` on
+the fall-through edges and prints the agreement rate. That is the check that the columns are read the
+way `Execute_SaveCFG` writes them, and every earlier reading of this format got it wrong.
+
+The image offset maps to `segment:(offset - 0x200)` for `000C`, because the game runs the file with its
+`MP` header stripped. `--offset` overrides it.
+
+`--out` is a path **inside the container**, so `/data/analysis/...` rather than a host path. `saves/` is
+mounted at `/data`.
+
+It closed the question of whether the `MP` header `EIP` is an entry point: 23,987 executed instructions
+in segment `000C` and not one of them at the address the header names, while the byte it points at is
+the immediate of a `jge` that did run. See [entry-point-question.md](../docs/entry-point-question.md).
 
 ### Console quirks worth knowing
 
