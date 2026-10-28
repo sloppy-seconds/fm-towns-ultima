@@ -100,7 +100,7 @@ from the items below rather than maintained separately.
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
 | 8d Run the new seed rules through the recompiler | AUTONOMOUS | **done**, and it corrected a number |
-| 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **yes**, a scan answers it |
+| 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **done**, seven binaries, one routine |
 | 8f The disc layer: `PREGAP` and a composed TBIOS | AUTONOMOUS | later, it is other titles only |
 | 8g Package the patches | AUTONOMOUS | last, once the set stops moving |
 
@@ -1310,18 +1310,32 @@ itself is a reasonable seed. `docs/recomp-plan.md` carries the correction where 
 
 ### 8e. Test the self-patching `int` against the other binaries
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | autonomous. A scan for the store pattern and for the `int86` name answers it |
+| autonomy | autonomous. A scan for the store pattern and for the `int86x` name answers it |
 | done when | it is measured whether `DARKNESS`, `EXODUS` and `TMENU` also write a vector into their own `int` instruction, the fix is recorded as a diff, and the answer is stated for each binary. The failure case: assuming this is U2-only and having another title trap vector zero |
 | blocked by | nothing |
 
-The routine the image names `int86` at guest `0x1023f6` does `mov al, [ebp+8]` then `mov [0x10241b], al` and then
-`int 0`, so the vector is a runtime argument written into code. A recompiled module compiles the `int` from disk
-and traps vector zero forever. The scan to run on the others is the store of a register byte into an immediate
-address followed by `CD 00`, plus the name string.
+**What is now known: it is not U2's, and it is not even one routine per game.** Every Phar Lap `MP` executable
+on the disc carries a byte-identical copy of the MetaWare `int86` routine, with only the address embedded in
+the store differing:
+
+| binary | store at | slot it writes |
+|---|---|---|
+| `ENCHANT.EXP` | `0x1025ff` | `0x10241b` |
+| `DARKNESS.EXP` | `0x0e8653` | `0x0e846f` |
+| `EXODUS.EXP` | `0x0d944f` | `0x0d926b` |
+| `BRITISH.EXP` | `0x054887` | `0x0546a3` |
+| `UT1DEMO`, `UT2DEMO`, `UT3DEMO` | `0x093827`, `0x0939c7`, `0x093b87` | `0x093643`, `0x0937e3`, `0x0939a3` |
+
+`TMENU.EXP` and the five other non-Origins executables have neither the name nor the store. The scan, the two
+byte sequences and the reason `FORMAT.EXP` is a false positive are in
+[self-modifying-int.md](self-modifying-int.md).
+
+So any port of `DARKNESS` or `EXODUS` needs the same runtime fix, and the fix is written down there rather than
+only living in the clone.
 
 ### 8f. The disc layer: `PREGAP` and a pre-composed TBIOS
 

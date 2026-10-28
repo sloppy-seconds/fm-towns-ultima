@@ -357,7 +357,9 @@ Q:\GRAPH\CHEST.TIF    then the fourteen sound effects, then \UT2\MAP.MP2
 
 **The patches, all in the vendored clone and all marked in place.** `towns_dos.cpp`: `case 0x04` in
 `int90` (KYB_lock), `AL=0x20` in `int93` (the CD probe, with the measured returns above), `case 0x43` in
-`int21`. `towns_cpu.cpp`: the self-patched `int` vector. They are edits to `references/`, which is not
+`int21`. `towns_cpu.cpp`: the self-patched `int` vector, which
+[self-modifying-int.md](self-modifying-int.md) shows is needed by every Origins game on this disc and not just
+this one. They are edits to `references/`, which is not
 committed, so this paragraph is the record of them.
 
 **The emulator trouble was mine, not the disc.** It stopped launching the game partway through this work:
