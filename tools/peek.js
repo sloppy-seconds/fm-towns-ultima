@@ -82,7 +82,17 @@ function parseMdBytes(line) {
 	return (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0;
 }
 
-// Read one dword, retrying past the FF the game briefly writes while updating the record.
+// Read one dword.
+//
+// THE MACHINE MUST BE PAUSED. The game rewrites the character record once per
+// frame, so an unpaused read can land mid-update. 0xFFFFFFFF is caught below, but
+// a partially written record can also read as ZERO, which looks plausible and is
+// not. This is how hp was once reported as 0 and read as a death when the
+// character was alive at 356, and it is exactly the failure live-fieldmap.md warns
+// about: pausing is essential, not a suggestion.
+//
+// Rather than guess from the value, main() pauses the machine around the whole
+// read and restores the previous run state afterwards.
 function readDword(addr, attempts = 5) {
 	let sawFf = false;
 	for (let i = 0; i < attempts; i++) {
@@ -106,6 +116,38 @@ function readDword(addr, attempts = 5) {
 	return { ok: false, reason: sawFf ? 'only FF seen' : 'unparseable' };
 }
 
+// Pause, run fn, then put the machine back the way it was.
+//
+// PAU and RUN both reply the same way whether or not they worked, so the only
+// honest check on whether the machine was running is the emulator's own clock.
+// Reading it twice and comparing is what tells success from a no-op.
+function paused(fn) {
+	const clock = () => {
+		try {
+			const out = apiCmd('STA').output || [];
+			for (const l of out) {
+				const m = /Nano-Seconds\):\s*(\d+)/.exec(l);
+				if (m) return m[1];
+			}
+		} catch { /* fall through */ }
+		return null;
+	};
+
+	const before1 = clock();
+	apiCmd('PAU');
+	const before2 = clock();
+	// If the clock did not move across the PAU, the machine was already paused and
+	// should be left that way. If it did move, it was running and RUN restores it.
+	const wasRunning = before1 !== null && before2 !== null && before1 !== before2;
+	try {
+		return fn();
+	} finally {
+		if (wasRunning) {
+			try { apiCmd('RUN'); } catch { /* nothing better to do */ }
+		}
+	}
+}
+
 function main() {
 	const args = process.argv.slice(2);
 	const kv = args.includes('--kv');
@@ -115,22 +157,26 @@ function main() {
 
 	const result = {};
 	let failed = 0;
-	for (const name of wanted) {
-		const addr = FIELDS[name];
-		if (addr === undefined) {
-			console.error('unknown field: ' + name);
-			failed++;
-			continue;
+	// All fields are read inside one pause, so they describe the same instant and
+	// none of them can land in the middle of the game's per-frame record rewrite.
+	paused(() => {
+		for (const name of wanted) {
+			const addr = FIELDS[name];
+			if (addr === undefined) {
+				console.error('unknown field: ' + name);
+				failed++;
+				continue;
+			}
+			const r = readDword(addr);
+			if (!r.ok) {
+				failed++;
+				console.error(`could not read ${name} at 0x${addr.toString(16)}: ${r.reason}`);
+				result[name] = null;
+			} else {
+				result[name] = r.value;
+			}
 		}
-		const r = readDword(addr);
-		if (!r.ok) {
-			failed++;
-			console.error(`could not read ${name} at 0x${addr.toString(16)}: ${r.reason}`);
-			result[name] = null;
-		} else {
-			result[name] = r.value;
-		}
-	}
+	});
 
 	if (json) {
 		console.log(JSON.stringify(result));
