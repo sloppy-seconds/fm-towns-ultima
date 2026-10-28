@@ -298,36 +298,41 @@ single-direction case was run.
 Measured 15 on a step and 15 on a kill, which suggested one constant. **It is not.** The food
 routine takes the amount as an argument, and it has exactly two callers, passing different values.
 
-### The starvation path, and a third cost
+### A conditional value on a text path, and a reading that was wrong
 
-The last two sections described two amounts, 15 and 10. There is a third, on the starvation path
-itself, and it is conditional on HP.
-
-The function at `0xf0a08` (file offset `0xf0c08`) is not the only caller. The function at `0xe9010`
-also spends food, and it chooses the amount from the character's HP:
+The function at `0xe9010` chooses a value from the character's HP and passes it, with a constant 10, to
+`0xe74d8`:
 
 ```
 0xe9027  cmp [edx+0xcde81], 0x32      ; HP against 50
-0xe902e  jge 0xe9034                  ; HP >= 50, skip the small cost
+0xe902e  jge 0xe9034                  ; HP >= 50, skip
 0xe9030  push 0x0b                     ; HP < 50  -> 11
 0xe9032  jmp 0xe9036
 0xe9034  push 0x0f                     ; HP >= 50 -> 15
 0xe9036  push 0x0a                     ; then 10, always
 0xe9038  call 0xe74d8
-0xe9042  call 0xe693c
 ```
 
 `0xcde81` is the HP field, the same address `tools/peek.js` reads as `hp`.
 
-**Confirmed against a live capture rather than inferred.** A fight capture at HP 338 reached
-`0xe9010`, `0xe9027` and `0xe902e`, took the edge `0xe902e -> 0xe9036`, and **never reached
-`0xe9030`**. HP 338 is above 50, so the `jge` was taken and the 15 branch ran, which is what the code
-says should happen.
+**The branch is real and was observed both ways.** At HP 338 a fight capture took the edge
+`0xe902e -> 0xe9036` and never reached `0xe9030`. At HP 37 a later capture took `0xe902e -> 0xe9032`,
+reached `0xe9030`, and never reached `0xe9034`. So the test and both paths are established.
 
-**What this does not establish.** The HP<50 branch was not exercised in that capture, so the 11 is
-read from the code and not observed. Whether 11 is a reduced cost for a weakened character, or
-something else keyed to the same test, is not settled by the arithmetic alone. The two calls that
-follow, at `0xe74d8` and `0xe693c`, are not identified.
+**What the value is was misread, and is corrected here.** An earlier version of this section called the
+11 and 15 food amounts, on the reasoning that this function sits near the food code. It does not.
+`0xe74d8` stores its first argument into `[edx+0x7af09]`, which is `0x25` past the text record table at
+`0x7aee4`, and then calls `0xe64bd`. It is a text path, and the 11 or 15 is a **payload written into a
+text record**, not a cost.
+
+The refutation was measurement rather than argument: at HP 37 the 11 branch ran and food still fell by
+**15**, not 11. Food fell 15 because the ordinary turn cost at `0xf0a08` was charged from `0xf0943`
+with `push 0x0f`, and this function never touches the food field at all.
+
+**So the docstring for the value is open.** What 11 and 15 mean as text payloads is not established.
+They are two small integers written to the same field depending on whether HP is below 50, and the
+plausible readings (a message variant, a colour, an index) are not distinguished by anything measured
+yet.
 
 ### The routine: `0xf0a08` in memory, `0xf0c08` in the file
 
