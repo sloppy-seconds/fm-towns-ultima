@@ -140,8 +140,8 @@ the stats page, so separating them needs separate runs, one action each.
 ## Experiment 5: a death
 
 **Action.** One hit at HP 6, then another at HP 1. The screen flashed red, then a skull with "thou art
-dead" and a prompt to press space. The character then reset to HP 400, food 40,000, gold 400,
-position (20,20), map 0.
+dead" and a prompt to press space. **The death screen was still up when the capture stopped, and has not
+been dismissed.**
 
 This is the largest capture taken, and it is the one the earlier pages said had never been recorded.
 
@@ -151,6 +151,47 @@ This is the largest capture taken, and it is the one the earlier pages said had 
 | game-segment instructions | 6,232 |
 | addresses never seen in any earlier capture | **3,373** |
 | new prologue-verified function entries, after the terminator test | **12** |
+
+### The character is not reset while the screen is up, and I first reported that it was
+
+A `tools/peek.js` read immediately after stopping returned `hp 400, food 40000, gold 400, position
+(20,20), map 0`, which looked like a fresh character and was written into an earlier version of this
+page as a reset. **That was wrong.** The death screen holds the display, and while it does, the
+character record reads as `FF` fill. Repeated paused `MD 14:cde81` reads with the screen still up return
+sixteen `FF` bytes, consistently.
+
+So the `400/40000/0` values were the same false positive as an earlier reading of `hp 0`, in the same
+session, for the same reason: a record mid-rewrite, read without checking what the screen was doing.
+`peek.js` now pauses before reading, which removes the mid-write race, but it cannot know that a
+full-screen overlay has cleared the record on purpose. **A full-screen game state is a third case,
+distinct from a torn read and from a paused one.**
+
+### What the death path does to the record
+
+`0xe9d2c` is a menu loop. It clears `[0xce71c]`, reads a value, and branches on `-1`, `0` and `1`. After
+the loop, and on one of those branches, it clears a byte in every party slot:
+
+```
+0xe9db4  sub esi,esi                  ; esi = 0
+0xe9db6  cmp esi, 4
+0xe9db9  jge ...                      ; done after four slots
+0xe9dbb  mov eax,esi
+0xe9dbd  lea eax,[eax+eax*2]          ; 3n
+0xe9dc0  lea edx,[eax+eax*8]          ; 27n
+0xe9dc3  shl edx,5                     ; 864n
+0xe9dc6  sub edx,eax                   ; 863n ... then the stride completes to 351n
+0xe9dc8  mov byte [edx+0xcde4d], 0    ; clear a byte field in the slot
+0xe9dcf  inc esi
+0xe9dd0  jmp 0xe9db6
+```
+
+`0xcde4d` is the byte immediately after the record base `0xcde4c`, and the field has **145 references**
+across the image, so it is a core per-slot flag rather than an obscure one. Clearing it for all four
+slots is consistent with marking the party dead without destroying the records, which is what the
+screen still being up implies.
+
+**What is not established:** the field is not named, and nothing here shows it is read as "dead" rather
+than as something else that happens to be cleared at the same moment.
 
 ### The terminator test earned its keep
 
@@ -162,37 +203,24 @@ overstated the result by more than double.
 The 12 real entries are all game code: `0xE23CC 0xE23EC 0xE2554 0xE5700 0xE6438 0xE6460 0xE6550
 0xE7958 0xE8B90 0xE9C44 0xE9D2C 0xF0A80`.
 
-### What is in the new code
-
 Eight of the new instructions reference the HP field `0xcde81` and three reference FOOD `0xcde8d`, so
-the death path does touch the character record directly rather than only through helpers.
+the death path touches the character record directly rather than only through helpers.
 
-The most suggestive entry is `0xe9d2c`, which clears a global and then calls with what look like
-message identifiers:
+### All twelve were already seeds
 
-```
-0xe9d2c  push ebp
-0xe9d2d  mov ebp,esp
-0xe9d2f  sub esp,0x60
-0xe9d32  push ebx / push esi / push edi
-0xe9d36  mov [0xce71c], 0        ; clear a global
-0xe9d40  push 0x24cc
-0xe9d45  call ...
-0xe9d4d  push 0x24f0
-```
-
-**This is not named.** Clearing `0xce71c` and pushing two constants is consistent with a state reset
-and a message selection, and that is as far as the bytes go. The text it produces is not in the
-`0xeb` table that `tools/ebdecode.py` decodes, and `"art dead"` appears in **none of the 140 files on
-the disc** in plain ASCII, so the death message is either encoded differently or assembled at run time.
-That is open.
+Checked: every one of the 12 is already in the 532-seed static set. So the death code was statically
+reachable, and this capture **confirms it runs** rather than discovering it. That is a smaller and
+different kind of value than new coverage, and it should not be counted as the latter.
 
 ### What the capture cannot say
 
-The capture proves these 3,373 addresses ran during a death. It does not separate the killing blow from
-the skull screen from the reset to a new character, because all three happened inside one window. The
-score screen, the input that dismisses it, and the creation of the replacement character are one path
-until a run is taken that stops between them.
+It cannot separate the killing blow from the skull screen from the menu loop, because all three fell
+inside one window. Splitting them needs a run that stops between them, and the death screen being still
+up makes that possible: a capture taken now, before any key is pressed, is the "screen up" state alone.
+
+The death text is not in the `0xeb` table that `tools/ebdecode.py` decodes, and `"art dead"` appears in
+**none of the 140 files on the disc** in plain ASCII, so the message is either encoded differently or
+assembled at run time. Open.
 
 ## What to run next
 
