@@ -112,27 +112,55 @@ The game **writes code into that region at runtime**. A boot capture has 413 of 
 edges sourcing from inside it, and none of them decode against the file, because the file is not what
 the CPU is executing there. The emulator is right and the file comparison was the broken thing.
 
-## What still does not reconcile, stated plainly
+## The address mapping: measured, and it is not a flat transform
 
-Outside the zero region, 19 of 122 game-segment edge sources agree with the file on instruction
-length and **103 do not**. So `CS 000C` with base `0x400000` does not map to `ENCHANT.EXP` at
-`offset = address` for most of the image.
+Attempted to settle the mapping between a captured `segment:offset` and a byte in `ENCHANT.EXP`, which
+is what stands between the graph and a usable result. It did not settle. The measurements narrow it.
 
-The `MP` header declares an entry point and the image is flat, so the obvious mapping is the one that
-fails. That is the open question, and it is now narrow: it is about how a linear address in the game
-segment relates to a file offset, not about whether the recorder records correctly.
+**The running image is not the file.** `STA` at 40 seconds reports `000C:0001C4EE` executing `POP ECX`,
+opcode `0x59`. `ENCHANT.EXP` at offset `0x1C4EE` is **sixteen zero bytes**. So the byte the CPU is
+executing is not the byte at that offset in the file. Every mapping tried has to explain that before
+it explains anything else.
 
-What is established regardless:
+Four mappings were tried and all fail:
+
+| mapping | result on the 535 game-segment edges |
+|---|---|
+| file offset equals segment offset | 91 agree, 444 differ |
+| linear address indexes the savestate | 169 agree, 344 differ |
+| a single flat shift, swept over `+-0x2000` and powers of two | best 131 of 535, 24.5 percent |
+| the three savestate rules already established for this project | none produce code at `0x1C4EE` |
+
+A flat shift is the wrong model. The best sweep reached only a quarter of the edges, which is close to
+what a wrong alignment scores by chance.
+
+**One region is accounted for.** `ENCHANT.EXP` is `0x10000` to `0x20000` of zeros, 65,536 bytes, and
+the savestate has `0x99` throughout that region at the same offsets. `0x99` is `cdq`, and the CPU
+executes a loop there at 93,431 iterations per edge. That is the loaded image having been written
+into uninitialised space, not padding and not a decoder fault. The earlier version of this page called
+those addresses unreal; that was correct about the file and wrong about the running machine.
+
+**What is established, and worth keeping.**
 
 | claim | evidence |
 |---|---|
-| The recorder captures a graph | 2,063 edges, 12 segments |
+| The recorder captures a graph | 2,063 edges over 12 segments |
 | Fall-through arithmetic holds | 405 of 415, `pre + len == src` |
-| Zero region is runtime-filled | 413 edges source from it, none decode against the file |
-| Length agreement outside it fails | 19 agree, 103 differ |
+| The recorder reports what the CPU held | same check, plus `STA` agreeing on the base |
+| The file is not the running image | `0x1C4EE` executes `POP ECX`, file is zeros |
+| `0x10000`-`0x20000` is runtime-filled | `0x99` in the state where the file is zero |
 
-The last row is the open one. Until it is settled, the graph's addresses should be read as
-`segment:offset` pairs known to the emulator, not as file offsets.
+**What this does not support.** A captured address cannot yet be turned into a file offset, so the
+graph cannot be joined to the static analysis. Any `J` edge should still be read as an emulator
+transition rather than as a branch, because the classification is only as good as the addresses it is
+computed from and those cannot be cross-checked against the image.
+
+**The narrow question left.** The 40-second `STA` proves the machine is in the game segment and
+executing an opcode the file does not contain at that offset. So either the loader relocates or
+patches the image, or `CS 000C` is not based at `0x400000` for the whole run. `LOADSTATE` uses a
+different segment layout from a boot (`CS 0110` at base `0x19F34` against `CS 000C` at `0x400000`),
+which is consistent with the base being set per launch rather than fixed. Reading the loader out of
+`TMENU.EXP`, which has symbols, is the cheaper route than more captures.
 
 ## Why this instead of reading `SAVEHIST`
 
