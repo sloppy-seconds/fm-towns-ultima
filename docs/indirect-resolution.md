@@ -3,92 +3,104 @@
 The question: do the CFG captures improve `fmtownskit`'s ability to decompile or recompile the game,
 as distinct from widening the static seed set.
 
-**Short answer: the mechanism works, the yield is 1 of 21 in the captures taken so far, and eight of
-the remaining twenty are resolvable in one command that has not been run.**
+**Short answer: no, and the attempt produced a better answer than a result.** The 21 unresolved
+indirect transfers are not game logic. They are MetaWare's C runtime, and chasing them was chasing the
+wrong 21 sites.
 
-## The interface already expects this
+## The interface already expects runtime resolution
 
-`references/vs-sr-dev/fmtownskit/recomp/discover.py` records indirect transfers and says what they
-are for, in its own words at the point the walker refuses to guess:
+`references/vs-sr-dev/fmtownskit/recomp/discover.py` records indirect transfers and says what they are
+for, in its own words at the point the walker refuses to guess:
 
 > Returning None is the correct answer: the transfer is indirect and unresolved, which is what
 > `indirect` means and what the runtime is for.
 
-So the runtime is the designed answer to these sites, not a workaround.
+So the mechanism is intended. The defect was in assuming the sites were interesting.
 
 ## The measured position
 
-Running `discover.load('ENCHANT.EXP')` with the current 532 seeds:
+`discover.load('ENCHANT.EXP')` with the current 532 seeds:
 
 ```
 698 functions, 547923 instructions, 1138645 bytes of code
 72 jump tables (68 bounded), 21 indirect transfers unresolved, 851 refused, 334300 conflicts
 ```
 
-The documentation said 24 unresolved. The current tool says **21**, so that figure has moved and the
-older count is stale rather than wrong-at-the-time.
+The documentation said 24 unresolved. The current tool says **21**, so that figure is stale.
 
-## How many the captures resolve
+## The finding that matters: the 21 are the C runtime
 
-Taking every edge from every capture and asking which indirect sites appear as their source:
+Every one of the 21 sites sits between image offset `0x102604` and `0x1051CA`, a contiguous block at
+the top of the image. The strings in that block name what it is:
+
+```
+_mwinit_buf      _mwaprintf       send_pad          pad_to_field_width
+each_format_directive   pre_fixup   convert_ival     convert_int_or_long
+convert_pointer  out_convert_dreal  _mwFINIT        _mwARG
+_mwdos_interface1  _mwzclose   each_item   each_free_item
+remove_from_free_chain   insert_into_free_chain   search_free_chain   HEAPCODE
+```
+
+`_mw` is MetaWare. The `ff 55 08` sites are `call [ebp+8]`, which in `printf` is the output-callback
+argument. The sites near `HEAPCODE` are the allocator walking its free chain.
+
+**So the sites are `printf`'s format-handler dispatch and `malloc`/`free`'s chain walking.** They are
+undocumented library internals, and resolving them would recover **no game behaviour at all**.
+
+## What the captures resolved anyway
 
 | | |
 |---|---|
 | indirect sites | 21 |
-| resolved by the captures | **1** |
+| resolved by every capture so far | **1** |
 
-The one: image `0x10005E` calls, at runtime, `0x0FFEC1`. The walker could not know that and the
-capture states it.
+The one: image `0x10005E` calls `0x0FFEC1` at run time, also in the runtime block.
 
-**One of twenty-one is not a result.** It is a demonstration that the mechanism is correct, taken on
-four short gameplay captures that between them reached 4,169 of the image's instructions.
+And the reason the other 20 never resolved is now just as clear: **zero of the 21 containing functions
+was ever reached by any capture.** They are library code that this game's normal play does not call,
+which is consistent with them being `printf` paths the game barely uses.
 
-## Why the others did not resolve
+## The `[0xdfc5c]` read, attempted and unsuccessful
 
-Two different reasons, and they need different fixes.
+`tools/pollptr.py` reads a DS-relative dword repeatedly without pausing, so a value written for a few
+frames is not missed. Watching `14:dfc5c` for 40 seconds during play gave **132 reads, 131 zero, one
+torn `FFFFFFFF`**. The pointer stayed null.
 
-### Eight are a call through a pointer that is zero in the file
+The code explains why. It is not a bare call:
 
-Eight sites are `ff 15 5c fc 0d 00`, which is `call [0xdfc5c]`. That global is **zero in
-`ENCHANT.EXP`** and is filled at run time. Confirmed by matching a unique 28-byte sequence from a live
-`MD` read back into the file: `file offset = DS offset + 0x200`, the same offset as everywhere else, and
-the file genuinely holds eight zero bytes followed by the ASCII string `00000000`.
+```
+0x104a64  test [0xdfc48], 1     ; a flag, adjacent to the pointer
+0x104a6b  jne  ...              ; the call is skipped when the flag is clear
+```
 
-Reading that dword from a running game answers all eight at once. It is one `MD` command. It has not
-been run yet, and it is the cheapest remaining win in this area.
+Both globals are zero in the file (offsets `0xdfe48`, `0xdfe5c`, the usual `+0x200`). Watching the flag
+for 20 seconds gave **66 reads, 64 zero**. The path is dormant in a play session rather than merely
+uncaught, and `0xdfc48` has **155 references** across the image, so it is a library-internal condition
+rather than a hook worth chasing.
 
-A `MD 14:dfc5c` returned zeros in the current state, which says the pointer is not yet set at that
-moment rather than that it is never set. The read needs to happen while the game is actually calling
-through it, which means during play rather than while idle.
+**Recorded so the next session does not repeat the forty seconds.**
 
-### The rest need coverage, not a trick
+A caution the poller itself produced: it reported `0xFFFFFFFF` twice as "CONFIRMED" because it counts
+repeated values, and `-1` is not a pointer. A repeated torn read passes that test.
 
-The other twelve are `call [ebp+8]`, `call [ebp+0c]`, `call [ebp+0x10]`, `call eax` and
-`call [0xdfc5c]` variants in code the captures never reached. Resolving those needs captures of the
-code paths that execute them, which is the same experiment-per-action work as before.
+## What this means for the recompiler, honestly
 
-## What this does and does not change for the recompiler
+**The indirect-transfer list is not a gap worth closing.** Its 21 entries are library internals. A
+reimplementation does not need MetaWare's `printf`; it calls its own.
 
-**Does:** a resolved indirect site turns an `x86_fault` stub in the emitted C into a real call. That is
-one function body recovered per site, and the fault text in the output names the site, so the gain is
-visible in the generated source.
+The real gaps are the ones this did not touch:
 
-**Does not:** move the 851 refusals or the 334,300 conflicts, which are decode and overlap problems
-rather than unknown targets. The recompilation page already records that even a clean run is not a
-playable port, and these are a separate gap.
+| gap | count | what closes it |
+|---|---|---|
+| refusals | 851 | decoder coverage, mostly 486+ instructions |
+| conflicts | 334,300 | overlap and seed quality |
+| no game loop, timer, input, file I/O | structural | reading and writing code, not resolution |
 
-**Does not:** matter for the seed count. The seeds are about which code gets swept. Indirect
-resolution is about which edges the sweep can follow. They are independent, and the seed work measured
-separately gained 0.7 percent coverage.
+## What was still worth building
 
-## What to do next, in order
-
-1. **Read `[0xdfc5c]` during play.** One `MD` while the game is running a turn, not idle. Eight sites
-   resolve together if it is non-zero.
-2. **Mine every capture for indirect-site edges as a standing step**, rather than by hand. The check
-   above is twenty lines and belongs in a tool, since every future capture should be asked the same
-   question.
-3. **Target captures at the twelve remaining sites** by finding what calls into the functions that
-   contain them, and exercising those paths.
+`tools/indirect-sites.py` asks every capture which sites it resolves. It answered "1 of 21", and then
+asked the next question by itself: why. That led to the string names, which led to the answer. The tool
+stays, because the same question will be asked of any other binary in this family and the answer may
+differ there.
 
 **[CFG findings](cfg-findings.md)** **[Recompilation](recompilation-clean.md)** **[Plan](plan.md)**
