@@ -97,7 +97,7 @@ from the items below rather than maintained separately.
 | 7e A port regression the checks can run | AUTONOMOUS | **yes**, no emulator needed |
 | 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, the reader works and the probe passes |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
-| 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **yes**, one line in `_read_mp` |
+| 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
 | 8d Run the new seed rules through the recompiler | AUTONOMOUS | **yes**, and this is where findings may fall out |
 | 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **yes**, a scan answers it |
@@ -1225,16 +1225,31 @@ TBIOS and refused its real code at `0xb91-0xe1c`, and the workaround was two rec
 
 ### 8b. The `MP` header's `EIP` is an address, not a file offset
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | autonomous. One expression in `_read_mp`, and the cross-check against the other two `MP` binaries is a scan |
-| done when | `_read_mp` sets `eip = dword@0x14 + 0x200`, `Exp.eip` for `ENCHANT.EXP` reads `0x101a20` as an address with image base `0x200`, and the shift in `port-build.sh` that exists only to compensate is deleted. Checked against `DARKNESS` and `EXODUS`, which share the container. The failure case: a file offset used as an address, which cost this project three commits and two retractions |
+| autonomy | autonomous. One reader in the kit, and the acceptance test is a walk the kit already reports |
+| done when | `_read_mp` reports the entry from the header and its image starts where the loader puts it, the walk from that single seed is clean, and the frames are stated. The failure case: an entry that lands on the right bytes while every immediate in the code points `0x200` past its target |
 | blocked by | nothing |
 
-Measured: the header's `EIP` field is `0x101a20` and the code for it is at file `0x101c20`, where `EB 56` is
-`jmp 000C:101A78`. The loader delivers it, observed at step 46,254 of a 65,536-step history dump.
+**What is now known.** The header's dword at `0x14` is an address, and the **image begins at file offset
+`0x200`**, because that is where the loader maps it. The header itself is `0x1E` bytes and the rest of the first
+`0x200` is zero, so no field states this and nothing had to be added to the entry.
+
+My first version of this item said `eip = dword@0x14 + 0x200`, which was the two frames confused again: it puts
+the walk on the right bytes and leaves every immediate `0x200` adrift. Measured, walking from the entry alone:
+
+| model | functions | instructions | refused | conflicts |
+|---|---|---|---|---|
+| image = whole file, no entry | refuses without a seed | | | |
+| image = whole file, entry `+0x200` | 359 | 498,320 | 518 | 284,785 |
+| **image at `0x200`, entry as read** | **622** | **38,486** | **0** | **0** |
+
+The item also claimed the `0x200` shift in `port-build.sh` would be deleted. **That clause was wrong and is
+withdrawn:** the shift exists because the port recompiles a *stripped copy* with `--raw` at base 0, which is
+independent of how `Exp` parses the original. Moving the port from `--raw` to `--exp` would delete it and is a
+separate change, not part of this item.
 
 ### 8c. `Disc::handle` with no disc opened
 

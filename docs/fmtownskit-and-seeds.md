@@ -92,18 +92,34 @@ The header's `CS` word is `0x0010` and the runtime selector is `000C`, so **the 
 dword and ignores `CS`**, which is what a 386 flat-model `MP` should do. The entry instruction is a
 two-byte jump. See [entry-point-question.md](entry-point-question.md).
 
-**Two conversions before that is a seed here.** The toolkit sets `image_offset = 0`, so it treats a
-file offset as an address. At runtime the relation is `address = file offset - 0x200`, measured from
-`MD 000C:0` returning `KYB_init`, which is at file `0x200`. So the seed to hand it is **`0x101C20`**,
-whose bytes are `EB 56`, and not `0x101A20`, whose bytes are `02 03` and are not an instruction
-boundary. A slip of exactly that 0x200 is what hid the entry.
+**Two conversions were being conflated, and there is only one.** The toolkit kept `image_offset = 0`, so it
+treated a file offset as an address, and then the runtime address had to be recovered by subtracting `0x200` by
+hand. At runtime the relation is `address = file offset - 0x200`, measured from `MD 000C:0` returning
+`KYB_init`, which is at file `0x200`. The mistake was treating that as a conversion for the caller to make,
+when it is a property of the container: **the image begins at file `0x200`, because that is where the loader
+maps it.** File length confirms the header either way, since `pages*512 - 512 + last_page` is 1,072,398.
 
-**The change in `_read_mp`**, given `image_offset = 0`:
+So `_read_mp` keeps no file offsets at all and converts nothing:
 
 ```python
-# was: self.eip = None
-self.eip = struct.unpack_from('<I', data, 0x14)[0] + 0x200   # runtime address = file - 0x200
+self.image_offset = 0x200
+self.image = data[0x200:]
+self.base_offset = 0
+self.eip = struct.unpack_from('<I', data, 0x14)[0]   # 0x101A20, an address already
 ```
+
+**Measured, and the difference is the point.** Walking from that one seed, with no seed list at all:
+
+| model | functions | instructions | refused | conflicts |
+|---|---|---|---|---|
+| image = whole file, no entry | n/a, refuses without a seed | | | |
+| image = whole file, entry `+0x200` | 359 | 498,320 | 518 | 284,785 |
+| **image at `0x200`, entry as read** | **622** | **38,486** | **0** | **0** |
+
+The middle row is why the `+0x200` formula that this page used to recommend was wrong: it puts the walk's
+starting bytes in the right place and leaves every immediate in the code pointing `0x200` past its target,
+which is what 284,785 conflicts look like. With the image at `0x200`, one seed from the header gives a clean
+walk of 622 functions.
 
 One seed is not a seed list, so the open question about whether this project's inferred seeds are
 sufficient is untouched. What changes is that the walk now has one anchor that the loader itself
