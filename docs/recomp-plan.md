@@ -615,6 +615,46 @@ So the four are not four bugs, and they are not capture artefacts either. They a
 three walls: **start-up state the machine has and the port does not**. The next question is which routine fills
 DS `0x0CE0` and DS `0x0E1C`, and which call it makes that the port answers differently. The table's shape, 99
 records of three bytes with a flag bit, is the thing to identify first, because naming it says what fills it.
+
+**The filler was caught on the machine.** Nothing in the module writes either global, and that is because the
+address is computed: `MOV [EAX+EDX+0x150], CL` with `EAX = 0xB90`. `BRKON MEMW` on the physical address behind
+DS `0x0CE0` gave the report from the emulator's own console log, which is the tool that finally worked:
+
+```
+Memory Write BYTE PTR PHYS:[00076CE0] (80)
+000C:000E05B5  MOV [EAX+EDX+0x150],CL
+```
+
+So the table is built by the **game's own code**, at `0x0E0556` onwards, copying three bytes per record from
+DS `0xB90 + 0x14` upward. The loop is legible:
+
+```
+0x0e059c  mov esi, 6
+0x0e05a1  cmp edi, 0x63               99 records
+0x0e05ab  lea edx, [edi+edi*2]        3 * index
+0x0e05b1  mov cl, [eax+ecx+0x14]      read from DS 0xB90
+0x0e05b5  mov [eax+edx+0x150], cl     write to DS 0xCE0
+```
+
+**And the source is where it stops being ordinary.** At the same instruction the machine has `0x80` in `ECX` and
+the port has `0x00`, so the port writes zeros. DS `0xB90` holds code on the machine,
+`73 80 3E 1F 28 01 74 12`, and `7F 00 00 00` followed by zeros in both the file and the port. That pattern is
+in neither `ENCHANT.EXP` nor `TBIOS.BIN`, so it is not a copy of anything we can see: it is a *different
+address space*, which means the machine's `DS` at that instruction is not the program's segment.
+
+**The lead, and it is a good one.** Immediately before the loop the routine calls `0x102492`, which the image
+names `intdosx` in the string right after it, with `AX=0x250F` and `EBX=0xBA4`. `250Fh` is Phar Lap's "make a
+protected-mode address real", which returns a `seg:off` pair, and this program then reads through it. The kit
+implements that call by mapping the linear address back into the program's real-mode image
+(`lin - prog_base + prog_phys`), and if what it returns differs from what the machine returns, the program reads
+a different physical area and gets zeros instead of the block it wanted.
+
+**Where this stopped, and why.** The one datum that settles it is the machine's `DS` base at `0x0E05B5`. Two
+attempts to break there both hit the emulator wedge, `splash never animated`, and the console log does not retain
+the segment bases for that break because `STA` was not run at it. That is two defeats on one address, which is
+the stop condition this session set itself, so the next session starts here: break at `000C:0E05B5` on a fresh
+container, run `STA`, read the `DS` base, and compare with the `seg:off` the port's `250F` returns for the same
+arguments.
 sequences, one aligned comparison, and the first difference is the bug.
 
 **Done, and it found a missing floppy drive.**

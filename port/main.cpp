@@ -70,6 +70,12 @@ void x86_trace(X86Cpu& c, uint32_t at) {
 		}
 		std::printf("regs      eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x esp %08x\n",
 		            c.r[0], c.r[3], c.r[1], c.r[2], c.r[6], c.r[7], c.r[5], c.r[4]);
+		// The segment registers and their bases, because a difference in a descriptor's base looks exactly like a
+		// difference in the data and the general registers cannot tell the two apart.
+		std::printf("segs      cs %04x/%08x ds %04x/%08x es %04x/%08x ss %04x/%08x fs %04x/%08x gs %04x/%08x\n",
+		            (unsigned)c.sreg[1], (unsigned)c.sbase[1], (unsigned)c.sreg[3], (unsigned)c.sbase[3],
+		            (unsigned)c.sreg[0], (unsigned)c.sbase[0], (unsigned)c.sreg[2], (unsigned)c.sbase[2],
+		            (unsigned)c.sreg[4], (unsigned)c.sbase[4], (unsigned)c.sreg[5], (unsigned)c.sbase[5]);
 		if (g_trace_file) std::fclose(g_trace_file);
 		std::exit(0);
 	}
