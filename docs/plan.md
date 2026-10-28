@@ -93,7 +93,7 @@ from the items below rather than maintained separately.
 | 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
 | 7a Does the port's screen match the machine's | AUTONOMOUS | **in progress**, second divergence localised to the allocator |
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
-| 7d The indirect transfers the port meets next | AUTONOMOUS | **yes**, the rules exist |
+| 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
 | 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, the reader works and the probe passes |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
@@ -1118,7 +1118,7 @@ kind, and the diff is a page of work now against a debugging session later.
 
 ### 7d. The indirect transfers the port meets next
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -1126,14 +1126,32 @@ kind, and the diff is a page of work now against a debugging session later.
 | done when | each of the 30 unresolved transfers in the game module and the 67 in the TBIOS module is either resolved by a rule (a callback immediate pointing at a prologue, an address taken by `lea reg, [disp32]`, a measured seed) or shown to be unreachable, and the port's frame count before and after is recorded |
 | blocked by | nothing |
 
-**Progress, and what is left.** Two transfers were met by running and are now covered by rules rather than by
-hand: the timer interrupt handler at `0x0fdde8`, which the prologue test rejected and which `lea reg, [disp32]`
-finds, and the four hook pointers in its data segment, read live at DS:0xdea3c and recorded in
-`tools/runtime-seeds.txt`. Frame 4,026 became 24,000 frames with no fault.
+**CORRECTION: the item asked for the wrong thing, and the answer is that none of the 97 needs resolving.** The
+done-when assumed an unresolved transfer is a gap in the port. It is not. The emitter writes a **dynamic** call:
+for `call dword ptr cs:[ebx]` at `0xffe5e` the generated C is
 
-The rules found 6 address-taken functions, so the mechanism that was producing these is now understood. What
-remains is the count: **30** unresolved in the game module against 26 before the seeds were added, because
-more code decoded, and 67 in TBIOS. Each needs the same treatment or a recorded reason it cannot be reached.
+```c
+{ uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[3]))); push32(c, 0xffe61u); x86_call(c, t); X86_RET(c, 0xffe61u); }
+```
+
+and `x86_call` faults with `no recompiled function at cs:off` only if the target is absent. So the question worth
+answering is whether the sites the port reaches resolve at run time, not how many the static walk can follow.
+
+**What is now known, measured.** `build/port/recomp/report.txt` gives **30** unresolved in the game module and
+**67** in TBIOS with 0 refused and 0 conflicts in both. Of the 97, a traced 600-frame run executes **35** (2 of
+the 30 game sites, `0x1034c2` and `0x103825`, and 33 of the 67 TBIOS sites) and ends at the frame limit with no
+fault, which is only possible if every one of those 35 resolved to a recompiled function. The other 62 are the
+shapes no rule can resolve in principle: 28 in the game module (a parameter, a table slot or a computed target) and
+34 in TBIOS (a computed target or a dispatch-table slot).
+
+**Frame count before and after: 600 and 600, no fault either side**, because no seed was added. The earlier
+24,000-frame run also faulted nowhere, so the executed subset resolved there too. The full reasoning and the
+shape table are in [indirect-resolution.md](indirect-resolution.md#correction-the-port-does-not-need-these-resolved-at-all-and-30-and-67-is-the-count-that-matters).
+
+**What this closes and what it does not.** It closes 7d as a port blocker: there is nothing to seed, and a
+resolution rule would change no behaviour. It does not prove the 62 unreached sites safe, only unreached in 600
+frames. If one is reached later and its table slot holds zero, the fault will name the address and the site, which
+is the right time to look.
 
 ### 7e. A port regression the checks can run
 

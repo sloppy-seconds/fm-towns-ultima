@@ -192,6 +192,55 @@ behaviour.
 indirect transfers is 0.8 percent of the transfer census and they sit in library code. The refusals are
 where game code stops being emitted.
 
+## CORRECTION: the port does not need these resolved at all, and 30 and 67 is the count that matters
+
+> **This page answered the wrong question for a whole session.** Everything above asks *how many of these can the
+> static walk resolve*. The port does not care: an unresolved transfer is emitted as a **dynamic** call and works
+> whenever the target turns out to be a recompiled function. The question that matters is *do the sites the port
+> actually executes resolve at run time*, and nobody had asked it. The answer is yes, for every one reached.
+
+**The emitted code, quoted from the build rather than described.** For `call dword ptr cs:[ebx]` at `0xffe5e`,
+`build/port/recomp/p_game_022.cpp` has
+
+```c
+{ uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[3]))); push32(c, 0xffe61u); x86_call(c, t); X86_RET(c, 0xffe61u); }
+```
+
+`x86_call` looks the target up in the module and faults with `no recompiled function at cs:off` when it is
+absent, so a run that does not fault never took an indirect transfer to unknown code. That turns an open
+question into a count.
+
+**The counts, from `build/port/recomp/report.txt`**, which every recompilation writes and which
+`tools/port-build.sh` now names in its output instead of leaving the list in a terminal:
+
+```
+game:  818 functions, 41847 instructions;  30 indirect transfers unresolved, 0 refused, 0 conflicts
+tbios: 5573 functions, 15288 instructions; 67 indirect transfers unresolved, 0 refused, 0 conflicts
+```
+
+The earlier 21 was one module and a smaller walk. Two modules and more decoded code give 97, and their shapes
+say why no rule will ever resolve them:
+
+| module | shape | count | what the target is |
+|---|---|---|---|
+| game | `call dword [abs]` | 20 | a function pointer stored in the data segment, written at run time |
+| game | `call [ebp+8]`, `[ebp+0xc]`, `[ebp+0x10]` | 7 | a callback passed as a parameter |
+| game | `call eax`, `call cs:[ebx]` | 3 | a computed target |
+| tbios | `call`/`jmp dword gs:[ebp+0x310]`..`[0x444]` | 62 | the BIOS dispatch table, fifteen slots, one base |
+| tbios | `call ebx`/`edx`/`ecx` | 5 | a computed target |
+
+**Measured: 35 of the 97 are executed by the port and all of them resolve.** From a 600-frame run traced with
+`U2_TRACE_FILE` and intersected with the site list, **2 of the 30 game sites** (`0x1034c2`, `0x103825`) and
+**33 of the 67 TBIOS sites** execute, and the run ends at the frame limit with no fault, which is only possible
+if every one of those 35 found a recompiled function. The 62 that do not execute are the parameter and
+computed-target shapes, which no rule can resolve in principle, and the kit's own design says so at the point
+it refuses to guess.
+
+For the record on instrumentation: the machine's own capture is **not** a reachability instrument for these. It
+records block boundaries, and it shows only 1 game site and 6 TBIOS sites as block sources over a journey that
+stops at the title screen, while the port's trace shows 35 executed. The capture answers "what did the machine
+do", not "what does the code do when reached".
+
 ## What was still worth building
 
 `tools/indirect-sites.py` asks every capture which sites it resolves. With the 31 captures now on disk

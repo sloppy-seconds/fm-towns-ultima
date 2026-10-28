@@ -140,6 +140,10 @@ PY
 	(cd "$ROOT/references/vs-sr-dev" && python3 -m fmtownskit.recomp --out "$RECOMP" \
 		--raw "game=$STRIPPED@0xc+$SEED_LIST,0x101a20" $GAME_NO_CODE \
 		--raw "$TB_SPEC" $TB_NO_CODE) | tail -2
+	#    Every module's full report, including each unresolved indirect transfer with its operands, and each
+	#    refusal. It is written by the recompiler on every run and it is what item 7d works from, so it is worth
+	#    naming here: the list is re-derivable rather than quoted from a terminal.
+	echo "report    $RECOMP/report.txt (per module, with every unresolved indirect transfer)"
 	# The recompiler writes modules.cpp from the modules it was given, so both are registered without a
 	# hand-written one. Read the file back rather than trusting it: a missing second module is the failure
 	# that matters, and it would show up much later as a fault in the wrong place.
