@@ -241,6 +241,46 @@ previously blocking the naming of every routine that referenced them. `tools/fns
 reports those references as `(0xEB run, N markers)`; with this transform they become text, and
 the routines holding most of them become nameable.
 
+### The first routine this named: the town dialogue dispatcher
+
+A differential capture of talking to a guard in a town (the `T` key, then a direction) showed the
+encoded string "Pay your taxes!" being referenced at `0xf1fbc`, and that address was reached during the
+talk. The string decodes with `tools/ebdecode.py` from image `0x622c`, which is segment `0x602c`.
+
+The code around it is a **message dispatch**: each case pushes a string address and jumps to a common
+display path at `0xf2063`.
+
+```
+0xf1fa9  push 0x6004     ; "A guard says:"
+0xf1fbc  push 0x602c     ; "Pay your taxes!"
+0xf1fc6  push 0x6058     ; "A jester sings:"
+0xf1fc6 ...  jmp 0xf2063
+```
+
+Scanning `0xf1d00` to `0xf2100` for `push imm32` with an address in the string region finds **25 sites**,
+and every one decodes. They are the whole town NPC dialogue set:
+
+| speaker | line |
+|---|---|
+| A guard says: | Pay your taxes! |
+| A jester sings: | HO HO HO! |
+| A merchant says: | Will you buy my apples? |
+| A fighter says: | Ugh, me tough! |
+| A cleric says: | Believe! |
+| A wizard says: | Hee-e-poo-hex-on-you |
+| A thief says: | Psst, wanna buy a watch? |
+
+The remainder are non-dialogue replies on the same path: `Denied!`, `Not enough money!`, `Welcome my
+child`, `First my GP tribute!`, `Thou are greater`, `Eat death Scum!`, and three spellings of
+`Funny, no response!`.
+
+**So this is confirmation that the transform works on real code, not just on strings fetched by
+search.** The routine was found by capture, named by decoding, and the naming then exposed the whole
+table rather than one entry. That is the use the section above predicted, arriving.
+
+**What is not established:** which of the 25 sites a given NPC type takes, and whether the branching
+is on NPC class, on a random roll, or on something else. The capture of one guard showed one path.
+
 ## The superseded readings
 
 Kept because the history of being wrong is the useful part, and because each removal records
