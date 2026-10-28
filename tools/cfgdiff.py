@@ -17,12 +17,16 @@ docs/cfg-dump.md. An address only in the "after" set is a candidate for the
 action's path. It is a candidate and not a conclusion: the game also runs timers,
 and an idle window is not perfectly quiet.
 
-THE NOISE FLOOR, MEASURED. Two idle captures four seconds apart, no input at all,
-gave 3 newly reached instructions and 2 dropped. So the idle machine ticks timers
-and a differential is never exactly zero. An action that adds fewer than about ten
-instructions is indistinguishable from doing nothing, and should be reported as
-such rather than interpreted. Re-measure this if the window length changes,
-because a longer window catches more timer activity.
+THE NOISE FLOOR, MEASURED, AND IT IS NOT A SINGLE NUMBER. Idle-versus-idle
+differentials over four second windows with no input gave 2, 3 and 17 newly
+reached instructions on the same machine in the same session, depending on what
+the idle loop was doing. So there is no fixed threshold, and any action smaller
+than about twenty instructions has to be treated as inconclusive.
+
+This matters more than it looks. The first estimate of 3 came from a quiet moment
+and would have licensed reading a diff of 7 as a real result. It was not: it was
+timers. Measure the floor on the machine you are about to test, and if a diff
+comes out near it, say so instead of interpreting it.
 
 A PAUSED MACHINE RECORDS NOTHING. CFGSTART and CFGSTOP around a paused emulator
 give 0 edges, because the hook runs per instruction and no instruction runs. This
@@ -31,12 +35,19 @@ that is not executing, so `RUN` first if the game was paused.
 
 USAGE
 
-    python3 tools/cfgdiff.py baseline
+    python3 tools/cfgdiff.py start <tag>   start capturing, return immediately
     ... do the thing in the game ...
-    python3 tools/cfgdiff.py after
+    python3 tools/cfgdiff.py stop  <tag>   stop, save, and diff against baseline
 
-Both runs write into saves/analysis/ and the second prints the difference.
-Requires the container to be running with the patched emulator.
+    python3 tools/cfgdiff.py baseline      convenience: start, wait CFG_WINDOW, stop
+    python3 tools/cfgdiff.py after         convenience: start, wait CFG_WINDOW, stop, diff
+
+WHY START AND STOP ARE SEPARATE. The first attempt at this took a fixed four
+second window AFTER the action and caught 7 instructions, because the action was
+already over. The game state proved the action had happened (food 39895 to 39880,
+map 6 to 7, position unchanged) while almost none of its code was in the window.
+A capture has to be armed before the thing happens, which for a human action means
+the two calls cannot be one blocking call.
 
 Set CFG_BASE to change the API address. u2flow.py hardcodes :8080; this does not,
 because PORT_API is overridable in container-run.sh and a hardcoded port silently
@@ -101,14 +112,43 @@ def capture(tag):
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("baseline", "after"):
-        print(__doc__)
-        return 2
-    tag = sys.argv[1]
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    tag = sys.argv[2] if len(sys.argv) > 2 else ""
     os.makedirs(OUTDIR, exist_ok=True)
 
-    print("capturing '%s' for %.1f s" % (tag, WINDOW))
-    path = capture(tag)
+    # Explicit arm/fire pair, for an action taken by a human while the capture
+    # runs. Without this the action is over before CFGSTART is sent.
+    if "start" == mode:
+        if not tag:
+            print("start needs a tag")
+            return 2
+        for l in cmd("CFGSTART"):
+            print("  " + l)
+        print("armed '%s'. Do the thing, then: %s stop %s" % (tag, sys.argv[0], tag))
+        return 0
+
+    if "stop" == mode:
+        if not tag:
+            print("stop needs a tag")
+            return 2
+        for l in cmd("CFGSTOP"):
+            print("  " + l)
+        remote = "/data/analysis/cfgdiff-%s.txt" % tag
+        for l in cmd("SAVECFG " + remote):
+            print("  " + l)
+        path = os.path.join(OUTDIR, "cfgdiff-%s.txt" % tag)
+        return report(path, tag)
+
+    if mode not in ("baseline", "after"):
+        print(__doc__)
+        return 2
+
+    print("capturing '%s' for %.1f s" % (tag if tag else mode, WINDOW))
+    path = capture(tag if tag else mode)
+    return report(path, tag if tag else mode)
+
+
+def report(path, tag):
     if not os.path.exists(path):
         print("no file at %s. Is the container running the patched emulator?" % path)
         return 1
@@ -119,31 +159,35 @@ def main():
     print("  edges %d, game-segment %d, distinct instructions %d"
           % (len(r), len(game), len(addrs)))
 
-    if "after" == tag:
-        base_path = os.path.join(OUTDIR, "cfgdiff-baseline.txt")
-        if not os.path.exists(base_path):
-            print("no baseline to compare against. Run: %s baseline" % sys.argv[0])
-            return 0
-        before = {x["pre"] for x in rows(base_path) if "000C" == x["seg"]}
-        new = sorted(addrs - before)
-        gone = sorted(before - addrs)
-        print()
-        print("newly reached instructions: %d" % len(new))
-        print("no longer reached         : %d" % len(gone))
-        if new:
-            # Show them as runs, because an action enters a routine and walks it,
-            # so contiguous runs are far more informative than a flat list.
-            runs = []
-            start = prev = new[0]
-            for a in new[1:]:
-                if a - prev <= 16:
-                    prev = a
-                else:
-                    runs.append((start, prev)); start = prev = a
-            runs.append((start, prev))
-            print("  as %d range(s):" % len(runs))
-            for a, b in runs[:25]:
-                print("    0x%05X .. 0x%05X  (%d)" % (a, b, sum(1 for x in new if a <= x <= b)))
+    base_path = os.path.join(OUTDIR, "cfgdiff-baseline.txt")
+    if "baseline" == tag or not os.path.exists(base_path):
+        if "baseline" != tag:
+            print("no baseline to compare against. Take one first.")
+        return 0
+
+    before = {x["pre"] for x in rows(base_path) if "000C" == x["seg"]}
+    new = sorted(addrs - before)
+    gone = sorted(before - addrs)
+    print()
+    print("newly reached instructions: %d" % len(new))
+    print("no longer reached         : %d" % len(gone))
+    if len(new) < 20:
+        print("  (at or near the noise floor, measured at 2 to 17 on this machine;")
+        print("   treat as inconclusive rather than as a result)")
+    if new:
+        # Show them as runs, because an action enters a routine and walks it,
+        # so contiguous runs are far more informative than a flat list.
+        runs = []
+        start = prev = new[0]
+        for a in new[1:]:
+            if a - prev <= 16:
+                prev = a
+            else:
+                runs.append((start, prev)); start = prev = a
+        runs.append((start, prev))
+        print("  as %d range(s):" % len(runs))
+        for a, b in runs[:25]:
+            print("    0x%05X .. 0x%05X  (%d)" % (a, b, sum(1 for x in new if a <= x <= b)))
     return 0
 
 
