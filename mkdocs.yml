@@ -90,6 +90,7 @@ nav:
       - The game loop: game-loop.md
       - Inside a turn: inside-a-turn.md
       - Transport, one field and five values: transport-field.md
+      - The moongate, one switch and four destinations: moongate.md
       - The tick: the-tick.md
       - The map draw chain: map-draw-chain.md
       - Savestate session: savestate-session.md
