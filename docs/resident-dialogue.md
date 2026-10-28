@@ -61,6 +61,40 @@ true together.
 switch, but the switch variable has not been read. The map-position-to-case link that the John/Gerry
 adjacency suggested is still only an observation.
 
+### The class speakers are one dispatch, two strings each
+
+Confirmed from play a second time: talking to a thief gave `Psst,wanna buy a watch?`. That string is at
+image `0x646c`, and the instruction pushing it is `0xf205e`, which is the **same dispatcher** as the
+guard's `0xf1fbc`.
+
+So the seven class speakers are one dispatch with seven branches, and each branch is a **pair of
+strings**: a label, then the line.
+
+| branch | label | line |
+|---|---|---|
+| `0xf1fa9` | `A guard says:` | `Pay your taxes!` |
+| `0xf1fc6` | `A jester sings:` | `HO HO HO!` |
+| `0xf1fe3` | `A merchant says:` | `Will you buy my apples?` |
+| `0xf1ffd` | `A fighter says:` | `Ugh,me tough!` |
+| `0xf2017` | `A cleric says:` | `Believe!` |
+| `0xf2031` | `A wizard says:` | `Hee-e-poo-hex-on-you` |
+| `0xf204b` | `A thief says:` | `Psst,wanna buy a watch?` |
+
+plus `0xf2076`, `Good day!`, which has no label.
+
+Every branch uses the same two-call idiom: `push <string>` then `push 7` then `call 0xe5654` to draw
+the text, then `push 7` then `call 0xe6c68`. **That pair is the display idiom** and it is how a string
+push can be recognised as rendering rather than as data.
+
+**Two conversations, two branches, and the selection between them is still unread.** The guard capture
+reached `0xf1fa9` and `0xf1fbc` and neither the thief's branch nor `Good day!`. No capture of the thief
+has been taken. So the branches are enumerated and each is traced to its text, but **what chooses a
+branch has not been read**, and that is the same gap as the resident switch above.
+
+It is worth stating plainly because both gaps are the same question in two forms: an NPC is on the map,
+a class value or an index is computed from it, and that selects a branch. Neither the class value nor
+the index computation has been observed.
+
 ## The format
 
 Each string is **name, verb, quoted speech**, with newlines inside it:
