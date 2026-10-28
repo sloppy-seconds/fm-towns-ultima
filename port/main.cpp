@@ -597,6 +597,24 @@ int main(int argc, char** argv) {
 			std::printf("\n");
 		}
 	}
+	// U2_VRAM_HASH=1 prints what can be compared with the machine byte for byte: how many bytes are non-zero, one
+	// FNV-1a over the whole 512 KB, and the same over each 16 KB block so a difference can be named by region rather
+	// than just declared. This exists because a rendered frame cannot be compared: the kit renders 704x525 of the
+	// CRTC's layers and the supervisor's capture is a 640x480 window with its title bar in it, so the two pictures are
+	// different objects. VRAM is the same 512 KB on both sides and has no window furniture in it.
+	if (std::getenv("U2_VRAM_HASH")) {
+		auto fnv = [](const uint8_t* p, size_t n, uint32_t h) {
+			for (size_t i = 0; i < n; ++i) h = (h ^ p[i]) * 16777619u;
+			return h;
+		};
+		uint32_t whole = fnv(m.vram.data(), m.vram.size(), 2166136261u);
+		std::printf("vramhash  %08x  %zu bytes\n", whole, m.vram.size());
+		const size_t block = 0x4000;
+		std::printf("vramblock ");
+		for (size_t off = 0; off + block <= m.vram.size(); off += block)
+			std::printf(" %08x", fnv(m.vram.data() + off, block, 2166136261u));
+		std::printf("\n");
+	}
 	// U2_SCREEN=1 prints the frame as a luminance ramp, character for character the way container/screen.js's
 	// toAscii does it, so the port and the supervisor's `GET /api/screen?mode=ascii` produce the same grid and the
 	// two screens can be compared by diff rather than by looking. Same cells (width/100, twice as tall), same ramp,

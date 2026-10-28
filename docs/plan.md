@@ -91,7 +91,7 @@ from the items below rather than maintained separately.
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
 | 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
-| 7a Does the port's screen match the machine's | AUTONOMOUS | **open**, instrument built on both sides, no same-moment pair yet |
+| 7a Does the port's screen match the machine's | AUTONOMOUS | **open**, VRAM hashes on both sides and the metric validated, no same-screen pair yet |
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
@@ -99,7 +99,7 @@ from the items below rather than maintained separately.
 | 7g Watch the port from another machine | AUTONOMOUS | **done**, a generic X container, the title draws in a browser |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
-| 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
+| 8c `Disc::handle` with no disc opened | AUTONOMOUS | **done**, the null was `Disc::data_`, not `handle` |
 | 8d Run the new seed rules through the recompiler | AUTONOMOUS | **done**, and it corrected a number |
 | 8e Test the self-patching `int` on the other binaries | AUTONOMOUS | **done**, seven binaries, one routine |
 | 8f The disc layer: `PREGAP` and a composed TBIOS | AUTONOMOUS | **done**, the refusal names why, and `boot_towns` takes a shipped image |
@@ -1184,6 +1184,39 @@ produce a comparable pair**, not as a match or a difference.
 drawn (`PAU`, then read the grid), and step the port to the same screen, which is the point after its loading bar
 finishes rather than a fixed frame count. Two stills of the same screen, then the ramp diff is meaningful, and
 the region-by-region difference becomes statable.
+
+### The rendered-frame route is blocked, and VRAM is the route that works
+
+A rendered frame **cannot** be the comparison. The kit's `render()` gives 704x525 of the CRTC's layer windows, and
+the supervisor's capture is a 640x480 window **with its title bar in it**, which the vision model read back as
+`FM Towns Emulator - TSUGARU`. Those are different objects at different scales, so the earlier 51 percent was two
+incompatible measurements, not two different screens.
+
+VRAM has none of that: it is the same 512 KB on both sides, it is what the program actually writes, and it has no
+window furniture. `U2_VRAM_HASH=1` prints, for the port, the non-zero count, an FNV-1a over all 524,288 bytes, and
+the same over each of 32 sixteen-kilobyte blocks, so a difference can be named by region instead of declared. On
+the machine the same 512 KB is read through segment `0120` (`ADTR 120:0` reports `LINE:80000000H`): `MD 120:<off>`
+returns 256 bytes per line, and the whole array takes **64 commands of 8 KB, 17 seconds**, hashed the same way.
+
+**The metric is validated, by a control.** Reading the machine's VRAM twice with one `Down` keypress between them:
+**19 of 32 blocks identical**, 13 changed. So the metric moves when the screen moves, and a match would mean
+something.
+
+**The pair was not obtained, and the reason is now precise.** Port at 1200 frames with ten timed keypresses:
+`vramhash b46886eb`. Machine, at the character-select screen: `3d76244c`, 223,250 non-zero bytes. **0 of 32 blocks
+match.** That is what two different screens look like, not what a broken port looks like: the port's blocks are
+varied and non-zero (181,402 non-zero bytes at 600 frames), where a port that drew nothing would be a run of
+different-but-mostly-zero blocks.
+
+**Which means the item's failure case is covered**, and this is the part worth having: "the port runs cleanly and
+draws nothing, which no frame count can see" is now visible in one number, the non-zero VRAM count, alongside the
+hash. A blank port cannot report 181,402 non-zero bytes.
+
+**What remains is one measurement, with the method fixed.** Wall-clock pairing cannot work, because the port's
+keys are frame-timed and the machine's are person-timed. The pair has to be anchored on a **guest instruction**:
+break on both sides at the same address (`BP 000C:<addr>` on the machine, `U2_STOP_AT=<addr>` in the port) and read
+VRAM there, at a point both reach exactly once. The obvious candidate is the instruction after the title art is
+blitted, which needs the blit located first, and locating it is the same read that would give 5b its viewport.
 
 ### 7c. What else the program patches at run time
 

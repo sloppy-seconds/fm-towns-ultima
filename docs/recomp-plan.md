@@ -868,7 +868,8 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_KEYS=<frame>:<scan><ascii>,...` | press keys on given frames, which is how the port is driven past a keyboard wait. Hex, two digits each: `60:1e61` is "at frame 60 press scan code 0x1E with ASCII 0x61", measured as the key 'a'. |
 | `U2_SHOT=<path>` | write the frame the machine is showing when the run ends, with the kit's own renderer, so "it draws" is a picture rather than a byte count. |
 | `U2_PALETTE=1` | print the sixteen palette entries per plane when the run ends, in `PRI PALETTE`'s own `RRGGBB` notation, so the port's table and the machine's can be compared by diff. |
-| `U2_SCREEN=1` | print the frame as a luminance ramp, character for character the way `container/screen.js`'s `toAscii` does it, so the port and `GET /api/screen?mode=ascii` produce the same grid and two screens can be compared by diff. Item 7a's instrument. |
+| `U2_SCREEN=1` | print the frame as a luminance ramp, character for character the way `container/screen.js`'s `toAscii` does it. **Not** a usable comparison for 7a: the kit renders 704x525 of the CRTC's layers and the supervisor's capture is a 640x480 window with its title bar in it, so the two pictures are different objects. Kept because it is a readable view of a frame. |
+| `U2_VRAM_HASH=1` | the comparison that does work: non-zero count, an FNV-1a over all 524,288 VRAM bytes, and one hash per 16 KB block. The machine's VRAM is the same 512 KB through segment `0120`, read with `MD 120:<off>` (256 bytes a line, 17 s for the lot) and hashed the same way, so a difference can be named by region. Item 7a. |
 
 ### The command line
 
