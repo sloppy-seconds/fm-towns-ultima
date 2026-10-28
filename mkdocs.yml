@@ -65,6 +65,7 @@ nav:
       - Sound: sound.md
   - Characters:
       - Save files and the roster: save-files.md
+      - Saving the game, captured: save-capture.md
       - Roster field reference: roster-reference.md
       - The game text: game-text.md
       - Debug and cheat modes: debug-modes.md
