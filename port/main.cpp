@@ -63,6 +63,26 @@ void x86_trace(X86Cpu& c, uint32_t at) {
 }
 #endif
 
+#include "floppy.h"
+
+// The A: drive, as a real FAT12 reader over the image the machine mounts. Read only, and opened by main.
+static u2floppy::Image g_floppy;
+
+// Hooks the vendored runtime calls (declared in towns_dos.cpp, which is where the DOS layer decides where a
+// name lives). They are defined here because the floppy is U2's save-disk format in practice, not a platform
+// service the kit should own. The declaration there sits inside namespace towns, so these must too.
+namespace towns {
+bool fm_floppy_attrs(const std::string& path, uint32_t& attrib, uint32_t& size) {
+	u2floppy::Entry e;
+	if (!g_floppy.find(path, e)) return false;
+	attrib = e.dos_attr();
+	size = e.size;
+	return true;
+}
+
+bool fm_floppy_read(const std::string& path, std::vector<uint8_t>& out) { return g_floppy.read(path, out); }
+}  // namespace towns
+
 static std::vector<uint8_t> read_file(const char* path) {
 	std::vector<uint8_t> v;
 	FILE* f = std::fopen(path, "rb");
@@ -83,6 +103,7 @@ int main(int argc, char** argv) {
 	long frames = argc > 2 ? std::atol(argv[2]) : 0;
 	const char* tbios_path = argc > 3 ? argv[3] : "build/port/tbios.bin";
 	const char* cue_path = argc > 4 ? argv[4] : "build/port/disc.cue";
+	const char* floppy_path = argc > 5 ? argv[5] : "saves/userdisk.hdm";
 
 	std::vector<uint8_t> file = read_file(exp_path);
 	if (file.size() < 0x1000) {
@@ -135,6 +156,20 @@ int main(int argc, char** argv) {
 			return 2;
 		}
 		std::printf("machine   disc opened from %s\n", cue_path);
+	}
+
+	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the
+	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is
+	// reported and survived rather than treated as fatal, so the port still runs when only the CD is present.
+	if (g_floppy.open(floppy_path)) {
+		std::printf("machine   floppy opened from %s\n", floppy_path);
+		if (std::getenv("U2_FLOPPY_LS")) {
+			for (const auto& e : g_floppy.list())
+				std::printf("floppy    %-14s %6u bytes%s\n", e.name.c_str(), e.size, e.is_dir() ? "  (dir)" : "");
+			return 0;
+		}
+	} else {
+		std::printf("machine   no floppy: A: will answer nothing and the program will ask for a disk\n");
 	}
 	towns::boot_towns(m, tbios);
 
