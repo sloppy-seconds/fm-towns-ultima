@@ -118,6 +118,12 @@ the new seeds through the recompiler to see what falls out, then the rest.** Fin
 Done since that was written: **8a, 8b, 8c, 8d, 8e**, **7d**, **7e**, **7f** and the second, third and fourth port
 walls. Open: **7a** (the divergence is now control flow, not data), **8f**, **8g**.
 
+**The port has a window now.** `--graphics=sdl` (the default) opens the kit's SDL front-end and runs paced by its
+sound, and `--graphics=none` is the headless path every measurement uses. Patch fourteen bridges the host's
+keystrokes to the Towns keyboard, so the game is typable in the window rather than only drivable, and the same run
+under either backend gives identical clocks. A 200-frame run: `machine frames 200  guest clocks 53552100` on all
+three paths.
+
 **7f ends with the port drawing the title screen.** Three walls stood between the floppy reader and a picture, and
 all three were machine state the port did not have: a keyboard (`int 90h` answered "no key" for ever, contract
 measured and implemented as patch eleven), an unknown-port report that named nothing (patch twelve), and, the one

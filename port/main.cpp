@@ -28,6 +28,7 @@
 
 #include "towns.h"
 #include "x86.h"
+#include "towns_sdl.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -149,11 +150,54 @@ static std::vector<uint8_t> read_file(const char* path) {
 }
 
 int main(int argc, char** argv) {
-	const char* exp_path = argc > 1 ? argv[1] : "ENCHANT.EXP";
-	long frames = argc > 2 ? std::atol(argv[2]) : 0;
-	const char* tbios_path = argc > 3 ? argv[3] : "build/port/tbios.bin";
-	const char* cue_path = argc > 4 ? argv[4] : "build/port/disc.cue";
-	const char* floppy_path = argc > 5 ? argv[5] : "saves/userdisk.hdm";
+	// Flags first, then the positional arguments the port has always taken. `--sdl` opens the kit's window
+	// (fmtownskit's SdlHost) and runs unpaced until the window is closed, and it changes NOTHING else: the
+	// trace, the stop-at, the keys, the frame limit and the shot all still apply, because the window is
+	// driven from the same on_vsync the headless run uses. So `--sdl` is a viewer, not a second mode.
+	// `--graphics=<backend>` picks where the picture goes. `sdl` is the default, because a person running the port
+	// wants to see it, and `none` is pure headless, which is what tools/port-build.sh and every measurement pass so
+	// that a run cannot be changed by whether a display happens to exist. A backend is a name and not a flag
+	// because more than one is plausible: a frame dump, a remote viewer, a shim that compares against MAME. An
+	// unknown name is refused with the list rather than silently treated as none, since a typo would otherwise look
+	// like a headless run that simply drew nothing.
+	std::string graphics = "sdl";
+	bool fullscreen = false;
+	int scale = 0;
+	long frames_flag = -1;
+	std::vector<const char*> pos;
+	for (int i = 1; i < argc; ++i) {
+		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
+		else if (!std::strcmp(argv[i], "--fullscreen")) fullscreen = true;
+		else if (!std::strncmp(argv[i], "--scale=", 8)) scale = std::atoi(argv[i] + 8);
+		else if (!std::strncmp(argv[i], "--frames=", 9)) frames_flag = std::atol(argv[i] + 9);
+		else pos.push_back(argv[i]);
+	}
+	if (graphics != "sdl" && graphics != "none") {
+		std::fprintf(stderr, "--graphics=%s: not a backend. This build has: sdl, none\n", graphics.c_str());
+		return 2;
+	}
+	bool use_sdl = graphics == "sdl";
+	const char* exp_path = pos.size() > 0 ? pos[0] : "ENCHANT.EXP";
+	// The second positional is a frame count only when it is one. It is optional, and when `--frames=N` already
+	// gave a count it is absent, so deciding by shape rather than by position keeps `ENCHANT.EXP 600 tbios cue`
+	// and `--frames=600 ENCHANT.EXP tbios cue` both meaning what they look like. A first version indexed
+	// positionally and, under --frames, read the TBIOS image as the cue and the cue as TBIOS: the machine then
+	// reported "TBIOS 110 bytes" and the run was meaningless.
+	size_t next = 1;
+	long frames = frames_flag >= 0 ? frames_flag : 0;
+	if (frames_flag < 0 && pos.size() > 1) {
+		const char* a = pos[1];
+		bool digits = *a != 0;
+		for (const char* q = a; *q; ++q)
+			if (*q < '0' || *q > '9') digits = false;
+		if (digits) {
+			frames = std::atol(a);
+			next = 2;
+		}
+	}
+	const char* tbios_path = pos.size() > next ? pos[next] : "build/port/tbios.bin";
+	const char* cue_path = pos.size() > next + 1 ? pos[next + 1] : "build/port/disc.cue";
+	const char* floppy_path = pos.size() > next + 2 ? pos[next + 2] : "saves/userdisk.hdm";
 
 	std::vector<uint8_t> file = read_file(exp_path);
 	if (file.size() < 0x1000) {
@@ -378,6 +422,29 @@ int main(int argc, char** argv) {
 	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this
 	// (it is how its own ports save frames at a VSYNC).
 	const char* shot_path = std::getenv("U2_SHOT");
+	// The window, when asked for. `open` failing is not fatal: the run continues headless and says so, because a
+	// missing display should cost a picture and not a measurement. The keystrokes the front-end reads are handed
+	// straight to the keyboard queue the KYB_read patch serves, so typing works in the window.
+	towns::SdlHost host;
+	if (use_sdl) {
+		towns::SdlOptions o;
+		o.title = "Ultima II - FM Towns, recompiled";
+		o.scale = scale;
+		o.fullscreen = fullscreen;
+		std::string err;
+		if (host.open(o, err)) {
+			host.on_key = [&m](uint8_t scan, uint8_t ascii) { m.press_key(scan, ascii); };
+			std::printf("graphics  sdl, window open, Escape closes it and ends the run\n");
+		} else {
+			// A display that is missing costs a picture and not a measurement, so this falls back rather than
+			// refusing. It says so, because "the window did not open" and "the window opened and showed nothing"
+			// must not look the same.
+			std::printf("graphics  sdl unavailable (%s), falling back to none\n", err.c_str());
+			use_sdl = false;
+		}
+	} else {
+		std::printf("graphics  none\n");
+	}
 	// U2_WATCH=<linear>[:<length>] reports every write into one linear range, with the instruction that made
 	// it. This is the port's answer to a physical MEMW watch on the machine, and one thing it does better:
 	// the machine's page tables move a linear address between physical pages, so a watch armed on a physical
@@ -398,9 +465,16 @@ int main(int argc, char** argv) {
 	// The running cpu, always, not only for the watch: an unknown I/O port is reported with the instruction that
 	// wrote it, and a port number with no caller is a lead that has to be found again by watching.
 	g_x86_cur = &c;
-	if (frames) {
+	if (frames || use_sdl || !keypresses.empty()) {
+		// The callback is installed when ANY of these needs it. It used to be installed only under a frame limit,
+		// which would have left `--sdl` with no limit showing a frozen window, because the hook that draws it is
+		// this one.
 		m.on_vsync = [&](towns::Machine& mm) {
-			if ((long)mm.frame >= frames) throw towns::Stop{0};
+			// The window first, because it is what paces the run and what throws Stop{0} when it is closed. Then
+			// everything the headless runs do, in the same order as before, so `--sdl` adds a picture rather than
+			// changing a measurement.
+			if (use_sdl) host.vsync(mm);
+			if (frames && (long)mm.frame >= frames) throw towns::Stop{0};
 			for (const KeyPress& k : keypresses)
 				if (k.frame == (long)mm.frame) mm.press_key(k.scan, k.ascii);
 		};

@@ -182,4 +182,8 @@ cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 echo "built     $OUT/b/u2port"
 
 # 5. Run it.
-"$OUT/b/u2port" "$ROOT/ENCHANT.EXP" "$FRAMES" "$OUT/tbios.bin" "$OUT/disc.cue"
+# `--graphics=none` is not optional here. The port's default is a window, because a person running it wants to see
+# it, and this script is the measurement path: a run must not change according to whether a display happens to be
+# reachable from the shell that started it. With `none` this is byte-identical to what every figure in docs/ was
+# taken with.
+"$OUT/b/u2port" --graphics=none --frames="$FRAMES" "$ROOT/ENCHANT.EXP" "$OUT/tbios.bin" "$OUT/disc.cue"

@@ -868,6 +868,47 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_KEYS=<frame>:<scan><ascii>,...` | press keys on given frames, which is how the port is driven past a keyboard wait. Hex, two digits each: `60:1e61` is "at frame 60 press scan code 0x1E with ASCII 0x61", measured as the key 'a'. |
 | `U2_SHOT=<path>` | write the frame the machine is showing when the run ends, with the kit's own renderer, so "it draws" is a picture rather than a byte count. |
 
+### The command line
+
+| flag | meaning |
+|---|---|
+| `--graphics=sdl\|none` | where the picture goes. **Default `sdl`**: a person running the port wants to see it, and the window paces the run from the sound like the kit's own ports do. `none` is pure headless and is what `tools/port-build.sh` and every measurement pass, so a run cannot change according to whether a display is reachable from the shell that started it. A backend is a name rather than a flag because more than one is plausible later: a frame dump, a remote viewer, a comparator against MAME. An unknown name is refused with the list, since a typo would otherwise look like a headless run that drew nothing. If `sdl` cannot open a display it says so and falls back to `none`, because a missing display should cost a picture and not a measurement. |
+| `--frames=N` | stop after N frames. Without it the run ends when the window closes, or when the program returns. |
+| `--scale=N`, `--fullscreen` | the window's integer scale (0 picks the largest that fits) and full screen. |
+
+Positional arguments are unchanged: `<ENCHANT.EXP> [frames] <tbios.bin> <disc.cue> [floppy]`. The frame count is
+treated as one only when it is all digits, so `ENCHANT.EXP 600 tbios cue` and `--frames=600 ENCHANT.EXP tbios cue`
+both mean what they look like. The first version of the flag parsing indexed the positionals blindly and, under
+`--frames`, read the TBIOS image as the cue sheet: the machine then reported `TBIOS 110 bytes` and the run was
+meaningless. Deciding by shape rather than by position is what fixed it.
+
+**In the window:** arrows are the Towns pad's directions, X and Z are A and B, Enter is Run, Right Shift or
+Backspace is Select, F11 or Alt+Enter toggles full screen, Tab held runs unpaced, F5/F6/F7 set the CPU rate and
+**Escape closes the window and ends the run**. Real keystrokes are also handed to the program as the Towns keyboard
+would deliver them, which is what makes the game typable rather than only drivable (patch fourteen).
+
+## Patch fourteen: the window's keystrokes as the Towns keyboard
+
+**Tried:** to wire the kit's window (`fmtownskit`'s `SdlHost`) to the port. The interface is two calls,
+`open()` and `vsync(m)` per frame, and `vsync` throws `Stop{0}` when the window is closed, so it drops into the
+port's existing `on_vsync` without touching anything else.
+
+**The gap:** the front-end maps host keys to the **Towns pad** only, which is right for the games it was built for
+and useless here, because ENCHANT reads the keyboard through `int 90h` (patch eleven) and never looks at the pad.
+A window would therefore have shown the picture and refused to accept a keypress.
+
+**The patch** adds `std::function<void(uint8_t scan, uint8_t ascii)> SdlHost::on_key`, called from the existing
+`SDL_EVENT_KEY_DOWN` case after the front-end's own keys, with a table from SDL's scancode to the Towns' PC/AT
+scan code and SDL's own layout-aware keycode as the character (so shift+1 arrives as `!`). The scan codes are in
+PC/AT set 1 because that is what was measured on the machine: `a` is `0x1E`, and ENCHANT indexes its 114-entry
+table with it. Unmapped keys report nothing rather than a guess. Unset, behaviour is exactly as before, so no other
+user of the kit is affected. Escape still quits, deliberately: a window needs a way out the guest cannot swallow.
+
+**Measured:** with `--graphics=sdl` on the desktop display the port creates a 640x480 window (its title is
+`Ultima II - FM Towns, recompiled`) and runs to its frame limit. With `SDL_VIDEODRIVER=dummy` and with
+`--graphics=none` a 200-frame run gives `machine frames 200  guest clocks 53552100` in every case, so the window
+adds a picture and paces the run without changing what the machine does.
+
 ## Patch thirteen: selector 0120, which is the screen
 
 **This is the one that made the port draw.** After the keyboard worked, VRAM was still empty, and the reason was
