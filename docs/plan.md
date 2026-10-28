@@ -961,6 +961,30 @@ The item's own question is answered; the transition's arithmetic is the next rea
 
 `docs/combat-formulas.md` and `docs/hp-and-damage.md` hold partial work. This item completes them.
 
+**Progress, measured from the variable map.** `HP` is at **`0xcde81`** and `MHP` at **`0xcde85`**, from the save
+writer's own format strings. Of the 37 references to `HP` in the image, exactly **one subtracts**: `0x0eff73`,
+inside the routine at **`0x0eff44`**:
+
+```
+0x0eff44  push ebp; mov ebp, esp
+0x0eff48  edi = [ebp+8]          ; the damage amount, as a parameter
+0x0eff4b  call 0xef6a4            ; also called again after the window is set to 8
+0x0eff50  push 8; call 0xe1944    ; window 8
+0x0eff5f  if (edi < 0) goto 0x0eff82   ; a negative argument takes a different path
+0x0eff63  edx = [0xceca0] * 351
+0x0eff73  HP -= edi
+0x0eff79  if (HP < 0) HP = 0      ; the clamp is at 0x0effa2
+```
+
+So the damage **application** is `HP -= damage` with a floor of zero, and the damage itself is a parameter. The
+formula is therefore in the eight call sites: `0x0efc50`, `0x0efca4`, `0x0f0a60`, `0x0f398b`, `0x0f90e6`, `0x0f9131`,
+`0x0f9d92`, `0x0f9f05`. Reading what each pushes into that argument is the next step, and the answer for melee is
+among them rather than in one shared place.
+
+Two other `HP` writers are worth noting because they look like combat and are not obviously damage: `0x0f0d19` sets
+`HP = 0x63`, `0x0f0d35` sets `0x4b` and `0x0f0d51` sets `0x19` (99, 75, 25) in the same routine, which is a
+class-based starting or maximum value rather than a hit.
+
 ### 5f. Shops, prices and transports
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
