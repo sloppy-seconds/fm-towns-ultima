@@ -96,7 +96,7 @@ from the items below rather than maintained separately.
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **yes**, the rules exist |
 | 7e A port regression the checks can run | AUTONOMOUS | **yes**, no emulator needed |
 | 7f Give the port a floppy drive | AUTONOMOUS | **partly done**, the reader works and the probe passes |
-| 8a Per-module `--no-code` ranges | AUTONOMOUS | **yes**, both sides are ours |
+| 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **yes**, one line in `_read_mp` |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **yes**, it is a null dereference |
 | 8d Run the new seed rules through the recompiler | AUTONOMOUS | **yes**, and this is where findings may fall out |
@@ -1200,7 +1200,7 @@ Order: 8a, 8b, 8c, then 8d, then 8e, then the port's own next divergence (7a), t
 
 ### 8a. Per-module `--no-code` ranges
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -1208,9 +1208,20 @@ Order: 8a, 8b, 8c, then 8d, then 8e, then the port's own next divergence (7a), t
 | done when | the recompiler accepts a range scoped to a module (`--no-code game=0xb91:0xe1c` or equivalent), `tools/port-build.sh` makes one invocation instead of two, and the per-module function and refusal counts are byte-for-byte what they are now. The failure case: a range that silently applies to the wrong module, which is the bug this fixes |
 | blocked by | nothing |
 
-`--no-code` is one global list applied to every module. The ranges describe ENCHANT's zero fill, and applied to
-TBIOS they refused its real code at `0xb91-0xe1c`, so we run two recompilations and merge the output with a
-hand-written `modules.cpp`. That works and it is a workaround around a limitation that costs one parameter.
+**What is now known.** `--no-code` takes `[NAME=]LO:HI`, so a range names one module or all of them, and a name
+that matches no module in the build is refused with the list of ones that exist rather than silently doing
+nothing. The port makes **one** recompilation call instead of two, the merge step and the hand-written
+`modules.cpp` are gone, and the kit writes that file from the modules it was given.
+
+The counts are identical to the two-pass build, which is the acceptance test:
+
+```
+game:  818 functions, 41847 instructions, 137253 bytes, 0 refused, 0 conflicts
+tbios: 5573 functions, 15288 instructions, 56115 bytes, 0 refused, 0 conflicts
+```
+
+67 ranges are scoped to the game and 3 to TBIOS. Before this, one global list applied the game's ranges to
+TBIOS and refused its real code at `0xb91-0xe1c`, and the workaround was two recompilations merged by hand.
 
 ### 8b. The `MP` header's `EIP` is an address, not a file offset
 

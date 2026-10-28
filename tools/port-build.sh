@@ -129,39 +129,26 @@ PY
 		TB_SPEC="$TB_SPEC+$TB_SEEDS"
 	fi
 
-	#    TWO PASSES, because --no-code is a global flag and the two modules are different images with
-	#    different zero fill. A single pass applied ENCHANT's ranges to TBIOS and refused its real code at
-	#    0xb91-0xe1c, which is padding in the game and ordinary TBIOS. Each pass gets its own ranges, then
-	#    the two output directories are merged into one build directory with a modules.cpp naming both.
+	#    ONE PASS, two modules, each with its own --no-code ranges (`--no-code name=lo:hi`). Before the
+	#    recompiler accepted a module name this was two passes merged by hand, because a single global list
+	#    applied ENCHANT's ranges to TBIOS and refused its real code at 0xb91-0xe1c.
 	TB_RANGES=$(cd "$ROOT" && node tools/codelimits.js --file "$OUT/tbios.bin" --args)
-	echo "tbios     $(awk '{print NF/2}' <<< "$TB_RANGES") zero runs of its own, as --no-code"
-	rm -rf "$OUT/re_game" "$OUT/re_tbios"
-	(cd "$ROOT/references/vs-sr-dev" && python3 -m fmtownskit.recomp --out "$OUT/re_game" \
-		--raw "game=$STRIPPED@0xc+$SEED_LIST,0x101a20" $NO_CODE) | tail -2
-	(cd "$ROOT/references/vs-sr-dev" && python3 -m fmtownskit.recomp --out "$OUT/re_tbios" \
-		--raw "$TB_SPEC" $TB_RANGES) | tail -2
-
-	rm -rf "$RECOMP"
-	mkdir -p "$RECOMP"
-	cp "$OUT"/re_game/p_game_*.cpp "$OUT"/re_game/p_game_funcs.h "$RECOMP"/
-	cp "$OUT"/re_tbios/p_tbios_*.cpp "$OUT"/re_tbios/p_tbios_funcs.h "$RECOMP"/
-	#    modules.cpp is written here rather than copied, because each pass emits one naming only its own
-	#    module and the last one would win. The two table files define these two symbols and nothing else
-	#    registers them.
-	{
-		echo '#include "x86.h"'
-		echo 'extern const X86Module g_mod_p_game;'
-		echo 'extern const X86Module g_mod_p_tbios;'
-		echo 'const X86Module* const g_x86_modules[] = {&g_mod_p_game, &g_mod_p_tbios};'
-		echo 'const int g_x86_nmodules = 2;'
-	} > "$RECOMP/modules.cpp"
-	# Read it back rather than trusting the write: a missing second module is the failure that matters.
-	if ! grep -q 'g_mod_p_tbios' "$RECOMP/modules.cpp" || ! grep -q 'g_x86_nmodules = 2' "$RECOMP/modules.cpp"; then
+	GAME_NO_CODE="${NO_CODE//--no-code /--no-code game=}"
+	TB_NO_CODE="${TB_RANGES//--no-code /--no-code tbios=}"
+	echo "ranges    $(grep -o ':' <<< "$NO_CODE" | wc -l) for the game and $(grep -o ':' <<< "$TB_RANGES" | wc -l) for tbios, scoped per module"
+	rm -rf "$RECOMP" "$OUT/re_game" "$OUT/re_tbios"
+	(cd "$ROOT/references/vs-sr-dev" && python3 -m fmtownskit.recomp --out "$RECOMP" \
+		--raw "game=$STRIPPED@0xc+$SEED_LIST,0x101a20" $GAME_NO_CODE \
+		--raw "$TB_SPEC" $TB_NO_CODE) | tail -2
+	# The recompiler writes modules.cpp from the modules it was given, so both are registered without a
+	# hand-written one. Read the file back rather than trusting it: a missing second module is the failure
+	# that matters, and it would show up much later as a fault in the wrong place.
+	if ! grep -q 'g_mod_p_tbios' "$RECOMP/modules.cpp" || ! grep -q 'g_mod_p_game' "$RECOMP/modules.cpp"; then
 		echo "modules.cpp does not register both modules" >&2
 		cat "$RECOMP/modules.cpp" >&2
 		exit 1
 	fi
-	echo "merged    $(ls "$RECOMP"/p_*.cpp | wc -l) source files, both modules registered"
+	echo "modules   $(ls "$RECOMP"/p_*.cpp | wc -l) source files, both registered in modules.cpp"
 
 	# Instruction coverage, from the same walk and the same seeds and ranges as the module. That is what lets
 	# the port tell a patched instruction from a data write: without it the raw diff is half a megabyte of

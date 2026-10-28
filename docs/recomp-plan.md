@@ -157,9 +157,13 @@ fault at 0110:00000dd4: no code at this entry: in a no-code range 0xb91-0xe1c
 means two recompilation passes and a `modules.cpp` naming both modules, since the emitter writes one
 `modules.cpp` per run. That is the next step and it is plumbing, not research.
 
-**Done, and it works.** Two passes now, each with its own ranges, merged into one build directory with a
-hand-written `modules.cpp` naming both. `tools/codelimits.js` grew `--file` so it can derive the ranges for
-any image rather than ENCHANT alone, and TBIOS's own zero fill is **3 runs**. The result for both modules:
+**Done, and it works. Two passes were the workaround, and they are gone.** `--no-code` now takes
+`[NAME=]LO:HI`, so one pass compiles both modules with 67 ranges scoped to the game and 3 to TBIOS, and the
+recompiler writes the `modules.cpp` that names both. The two-pass build described below was correct at the time
+and is kept because the counts it produced are the acceptance test for the single pass: they are identical.
+
+`tools/codelimits.js` grew `--file` so it can derive the ranges for any image rather than ENCHANT alone, and
+TBIOS's own zero fill is **3 runs**. The result for both modules in that two-pass build:
 
 ```
 game:  783 functions, 40902 instructions, 0 refused, 0 conflicts
