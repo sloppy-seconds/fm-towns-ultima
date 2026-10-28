@@ -333,7 +333,6 @@ directory and 0x20 otherwise, from the disc reader's own directory flag, and DOS
 **With those in, start-up completes and the program keeps running.** No fault at 1,200 frames or at 3,000,
 which is about 50 seconds of emulated time and 800 million guest clocks. It opens its real assets, in order,
 from the disc:
-
 ```
 Q:\GRAPH\HEADTTL.TIF   \SOUND\ULTIMA.FMB   Q:\GRAPH\MAP2_1.TIF   Q:\GRAPH\PLAYER.TIF
 Q:\GRAPH\ENEMY2.TIF    Q:\GRAPH\EXTRA.TIF    Q:\GRAPH\DUNG1.TIF    Q:\GRAPH\DUNG2.TIF
@@ -357,6 +356,10 @@ re-imaging anything.
 **SUPERSEDED, and the paragraph below was true when it was written.** At that stage the entry ran and
 returned to nothing, with no video and three missing devices. It now completes start-up, opens its real
 assets and runs 24,000 frames.
+
+**SUPERSEDED IN PART, see "7a, started" below.** The machine does not execute the loop the port settles into,
+so this is a start-up that diverges rather than one that completes. The frame count was measuring the wrong
+thing.
 
 ~~**What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
@@ -387,7 +390,8 @@ inside a zero run leaves **6** code functions. `tools/seeds.js` now adds them, a
 count.
 
 **With those in, the port runs 24,000 frames:** 6,399,984,003 guest clocks, no fault, 818 functions in the
-game module and 5,573 in TBIOS, 0 refused and 0 conflicts in both.
+game module and 5,573 in TBIOS, 0 refused and 0 conflicts in both. How much of that is progress is a separate
+question, answered in "7a, started" below.
 
 ## What the program patches, measured rather than assumed
 
@@ -441,10 +445,29 @@ int 90h AX=0901 EBX=0011EA70 ECX=00000072 EDX=000CFFFF
 ```
 
 So the port is spinning where the machine waits for a keypress, which the port will never receive. **The open
-question is whether that loop is before or after the title is drawn.** The live machine shows the splash
-before any key is pressed, so if this wait is the same one, the port has skipped the drawing that precedes it,
-and the next step is to find what gates that: a CRT mode read, the CD probe whose return values were only
-partly measured, or a capability test that our stubs answer differently. That is where 7a stands.
+question is whether that loop is before or after the title is drawn.**
+
+**Settled, and it corrects the paragraph above.** Breakpoints at `000C:0E25AE` and, as a control,
+`000C:10241A`, which is the `int86` stub the CD probe goes through and which therefore certainly executes.
+A complete journey with both armed: the control fires after **6.0 seconds**, and `0x0e25ae` never fires at all,
+while `u2flow` runs the whole sequence through to `in_ultima2=True` with a character loaded.
+
+**The live machine does not execute guest `0x0e25ae` during a complete start-up.** The port is on a path the
+real program never takes. The negative is not an artefact of the address or the frame: the control was armed
+in the same run and fired, and the earlier breakpoints at `0x52`, `0x10241a` and `0xe244d` all hit in the same
+way.
+
+**What that does to the earlier claim.** "Start-up completes and the program keeps running" is measured but
+misleading, and it is corrected here rather than left standing: the port completes a start-up that diverges,
+then spends its frames in a keyboard wait the real game never reaches. The frame count was measuring the wrong
+thing, and only the screen check could have shown it, because a spinning program is not a faulting one.
+
+**Where the divergence is, and how to find it.** The kit supports an instruction trace: build with
+`-DX86_TRACE_ON` and define `x86_trace(X86Cpu&, uint32_t)` in the port, and every instruction calls it with its
+guest address. The machine's side of the same comparison already exists as a tool: `tools/cfgprobe.py capture
+--journey` arms the recorder before boot and writes an ordered control-flow capture of a whole start-up. Two
+sequences, one aligned comparison, and the first difference is the bug. That is the next step, and it is the
+only way this gets found without guessing.
 
 ## Stage 1: make it execute one function
 

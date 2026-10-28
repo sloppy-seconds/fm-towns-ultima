@@ -23,9 +23,15 @@ Three rules were settled with Paul before he went to bed:
 
 ## Where the port is
 
-`build/port/b/u2port`, built by `tools/port-build.sh`, on branch `fmt-towns-port`. It completes start-up,
-opens its real assets in order, and runs **24,000 frames and 6,399,984,003 guest clocks with no fault**. 818
-functions in the game module, 5,573 in the TBIOS module, 0 refused and 0 conflicts in both.
+`build/port/b/u2port`, built by `tools/port-build.sh`, on branch `fmt-towns-port`. It runs **24,000 frames and
+6,399,984,003 guest clocks with no fault**, with 818 functions in the game module and 5,573 in the TBIOS module,
+0 refused and 0 conflicts in both.
+
+**But those frames are not progress, and that is the most important thing on this page.** The machine was put
+under breakpoints during a complete start-up and it **never executes guest `0x0e25ae`**, which is where the port
+sits forever waiting for a key, while a control breakpoint at `0x10241a` fired after 6.0 seconds in the same
+run. So the port is on a path the real program does not take. A spinning program is not a faulting one, which
+is why only a screen check could show this.
 
 Live measurements against the emulator agree with it on one buffer the program itself filled, the `int93`
 outregs at DS:0x7a634.
@@ -88,9 +94,10 @@ measured, a CRT or VRAM mode read, and any capability test our stubs answer diff
 
 ## What to do next, in order
 
-1. **finish 7a.** The port never touches VRAM and spins in a key wait at guest `0x0e25ae`. Find what gates the
-   drawing ahead of that wait. The first check is cheap: break the same wait on the live machine and see what
-   the machine's VRAM holds at that moment, which settles whether the title precedes it
+1. **find the divergence in 7a.** Build the port with `-DX86_TRACE_ON` and define `x86_trace` to write each
+   instruction's guest address, then take the machine's own ordered control-flow capture with
+   `tools/cfgprobe.py capture --journey`, and compare the two sequences. The first difference is the bug. Do
+   not guess at which BIOS return is wrong before that comparison exists
 2. 7d, the 30 and 67 unresolved indirect transfers, each resolved by a rule or recorded as unreachable
 3. 7e, a port regression `checkall.js` can run without the emulator
 4. 6a, one frame of reference per tool
