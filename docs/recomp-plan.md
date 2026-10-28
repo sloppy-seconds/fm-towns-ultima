@@ -408,6 +408,44 @@ narrower answer than the item expected and a better one: the self-modifying-code
 class. The scope is stated as measured: it is what the program did in 24,000 frames, and a site reached later
 could still appear.
 
+## 7a, started: the screen is empty, and that is a finding
+
+`U2_VRAM=1` reports what the machine's own VRAM vector holds at the end of a run, plus the access counters the
+kit keeps for exactly this. After 24,000 frames:
+
+```
+vram      0 of 524288 bytes are non-zero, first at -1
+vram      0 writes and 0 reads to it, 0 sprite writes
+```
+
+**The program does not draw, and does not try to.** That distinction is the point of the counters: a memory
+dump alone cannot tell "drew nothing" from "never touched the screen". Zero accesses means the drawing code
+has not been reached at all.
+
+**It is waiting for a key.** The last thousands of BIOS calls are the same one, repeated:
+
+```
+int 90h AX=0901 EBX=0011EA70 ECX=00000072 EDX=000CFFFF
+```
+
+`AH=09` is `KYB_read`, and `eip` sits at `0x000e25ae`, which is a loop read off the code:
+
+```
+0xe25ae  push 2
+0xe25b0  call 0xe4b60
+0xe25b5  movzx edi, al
+0xe25bb  cmp edi, 1
+0xe25be  je 0xe260b
+0xe25c0  and edi, edi
+0xe25c2  je 0xe25ae        while (f(2) == 0);
+```
+
+So the port is spinning where the machine waits for a keypress, which the port will never receive. **The open
+question is whether that loop is before or after the title is drawn.** The live machine shows the splash
+before any key is pressed, so if this wait is the same one, the port has skipped the drawing that precedes it,
+and the next step is to find what gates that: a CRT mode read, the CD probe whose return values were only
+partly measured, or a capability test that our stubs answer differently. That is where 7a stands.
+
 ## Stage 1: make it execute one function
 
 > **PARTLY DONE. It executes and returns. The three-way comparison with the save file has not been run.**

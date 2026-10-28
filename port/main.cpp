@@ -149,6 +149,8 @@ int main(int argc, char** argv) {
 	}
 
 	std::printf("entry     000C:%x  esp 0x%x  cs base 0x%x\n", ENTRY, STACK, PROGRAM_BASE);
+	// The VRAM access counters have to be on before the program runs, not after it has finished.
+	if (std::getenv("U2_VRAM")) m.set_count_access(true);
 	if (frames) {
 		m.on_vsync = [&](towns::Machine& mm) {
 			if ((long)mm.frame >= frames) throw towns::Stop{0};
@@ -209,6 +211,33 @@ int main(int argc, char** argv) {
 			std::printf("patched   guest 0x%06x  %02x -> %02x\n", k, image[k], now[k]);
 		}
 		std::printf("patched   %u bytes differ, of which %u are inside a decoded instruction\n", diff, in_code);
+	}
+	// U2_VRAM=1 reports what the machine's own VRAM vector holds at the end of the run. That is the first half
+	// of item 7a: if it is empty, the picture is missing because nothing is mapped to it, not because the
+	// program drew nothing, and the two are indistinguishable from a frame count.
+	if (std::getenv("U2_VRAM")) {
+		m.set_count_access(false);                              // just in case, before the counters are read
+		uint64_t nonzero = 0;
+		long first = -1;
+		for (size_t k = 0; k < m.vram.size(); ++k) {
+			if (!m.vram[k]) continue;
+			++nonzero;
+			if (first < 0) first = (long)k;
+		}
+		std::printf("vram      %llu of %zu bytes are non-zero, first at %ld\n", (unsigned long long)nonzero,
+		            m.vram.size(), first);
+		// The access counters answer the next question a dump cannot: did the program touch VRAM at all, or did
+		// it write somewhere this machine does not call VRAM. "Drew nothing" and "never tried" look identical in
+		// a memory snapshot.
+		std::printf("vram      %llu writes and %llu reads to it, %llu sprite writes\n",
+		            (unsigned long long)m.access.vram_w, (unsigned long long)m.access.vram_r,
+		            (unsigned long long)m.access.spr_w);
+		if (first >= 0) {
+			std::printf("vram      from %#lx:", (unsigned long)first);
+			for (long k = first; k < first + 32 && k < (long)m.vram.size(); ++k)
+				std::printf(" %02x", m.vram[k]);
+			std::printf("\n");
+		}
 	}
 	if (const char* dump = std::getenv("U2_DUMP")) {
 		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);
