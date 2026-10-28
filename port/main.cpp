@@ -122,8 +122,18 @@ int main(int argc, char** argv) {
 	const uint32_t image_size = (uint32_t)(file.size() - HEADER);
 
 	const uint32_t PROGRAM_BASE = 0x400000;  // measured: CS 000C and DS 0014 both sit here
-	const uint32_t ENTRY = 0x101A20;         // measured: the loader's IRETD delivers this
-	const uint32_t STACK = 0x11EAC8;         // measured: ESP at the hand-off
+	// The entry is the header's own address field, which is an offset into the image (item 8b), so the port
+	// reads it instead of naming it. For ENCHANT.EXP that field is 0x101A20, which is what was hardcoded here
+	// and what the loader's IRETD was measured to deliver, so this is the same number arrived at generally.
+	// It is what lets a second MP program be run without editing the port: BRITISH.EXP's field is 0x54094.
+	const uint32_t ENTRY_FROM_HEADER = (uint32_t)file[0x14] | ((uint32_t)file[0x15] << 8) |
+									((uint32_t)file[0x16] << 16) | ((uint32_t)file[0x17] << 24);
+	const uint32_t ENTRY = std::getenv("U2_ENTRY") ? (uint32_t)std::strtoul(std::getenv("U2_ENTRY"), nullptr, 16)
+											 : ENTRY_FROM_HEADER;
+	// ESP at the hand-off is measured for ENCHANT (0x11EAC8). A different program is handed a different stack,
+	// so this is overridable and the default is the only one measured.
+	const uint32_t STACK = std::getenv("U2_STACK") ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16)
+										  : 0x11EAC8;
 
 	towns::Machine m;
 	std::printf("machine   townsos profile, %u MB\n", m.profile->ram_mb);
