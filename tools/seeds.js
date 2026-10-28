@@ -101,6 +101,30 @@ function scanCallbacks(buf) {
 	return out;
 }
 
+// Functions whose address the program takes. High C does not emit `mov reg, imm32` for an address, it emits
+// `lea reg, [disp32]`, so a `lea` with an absolute displacement is the compiler saying "here is the address of
+// this thing". Nothing points a call site at such a function, which is why the transfer scan and the prologue
+// rules both miss them.
+//
+// Measured on ENCHANT.EXP: 23 `lea reg, [disp32]` targets land in the guest address range, and most are data
+// or stack (the timer handler does `lea esp, [0xdee57]`). Excluding targets that fall inside a zero run, which
+// is uninitialised data, leaves the code ones. Two of them were confirmed by running the recompiled program,
+// which faulted on them: guest 0xfdde8 (the timer handler itself) and guest 0xffb72 (the callback it calls
+// through DS:0xdea3c).
+function scanAddressTaken(buf, zeros) {
+	const out = new Set();
+	for (let i = 0; i + 7 <= buf.length; i++) {
+		if (buf[i] !== 0x8d) continue;                       // lea
+		const m = buf[i + 1];
+		if ((m >> 6) !== 0 || (m & 7) !== 5) continue;       // mod 00, rm 101: [disp32]
+		const v = buf.readUInt32LE(i + 2);
+		if (v < 0x200 || v + 0x200 + 2 > buf.length) continue;
+		if (inRanges(v + 0x200, zeros)) continue;            // uninitialised data, not code
+		out.add(v + 0x200);
+	}
+	return out;
+}
+
 function inRanges(addr, ranges) {
 	for (const [lo, hi] of ranges) if (lo <= addr && addr < hi) return true;
 	return false;
@@ -198,8 +222,11 @@ function main() {
 
 	const out = candidates.map(([a]) => a).sort((a, b) => a - b);
 	const callbacks = scanCallbacks(buf);
+	const taken = scanAddressTaken(buf, zeros);
 	const fromTransfers = out.length;
 	for (const a of callbacks) if (!out.includes(a)) out.push(a);
+	const afterCallbacks = out.length;
+	for (const a of taken) if (!out.includes(a)) out.push(a);
 	out.sort((a, b) => a - b);
 	const summary = {
 		binary: name,
@@ -211,7 +238,9 @@ function main() {
 		candidates: out.length,
 		promoted: promoted.length,
 		callbacks: callbacks.size,
-		callbacksNew: out.length - fromTransfers,
+		callbacksNew: afterCallbacks - fromTransfers,
+		addressTaken: taken.size,
+		addressTakenNew: out.length - afterCallbacks,
 		rejected,
 	};
 
@@ -233,6 +262,8 @@ function main() {
 	console.log('  callback immediates pointing at a prologue: ' + summary.callbacks + ' (' +
 		summary.callbacksNew + ' not already found by a transfer)');
 	console.log('  seeds from transfers: ' + fromTransfers);
+	console.log('  functions whose address the program takes: ' + summary.addressTaken + ' (' +
+		summary.addressTakenNew + ' not already found)');
 	console.log('  candidate seeds: ' + out.length);
 	if (out.length === 0) {
 		console.error('no candidates survived: refusing to emit an empty seed set');

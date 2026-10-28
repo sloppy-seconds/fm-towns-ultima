@@ -173,16 +173,42 @@ int main(int argc, char** argv) {
 	// U2_DIFF_CODE=1 compares the program's code in guest memory against the image on disk at the end of the
 	// run and prints every byte that changed. That is item 7c: a program that patches its own instructions is
 	// invisible to a recompiler, and one site found by tripping over it does not prove it is the only one.
+	//
+	// U2_COVERAGE=<file> narrows it to bytes the recompiler decoded as instructions, written by
+	// tools/insncoverage.py from the same walk. Without it the diff is half a megabyte of the program filling
+	// its own zero-filled data, and a patched instruction is lost in that.
 	if (std::getenv("U2_DIFF_CODE")) {
+		std::vector<char> is_insn(image_size, 0);
+		if (const char* cov = std::getenv("U2_COVERAGE")) {
+			std::vector<uint8_t> text = read_file(cov);
+			std::string line;
+			uint32_t marked = 0;
+			for (size_t k = 0; k <= text.size(); ++k) {
+				if (k < text.size() && text[k] != '\n') { line += (char)text[k]; continue; }
+				if (!line.empty() && line[0] != '#') {
+					unsigned addr = 0, size = 0;
+					if (std::sscanf(line.c_str(), "%x %u", &addr, &size) == 2)
+						for (unsigned b = 0; b < size && addr + b < image_size; ++b) {
+							if (!is_insn[addr + b]) is_insn[addr + b] = 1, ++marked;
+						}
+				}
+				line.clear();
+			}
+			std::printf("coverage  %u bytes of the image are instruction bytes, from %s\n", marked, cov);
+		} else {
+			std::printf("coverage  none given: every difference will be reported, data included\n");
+		}
 		std::vector<uint8_t> now(image_size);
 		m.read_block(PROGRAM_BASE, now.data(), image_size);
-		uint32_t diff = 0;
+		uint32_t diff = 0, in_code = 0;
 		for (uint32_t k = 0; k < image_size; ++k) {
 			if (now[k] == image[k]) continue;
 			++diff;
+			if (!is_insn[k]) continue;
+			++in_code;
 			std::printf("patched   guest 0x%06x  %02x -> %02x\n", k, image[k], now[k]);
 		}
-		std::printf("patched   %u bytes of %u differ from the image\n", diff, image_size);
+		std::printf("patched   %u bytes differ, of which %u are inside a decoded instruction\n", diff, in_code);
 	}
 	if (const char* dump = std::getenv("U2_DUMP")) {
 		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);

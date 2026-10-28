@@ -354,10 +354,59 @@ journey ran, so the cause was a dozen accumulated `RESET`s, six duplicate breakp
 monitor armed at a physical address that a later reset remapped. Clearing the debugger state is the fix, not
 re-imaging anything.
 
-**What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
+**SUPERSEDED, and the paragraph below was true when it was written.** At that stage the entry ran and
+returned to nothing, with no video and three missing devices. It now completes start-up, opens its real
+assets and runs 24,000 frames.
+
+~~**What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
 video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
-finish. It is the difference between "the code does not run" and "the code runs until the machine is
-missing something", which is the boundary worth having.
+finish.~~
+
+## Two walls that are not walls
+
+Once the port was left running longer than 3,000 frames, two more fault lines appeared, and both are functions
+the static rules cannot classify rather than anything wrong with the emulation.
+
+**The first was an interrupt handler.** At machine frame 4,026: `no recompiled function at 000c:000fdde8`,
+reached from the timer handler's own code. Guest `0x0fdde8` opens `50 1e 66 b8`, that is `push eax`,
+`push ds`, `mov ax,0x14`, which is not a High C prologue, so the callback rule skipped it. It is ordinary
+32-bit code: the `0x66` prefixes are 16-bit segment and operand loads, not a 16-bit instruction stream. The
+handler swaps the stack (`mov ss, eax`, `lea esp, [0xdee57]`), reads port `0x4e9`, and calls hook pointers out
+of its data segment.
+
+**The second was those hook pointers, and one live read gave all four.** With the game running,
+`MD 14:dea3c` returned four dwords, every one a code address: `0x000ffb72`, `0x000e7238`, `0x000ffc90`,
+`0x000fdf5f`. Two of them the address-taken rule already found, two it could not, so all four are written
+down in `tools/runtime-seeds.txt` with the dump that produced them.
+
+**The rule that came out of it is a compiler habit.** These functions are never called by name, so no call
+site points at them. What the compiler does is take their address, and High C does that with
+`lea reg, [disp32]` rather than a register immediate. Scanning for it: **23** targets land in the guest
+address range, most are data or stack (the handler itself does `lea esp, [0xdee57]`), and excluding targets
+inside a zero run leaves **6** code functions. `tools/seeds.js` now adds them, and `verify.js` asserts the
+count.
+
+**With those in, the port runs 24,000 frames:** 6,399,984,003 guest clocks, no fault, 818 functions in the
+game module and 5,573 in TBIOS, 0 refused and 0 conflicts in both.
+
+## What the program patches, measured rather than assumed
+
+`U2_DIFF_CODE=1` compares guest memory against the image at the end of a run, and `U2_COVERAGE=<file>` narrows
+it to bytes the recompiler decoded as instructions, written by `tools/insncoverage.py` from the same walk and
+the same seeds. Without the coverage file the diff is 522,674 bytes of the program filling its own zero-filled
+data and the answer drowns.
+
+With it, after 24,000 frames:
+
+```
+patched   guest 0x10241b  00 -> 93
+patched   522674 bytes differ, of which 1 are inside a decoded instruction
+```
+
+**Exactly one instruction byte in the image changes at run time**, and it is the `int86` vector. That is a
+narrower answer than the item expected and a better one: the self-modifying-code hazard is one site, not a
+class. The scope is stated as measured: it is what the program did in 24,000 frames, and a site reached later
+could still appear.
 
 ## Stage 1: make it execute one function
 

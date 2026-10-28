@@ -92,7 +92,7 @@ from the items below rather than maintained separately.
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
 | 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
 | 7a Does the port's screen match the machine's | AUTONOMOUS | **yes**, both sides can dump |
-| 7c What else the program patches at run time | AUTONOMOUS | **yes**, a savestate diff |
+| 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **yes**, the rules exist |
 | 7e A port regression the checks can run | AUTONOMOUS | **yes**, no emulator needed |
 
@@ -1079,13 +1079,30 @@ the comparison is two dumps and a diff.
 
 ### 7c. What else the program patches at run time
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | autonomous. A savestate of the running game plus the file is enough |
+| autonomy | autonomous. Done without the emulator: the port diffs its own memory |
 | done when | every byte of the code range that differs between the file and live memory is listed, and each is either explained by a named routine or recorded as unexplained. The `int` vector at guest `0x10241b` is the known one and must be recovered by the diff rather than assumed to be alone |
 | blocked by | nothing |
+
+**What is now known. Exactly one instruction byte in the image changes at run time**, after 24,000 frames:
+
+```
+patched   guest 0x10241b  00 -> 93
+patched   522674 bytes differ, of which 1 are inside a decoded instruction
+```
+
+The mechanism is `U2_DIFF_CODE=1` on the port, with `U2_COVERAGE=<file>` from `tools/insncoverage.py`, which
+runs the same walk with the same seeds and no-code ranges and writes each instruction's address and size. The
+filter is what makes the answer visible: 522,674 bytes differ in total, almost all of it the program filling
+its own zero-filled data, and one byte of it is code. The `int86` vector is recovered by the diff rather than
+assumed, which was the acceptance test.
+
+Scope, stated rather than implied: this is what the program did in 24,000 frames of emulated time. A site
+reached later could still appear, and the check is now cheap enough to re-run after anything that changes how
+far the port gets.
 
 The `int86` routine writes the caller's vector into its own instruction, and the recompiler cannot see that.
 One such site was found by tripping over it. If there are others, each is a latent port fault of the same
@@ -1097,9 +1114,18 @@ kind, and the diff is a page of work now against a debugging session later.
 
 | field | value |
 |---|---|
-| autonomy | autonomous. The recompiler already reports them, and two resolution rules are established |
-| done when | each of the 26 unresolved transfers in the game module and the 67 in the TBIOS module is either resolved by a rule (a callback immediate pointing at a prologue, a jump table, a measured seed) or shown to be unreachable, and the port's frame count before and after is recorded |
+| autonomy | autonomous. The recompiler already reports them, and three resolution rules are established |
+| done when | each of the 30 unresolved transfers in the game module and the 67 in the TBIOS module is either resolved by a rule (a callback immediate pointing at a prologue, an address taken by `lea reg, [disp32]`, a measured seed) or shown to be unreachable, and the port's frame count before and after is recorded |
 | blocked by | nothing |
+
+**Progress, and what is left.** Two transfers were met by running and are now covered by rules rather than by
+hand: the timer interrupt handler at `0x0fdde8`, which the prologue test rejected and which `lea reg, [disp32]`
+finds, and the four hook pointers in its data segment, read live at DS:0xdea3c and recorded in
+`tools/runtime-seeds.txt`. Frame 4,026 became 24,000 frames with no fault.
+
+The rules found 6 address-taken functions, so the mechanism that was producing these is now understood. What
+remains is the count: **30** unresolved in the game module against 26 before the seeds were added, because
+more code decoded, and 67 in TBIOS. Each needs the same treatment or a recorded reason it cannot be reached.
 
 ### 7e. A port regression the checks can run
 

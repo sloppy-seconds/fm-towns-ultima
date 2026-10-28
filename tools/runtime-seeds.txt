@@ -1,0 +1,26 @@
+# Function entries the static rules cannot find, measured on the running machine.
+#
+# Format: one guest address per line, hex, `#` starts a comment. These are appended to the seed list
+# that tools/seeds.js produces, and they are in the guest frame, which is what the recompiled module
+# and the port use. tools/port-build.sh reads this file.
+#
+# WHY A FILE. Each entry is evidence from the emulator rather than a rule, so it cannot be derived
+# from the image and does not belong in a scan. Two of the four below are also found by the
+# address-taken rule in seeds.js, which is harmless: what matters is that the ones the rules miss are
+# written down with where they came from, instead of being rediscovered by another fault.
+#
+# The timer interrupt handler at guest 0x0fdde8 calls through hook pointers in its data segment. Read
+# live at DS:0xdea3c while the game was running (PAU, then `MD 14:dea3c`):
+#
+#   0xdea3c  72 fb 0f 00   0x000ffb72
+#   0xdea40  38 72 0e 00   0x000e7238
+#   0xdea44  90 fc 0f 00   0x000ffc90
+#   0dea48  5f df 0f 00   0x000fdf5f
+#
+# All four are code. The port faulted on 0x0fdde8 at machine frame 4026, then on 0x0ffb72, then on
+# 0x0e7238, which is the order the handler reaches them.
+
+0x0ffb72
+0x0e7238
+0x0ffc90
+0x0fdf5f

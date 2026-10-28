@@ -96,6 +96,16 @@ PY
 )
 	SEED_LIST="${SHIFTED%%|*}"
 	NO_CODE="${SHIFTED#*|}"
+	#    Entries measured on the machine rather than derived from the image, already in the guest frame. They
+	#    are seeds the static rules miss: the timer handler's hook pointers, read live out of its data segment.
+	RUNTIME_SEEDS_FILE="$ROOT/tools/runtime-seeds.txt"
+	if [[ -f "$RUNTIME_SEEDS_FILE" ]]; then
+		RUNTIME_SEEDS=$(sed 's/#.*//' "$RUNTIME_SEEDS_FILE" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
+		if [[ -n "$RUNTIME_SEEDS" ]]; then
+			SEED_LIST="$SEED_LIST,$RUNTIME_SEEDS"
+			echo "seeds     plus $(awk -F, '{print NF}' <<< "$RUNTIME_SEEDS") measured on the machine, from $(basename "$RUNTIME_SEEDS_FILE")"
+		fi
+	fi
 	echo "seeds     $(awk -F, '{print NF}' <<< "$SEED_LIST") in the runtime frame, plus the entry"
 
 	# 3. Recompile, with the entry added because nothing CALLs it (docs/recomp-plan.md).
@@ -152,6 +162,12 @@ PY
 		exit 1
 	fi
 	echo "merged    $(ls "$RECOMP"/p_*.cpp | wc -l) source files, both modules registered"
+
+	# Instruction coverage, from the same walk and the same seeds and ranges as the module. That is what lets
+	# the port tell a patched instruction from a data write: without it the raw diff is half a megabyte of
+	# the program filling its own data. See tools/insncoverage.py and plan item 7c.
+	PYTHONPATH="$ROOT/references/vs-sr-dev" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
+		--image "$STRIPPED" --seeds "$SEED_LIST,0x101a20" $NO_CODE --out "$RECOMP/coverage.txt"
 fi
 
 # 4. Build the port.

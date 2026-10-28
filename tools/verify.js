@@ -296,8 +296,9 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 //
 // 532 stays the number for the transfer-derived set so the measurements that cite it stay
 // literally true. The callback rule adds 5 more (7 immediates, 2 already reached by a
-// transfer), giving 537 in total. Callbacks are addresses passed as arguments, so no call
-// site points at them and the transfer scan cannot see them at all.
+// transfer) and the address-taken rule adds 6 (a `lea reg, [disp32]` whose target is not in a
+// zero run), giving 543 in total. Callbacks and address-taken functions are both invisible to a
+// call-site scan: nothing calls them by name, so nothing points a `call` at them.
 {
 	const { execFileSync } = require('child_process');
 	const out = execFileSync('node', [path.join(ROOT, 'tools/seeds.js')], { encoding: 'utf8' });
@@ -305,12 +306,15 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 	const p = /promoted by prologue: (\d+)/.exec(out);
 	const t = /seeds from transfers: (\d+)/.exec(out);
 	const c = /callback immediates pointing at a prologue: (\d+) \((\d+) not/.exec(out);
-	if (m && 537 === Number(m[1])) ok('seed candidates, transfers plus callbacks', '537');
-	else bad('seed candidates, transfers plus callbacks', m ? m[1] : 'no line');
+	const a = /whose address the program takes: (\d+) \((\d+) not/.exec(out);
+	if (m && 543 === Number(m[1])) ok('seed candidates, all rules', '543');
+	else bad('seed candidates, all rules', m ? m[1] : 'no line');
 	if (t && 532 === Number(t[1])) ok('seed candidates from transfers', '532');
 	else bad('seed candidates from transfers', t ? t[1] : 'no line');
 	if (c && 7 === Number(c[1]) && 5 === Number(c[2])) ok('callback seeds', '7 found, 5 new');
 	else bad('callback seeds', c ? c[1] + ' found, ' + c[2] + ' new' : 'no line');
+	if (a && 6 === Number(a[1]) && 6 === Number(a[2])) ok('address-taken seeds', '6 found, 6 new');
+	else bad('address-taken seeds', a ? a[1] + ' found, ' + a[2] + ' new' : 'no line');
 	if (p && 102 === Number(p[1])) ok('single-caller seeds promoted', '102');
 	else bad('single-caller seeds promoted', p ? p[1] : 'no line');
 }
