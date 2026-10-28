@@ -64,6 +64,53 @@ being out of step, and it is worth more than any amount of further reading.
 
 This stage is small and it gates everything.
 
+## Stage 2: the port runs the entry on the machine, and the refusals were a frame error
+
+`port/` plus `tools/port-build.sh` build the game's recompiled code against `fmt_towns` rather than
+against the bare `x86.h` runtime. One command does the whole thing:
+
+```
+$ tools/port-build.sh
+stripped  /var/tmp/u2-ENCHANT-stripped.bin (1071886 bytes, was 1072398)
+seeds     532 in the runtime frame, plus the entry
+game: 783 functions, 40902 instructions, 134170 bytes of code; 89 jump tables (86 bounded),
+      20 indirect transfers unresolved, 0 refused, 0 conflicts
+built     build/port/b/u2port
+entry     000C:101a20  esp 0x11eac8  cs base 0x400000
+the program returned from its entry
+after     eax 0x00000008 ecx 0xfffffffe edx 0x00000000 ebx 0x0000ff00
+          machine frames 0  guest clocks 757
+```
+
+**Two things happened that matter more than the run itself.**
+
+**The 910 refusals were a 0x200 frame error, not the walk giving up.** The no-code ranges from
+`tools/codelimits.js` are **file** offsets. Against the stripped image they are 0x200 out, so the walk
+was refusing targets as "in a no-code range" when they were in code. Shifted into the runtime frame
+the same walk refuses **0** and reports **0 conflicts**, and emits **783 functions instead of 699**. The
+refusal count in every earlier write-up is measuring that mismatch.
+
+**The machine handles the interrupts the bare runtime could not.** The start-up no longer dies at
+`int 21h`: it runs **757 clocks**, past it, and then stops on named missing devices instead of stubs:
+
+```
+towns: write of linear 0051e000 (no device)
+towns: load of selector 0024 (no descriptor)
+towns: read of linear 00000000 (no device)
+towns: read of linear 0051e000 (no device)
+towns: write of linear 000df000 (no device)
+```
+
+Those are the next work items, and each names itself: a selector the program expects TownsOS to have
+created, and linear addresses outside the RAM this program mapped. `townsos()` sets up the machine as
+TownsOS hands it over, but the hand-off this program expects evidently includes descriptors and memory
+this port does not yet create.
+
+**What this does not mean.** It is not a running game. The entry runs and returns to nothing, there is no
+video because nothing has drawn, and the three missing devices have to be supplied before the start-up can
+finish. It is the difference between "the code does not run" and "the code runs until the machine is
+missing something", which is the boundary worth having.
+
 ## Stage 1: make it execute one function
 
 > **PARTLY DONE. It executes and returns. The three-way comparison with the save file has not been run.**
