@@ -649,12 +649,40 @@ implements that call by mapping the linear address back into the program's real-
 (`lin - prog_base + prog_phys`), and if what it returns differs from what the machine returns, the program reads
 a different physical area and gets zeros instead of the block it wanted.
 
-**Where this stopped, and why.** The one datum that settles it is the machine's `DS` base at `0x0E05B5`. Two
-attempts to break there both hit the emulator wedge, `splash never animated`, and the console log does not retain
-the segment bases for that break because `STA` was not run at it. That is two defeats on one address, which is
-the stop condition this session set itself, so the next session starts here: break at `000C:0E05B5` on a fresh
-container, run `STA`, read the `DS` base, and compare with the `seg:off` the port's `250F` returns for the same
-arguments.
+**That lead was followed and the picture changed twice. Both corrections are below.**
+
+The port's profile was the kit's own ports rather than this program: `prog_base 0x200000` and
+`prog_phys 0x49000`, where the program is at linear `0x400000` and the machine's own `ADTR 14:0ce0` reported
+`LINE 00400CE0` mapping to `PHYS 00076CE0`, so its physical base is `0x76000`. Both are now set from those
+measurements. **This changed nothing in the failing path**, which means `250F` is not where this divergence is.
+
+**The segment theory was wrong, and the earlier "code at DS 0xB90" reading with it.** At `000C:0E05B5`, with
+`STA` run at the break, the machine reports
+
+```
+CS=000C(LIN:00400000)  DS=0014(LIN:00400000)  ES=0014(LIN:00400000)
+EAX=00000B90  ECX=00000080  EDX=00000000
+```
+
+So `DS` is the program's segment on both sides, and the port's guess that its selector differed was wrong. The
+`73 80 3E 1F ...` I read at DS `0xB90` came from a *different point in a different run*, and comparing across
+different moments is exactly the mistake this project keeps making. At the same instruction the two agree for
+the first six bytes and differ at the source byte: machine `7F 00 00 00 93 00 BA 76`, port
+`7F 00 00 00 93 00 BA 00`. The machine has `0x80` at DS `0xBAA`, which is the byte the loop copies, and the port
+has `0x00`.
+
+**And that byte is never written.** A `BRKON MEMW` watch on the physical address behind DS `0xBAA`, armed before
+the program launched and left for 30 seconds, caught nothing, while the value is non-zero. That suggests the
+byte is **not written during this launch at all**, and the plausible explanation is that Tsugaru does not clear
+RAM on `RESET`, so it is left over from a previous launch and the program reads it as if it were data. If that
+is right then this divergence is not the port's fault and cannot be fixed by modelling anything: it is the
+program reading uninitialised memory, and the machine's answer depends on what ran before it.
+
+That is a hypothesis and it is written as one. The experiment that settles it is cheap and is the first thing to
+do: cold-boot the container, read DS `0xBAA` before and after a launch, and see whether the value is present on
+a freshly booted machine. If it is zero cold and non-zero after a launch, the program does write it and the
+watch above missed the write for some reason. If it is non-zero cold, the value is RAM left over from an earlier
+session and the port should be given the same starting bytes deliberately rather than left at zero.
 sequences, one aligned comparison, and the first difference is the bug.
 
 **Done, and it found a missing floppy drive.**

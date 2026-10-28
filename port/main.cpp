@@ -168,6 +168,13 @@ int main(int argc, char** argv) {
 										  : 0x11EB10;
 
 	towns::Machine m;
+	// The profile's program base and physical base are the kit's own ports: 0x200000 linear and 0x49000
+	// physical. This program is at linear 0x400000, measured, and its pages sit at physical 0x76000, which is
+	// the machine's own answer: `ADTR 14:0ce0` reported LINE 0x400CE0 and PHYS 0x76CE0 on the live machine.
+	// Both matter because Phar Lap 250Fh turns a protected-mode address into a real-mode `seg:off` through
+	// these two numbers, and the program uses that result to read a block it then copies into a table.
+	static const towns::Profile kU2Profile = {"u2", 2, PROGRAM_BASE, 0x76000, 0, 0x1FFFFF};
+	m.profile = &kU2Profile;
 	std::printf("machine   townsos profile, %u MB\n", m.profile->ram_mb);
 	m.townsos();
 
