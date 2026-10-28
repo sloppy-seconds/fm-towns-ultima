@@ -950,9 +950,15 @@ noticed one at a time. And `0xEB` being solved means the 539 strings that were p
 unreadable now render, which unblocks naming every routine that references them.
 
 Nothing here counts as satisfying the item, which asks for every routine with three or more
-callers. The instrument that will finish it is `tools/fnstrings.js --top`, now that it reports
-correct addresses and readable text, and the remaining limit is the part of `0xEB` still
-unsettled rather than the tooling.
+callers. **The threshold has now been counted, and the target was wrong.** "247" was a count of
+call sites. Counting distinct caller functions, which is what the criterion says, there are **188**
+routines with three or more callers. Of those, 65 have their address mentioned somewhere in `docs/`
+and **123 are mentioned nowhere**, so the remaining work is 123 routines, not 247. The measurement
+and the command are in [call-graph.md](call-graph.md).
+
+The instrument for the residue is `tools/fnstrings.js --top` crossed with the 123-address list, since
+that tool ranks by strings and the residue is by definition the routines that have none. The limit
+is a body read per routine rather than anything the tooling is missing.
 
 The cluster was worth more than four separate names. Reading them together produced the drawing
 primitives a reimplementation needs, the screen geometry `0..639` by `0x18..0x1a7`, and a

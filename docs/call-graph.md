@@ -227,6 +227,30 @@ drift has one place to fix.
 Item 1a is **done**: every function with a readable string is named. Measured by scanning each function
 only as far as the next call target, then checking which of those addresses appear in the two pages above.
 
+## Item 5g: the threshold inventory, measured
+
+The item asks for every routine with three or more callers to have a name, a one-line purpose and a link.
+That number has been quoted as **247**, and 247 is a count of **call sites**, not of routines. Counting
+distinct caller functions instead, which is what "three or more callers" means:
+
+```
+$ node tools/callgraph.js     # agrees: top routine 0xe6b1c has 147 callers, not 240
+  247   call sites pointing at a routine with 3+ sites
+  188   routines with 3 or more DISTINCT callers
+   65   of those have their address mentioned anywhere in docs/
+  123   are mentioned nowhere in docs/ at all
+    1   appears in docs/routines.json
+```
+
+Measured this session by scanning every `E8` site, attributing each to its enclosing function start from
+`tools/callgraph.js`'s list, and counting distinct callers per target. The `0xe6b1c` figure of 147 matches
+`callgraph.js` exactly, which is the check that the attribution is right.
+
+**So item 5g is 123 routines of work, not 188 and not 247**, and the residue is game code with no readable
+string, because the 65 already mentioned are largely the library and drawing primitives named earlier. The
+instrument for the rest is `tools/fnstrings.js --top`, which ranks by string count rather than by callers,
+so naming this residue needs the list above crossed with a body read rather than one tool run.
+
 Derived by parsing the tables on this page and in `inside-a-turn.md` against the function-start list from
 `tools/callgraph.js`. Re-derive it rather than trusting it.
 

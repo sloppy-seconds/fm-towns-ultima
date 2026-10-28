@@ -122,7 +122,7 @@ the kind of work.
 | extraction is a single pass | rules are hundreds of independent reads |
 
 **The single biggest lever now is the call graph, not more extraction.** 738 functions is tractable if
-grouped: 247 are called three or more times, and those will be the meaningful routines. The 384 called
+grouped: 188 have three or more distinct callers, and those will be the meaningful routines. The 384 called
 exactly once are mostly glue.
 
 ## What I would do differently, stated plainly
