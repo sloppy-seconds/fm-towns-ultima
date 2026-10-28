@@ -84,7 +84,7 @@ from the items below rather than maintained separately.
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
 | 5a Character creation | AUTONOMOUS | **done**, modifiers read from the code |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
-| 5c Time gates and epochs | AUTONOMOUS | **yes** |
+| 5c Time gates and epochs | AUTONOMOUS | **done**, all three gate tests named and the world clock read |
 | 5d Towns and NPC assignment | AUTONOMOUS | **yes** |
 | 5e Combat formulas | AUTONOMOUS | **yes** |
 | 5f Shops and transports | AUTONOMOUS | **yes** |
@@ -862,6 +862,16 @@ a measurement of allocation itself, which is a weaker footing than the modifier 
 was wrong, and it contradicted what `docs/bot-plan.md` had already planned around. The `cmp 0xf` at
 `0xef5b4` bounds a 16-wide **cell table**, not the world.
 
+**Corrected again, and this one is from the variable map.** The addresses in the open-questions list were wrong in
+two places: `MAP_X`/`MAP_Y` are **`0xcdf5b`/`0xcdf5f`**, and `0xcdf63`/`0xcdf67` are `DUNG_X`/`DUNG_Y`; and
+`0xcdf53` is `SCORE`, not a map id, while `0xcdf57` is `MAP` itself rather than a flag set when the party stands on
+an edge. The whole named block is in [state-variables.md](state-variables.md), derived from the save writer's own
+format strings.
+
+**Also from the map, and it matters for the stride question:** the code walks this state two ways, **95 bytes per
+character** and **351 bytes per player** (indexed by `[0xceca0]`), and the movement and gate routines use the 351
+form. A "record base and stride" read as 95 will not match the addresses the movement code computes.
+
 **What is established:** the wrap routine is **`0xf6b5a`**, read this session. For each axis
 independently: if the coordinate is `>= 64` set it to 0, and if it is `< 0` set it to 63. That is a
 torus of **64 in both axes**, which matches the 256 by 128 sector in `docs/map-geometry.md` being
@@ -910,13 +920,24 @@ See [movement-and-wrap.md](movement-and-wrap.md).
 
 ### 5c. Time gates and the four epochs
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
 | autonomy | runs unattended |
 | done when | the epoch switching rule and what gates it are stated, including whether the gate is a coordinate test, a map id, or an item check |
 | blocked by | nothing |
+
+**What is now known.** The gate is **all three tests the item asked about, and no item check**: `MAP == 0` (the
+overworld), then `PLAYER_X/Y == GATE_X/GATE_Y` exactly, both of them, with the whole thing switched off when
+`ERA > 4`. The four epochs are `WORLD`, which runs `0..3` and wraps: it increments on a **six-tick clock**, not on the
+coordinate, because `GATE_TIME` is decremented each pass and reloaded to 6 when it falls below 1, and standing on the
+coordinate calls `0xf9780` instead and skips the countdown.
+
+The full arithmetic, the branch order and the addresses are in [time-gates.md](time-gates.md), and the variables are
+named in [state-variables.md](state-variables.md). Two things there are deliberately not claimed: what `0xf9780`
+changes beyond printing a message and calling twice with `ERA`, and whether `GATE_TIME` ticks on a turn or a timer.
+The item's own question is answered; the transition's arithmetic is the next read.
 
 ### 5d. Towns, dungeons and NPC assignment
 
@@ -949,6 +970,24 @@ See [movement-and-wrap.md](movement-and-wrap.md).
 | autonomy | runs unattended |
 | done when | price tables, the gold checks, inventory mutation on buy/sell, and the board/disembark rules for ship, plane and time machine are stated |
 | blocked by | nothing |
+
+**Progress, measured.** `GOLD` is at **`0xcde91`** and `VEHICLE` at **`0xcdf7b`**, both from the save writer's own
+format strings ([state-variables.md](state-variables.md)). One gold rule is read as arithmetic, at
+`0xf0bc0`–`0xf0bf5`:
+
+```
+eax = GOLD
+eax = (eax - sign) >> 1        ; the compiler's signed halve: cdq, sub, sar 1
+GOLD = eax
+if (GOLD < 0x64) GOLD = 0x64   ; a floor of 100
+```
+
+which only happens on an explicit path, not on every turn, so it is a penalty rather than a decay. What calls it is
+not yet read, so the reason for the halving is not claimed. The other gold arithmetic found so far is a clamp to
+`0x270f` (9999) at `0xef0a2` and `0xf0f11`, and `add GOLD, edi` at `0xef0e7`.
+
+Still to read: the price table, the buy and sell paths that mutate the item counters (`DAGGER` .. `TRI_LITHIUM`,
+also named in the same table), and the board and disembark rules against `VEHICLE`.
 
 ### 5g. Name the call graph above a caller threshold
 **State:** OPEN · **Autonomy:** AUTONOMOUS
