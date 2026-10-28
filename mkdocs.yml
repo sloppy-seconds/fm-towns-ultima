@@ -213,6 +213,7 @@ nav:
       - Monster movement, and the savestate diff method: monster-movement.md
       - Five routines named from their strings: six-named-routines.md
       - The text encoding: text-encoding.md
+      - Resident NPC dialogue table: resident-dialogue.md
       - AGENTS.md audit: agents-md-audit.md
       - Compiler API: compiler-api.md
       - The goal, stated: goal-behavioural-faithfulness.md
