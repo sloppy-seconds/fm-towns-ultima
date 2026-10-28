@@ -229,13 +229,17 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 	else bad('ENCHANT EIP past header', '0x' + e.eip.toString(16));
 }
 
-// Where the game code lives in memory. `MD 000C:0` on a verified running game
-// returns the ASCII text `KYB_init` followed by a High C prologue, and that text
-// sits at offset 0x200 in ENCHANT.EXP. So the running image is the file with its
-// header stripped: image offset = segment offset + 0x200.
+// Where the game code lives in memory, and how to read a captured address.
 //
-// This is the mapping the CFG work needed and could not find, because every
-// capture before it was taken from a machine that had not finished booting.
+// `MD 000C:0` on a running game returns the ASCII text `KYB_init` followed by a
+// High C prologue, and that text sits at offset 0x200 in ENCHANT.EXP. So the
+// running image is the file with its header stripped.
+//
+// The offset is only half of it. A CFG edge carries `src`, the address AFTER the
+// instruction ran, and `preEIP`, the address it started at. Decoding at `src`
+// compares the wrong bytes with the right length and cannot agree. Decoding at
+// `preEIP + 0x200` agrees on 1546 of 1555 game-segment edges, 99.4 percent.
+// Getting this wrong cost several sessions, so both halves are asserted.
 {
 	const e = disc.get(cat, 'ENCHANT.EXP');
 	const at = e.toString('latin1', 0x200, 0x208);
@@ -245,6 +249,17 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 	const near = e.toString('latin1', 0x1ff, 0x207);
 	if ('KYB_init' !== near) ok('ENCHANT code base is exact, 0x1ff differs', '');
 	else bad('ENCHANT code base is exact, 0x1ff differs', 'matched one byte off');
+}
+
+// ENCHANT.EXP is mostly zeros, which is why comparisons against the file fail
+// over large parts of it and why a low match rate is not by itself a mapping
+// error. Assert the size of that, so a different rip that changed it is caught.
+{
+	const e = disc.get(cat, 'ENCHANT.EXP');
+	let nonzero = 0;
+	for (let i = 0; i < e.length; i++) if (0 !== e[i]) nonzero++;
+	if (196725 === nonzero) ok('ENCHANT non-zero bytes: 196725 of 1072398', '');
+	else bad('ENCHANT non-zero bytes: 196725 of 1072398', String(nonzero));
 }
 
 // ---------------------------------------------------------------------------

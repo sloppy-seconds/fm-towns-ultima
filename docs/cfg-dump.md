@@ -112,76 +112,81 @@ The game **writes code into that region at runtime**. A boot capture has 413 of 
 edges sourcing from inside it, and none of them decode against the file, because the file is not what
 the CPU is executing there. The emulator is right and the file comparison was the broken thing.
 
-## The address mapping: found
+## The address mapping: found, and the mistake was which column to read
 
-**`image offset = segment offset + 0x200`** for segment `000C`, the segment the game code runs in.
+**`image offset = preEIP + 0x200`, where `preEIP` is the address of the instruction, for
+segment `000C`.** Verified on 1,555 edges captured from a running game: **1,546 agree with the
+emulator's instruction length, 9 differ, 99.42 percent.**
 
-This took eleven measurements and most of them were wrong because they were taken from a machine
-that had not finished booting. The sequence that worked is worth writing down.
+### The mistake
 
-### The mistake first
+Every earlier attempt decoded at the edge's `src` column. That column is the address the CPU held
+**after** the instruction ran, so it points at the *next* instruction. Decoding there compares the
+wrong bytes with the right length, which cannot agree, and gave 33 percent however the offset was
+chosen.
 
-Audrey's question cut through it: *if the game is running, how can a program that is not ours be
-there?* It cannot. `tools/u2flow.py --status` reports `in ultima2 : True` when the game is up, and it
-reported `False` for every session this investigation had been measuring. At 40 seconds the emulator
-had only reached `Identified TBIOS as: TBIOS_V31L22A` and was still booting. Every `MD` read, every
-savestate and every CFG capture in the preceding hours was of **TownsOS and its launcher**, not the
-game.
+The record has carried a `preEIP` column since the pre-execution EIP was added, and it is the address
+the instruction actually started at. The same decoder, the same `+0x200`, reading `preEIP` instead of
+`src`, moves the figure from 33 percent to 99.42 percent.
 
-That is why no mapping fit. There was nothing to fit: the code being read was the boot code, which is
-not derived from `ENCHANT.EXP` at all and has no reason to resemble it.
+A concrete pair from the capture:
 
-### The measurement, on a verified running game
+| column | value | what it is |
+|---|---|---|
+| `src` | `0x000A9` | after the instruction |
+| `preEIP` | `0x000A5` | where it started |
+| image `0x000A5 + 0x200` | `c8 00 00 00 53 56` | `enter 0,0` then `push` |
+| emulator length | 4 | matches `enter`, 4 bytes, at `preEIP` |
 
-With `in_ultima2` true, `MD 000C:0` returns:
+### The mapping
 
-```
-000C:00000000 4B 59 42 5F 69 6E 69 74 08 55 8B EC 32 E4 CD 90|KYB_init U  2
-```
+`ENCHANT.EXP` is the loaded image with its `MP` header stripped:
 
-`4B 59 42 5F 69 6E 69 74` is the ASCII text `KYB_init`, a symbol name, followed by `08` and then
-`55 8B EC` (`push ebp; mov ebp,esp`). `"KYB_init"` sits at **offset `0x200`** in `ENCHANT.EXP`, and
-`0x200` is the `MP` header size.
+- `MD 000C:0` returns `4B 59 42 5F 69 6E 69 74` = `KYB_init`, which sits at image offset `0x200`
+- `MD 000C:101A00` returns bytes at image offset `0x101C00`, a difference of `0x200` again
+- checked at 29 block offsets: every one where the image had data agreed at `+0x200`, and every
+  disagreement was a region where the image is zero
 
-Confirmed at a second address. `MD 000C:101A00` returns `2D 00 00 00 FF 75 08 E8 3C 19 00 00`, which
-is at `ENCHANT.EXP` offset `0x101C00`, and `0x101C00 - 0x101A00 = 0x200` again.
+**`ENCHANT.EXP` is 82 percent zeros.** Only 196,725 of its 1,072,398 bytes are non-zero. The game
+fills the rest at runtime, which is why a comparison against the file fails there and is not a mapping
+error.
 
-So the running code is the image with its header stripped and the remainder placed at `000C:0`.
+An earlier version of this page said 74 percent, from counting a 1 KB block as non-zero if any single
+byte in it was. The `verify.js` assertion for the exact count caught that, which is the reason the
+count is asserted rather than described.
 
-### The result
+### The offset is specific to the game segment
 
-Applying `image offset = segment offset + 0x200` to the 535 game-segment edges in a boot capture:
-**108 agree with the emulator's instruction length, 427 differ.** Every one of the disagreements is at
-`0x1AA90` or above.
+Applying `+0x200` to every segment shows it belongs to `000C` alone:
 
-### The one region that still does not fit, and what it is
+| segment | agree | differ | rate |
+|---|---|---|---|
+| `000C` | 1,546 | 9 | **99.4%** |
+| `0110` | 261 | 851 | 23.5% |
+| `5E88` | 30 | 190 | 13.6% |
+| `0008` | 29 | 204 | 12.4% |
+| `0092` | 28 | 86 | 24.6% |
 
-`ENCHANT.EXP` is **65,536 zero bytes** from `0x10000` to `0x20000`. The edges that fail are all inside
-that range. In the verified running game, `MD 000C:1AA90` returns:
+The other segments are the BIOS and TownsOS, which are not derived from `ENCHANT.EXP` at all. A
+number near 20 percent on those is what a wrong mapping scores by chance, and they should be read as
+"not applicable" rather than as failures.
 
-```
-000C:0001AA90 0D 8E 05 93 94 32 1D BD B6 18 31 0A 0A A8 AA 07
-```
+### The 9 that differ
 
-That is not code. It is data. The CPU executed through it because something jumped into a buffer.
+Two are at addresses where the image is zero (`0x110C5`, `0x025AA`). The rest share `preEIP 0x002B2`,
+an address the image holds `01 00 00 0F A1 64`, which is data. So the residuals are the same
+runtime-filled or non-code regions, not a mapping fault.
 
-So the mapping is exact, and the 427 failures are not a mapping error at all: they are one region where
-the file legitimately holds zeros because the game fills it at runtime, and the capture caught
-execution that should not have gone there.
-
-### What is established
+### What this establishes
 
 | claim | evidence |
 |---|---|
-| The recorder captures a graph | 1,433 edges, 12 segments |
-| Fall-through arithmetic holds | 405 of 415, `pre + len == src` |
-| Game code maps to the image | `image offset = segment offset + 0x200` |
-| Confirmed twice, independent addresses | `KYB_init` at `0x200`, and `0x101C00 - 0x101A00` |
-| The failing region is runtime data | `MD` there returns non-code bytes |
-| The 40-second sessions were TownsOS | `in ultima2` false, boot only reached TBIOS |
+| Game code maps to the image | `image = preEIP + 0x200`, 1,546 of 1,555 |
+| The image is header-stripped | `KYB_init` at `0x200`, independent second address |
+| The offset is `000C` only | other segments 12 to 28 percent, i.e. chance |
+| Most of the image is zero | 196,725 non-zero of 1,072,398, so 82 percent zero |
 
-A `J` edge is an emulator transition. Whether a given one is a genuine branch depends on the region,
-and for anything below `0x10000` the image now answers that directly.
+A `J` edge for a `000C` address can now be read as a branch, because the bytes behind it are known.
 
 ## Why this instead of reading `SAVEHIST`
 
