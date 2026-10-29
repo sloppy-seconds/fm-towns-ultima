@@ -303,6 +303,34 @@ not the `0x100000` an earlier session measured at boot. Either the extended load
 or the console is translating through a different table. It is unresolved, and it matters: every offset in this
 section is an offset into whatever `0110` means at the time.
 
+## The mode selector, read out of TBIOS
+
+The four pixel writers are chosen from a **32-entry table at `0x61C4`**, and the code that chooses is at `0x6120`:
+
+```
+mov  ecx,[gs:ebp+0x14]        ; a value from TBIOS's own state block
+sub  eax,eax
+cmp  byte [gs:ebp+0x300],0
+jnz  short
+inc  eax
+test byte [gs:ebp+0x10a],2
+jnz  short
+lea  eax,[eax+ecx*2+1]
+test byte [gs:ebp+0x10a],1
+jnz  short
+inc  eax
+mov  edi,[cs:eax*4+0x61C4]    ; the chosen writer
+mov  [gs:ebp+0x314],edi
+```
+
+With `ecx = 14` and both flag bits clear the index is `2 + 2*14 = 30`, and entry 30 is `0x659C`, the masked XOR. So
+**the draw mode is a value at `gs:[ebp+0x14]`**, and the plot routine is that table entry. Entries 26 and 31 are the
+masked copy at `0x6560`, 28 is masked OR, 29 masked AND, 30 masked XOR.
+
+That is the shape of the fault to look for next: the port has to be reading a different value from that state block,
+which selects a different writer, and the menu's text is drawn by a mode that does not lay down the glyph. It is also
+where the `ADTR` observation above starts to matter, because `gs:[ebp+...]` means whatever GS and EBP are at the time.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is

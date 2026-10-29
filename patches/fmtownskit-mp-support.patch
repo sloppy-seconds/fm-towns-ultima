@@ -825,10 +825,10 @@ index 039e526..6701f90 100644
  }
  
 diff --git a/runtime/towns_mem.cpp b/runtime/towns_mem.cpp
-index 7fd99da..76e5b12 100644
+index 7fd99da..d3c3089 100644
 --- a/runtime/towns_mem.cpp
 +++ b/runtime/towns_mem.cpp
-@@ -10,6 +10,34 @@
+@@ -10,6 +10,46 @@
  #include <set>
  #include <string>
  
@@ -842,6 +842,18 @@ index 7fd99da..76e5b12 100644
 +// writes, and a write watch cannot tell that apart from a routine that was never called.
 +uint32_t g_rdw_lo = 0, g_rdw_hi = 0;
 +unsigned long long g_rdw_hits = 0;
++// Which instruction read the watched range, deduped, so a reader in a loop is one line. Bounded by g_watch_max: the
++// same budget question as the write watch, and the same answer.
++void x86_read_watch(uint32_t a) {
++    ++g_rdw_hits;
++    static std::set<std::pair<uint16_t, uint32_t>> seen;
++    const X86Cpu* c = g_x86_cur;
++    if (!c) return;
++    std::pair<uint16_t, uint32_t> key{ c->sreg[1], c->eip };
++    if (!seen.insert(key).second) return;
++    if (seen.size() > g_watch_max) return;
++    std::fprintf(stderr, "rdwatch   %08x read by %04x:%08x\n", a, (unsigned)c->sreg[1], c->eip);
++}
 +static long g_watch_hits = 0;
 +// The bound is a default, not a law: 64 hits is right for "what writes this one byte" and wrong for "what does
 +// this redraw write", where the fills come first and bury the interesting part. A port raises it with
@@ -863,7 +875,7 @@ index 7fd99da..76e5b12 100644
  namespace towns {
  
  Machine* g_towns;
-@@ -85,6 +113,12 @@ void Machine::map_ram(uint32_t linear, uint32_t size) {
+@@ -85,6 +125,12 @@ void Machine::map_ram(uint32_t linear, uint32_t size) {
      }
  }
  
@@ -876,7 +888,7 @@ index 7fd99da..76e5b12 100644
  uint8_t* Machine::host(uint32_t a) {
      uint8_t* p = g_x86_page[a >> 12];
      return p ? p + (a & 0xFFF) : nullptr;
-@@ -126,6 +160,18 @@ static uint8_t read8(Machine& m, uint32_t a) {
+@@ -126,6 +172,18 @@ static uint8_t read8(Machine& m, uint32_t a) {
          return m.sound.wave[bank | (a & 0xFFF)];
      }
      if (a >= 0xC2100000u && a < 0xC2140000u && !m.font.empty()) return m.font[(a - 0xC2100000u) % m.font.size()];
@@ -1026,10 +1038,10 @@ index 2a0e2eb..7c7e0e4 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/x86.h b/runtime/x86.h
-index 48bb159..97bcf31 100644
+index 48bb159..567ccbe 100644
 --- a/runtime/x86.h
 +++ b/runtime/x86.h
-@@ -34,6 +34,26 @@ struct X86Cpu {
+@@ -34,6 +34,27 @@ struct X86Cpu {
  };
  
  typedef void (*X86Func)(X86Cpu&);
@@ -1042,6 +1054,7 @@ index 48bb159..97bcf31 100644
 +extern uint32_t g_watch_lo, g_watch_hi;   // [lo, hi); armed when lo < hi
 +extern uint32_t g_rdw_lo, g_rdw_hi;       // [lo, hi) read counter; armed when lo < hi
 +extern unsigned long long g_rdw_hits;     // how many reads landed in that range
++void x86_read_watch(uint32_t a);          // report the reader, deduped by instruction, bounded by g_watch_max
 +extern uint32_t g_trace_far_sel;          // log far transfers into this selector, once per call site; 0 is off
 +extern uint32_t g_trace_far_all;          // log that many transfers individually rather than once per site; 0 is off
 +extern uint32_t g_far_eax;                // EAX of the last traced transfer, printed beside a watched write
@@ -1056,22 +1069,22 @@ index 48bb159..97bcf31 100644
  struct X86FuncEntry { uint32_t addr; X86Func fn; };
  struct X86Module {
      const char* name;
-@@ -51,29 +71,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
+@@ -51,29 +72,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
  void     x86_mem_write(uint32_t a, int n, uint32_t v);
  
  static inline uint32_t rd8(uint32_t a) {
-+    if (X86_UNLIKELY(g_rdw_lo != g_rdw_hi && (uint32_t)((a) - g_rdw_lo) < g_rdw_hi - g_rdw_lo)) ++g_rdw_hits;
++    if (X86_UNLIKELY(g_rdw_lo != g_rdw_hi && (uint32_t)((a) - g_rdw_lo) < g_rdw_hi - g_rdw_lo)) x86_read_watch(a);
      uint8_t* p = g_x86_page[a >> 12];
      return X86_UNLIKELY(!p) ? x86_mem_read(a, 1) : p[a & 0xFFF];
  }
  static inline uint32_t rd16(uint32_t a) {
-+    if (X86_UNLIKELY(g_rdw_lo != g_rdw_hi && (uint32_t)((a) - g_rdw_lo) < g_rdw_hi - g_rdw_lo)) ++g_rdw_hits;
++    if (X86_UNLIKELY(g_rdw_lo != g_rdw_hi && (uint32_t)((a) - g_rdw_lo) < g_rdw_hi - g_rdw_lo)) x86_read_watch(a);
      uint8_t* p = g_x86_page[a >> 12];
      if (X86_UNLIKELY(!p || (a & 0xFFF) > 0xFFE)) return x86_mem_read(a, 2);
      uint16_t v; std::memcpy(&v, p + (a & 0xFFF), 2); return v;
  }
  static inline uint32_t rd32(uint32_t a) {
-+    if (X86_UNLIKELY(g_rdw_lo != g_rdw_hi && (uint32_t)((a) - g_rdw_lo) < g_rdw_hi - g_rdw_lo)) ++g_rdw_hits;
++    if (X86_UNLIKELY(g_rdw_lo != g_rdw_hi && (uint32_t)((a) - g_rdw_lo) < g_rdw_hi - g_rdw_lo)) x86_read_watch(a);
      uint8_t* p = g_x86_page[a >> 12];
      if (X86_UNLIKELY(!p || (a & 0xFFF) > 0xFFC)) return x86_mem_read(a, 4);
      uint32_t v; std::memcpy(&v, p + (a & 0xFFF), 4); return v;
