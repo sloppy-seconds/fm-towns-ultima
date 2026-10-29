@@ -207,6 +207,7 @@ that says "pausing is essential" is a measurement, not a suggestion.
 | what the status bar shows and how it maps to memory | `docs/hp-and-damage.md` |
 | the save disk and roster format | `docs/disc-and-binaries.md`, `tools/savedisk.js` |
 | driving the game from a script rather than by clicking | `tools/README.md`, `tools/u2bot.py` |
+| typing at the TownsOS prompt, the colon key, drive switching, staging files into an image | `docs/driving-the-townsos-prompt.md` |
 
 **A negative result is not evidence the page is missing.** If a search for "how do we read
 memory" fails, search for the command instead: `MD`, `PAU`, `STA`, `savestate`. The pages are

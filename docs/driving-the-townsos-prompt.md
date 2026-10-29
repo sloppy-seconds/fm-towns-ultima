@@ -53,6 +53,36 @@ So **the colon is the `'` key on this keyboard**, and neither `;` nor `shift+;` 
 still present after the next boot. An earlier note in this page's history said they were destroyed; that was a `grep`
 filter artefact, not a fact about the emulator.
 
+### The container that works
+
+```bash
+podman run --name tosvnc --rm -d \
+  -p 6083:6080 -p 5903:5900 -p 8099:8080 \
+  -v "$PWD/vendor/emulator:/emulator:ro,z" \
+  -v "$PWD/vendor/roms:/roms:ro,z" \
+  -v "$PWD/saves:/data:z" \
+  -e RESOLUTION=1024x768x24 -e ROM_DIR=/roms -e API_PORT=8080 \
+  -e "TSUGARU_EXTRA=-CD /data/hc.ccd -HD0 /data/scratch-tos11en.h0" \
+  localhost/fmtowns:latest
+```
+
+Watch and drive it at `http://<host>:6083/vnc.html`. The API is on 8099 and takes `POST /api/keys {"text":…}`,
+`POST /api/key {"keys":"Return"}`, `POST /api/shot {"name":…}` and `POST /api/screen?mode=text`. Ports 6083/5903/8099
+were chosen because the emulator, the U2 port and the DOS compile container already hold 6080, 6081 and 6082.
+`-CD` **and** `-HD0` together is what makes this configuration: the CD wins the boot and the hard disk appears as `D:`.
+
+### The loop, end to end
+
+1. mount the image from the host and stage the source and a batch:
+   `MTOOLS_SKIP_CHECK=1 mcopy -o -i saves/scratch-tos11en.h0@@1536 file "::FILE"`
+2. boot, wait about 75 seconds for `Entering Interactive Mode.` and `Q:\>`
+3. type `d'` and Return: the prompt becomes `D:\>`
+4. type the batch name and Return
+5. read the output back with `mcopy`, and delete it from the image first if a stale copy could be mistaken for a new one
+
+That produced a real `R2.EXP` from `HC386.EXE` under TownsOS, and the comparison in
+[base-fold-pass-1.md](base-fold-pass-1.md) is the result.
+
 ### The command grammar, and the one rule that costs a session
 
 **A drive letter alone is not a command.** `c:` answers `Wrong Command or File Name.` The form that works is
