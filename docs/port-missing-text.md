@@ -267,6 +267,42 @@ it matches the shape of the six earlier walls in this project: machine state the
   (`c1 e2 10 5b 66 f7 e3 ... c3`). `MD 0:<linear>` addresses from base zero and VRAM is linear `0x80000000`, which is
 the form that works. Two captures were wasted on this, and the second was nearly reported as a real difference.
 
+## How the machine draws a glyph, and why the port never does
+
+The pixel that is index 11 on the machine and index 13 in the port was watched through a physical memory breakpoint,
+`BRKON MEMW 8003005A`, while pressing Down on the menu redraws the row. Ten presses, ten breaks, one instruction:
+**`0110:000065A6`**, which is the byte after `xor [es:edi], eax` at `0110:000065A3`.
+
+That is the mechanism, and it explains the odd values in the machine's row. Index 11 is not written as a colour. The
+glyph bitmap is **XORed into the background**: `0xDD ^ 0x66 = 0xBB`, `0xDD ^ 0x60 = 0xBD`, `0xDD ^ 0x06 = 0xDB`, which
+is exactly the mixture of `0xBB`, `0xBD` and `0xDB` those rows contain.
+
+The instruction sits in an eight-byte function at `0x659C`, one of four chosen from a table at `0x622C`:
+
+| entry | first bytes | mode |
+|---|---|---|
+| `0x6560` | `not eax` / `mov ecx,[es:edi]` / `and ecx,eax` / `mov [es:edi],ecx` | masked copy |
+| `0x6578` | `and eax,[gs:ebp+0x10c]` / `or [es:edi],eax` | masked OR |
+| `0x6584` | `mov ebx,eax` / `not ebx` / `and ebx,[es:edi]` / `or eax,ebx` / `mov [es:edi],eax` | masked AND |
+| `0x659C` | `and eax,[gs:ebp+0x10c]` / `xor [es:edi],eax` | masked XOR |
+
+So TBIOS's text renderer picks a pixel operation from a draw mode held in its own state (`gs:[ebp+0x10A]` flags and
+`gs:[ebp+0x10C]` mask) and plots the glyph through it.
+
+**The port never executes any of the four.** Every watched write in the menu's draw comes from `0110:00008211`,
+`000081DF`, `00003D2E`, `00004195`, `0000409E`, `000089F2`, `0000E5C80` or `000019CA`, and not one is inside
+`0x6560`-`0x65B0`. The functions **are** in the port's recompiled TBIOS module ( `0x659c` is in
+`build/port/recomp/p_tbios_table.cpp`), so the code is not missing: the call to it is not made.
+
+Yet the port does read the font: `U2_RDWATCH=c2100000:40000` counts 2,084 reads by frame 400 and 2,572 by frame 520,
+so the menu's own draw accounts for **488 glyph lookups**. Glyphs are fetched and never plotted.
+
+**One measurement that has to be re-read before it is believed.** `ADTR 0110:0000659C` on the machine reports linear
+`0x000204D0`, which implies a segment base of `0x19F34`, not the `0x100000` the port assigns to selector `0110` and
+not the `0x100000` an earlier session measured at boot. Either the extended loader reloads that descriptor after boot,
+or the console is translating through a different table. It is unresolved, and it matters: every offset in this
+section is an offset into whatever `0110` means at the time.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is

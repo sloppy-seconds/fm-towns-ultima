@@ -516,6 +516,22 @@ int main(int argc, char** argv) {
 		for (const PadPress& p : padpresses) std::printf("%ld:%u(%ld) ", p.frame, p.bits, p.hold);
 		std::printf("\n");
 	}
+	// U2_RDWATCH=<linear>[:<length>] counts reads inside one linear range and prints the total at the end. The
+	// counterpart to U2_WATCH, which can only see writes: a routine that looks a glyph up and then declines to draw
+	// writes nothing, and this is what separates that from a routine that never ran.
+	if (const char* r = std::getenv("U2_RDWATCH")) {
+		char buf[64];
+		std::snprintf(buf, sizeof buf, "%s", r);
+		char* colon = std::strchr(buf, ':');
+		uint32_t len = 1;
+		if (colon) {
+			*colon = 0;
+			len = (uint32_t)std::strtoul(colon + 1, nullptr, 16);
+		}
+		g_rdw_lo = (uint32_t)std::strtoul(buf, nullptr, 16);
+		g_rdw_hi = g_rdw_lo + (len ? len : 1);
+		std::printf("rdwatch   [%08x,%08x)\n", g_rdw_lo, g_rdw_hi);
+	}
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
 	// U2_TRACE_FAR=1 prints every distinct far call site into the TBIOS selector 0110, one line per site, with the
 	// caller's CS:EIP. The program does not reach its system layer with constant-selector `9a` instructions and stores
@@ -717,6 +733,8 @@ int main(int argc, char** argv) {
 	if (!m.keys.empty() || m.keys_served) {
 		std::printf("keys      %lu served, %zu still queued\n", m.keys_served, m.keys.size());
 	}
+	if (g_rdw_lo != g_rdw_hi)
+		std::printf("rdwatch   %llu reads in [%08x,%08x)\n", g_rdw_hits, g_rdw_lo, g_rdw_hi);
 	if (shot_path) {
 		std::vector<uint32_t> rgb;
 		int w = 0, h = 0;
@@ -817,6 +835,31 @@ int main(int argc, char** argv) {
 		std::printf("memory    %08x:", at);
 		for (unsigned char ch : buf) std::printf(" %02x", ch);
 		std::printf("\n");
+	}
+	// U2_MEM_DUMP=<lo>:<len>:<path> writes a range of guest memory to a file so it can be diffed against the same
+	// range read off the machine with `MD 0:<linear>`. Thirty-two bytes at a time is enough to check one buffer and
+	// useless for finding an empty table, and the difference between a machine that draws text and a port that does
+	// not has to be in the data, because the code path is the same call from the same site.
+	if (const char* spec = std::getenv("U2_MEM_DUMP")) {
+		std::string s(spec);
+		size_t c1 = s.find(':'), c2 = c1 == std::string::npos ? std::string::npos : s.find(':', c1 + 1);
+		if (c1 == std::string::npos || c2 == std::string::npos) {
+			std::fprintf(stderr, "U2_MEM_DUMP: '%s' is not <lo>:<len>:<path>\n", spec);
+		} else {
+			uint32_t lo = (uint32_t)std::strtoul(s.substr(0, c1).c_str(), nullptr, 16);
+			uint32_t len = (uint32_t)std::strtoul(s.substr(c1 + 1, c2 - c1 - 1).c_str(), nullptr, 16);
+			const std::string path = s.substr(c2 + 1);
+			std::vector<uint8_t> buf(len);
+			m.read_block(lo, buf.data(), len);
+			FILE* f = std::fopen(path.c_str(), "wb");
+			if (!f) {
+				std::fprintf(stderr, "U2_MEM_DUMP: cannot write %s\n", path.c_str());
+			} else {
+				std::fwrite(buf.data(), 1, len, f);
+				std::fclose(f);
+				std::printf("memdump   %08x..%08x -> %s (%u bytes)\n", lo, lo + len, path.c_str(), len);
+			}
+		}
 	}
 	return code;
 }

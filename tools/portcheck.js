@@ -164,6 +164,21 @@ const undocumented = [...inCode].filter((n) => !documented.has(n)).sort();
 	else requireText(io, 'x | (x >> 4)', 'the 16-colour palette expands the high nibble, as the emulator does');
 }
 
+// THE KEYBOARD SPEAKS THE JIS KEYBOARD'S CODES, NOT PC/AT SET 1. ENCHANT indexes a 114-entry table with (BX>>8)-1,
+// so a code from the wrong set is a wrong entry and a dead key: measured on the port, space, return and up did nothing
+// while 'a' and down worked, and those are the two codes the two sets share. Return 0x1D against 0x1C, space 0x35
+// against 0x39, up 0x4D against 0x48. A wrong scan code fails silently, so it is asserted rather than trusted.
+{
+	const sdl = read('fmtownskit/runtime/towns_sdl.cpp');
+	if (sdl === null) ok('the front-end uses the Towns keyboard codes', 'fmtownskit not initialised, skipped');
+	else {
+		requireText(sdl, 'kPcToTowns[scan & 0x7F]', 'the front-end translates PC/AT codes to the Towns keyboard');
+		requireText(sdl, '0x19, 0x1A, 0x1C, 0x29, 0x1D, 0x52, 0x1E, 0x1F', 'P, brackets, return 0x1D, ctrl 0x52, A, S');
+		requireText(sdl, '0,    0x35, 0x55, 0x5D', 'space is 0x35 and caps 0x55');
+		requireText(sdl, '0x4D, 0x6E, 0,    0x4F, 0,    0x51, 0,    0x70', 'up 0x4D, left 0x4F, right 0x51');
+	}
+}
+
 if (!documented.size) fail('debug switches are documented', 'none found in docs/recomp-plan.md');
 else if (!missing.length) ok('every documented switch exists in the port', documented.size + ' switches');
 else fail('every documented switch exists in the port', 'documented but absent: ' + missing.join(', '));

@@ -794,6 +794,22 @@ These are no longer the plan's centre. They exist to widen what the binary survi
 **The ordering is driven by the binary, not by the documents.** Whatever it faults on next is what stage 2
 or 3 does next. Reading a routine is worth doing when the executable needs it and not before.
 
+## The keyboard: the Towns does not use PC/AT scan codes
+
+Found while chasing the missing text, and it explains three dead keys. The front-end translated SDL's scancodes as
+PC/AT set 1. The Towns keyboard is a JIS keyboard with its own numbering, and the two disagree exactly where a player
+notices first: **return is `0x1D` against PC's `0x1C`, space `0x35` against `0x39`, up `0x4D` against `0x48`, left
+`0x4F` against `0x4B`, right `0x51` against `0x4D`, shift `0x53` against `0x2A`, ctrl `0x52` against `0x1D`**, and `Z`
+is `0x2A` where PC has `0x2C`, which shifts the whole bottom letter row.
+
+ENCHANT indexes a 114-entry table with `(BX >> 8) - 1`, so a code from the wrong set indexes the wrong entry and the
+key reads as dead. That is the reported symptom exactly: space, return and up did nothing while `'a'` and down worked,
+and those are the two codes the two sets happen to share.
+
+`tools/portcheck.js` asserts the translation now, because a wrong scan code fails silently: the key is delivered, the
+guest takes it, and nothing happens. Measured after the fix, `U2_KEYS=400:3520` (space) and `400:1D0D` (return) both
+reach the game menu with 8,320 bytes of palette index 13, the same frame the letter `'a'` produces.
+
 ## Stage 5: the game loop
 
 The emitted code has no loop, no timer, no input and no file I/O. The runtime has `towns_io.cpp`,
@@ -871,6 +887,8 @@ Set as environment variables. Each exists because something needed it and guessi
 | `U2_FONT=<path>` | the FM Towns font ROM, `FMT_FNT.ROM`, defaulting to that name in the working directory. The game fetches glyphs through segment selector `0138`, whose base on the machine is `0xC2100000`, and the kit maps that linear range onto `Machine::font`. With the vector empty every glyph read returns zero, which draws nothing: that was the copyright notice's empty box. A missing file is a printed warning and blank glyphs, not a hard failure, because the ROM is vendored rather than disc data. |
 | `U2_FONT20=<path>` | the 20-dot font ROM, `FMT_F20.ROM`, defaulting to that name in the working directory, mapped at linear `0xC2180000` into `Machine::font20`. A second font with its own window, separate from the ANK ROM above. Measured on the copyright notice: mapping it changes nothing, the frame is byte-identical, so the game does not read it there. Kept because the emulator defines the window and a program that does use it would otherwise read zeroes. |
 | `U2_TRACE_FAR=1` | print every distinct far call site into the TBIOS selector `0110`, once per site, with the caller's `CS:EIP` and the registers. The program reaches its system layer without any constant-selector far call and stores no far pointer to it, so the callers exist only at run time: this is what names them. Measured over the splash and the menu: 23 sites, all from `000C`, landing on `0110:00000280`, a dispatcher. |
+| `U2_RDWATCH=<linear>[:<len>]` | count reads inside one linear range and print the total at the end. The counterpart to `U2_WATCH`, which can only see writes: a routine that looks a glyph up and then declines to draw writes nothing, and this is what separates that from a routine that never ran. Measured on the menu: the font ROM window `0xC2100000` takes 2,084 reads by frame 400 and 2,572 by frame 520, so the menu's own draw accounts for 488 of them. |
+| `U2_MEM_DUMP=<lo>:<len>:<path>` | write a range of guest memory to a file, to diff against the same range read off the machine with `MD 0:<linear>`. Thirty-two bytes at a time (U2_DUMP) is enough to check one buffer and useless for finding an empty table. |
 | `U2_TRACE_FAR_ALL=<n>` | print the first `n` transfers into the traced selector individually, with the frame number, instead of one line per call site. Every watched write also carries the `EAX` of the transfer in flight, which is the only way to pair a request with the pixels it produced: a dispatcher takes its function number as an argument. Measured with it, 587 calls over 520 frames carry 82 distinct `EAX` values and only eight of them write VRAM. |
 | `U2_WATCH_AT=<frame>` | arm the linear watch at that frame instead of at start-up, so its hits are the operation under study rather than the fills that cleared the screen. Arm one frame early: the frame hook runs at the vsync **after** the frame it belongs to, so a key pressed at frame 700 is acted on during frame 701's execution and needs the watch armed at 699. |
 | `U2_WATCH_MAX=<n>` | how many watch hits to print, default 64. The default is right for "what writes this one byte" and wrong for "what does this redraw write", where the fills come first. It prints `capped at N hits` when it stops, which the old silent 64 did not: four watches over four ranges each reported exactly 64 lines and all of them were the start-up fill. |
