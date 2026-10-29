@@ -244,3 +244,42 @@ Three things follow, and the first one is a correction to what this page said te
 drives have when the CD is the boot device. The test is to boot, send `c:` then `dir`, and take a screenshot: the screen
 then shows either the directory or `Invalid drive specification`, and either way it proves whether the keystrokes land.
 That is the next step, and it is one boot rather than a flag or a guess.
+
+### The test, run, and it answers both questions plus a third
+
+A probe batch on the hard disk (`echo alive > C:\ALIVE.TXT` and a `dir` of each drive), one short command typed, and a
+screenshot read back each time. The final screen, transcribed:
+
+```
+IF ERRORLEVEL 1 GOTO END$
+REMS
+GOTO EXIT$
+Entering Interactive Mode.
+Q:\>c:
+Wrong Command or File Name.
+Q:\>probe
+Wrong Command or File Name.
+Q:\>_
+```
+
+Three answers, in the order they were established:
+
+- **The keystrokes land and Return submits.** An earlier run typed `c:\probe` and got `Wrong Command or File Name.`
+  followed by a fresh prompt, which is only possible if the text arrived, was submitted, was executed and failed. So
+  `/api/keys` plus a named `Return` works, and every earlier claim that typing might not reach the guest was wrong.
+- **The supervisor's `xkey()` cannot type a backslash.** That run's command reached the guest as `c:probe`: the
+  mapping in `container/supervisor.js` covers space, Return, Tab and the named keys, and has no entry for `\`, so the
+  character is dropped. A DOS path therefore cannot be typed at all, and the workaround is two commands, not a path.
+- **`c:` is not a command at this prompt.** With two short commands the guest answered `Wrong Command or File Name.`
+  for `c:` itself. So the shell reached by booting this CD is **TownsOS's interactive mode**, not a DOS shell: drive
+  letters are not commands there, and nothing on the hard disk can be run from it by typing DOS syntax. That is why the
+  probe batch never ran, and it is the real reason every marker attempt failed.
+
+**So the driver route cannot be driven from the CD's prompt.** It needs the shell that is reached by booting the hard
+disk (`docs/highc-authentic-toolchain.md` describes that prompt as `Q:\>`, which is why the two were easy to confuse),
+and the CD wins the boot whenever it is seated. The untried combination is the HDD boot **without** the CD seated, with
+the compiler already installed on that disk, or the CD's own `AUTOEXEC` patched to run the compile (the
+`tools/hc17-harness.sh` technique) with its output going to the hard disk.
+
+**And a correction to the paragraph above**: the prompt does not prove the guest can be driven, only that it can be
+reached. Typing works; the command language at that prompt does not match the one the scripts speak.
