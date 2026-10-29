@@ -62,6 +62,41 @@ ANK window changes 2,718 bytes of VRAM at the notice frame, as one to three byte
 | they are in an extracted asset or on the disc | `grep -rlia` across `extracted/` and the whole ISO image | **zero hits** |
 | the 20-dot font `FMT_F20.ROM` draws it | mapped at `0xC2180000`, loaded, frame re-rendered | **byte-identical frame** (`76fb77ab`), so it is never read during the notice |
 
+## Two more ruled out, and one real defect found
+
+**Black text on a black background is not it.** The port's sixteen palette entries at the notice were listed and the
+machine's read with `PRI PALETTE` on the running game for the same screen. Four indices are black on both sides, 0, 3,
+8 and 9, and the game only sets 10 to 15. Text drawn in index 3, 8 or 9 would be invisible on the machine too, and the
+machine shows white text, so the palette is not hiding it. The text is not being drawn.
+
+**A real defect fell out of that comparison.** The four entries the game sets disagreed:
+
+| index | machine | port before |
+|---|---|---|
+| 10 | `007777` | `0A7878` |
+| 11 | `FFFF55` | `FFFF50` |
+| 12 | `11CC22` | `14C828` |
+| 13 | `0022EE` | `0028E6` |
+
+The machine's values are exact `n * 0x11` nibble expansions and the port's were the game's raw bytes, because the kit
+copied the written component straight into the palette. The emulator expands it, in
+`TownsCrtcBase::AnalogPalette::Set16`: `v &= 0xF0; v |= v >> 4;`, while `Set256` stores the byte unchanged. The kit now
+does the same and the two tables agree entry for entry. A palette a few units out per channel is invisible in a
+screenshot, which is why it survived every visual check and was caught only by comparing the tables.
+
+## The second screen, and what it showed
+
+Pressing a key on the settled title screen advances the game, and the port does it: with `U2_KEYS=400:1e61` the run
+reports `1 served, 0 still queued` and the frame changes. Return does nothing, `1c0d` leaves the frame identical to a
+no-key run, so the wait is for a specific key rather than any key.
+
+The frame after it has the same symptom on a different screen: the title artwork stays and a white-bordered box with
+a blue interior appears at the bottom with nothing written in it. Measured there, `layer_ctrl` is `0f` rather than
+the notice's `0c`, so both graphics layers are enabled and both are composited, and the interior is palette index 13,
+`0022EE`, not black. Rendering layer 1 alone puts 2,348 white pixels inside the box region and they are picture data,
+not glyphs: no character shapes and no text rows. So this box is empty for the same reason as the notice's, on a
+second screen, which is the second breakpoint site this was looking for.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is

@@ -152,6 +152,18 @@ const documented = new Set((doc.match(/`(U2_[A-Z_]+)/g) || []).map((s) => s.slic
 const inCode = new Set((main || '').match(/U2_[A-Z_]+/g) || []);
 const missing = [...documented].filter((n) => !inCode.has(n)).sort();
 const undocumented = [...inCode].filter((n) => !documented.has(n)).sort();
+// THE 16-COLOUR PALETTE'S NIBBLE EXPANSION. The emulator's TownsCrtcBase::AnalogPalette::Set16 does
+// `v &= 0xF0; v |= v >> 4;` and Set256 a plain store. The kit used to store the game's raw byte for both, which
+// drew every 16-colour entry slightly wrong: `PRI PALETTE` on the running game reports 007777, FFFF55, 11CC22,
+// 0022EE for the four entries the game sets, and the port reported 0A7878, FFFF50, 14C828, 0028E6. A palette a
+// few units out on every channel is not visible in a screenshot, which is why it survived; the table is the
+// measurement that catches it.
+{
+	const io = read('fmtownskit/runtime/towns_io.cpp');
+	if (io === null) ok('the 16-colour palette expands the high nibble', 'fmtownskit not initialised, skipped');
+	else requireText(io, 'x | (x >> 4)', 'the 16-colour palette expands the high nibble, as the emulator does');
+}
+
 if (!documented.size) fail('debug switches are documented', 'none found in docs/recomp-plan.md');
 else if (!missing.length) ok('every documented switch exists in the port', documented.size + ' switches');
 else fail('every documented switch exists in the port', 'documented but absent: ' + missing.join(', '));

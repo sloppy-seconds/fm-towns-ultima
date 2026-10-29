@@ -651,6 +651,15 @@ int main(int argc, char** argv) {
 	if (shot_path) {
 		std::vector<uint32_t> rgb;
 		int w = 0, h = 0;
+		// U2_LAYER=<n> renders one graphics layer alone by masking the layer control byte before the renderer sees
+		// it. A composed frame cannot say whether the pixels are missing from VRAM or hidden under the other
+		// layer's opaque pixels, and that difference decides whether the fault is in the program or in the
+		// composition. Not a permanent feature of the kit: it is the port masking one register for one shot.
+		if (const char* only = std::getenv("U2_LAYER")) {
+			const int n = std::atoi(only);
+			m.video.layer_ctrl = n == 0 ? (uint8_t)(m.video.layer_ctrl & 0x0C) : (uint8_t)(m.video.layer_ctrl & 0x03);
+			std::printf("shot      rendering layer %d alone, layer_ctrl masked to %02x\n", n, m.video.layer_ctrl);
+		}
 		m.render(rgb, w, h);
 		if (w > 0 && h > 0 && towns::write_png(shot_path, rgb, w, h)) std::printf("shot      %s (%dx%d)\n", shot_path, w, h);
 		else std::printf("shot      %s: the machine has no frame to render\n", shot_path);
