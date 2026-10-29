@@ -129,7 +129,7 @@ console.log(`  already recorded in tools/runtime-seeds.txt         ${resume.filt
 const UNPROVEN = [
 	{
 		addr: 0x10016e,
-		why: 'body code with no reference anywhere: mov al,[0xdfa00]; and eax,0xf; mov bl,[eax+0xdfa15]; cmp bl,0xff. Its only E8 site is 0xfff59, which is an instruction in neither walk, so the call is data. No dword reference either, and it is not a function in the recompiler module. Left unseeded rather than guessed at.',
+		why: 'body code with no reference of any kind. Measured: no direct branch targets it (call/jmp/jcc, short and near), no dword anywhere in the image equals it, no jump-table entry lies within 0x800 of it, and the only E8 that points at it is 0xfff59, whose site is an instruction in neither walk. The bytes are a coherent idiom (mov al,[0xdfa00]; and eax,0xf; mov bl,[eax+0xdfa15]; cmp bl,0xff) and they start right after `f9 c3` (stc; ret), which is where a function begins. Against that: the call sites the game really uses are runtime filled, and every one of those slots is zero on disc (0xdfc5c, 0xdea3c..0xdea48), so a pointer to this address could be written at run time and no static scan can see it. Left unseeded rather than guessed at, and only execution can settle it.',
 	},
 ];
 
