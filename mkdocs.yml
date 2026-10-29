@@ -202,6 +202,7 @@ nav:
       - Two frames of reference: two-frames-of-reference.md
       - The self-patching int: self-modifying-int.md
       - fmtownskit and seeds: fmtownskit-and-seeds.md
+      - The two walks, compared: walk-comparison.md
       - Guarded walk coverage: guarded-walk-coverage.md
       - Unreferenced extents: unreferenced-extents.md
       - Recompilation result: recompilation-result.md

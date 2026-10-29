@@ -81,6 +81,7 @@ from the items below rather than maintained separately.
 | 4e Confirm the U2 palette in-game | AUTONOMOUS | **done**, the running game's table recorded, a human confirmed the screen |
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
+| 4j2 Compare our walk with fmtownskit's | AUTONOMOUS | **done**, 697 of 818 starts shared and seven bad seeds named |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
 | 5a Character creation | AUTONOMOUS | **done**, modifiers read from the code |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
@@ -590,6 +591,38 @@ takes no GL path at all.
 **The last one is probably right.** The palette question needs `get_palettes`, not a
 screenshot. The stdio client completes the handshake and `tools/list` but never gets a
 `tools/call` response, and that is a bug in `tools/mcp-geartowns.py`, not in Geartowns.
+
+### 4j2. Compare our walk with fmtownskit's
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Both walks are local files, and no emulator or disc state is involved |
+| done when | the two function-start sets and the two instruction-start sets are compared in both directions, each difference is classified or listed for a verdict, and the frame conversion is checked against an anchor rather than assumed. A difference that cannot be classified is recorded as such rather than counted as agreement |
+| blocked by | nothing |
+
+**Why this was worth doing before more routines were read.** The two walks had never been compared, and their
+counts differed by 80 function starts and 2,657 instructions. Under this project's rules that is either work
+nobody has seen or work that is not there, and those need opposite responses. Both turned out to be true.
+
+- The shared set is most of both walks: **697** function starts and **36,658** instruction starts.
+- **Seven of the 738 queue entries are not routines.** They are `0xE8` bytes inside data pointing at zero
+  fill, named in [walk-comparison.md](walk-comparison.md). The queue is derived by that byte rule, so the
+  real routine count is **731**, which corrects the denominator of the recovered fraction without touching
+  the numerator.
+- **77** of the module's extra starts are instruction boundaries that no CALL reaches, which is what a
+  jump-table member looks like from our side.
+- **44** are addresses our seed rule never reaches. At least one of them, guest `0xe7238`, decodes cleanly as
+  `inc dword ptr [0x7aee0]`, so this is a real hole in our seed coverage and it is now enumerated.
+
+**What it does not do.** fmtownskit emits instructions rather than source, so none of this validates the
+semantics of a recovered routine. The comparison is about boundaries.
+
+**Delivered:** `tools/recondiff.js`, the page above, `--insns` on `tools/cfgwalk.js` so its boundary set is
+consumable, and the `walk comparison` gate in `tools/checkall.js`. The gate asserts the eight counts and the
+seven addresses by name, and was tested by cutting a module copy (818 becomes 780) and by removing the file
+holding the first anchor (exit 2, anchor named).
 
 ### 4j. Work the routine queue to empty
 

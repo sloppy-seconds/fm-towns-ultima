@@ -33,6 +33,7 @@
 //   node tools/cfgwalk.js --check 0xef4bb is this an instruction boundary per the walk
 //   node tools/cfgwalk.js --at 0xe3904    show the walk from one entry
 //   node tools/cfgwalk.js --retmap        who pops arguments: plain ret against ret imm16
+//   node tools/cfgwalk.js --insns         every instruction start, one hex address per line
 //   node tools/cfgwalk.js --refusals      every transfer the zero guard refused, one per line
 //   node tools/cfgwalk.js --no-guard      follow transfers into zero fill anyway
 
@@ -357,6 +358,21 @@ function main() {
 			console.log(`${from} 0x${x.target.toString(16)} ${x.why}`);
 		}
 		console.log(`total ${r.refused.length}`);
+		return;
+	}
+
+	if (args.includes('--insns')) {
+		// ONE LINE PER INSTRUCTION START, for tools/recondiff.js. Only addresses, because that is the whole
+		// comparison: which bytes this walk calls an instruction and which bytes fmtownskit's walk calls one.
+		//
+		// THE FRAME IS THIS TOOL'S, which is the file minus 0x20 and therefore GUEST + 0x1E0. The converter is the
+		// caller, deliberately, because a silent conversion here is the failure this project has had four times:
+		// a mismatched frame yields a clean empty intersection rather than an error. Measured for the record:
+		// `--check 0x1e9` and `--check 0x105c58` are call targets here, and those are guest 0x9 and 0x105a78.
+		const seeds = callTargets(img);
+		const r = walk(img, seeds, walkOpts);
+		const bounds = [...r.boundary].sort((a, b) => a - b);
+		for (const a of bounds) console.log(a.toString(16));
 		return;
 	}
 

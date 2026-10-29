@@ -161,6 +161,48 @@ const runNode = (script, args = []) => {
 	record('kit patches', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
 }
 
+// E6. The two walks, compared. Ours is seeded from the 738 `E8 rel32` call targets, fmtownskit's from the MP
+// header entry plus the seed rules, and until tools/recondiff.js existed nobody had put the two sets side by
+// side. The numbers here are the measurement that item 4j2 recorded: 818 emitted functions against 738 call
+// targets, 697 of them shared, and 41,847 instructions against 39,190.
+//
+// The assertion that earns this check is the last one. Seven of our 738 call targets land inside runs of zero
+// bytes, which makes them `E8` bytes inside data rather than routines, and the list is asserted by address so a
+// new bad seed fails loudly instead of quietly lowering a percentage. recondiff.js exits 1 for exactly that
+// reason, so the exit code is asserted too, and a run that suddenly exits 0 is also a failure.
+{
+	const r = runNode('recondiff.js', ['--json']);
+	const problems = [];
+	let j = null;
+	try {
+		j = JSON.parse(r.out);
+	} catch (e) {
+		problems.push('FAIL recondiff.js --json printed no JSON, so nothing was compared: ' + r.out.split('\n').slice(0, 3).join(' | '));
+	}
+	if (j) {
+		const want = [
+			['emitted functions', j.functions.theirs, 818],
+			['call targets', j.functions.ours, 738],
+			['function starts in both', j.functions.both, 697],
+			["fmtownskit's function starts in zero fill", j.functions.theirs_only.zero_run, 0],
+			['our call targets in zero fill', j.functions.ours_only.zero_run, 7],
+			['emitted instructions', j.instructions.theirs, 41847],
+			['our instructions', j.instructions.ours, 39190],
+			['instruction starts in both', j.instructions.both, 36658],
+		];
+		for (const [what, got, exp] of want) {
+			if (got !== exp) problems.push(`FAIL ${what}: ${got}, expected ${exp}. Re-measure before changing this number.`);
+		}
+		const seven = ['0x17309', '0x9829b', '0x9b26b', '0xcfc34', '0xd295b', '0xd29c5', '0xd2c47'];
+		const got = (j.functions.ours_only.zero_run_addresses || []).slice().sort();
+		if (got.join(',') !== seven.join(',')) {
+			problems.push(`FAIL our call targets in zero fill are ${got.join(',') || 'none'}, expected ${seven.join(',')}. A new one is a seed the image does not support.`);
+		}
+		if (r.ok) problems.push('FAIL recondiff.js exited 0 while reporting call targets in zero fill, so its verdict is not wired to its finding');
+	}
+	record('walk comparison', problems);
+}
+
 // E5. The decompilation queue. docs/queue.json stores only what the ledger knows; tools/queue.js derives the 738
 // starts and their caller counts from the image and merges the two. This check exists because item 4j's finish is
 // "every routine carries a status and the statuses sum to 738", which is only checkable if something counts them.
