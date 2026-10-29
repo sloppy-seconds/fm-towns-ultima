@@ -211,3 +211,36 @@ this guest either, or the guest is not at a prompt even without `CONTROL`. **The
 over noVNC on the container or through a screenshot read with the vision model, rather than inferring the guest's state
 from a marker that depends on the very thing being tested. That is cheaper than another blind boot and it is what four
 failed runs say to do.
+
+### Watched the boot, and it corrects the paragraph above
+
+A screenshot of the boot, read with the vision model, shows the guest at a prompt:
+
+```
+window title: FM Towns Emulator - TSUGARU
+IF ERRORLEVEL 1 GOTO END$
+REMS
+GOTO EXIT$
+Entering Interactive Mode.
+Q:\>_
+```
+
+Three things follow, and the first one is a correction to what this page said ten minutes earlier:
+
+- **The guest does reach a prompt**, and it always did. What it does *not* do is boot the hard disk: the prompt is
+  `Q:\>`, and the `IF ERRORLEVEL ... GOTO` lines above it are the **CD's** `AUTOEXEC.BAT` echoing. So the machine booted
+  the CD, my `-HD0` image's `AUTOEXEC.BAT` was never executed, and patching `CONTROL` out of it could not have changed
+  anything. The claim "the image does not boot to DOS" was wrong as stated; the right statement is "the CD wins the
+  boot, so the image's AUTOEXEC never runs".
+- **Every marker I asked for was being written to a read-only CD.** `echo x>MARK.TXT` at a `Q:\>` prompt cannot
+  succeed, so the marker detector was guaranteed to see nothing regardless of whether the keystrokes arrived. Three
+  marker-based runs therefore tested the writability of the CD, not the readiness of the guest.
+- **The route the docs describe is therefore the right one and my vehicle was wrong.** `docs/highc-authentic-toolchain.md`
+  says the HDD boot reaches DOS, and that requires the CD *not* to take the boot. The working invocation it records is
+  exactly this container line with `-CD` seated, so either that page's run used an image that boots first or the CD's
+  boot ordering differs from what it assumed.
+
+**Two questions remain, and one boot answers both**: whether `/api/keys` reaches this guest at all, and which letters the
+drives have when the CD is the boot device. The test is to boot, send `c:` then `dir`, and take a screenshot: the screen
+then shows either the directory or `Invalid drive specification`, and either way it proves whether the keystrokes land.
+That is the next step, and it is one boot rather than a flag or a guess.
