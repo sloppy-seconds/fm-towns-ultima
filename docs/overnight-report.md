@@ -159,5 +159,10 @@ port fabricates, not bad instructions.
   container, and it recovers in five seconds.
 - `references/` is not committed, so every patch to the kit must be recorded in `docs/`. There are four now:
   `int90` case 0x04, `int93` `AL=0x20`, `int21` case 0x43, and the self-patched `int` vector.
+
+  > **Correction, superseded.** The kit is now a git submodule at `fmtownskit/`, on branch `mp-support` of the fork
+  > `paulczar/fmtownskit`, so the changes are committed and pushed rather than kept as local edits. The record they
+  > needed still exists and is now mechanical: `patches/fmtownskit-mp-support.patch` mirrors the branch and
+  > `node tools/patchcheck.js` asserts it is exact. See [fmtownskit-patches.md](fmtownskit-patches.md).
 - a python or shell script that rewrites a tracked file has already eaten a section of `plan.md` once in this
   project's history. Use `edit`.

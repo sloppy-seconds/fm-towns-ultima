@@ -151,11 +151,11 @@ const runNode = (script, args = []) => {
 	record('port constants', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
 }
 
-// E4. The vendored kit's patches. `references/` is gitignored, so the only surviving record of every edit to the
-// kit is patches/fmtownskit-mp-support.patch, and an untested record drifts. patchcheck.js clones the kit to a
-// temporary directory, applies the patch and compares the result byte for byte with the working clone, and fails
-// if the clone holds a change the patch does not describe. It skips with a printed note when the clone is absent,
-// which is the normal case for a stranger with only the zip.
+// E4. The kit submodule's invariants. `fmtownskit` is a submodule of the fork `paulczar/fmtownskit` on branch
+// `mp-support`, so editing the kit is ordinary git and the pin is a commit anyone can fetch. patchcheck.js asserts
+// four things in the order they fail: the working tree is clean, `patches/fmtownskit-base.txt` is an ancestor of the
+// pin, `git diff <base>` equals the mirror patch byte for byte, and the pin is on `origin/mp-support`. It skips with
+// a printed note when the submodule is not initialised, which is the normal case for a stranger with only the zip.
 {
 	const r = runNode('patchcheck.js');
 	record('kit patches', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));

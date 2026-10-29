@@ -1,9 +1,12 @@
 # The kit's decoder against Capstone: agreement on 234,153 of 234,155
 
 `docs/tooling-policy.md` says one decoder, and the project uses Capstone. That was adopted as
-policy and never measured against the alternative that arrived later, when `fmtownskit` was
-cloned into `references/`. Its `i386.py` is an independent 386 decoder with its own Capstone
+policy and never measured against the alternative that arrived later, when `fmtownskit` arrived as a
+submodule at `fmtownskit/`.** Its `i386.py` is an independent 386 decoder with its own Capstone
 cross-check built in, so the comparison was already written and only needed running.
+
+> **Correction:** this page said the kit was cloned into `references/`. It has been a git submodule at `fmtownskit/`
+> since the fork `paulczar/fmtownskit` was added, and the measurements below are unchanged by where the code lives.
 
 **Result: the two decoders agree on every instruction either reaches except two, and those two
 are instructions the kit deliberately refuses.**

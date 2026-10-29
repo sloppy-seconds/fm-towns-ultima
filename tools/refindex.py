@@ -29,7 +29,7 @@ Usage:
     ./tools/refindex.py --query 0x1678                  who references this address
     ./tools/refindex.py --function 0xf7740              what does this function reference
 
-Needs `fmtownskit` under references/, which is gitignored, and the Capstone venv.
+Needs the `fmtownskit` submodule (`git submodule update --init fmtownskit`) and the Capstone venv.
 
 Exit status 1 if the walk produces no functions, because an empty index would look like a clean
 answer to every query.

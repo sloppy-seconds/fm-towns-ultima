@@ -359,9 +359,9 @@ Q:\GRAPH\CHEST.TIF    then the fourteen sound effects, then \UT2\MAP.MP2
 `int21`. `towns_cpu.cpp`: the self-patched `int` vector, which
 [self-modifying-int.md](self-modifying-int.md) shows is needed by every Origins game on this disc and not just
 this one. `towns_disc.cpp`: three null guards, because `data_` is null until a disc is opened and `read_data`
-dereferenced it, which is what the crash that looked like `Disc::handle` really was. They are edits to
-`references/`, which is not
-committed, so this paragraph is the record of them.
+dereferenced it, which is what the crash that looked like `Disc::handle` really was. They were edits to the kit,
+which is now a submodule at `fmtownskit/` on branch `mp-support` of the fork `paulczar/fmtownskit`, so they are
+committed rather than held as local changes, and `patches/fmtownskit-mp-support.patch` mirrors them for a reader.
 
 **The emulator trouble was mine, not the disc.** It stopped launching the game partway through this work:
 `u2flow` reported `STOP: splash never animated` and the machine sat at the reset vector `F000:FFF0`. After

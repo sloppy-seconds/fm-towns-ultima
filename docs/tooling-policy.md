@@ -21,7 +21,7 @@ new tools and to any tool being modified.
 New analysis tools are Python. The gates do not move.
 
 **Capstone is chosen for dependencies, not because it is a better decoder.** `fmtownskit`,
-cloned under `references/`, carries its own independent 386 decoder, and `docs/decoder-comparison.md`
+a git submodule at `fmtownskit/`, carries its own independent 386 decoder, and `docs/decoder-comparison.md`
 measures the two against each other: **234,153 instructions agree, 0 differ, 2 refused** over the
 project's seed set, with 0 differences again across a 20,000-instruction random sweep. The kit's
 decoder also returns typed operand objects, so it satisfies rule 1 and the policy does not forbid
