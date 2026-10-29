@@ -141,6 +141,32 @@ now and says `capped at N hits` when it stops.
 operation under study. `U2_WATCH_AT=<frame>` arms it at a frame. Arming one frame late also caught nothing, because
 the frame hook runs at the vsync after the frame it belongs to: the press at frame 700 needs the watch armed at 699.
 
+## How the game reaches TBIOS, and why there is no text import
+
+The question this section answers was: find the game's far calls into TBIOS, compare that import list against the
+TBIOS addresses that actually ran, and see whether a text entry is imported and never draws.
+
+**The premise is wrong, and measurably so.** There is no list to compare.
+
+- Scanning the 1,072,398-byte image for `9a <off32> <sel16>`, the 32-bit far call with a constant selector, finds
+  **103** such instructions and **not one** of them targets selector `0110`.
+- Scanning for a stored far pointer, a dword offset under `0x20000` followed by the two selector bytes `10 01`, finds
+  **zero**.
+
+So the game does not name TBIOS in an instruction and does not hold a far pointer to it in data.
+
+**What it does instead.** `U2_TRACE_FAR=1` logs every distinct far transfer into selector `0110` with the caller's
+`CS:EIP` and the registers, from `x86_far`, which is the only way into the recompiled TBIOS. Over the splash and the
+menu that reports **23 distinct call sites**, all from the game's segment `000C`, landing on two TBIOS offsets:
+`0110:00000280` and `0110:000110B0`. The first is a **dispatcher**: the function is not a separate entry point, it is
+a number in the registers (`EAX` holds values from `0x00000600` to `0x00116201`).
+
+That is why nothing in the binary looks like a text routine and why every `strings` search failed. A drawing request
+is a number passed through one door, so "which TBIOS function is imported but draws nothing" cannot be answered by
+reading the image: the function number only exists at run time, in a register, on that dispatcher call.
+
+The trace itself is the instrument for the next attempt, and it is bounded: one line per call site, not per call.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is

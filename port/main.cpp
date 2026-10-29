@@ -517,6 +517,13 @@ int main(int argc, char** argv) {
 		std::printf("\n");
 	}
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
+	// U2_TRACE_FAR=1 prints every distinct far call site into the TBIOS selector 0110, one line per site, with the
+	// caller's CS:EIP. The program does not reach its system layer with constant-selector `9a` instructions and stores
+	// no far pointer to it, so the callers exist only at run time. This is the measurement that names them.
+	if (std::getenv("U2_TRACE_FAR")) {
+		g_trace_far_sel = 0x0110;
+		std::printf("trace     far calls into selector 0110, one line per call site\n");
+	}
 	// U2_SHOT=<path> writes the frame the machine is showing when the run ends, with the kit's own renderer, so
 	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this
 	// (it is how its own ports save frames at a VSYNC).
