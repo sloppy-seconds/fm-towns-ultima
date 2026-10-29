@@ -70,9 +70,25 @@ what decides it. `auto_reg_alloc` off moves the value into `edx` correctly but s
 So the target has register allocation **on** with a different preference order, and the toggle that sets that order is
 not yet known.
 
-The named search is therefore narrow: a toggle or flag that makes High C allocate the address constant to `eax` and
-the argument to `edx`, with allocation still on. `docs/compiler-toggles.md` has the real toggle list, which is where
-this starts rather than guessing at option names.
+**The sweep, and it is negative.** Five further combinations, each compiled and scored against the same 46 bytes:
+
+| flags and source | ours | verdict |
+|---|---|---|
+| `-off optimize_fp -on auto_reg_alloc` | `55 8b ec b9 f4e30000 8b 45 08 89` | differs, `ecx`/`eax` |
+| `-off optimize_fp -off postpone_arg_pops` | identical to the above | differs |
+| `-off optimize_fp -on sched` | identical | differs |
+| `-off optimize_fp -on cross_jump` | identical | differs |
+| unsigned params and an `unsigned *` | identical | differs |
+
+Every one of them is byte-identical to the plain `-off optimize_fp` result. So the register order is not reachable
+from any of those names, and the source's signedness does not reach it either.
+
+That matches what `docs/compiler-toggles.md` concluded on `0xe3c58`: of 43 real toggle names, none produced the
+difference it needed, and the remaining explanations were "a different build of the compiler, or a hand-written
+fragment" rather than a flag. The one lever this page has **not** tried is the other generator route: the driver,
+`HC386.EXE` plus `RUN386`, where `docs/highc-authentic-toolchain.md` measured the optimiser engaging (`lea
+eax,[ecx+ecx]` for a multiply by two). That path is the Towns one, which needs TownsMENU and cannot coexist with a
+writable volume on the floppy-boot route, so it is a session of its own and not a flag to try.
 
 ### What this does not claim
 
