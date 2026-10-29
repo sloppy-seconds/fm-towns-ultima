@@ -88,7 +88,8 @@ screenshot, which is why it survived every visual check and was caught only by c
 
 Pressing a key on the settled title screen advances the game, and the port does it: with `U2_KEYS=400:1e61` the run
 reports `1 served, 0 still queued` and the frame changes. Return does nothing, `1c0d` leaves the frame identical to a
-no-key run, so the wait is for a specific key rather than any key.
+no-key run, so the wait is for a specific key rather than any key. `Down` is scan `0x50` and moves the menu's red
+highlight, which is the same queue: the guest reports `2 served`.
 
 The frame after it has the same symptom on a different screen: the title artwork stays and a white-bordered box with
 a blue interior appears at the bottom with nothing written in it. Measured there, `layer_ctrl` is `0f` rather than
@@ -96,6 +97,49 @@ the notice's `0c`, so both graphics layers are enabled and both are composited, 
 `0022EE`, not black. Rendering layer 1 alone puts 2,348 white pixels inside the box region and they are picture data,
 not glyphs: no character shapes and no text rows. So this box is empty for the same reason as the notice's, on a
 second screen, which is the second breakpoint site this was looking for.
+
+## What the watch showed about the menu
+
+Driven headlessly, the menu is reachable and live: `U2_KEYS=400:1e61` advances from the splash and `Down` (scan
+`0x50`) moves the highlight. The guest takes both, reporting `2 served, 0 still queued`, and the frame changes.
+
+**Where the highlight redraw writes.** Diffing VRAM at frame 700 against frame 760 with one Down pressed: **4,640
+bytes change, offsets `0x2d858` to `0x316e8`**, which renders as a 288 by 32 pixel band at x 219, y 397. One menu row.
+
+**Who writes it.** With the watch armed at frame 699 and covering `0x8002d000` for `0x5000`:
+
+| writes | width | instruction |
+|---|---|---|
+| 1,024 | 4 B | `0110:00008211` |
+| 128 | 4 B | `0110:000081df` |
+| 104 | 4 B | `0110:0000409e` |
+| 52 | 4 B | `0110:00003d2e` |
+
+The remainder are eight-hit fills. **Every one is four bytes wide and comes from selector `0110`, which is TBIOS.**
+So the highlight is redrawn by a TBIOS fill, and the labels are not redrawn on a move at all.
+
+**And they are not drawn at menu entry either.** The menu's first draw, watched from frame 300, is 22,538 writes,
+all four bytes wide, all from `0110`, and **not one from selector `000C`, the game's own code**. Widened to cover both
+VRAM windows (`0x80000000` for two megabytes) it hit the cap at 60,000 hits with still nothing but four-byte TBIOS
+fills. Sprite and pad RAM (`0x81000000`) records **zero** writes.
+
+**The conclusion this supports.** No byte or word write to VRAM ever happens, on any of the three screens, so no glyph
+rasteriser runs at all. The text is not hidden, not transparent and not on a layer the renderer skips: nothing
+rasterises it. That is a narrower question than the one this page started with, and it is the right one.
+
+**Font fetches are not the cause.** The ANK window at physical `0xCA000` reads real font data, `U2_DUMP=ca000` giving
+`00 00 00 00 00 00 00 00 e0 80 ea 2a ee 0a 0a 00 ...`, so a glyph fetch returns glyph bytes rather than zeros.
+
+## Two instrumentation defects this exposed
+
+Both made earlier watches report a confident nothing, and both are fixed.
+
+- The linear write watch **stopped after 64 hits, silently**. Four different watches over four ranges reported
+exactly 64 lines, all the same start-up fill, which reads as "nothing else writes this range". It is `U2_WATCH_MAX`
+now and says `capped at N hits` when it stops.
+- It could only be **armed at start-up**, so its budget went on the fills that clear the screen rather than on the
+operation under study. `U2_WATCH_AT=<frame>` arms it at a frame. Arming one frame late also caught nothing, because
+the frame hook runs at the vsync after the frame it belongs to: the press at frame 700 needs the watch armed at 699.
 
 ## What that leaves
 

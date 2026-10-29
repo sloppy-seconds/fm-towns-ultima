@@ -775,10 +775,10 @@ index 039e526..6701f90 100644
  }
  
 diff --git a/runtime/towns_mem.cpp b/runtime/towns_mem.cpp
-index 7fd99da..c810251 100644
+index 7fd99da..dbad0f9 100644
 --- a/runtime/towns_mem.cpp
 +++ b/runtime/towns_mem.cpp
-@@ -10,6 +10,20 @@
+@@ -10,6 +10,29 @@
  #include <set>
  #include <string>
  
@@ -788,8 +788,17 @@ index 7fd99da..c810251 100644
 +uint32_t g_watch_lo = 0, g_watch_hi = 0;
 +const X86Cpu* g_x86_cur = nullptr;
 +static long g_watch_hits = 0;
++// The bound is a default, not a law: 64 hits is right for "what writes this one byte" and wrong for "what does
++// this redraw write", where the fills come first and bury the interesting part. A port raises it with
++// g_watch_max, and arms late (the port's U2_WATCH_AT) so the log holds the operation under study rather than the
++// program's start-up. Measured before this knob existed: four different watches all reported exactly 64 lines,
++// all of them the same start-up fill, which read as "nothing else writes this range".
++uint32_t g_watch_max = 64;
 +void x86_watch_write(uint32_t a, uint32_t v, int n) {
-+    if (++g_watch_hits > 64) return;
++    if ((uint32_t)++g_watch_hits > g_watch_max) {
++        if ((uint32_t)g_watch_hits == g_watch_max + 1) std::fprintf(stderr, "watch     capped at %u hits\n", g_watch_max);
++        return;
++    }
 +    const X86Cpu* c = g_x86_cur;
 +    const uint32_t mask = n == 4 ? 0xFFFFFFFFu : n == 2 ? 0xFFFFu : 0xFFu;
 +    std::fprintf(stderr, "watch     %08x = %0*x (%dB) at %04x:%08x\n", a, n * 2, v & mask, n,
@@ -799,7 +808,7 @@ index 7fd99da..c810251 100644
  namespace towns {
  
  Machine* g_towns;
-@@ -85,6 +99,12 @@ void Machine::map_ram(uint32_t linear, uint32_t size) {
+@@ -85,6 +108,12 @@ void Machine::map_ram(uint32_t linear, uint32_t size) {
      }
  }
  
@@ -812,7 +821,7 @@ index 7fd99da..c810251 100644
  uint8_t* Machine::host(uint32_t a) {
      uint8_t* p = g_x86_page[a >> 12];
      return p ? p + (a & 0xFFF) : nullptr;
-@@ -126,6 +146,18 @@ static uint8_t read8(Machine& m, uint32_t a) {
+@@ -126,6 +155,18 @@ static uint8_t read8(Machine& m, uint32_t a) {
          return m.sound.wave[bank | (a & 0xFFF)];
      }
      if (a >= 0xC2100000u && a < 0xC2140000u && !m.font.empty()) return m.font[(a - 0xC2100000u) % m.font.size()];
@@ -932,10 +941,10 @@ index 2a0e2eb..7c7e0e4 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/x86.h b/runtime/x86.h
-index 48bb159..3b4ed2e 100644
+index 48bb159..5c5909a 100644
 --- a/runtime/x86.h
 +++ b/runtime/x86.h
-@@ -34,6 +34,20 @@ struct X86Cpu {
+@@ -34,6 +34,21 @@ struct X86Cpu {
  };
  
  typedef void (*X86Func)(X86Cpu&);
@@ -946,6 +955,7 @@ index 48bb159..3b4ed2e 100644
 +// Machine::mem_write alone would miss exactly the writes worth seeing, because writes to mapped RAM
 +// never reach it.
 +extern uint32_t g_watch_lo, g_watch_hi;   // [lo, hi); armed when lo < hi
++extern uint32_t g_watch_max;              // how many hits to print, 64 unless a port raises it
 +extern const X86Cpu* g_x86_cur;          // the cpu running, for the caller's address; may be null
 +void x86_watch_write(uint32_t a, uint32_t v, int n);
 +#define X86_WATCH(a, v, n)                                                                         \
@@ -956,7 +966,7 @@ index 48bb159..3b4ed2e 100644
  struct X86FuncEntry { uint32_t addr; X86Func fn; };
  struct X86Module {
      const char* name;
-@@ -65,15 +79,18 @@ static inline uint32_t rd32(uint32_t a) {
+@@ -65,15 +80,18 @@ static inline uint32_t rd32(uint32_t a) {
      uint32_t v; std::memcpy(&v, p + (a & 0xFFF), 4); return v;
  }
  static inline void wr8(uint32_t a, uint32_t v) {

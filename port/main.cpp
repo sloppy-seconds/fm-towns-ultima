@@ -486,6 +486,36 @@ int main(int argc, char** argv) {
 		for (const KeyPress& k : keypresses) std::printf("%ld:%02x%02x ", k.frame, k.scan, k.ascii);
 		std::printf("\n");
 	}
+	// U2_PAD=<frame>:<bits>[:<hold>],... presses the Towns' game pad on given frames, which is the only way to
+	// drive some screens at all: the front-end maps SDL's arrows to the virtual pad rather than to key scan codes,
+	// so a menu that navigates on the pad cannot be reached by U2_KEYS. `bits` is decimal against the kit's kPad*
+	// enum, so up is 1, down 2, left 4, right 8, A 16, B 32, and `hold` defaults to 8 frames (about a seventh of a
+	// second) because a one-frame press can fall between two polls of the game port.
+	struct PadPress { long frame; unsigned bits; long hold; };
+	std::vector<PadPress> padpresses;
+	if (const char* ps = std::getenv("U2_PAD")) {
+		std::string spec(ps);
+		size_t at = 0;
+		while (at < spec.size()) {
+			size_t comma = spec.find(',', at);
+			std::string item = spec.substr(at, comma == std::string::npos ? std::string::npos : comma - at);
+			at = comma == std::string::npos ? spec.size() : comma + 1;
+			size_t c1 = item.find(':');
+			size_t c2 = c1 == std::string::npos ? std::string::npos : item.find(':', c1 + 1);
+			if (c1 == std::string::npos) {
+				std::fprintf(stderr, "U2_PAD: '%s' is not <frame>:<bits>[:<hold>]\n", item.c_str());
+				return 2;
+			}
+			PadPress p{};
+			p.frame = std::strtol(item.substr(0, c1).c_str(), nullptr, 10);
+			p.bits = (unsigned)std::strtoul(item.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1).c_str(), nullptr, 10);
+			p.hold = c2 == std::string::npos ? 8 : std::strtol(item.substr(c2 + 1).c_str(), nullptr, 10);
+			padpresses.push_back(p);
+		}
+		std::printf("pad       %zu presses: ", padpresses.size());
+		for (const PadPress& p : padpresses) std::printf("%ld:%u(%ld) ", p.frame, p.bits, p.hold);
+		std::printf("\n");
+	}
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
 	// U2_SHOT=<path> writes the frame the machine is showing when the run ends, with the kit's own renderer, so
 	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this
@@ -522,6 +552,8 @@ int main(int argc, char** argv) {
 	// it. This is the port's answer to a physical MEMW watch on the machine, and one thing it does better:
 	// the machine's page tables move a linear address between physical pages, so a watch armed on a physical
 	// byte can miss the write it was set for. Linear is what the program's code addresses.
+	long watch_at = -1;
+	uint32_t watch_lo_arm = 0, watch_hi_arm = 0;
 	if (const char* w = std::getenv("U2_WATCH")) {
 		char buf[64];
 		std::snprintf(buf, sizeof buf, "%s", w);
@@ -533,12 +565,25 @@ int main(int argc, char** argv) {
 		}
 		g_watch_lo = (uint32_t)std::strtoul(buf, nullptr, 16);
 		g_watch_hi = g_watch_lo + (len ? len : 1);
-		std::printf("watch     [%08x,%08x)\n", g_watch_lo, g_watch_hi);
+		// U2_WATCH_AT=<frame> arms it at that frame instead of at start-up, and U2_WATCH_MAX=<n> prints that many
+		// hits instead of 64. Both exist for one reason: the interesting writes to a screen come after the fills that
+		// clear it, and a watch armed at start-up spends its whole budget on the fills. Measured before the knob:
+		// four watches over different ranges all reported exactly 64 lines, all the same start-up fill, which read
+		// as "nothing else writes there".
+		if (const char* mx = std::getenv("U2_WATCH_MAX")) g_watch_max = (uint32_t)std::strtoul(mx, nullptr, 10);
+		if (const char* at = std::getenv("U2_WATCH_AT")) {
+			watch_at = std::strtol(at, nullptr, 10);
+			watch_lo_arm = g_watch_lo;
+			watch_hi_arm = g_watch_hi;
+			g_watch_lo = g_watch_hi = 0;
+		}
+		std::printf("watch     [%08x,%08x) max %u%s" , watch_lo_arm ? watch_lo_arm : g_watch_lo,
+		            watch_lo_arm ? watch_hi_arm : g_watch_hi, g_watch_max, watch_at >= 0 ? " armed later\n" : "\n");
 	}
 	// The running cpu, always, not only for the watch: an unknown I/O port is reported with the instruction that
 	// wrote it, and a port number with no caller is a lead that has to be found again by watching.
 	g_x86_cur = &c;
-	if (frames || use_sdl || !keypresses.empty()) {
+	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty()) {
 		// The callback is installed when ANY of these needs it. It used to be installed only under a frame limit,
 		// which would have left `--sdl` with no limit showing a frozen window, because the hook that draws it is
 		// this one.
@@ -548,8 +593,20 @@ int main(int argc, char** argv) {
 			// changing a measurement.
 			if (use_sdl) host.vsync(mm);
 			if (frames && (long)mm.frame >= frames) throw towns::Stop{0};
+			if (watch_at >= 0 && (long)mm.frame == watch_at) {
+				g_watch_lo = watch_lo_arm;
+				g_watch_hi = watch_hi_arm;
+				std::printf("watch     armed at frame %ld: [%08x,%08x)\n", watch_at, g_watch_lo, g_watch_hi);
+			}
 			for (const KeyPress& k : keypresses)
 				if (k.frame == (long)mm.frame) mm.press_key(k.scan, k.ascii);
+			// The pad is level-sensitive rather than a queue: it is set for the frames asked for and cleared after
+			// the hold, because a held direction is what the game polls and a press that never clears reads as a
+			// direction held down for ever.
+			for (const PadPress& p : padpresses) {
+				if (p.frame == (long)mm.frame) mm.set_pad(0, p.bits);
+				if (p.frame + p.hold == (long)mm.frame) mm.set_pad(0, 0);
+			}
 		};
 	}
 
