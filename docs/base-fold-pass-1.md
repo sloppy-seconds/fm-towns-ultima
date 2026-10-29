@@ -184,3 +184,30 @@ boot, and that is the next step rather than another flag.
 **What it does say about the question asked.** The one run whose output was plausibly fresh matched the DOS route's
 default byte for byte, so the first thing to test with a reliable driver is not the route but the route **with a
 flag**, since the driver is where the optimiser engages.
+
+### The second attempt at the driver route, and the three things it found
+
+Four more boots, no marker, no compile. Three of the findings along the way are real and none of them is about the
+game:
+
+1. **The image does not boot to DOS.** `scratch-tos11en.h0`'s `AUTOEXEC.BAT` runs `CONTROL`, the TownsOS desktop:
+   `set comspec=c:\command.com` / `set prompt=[$p]` / `:START` / `CONTROL` / `if errorlevel 1 GOTO OAK2ERR`. So no
+   interpreter is there to type at, which is why "no prompt" kept happening. Patching `CONTROL` out of a copy is
+   the technique `tools/hc17-harness.sh` already documents, and it was applied here (read back to confirm) without
+   changing the outcome.
+2. **The console's `TYPE` is known to be a no-op on this build, and it is recorded in this repository.**
+   `container/supervisor.js` says: *"The console's TYPE command is unreliable here: it is accepted without error but
+   does not move the game, verified by identical screenshots before and after. xdotool ... does work, so that is the
+   default."* The first three attempts drove the guest with `TYPE` through `/api/cmd`, so their knocks were swallowed
+   and every one of those runs tested nothing. `tools/hc17-harness.sh` uses `TYPE` because it was written against an
+   older supervisor.
+3. **A marker file is the detector that cannot lie**, and it is the one to keep: the guest writes `MARK.TXT` to the
+   image and the host polls mtools for it. Screen scraping cannot do this job, because `/api/screen?mode=text`
+   returns a coarse luminance character grid rather than OCR, so a DOS prompt is not recognisable in it at all.
+
+**Where it is blocked.** With `CONTROL` patched out and keystrokes going through `/api/keys`, the marker still never
+appeared within six minutes. That leaves two possibilities the attempts did not separate: `/api/keys` does not reach
+this guest either, or the guest is not at a prompt even without `CONTROL`. **The next move is to watch the boot**,
+over noVNC on the container or through a screenshot read with the vision model, rather than inferring the guest's state
+from a marker that depends on the very thing being tested. That is cheaper than another blind boot and it is what four
+failed runs say to do.
