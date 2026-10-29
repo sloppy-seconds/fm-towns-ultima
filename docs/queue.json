@@ -7,10 +7,6 @@
   "69": {
    "status": "not-c"
   },
-  "100107": {
-   "status": "excluded",
-   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
-  },
   "104190": {
    "status": "parked",
    "cause": "base-fold"

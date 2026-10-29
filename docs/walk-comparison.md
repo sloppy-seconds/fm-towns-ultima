@@ -305,17 +305,24 @@ What the recompile did, in three rounds:
 |---|---|---|---|---|---|
 | before | 818 | 41,847 | 0 | 0 | 138 |
 | after the first 33 seeds | 855 | 42,890 | 0 | 0 | 20 |
-| after 41 seeds | **863** | **42,981** | **0** | **0** | **7** |
+| after 41 seeds | 863 | 42,981 | 0 | 0 | 7 |
+| after 2 more, the real ones the residue pointed at | **865** | **43,016** | **0** | **0** | **4** |
 
 **Two seeds failed the test and are recorded as failures.** `0x1019f6` and `0x101602` decode as `pop edi` followed by
 `65 78 69` and a prefixed jump followed by `74 65 6c 6c`: both spell text, so this project's walk had wandered into a
 string. Seeding them made the recompiler refuse at `0x101a1c` (`ff /7`, an invalid opcode group) and report 59 conflicts
 clustered from `0x1019ff` to `0x101a9e`, which is the entry point's neighbourhood.
 
-**The residue is 7 skipped calls in 3 functions, and two of those are this project's defect, not the recompiler's.** The
-three unseeded resume points are named in `EXPECTED_RESIDUE` inside the tool, so the residue cannot grow unnoticed, and
-`checkall.js` asserts it. `0x1019fc`, one of the original 8 targets, stays absent for the same reason: its call site is
-in that conflicted neighbourhood.
+**The residue is 4 skipped calls in 3 functions, and it is named rather than tolerated.** The three unseeded resume
+points are `0x10016e`, `0x101602` and `0x101a0f`, in `EXPECTED_RESIDUE` inside the tool, and `checkall.js` fails if that
+set changes. `0x101602` sits inside the string `ftell`, and `0x101a0f` decodes as `00 8b c0 61`, which is neither a
+prologue nor a plausible start. `0x10016e` is real code whose call site nothing proves, so it is left unseeded rather
+than guessed at.
+
+**A printable-text rule was tried on the walker and rejected, measured.** Refusing gap recovery into any run of four or
+more printable bytes caught both string cases and cost **1,485 instructions**, because `53 56 57` is
+`push ebx; push esi; push edi` and also three ASCII letters. It rejected `0xef7fc`, a real function this project had
+already confirmed. The walk was restored, the numbers recorded here, and the rule not adopted.
 
 
 - The two walks agree on **741** function starts and **37,275** instruction starts, so neither is badly wrong.
@@ -330,8 +337,8 @@ in that conflicted neighbourhood.
   reachability, which is the outcome that makes the differences workable.
 - Seven of the 738 queue entries are `0xE8` bytes in data, listed above with the run holding each. Three are
   in megabyte-scale extents and four in alignment gaps of 53 to 59 bytes. Together with the 19 more that nothing
-  really calls, the queue's denominator is **787** routines. The two walks now agree on **786** function starts and
-  **38,408** instruction starts, from 697 and 36,658 when this comparison started.
+  really calls, the queue's denominator is **788** routines. The two walks now agree on **788** function starts and
+  **38,443** instruction starts, from 697 and 36,658 when this comparison started.
 - Two thresholds are needed, not one: 64 for the region census and 16 for the seed question, both named in
   `tools/codelimits.js` with the split above as the reason.
 - 77 of the module's extra starts are instruction boundaries no CALL reaches, which is what a jump-table

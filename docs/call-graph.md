@@ -224,16 +224,16 @@ this project's walk with them lifts it from 39,190 to 39,826 instructions. So:
 
 ```
 738  call targets, which is the byte rule's count
- 26  of those are not routines: 7 lie inside zero fill, and every one of the 26 is pointed at only by
+ 25  of those are not routines: 7 lie inside zero fill, and every one of the 25 is pointed at only by
      `E8` bytes that are not instructions in either walk
-712  routines a call site really points at
+713  routines a call site really points at
  75  routines with no call site, from tools/runtime-seeds.txt: 44 the recompiler reaches and we did not,
-     and 41 resume points derived by tools/resumepoints.js
-787  routines, which is what the recovered fraction is out of
+     and 43 resume points derived by tools/resumepoints.js
+788  routines, which is what the recovered fraction is out of
 ```
 
-The 26 are in `tools/non-call-targets.txt` and are re-derived by `node tools/calltargets.js`, which needs both walks:
-with this project's walk alone the rule marks 124 targets instead of 26, because a call site inside a region our seeds
+Those 25 are in `tools/non-call-targets.txt` and are re-derived by `node tools/calltargets.js`, which needs both walks:
+with this project's walk alone the rule marks 124 targets instead of 25, because a call site inside a region our seeds
 never cover is not one of our instruction starts even when it is plainly code.
 
 `tools/queue.js` derives both corrections rather than storing them: the exclusion from the image with `SEED_MIN`, the

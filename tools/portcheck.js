@@ -110,14 +110,14 @@ const seeds = read('tools/runtime-seeds.txt');
 {
 	const lines = (seeds || '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
 	const bad = lines.filter((l) => !/^0x[0-9a-f]{6,8}$/.test(l));
-	// 86 entries: 4 hook pointers read live off the machine, 41 starts from the cross-seed comparison, and 41 resume
+	// 88 entries: 4 hook pointers read live off the machine, 41 starts from the cross-seed comparison, and 43 resume
 	// points derived by tools/resumepoints.js (functions the recompiler never resumes at because it stops at a `ret`).
 	// The four original ones must still be there, so the check names them rather than only counting, otherwise a rewrite
 	// that dropped the measured evidence would pass.
 	const measured = ['0x0ffb72', '0x0e7238', '0x0ffc90', '0x0fdf5f'];
 	const missing = measured.filter((a) => !lines.includes(a));
-	if (lines.length === 86 && bad.length === 0 && missing.length === 0) ok('the seed list holds 86 entries, including the four measured on the machine');
-	else fail('the seed list holds 86 entries, including the four measured on the machine', `${lines.length} lines, ${bad.length} malformed, missing ${missing.join(' ') || 'nothing'}`);
+	if (lines.length === 88 && bad.length === 0 && missing.length === 0) ok('the seed list holds 88 entries, including the four measured on the machine');
+	else fail('the seed list holds 88 entries, including the four measured on the machine', `${lines.length} lines, ${bad.length} malformed, missing ${missing.join(' ') || 'nothing'}`);
 }
 
 // ---- docs and code agree about the debug switches ----

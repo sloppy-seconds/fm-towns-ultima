@@ -119,10 +119,15 @@ console.log(`functions of theirs containing them                  ${resume.lengt
 console.log(`  resume point begins with a standard prologue       ${prologues}`);
 console.log(`  already recorded in tools/runtime-seeds.txt         ${resume.filter((x) => recorded.has(x.r)).length} of ${resume.length}`);
 // THE RESIDUE, named rather than tolerated. These three are the states this project has decided not to seed, and the
-// check fails if the set changes, so it cannot quietly grow. Two are this project's walk over-extending into strings
-// (`66 74 65 6c 6c` and `5f 65 78 69` spell text), which is our defect and not the recompiler's, and seeding them made
-// it refuse at 0x101a1c with 59 conflicts. The third is inside the same conflicted neighbourhood.
-const EXPECTED_RESIDUE = [0x100107, 0x101602, 0x1019f6];
+// check fails if the set changes, so it cannot quietly grow. 0x101602 is inside the string `ftell`, and 0x101a0f
+// decodes as `00 8b c0 61`, which is not a prologue and not a plausible start. 0x10016e is code (`mov al,[0xdfa00]`)
+// whose call site nothing proves; it is left unseeded rather than guessed at.
+//
+// A PRINTABLE-TEXT RULE WAS TRIED AND REJECTED, and the numbers are the reason. Refusing gap recovery into a run of
+// four or more printable bytes caught both string cases and cost 1,485 instructions, because `53 56 57` is
+// `push ebx; push esi; push edi` and also three ASCII letters. It rejected 0xef7fc, a real function this project had
+// already confirmed, so the rule was reverted.
+const EXPECTED_RESIDUE = [0x10016e, 0x101602, 0x101a0f];
 
 if (argsCheck()) {
 	const missing = resume.filter((x) => !recorded.has(x.r)).map((x) => x.r).sort((a, b) => a - b);

@@ -181,14 +181,14 @@ const runNode = (script, args = []) => {
 	}
 	if (j) {
 		const want = [
-			['emitted functions', j.functions.theirs, 863],
+			['emitted functions', j.functions.theirs, 865],
 			['our starts (call targets plus the seed file)', j.functions.ours, 813],
-			['function starts in both', j.functions.both, 786],
+			['function starts in both', j.functions.both, 788],
 			["fmtownskit's function starts in zero fill", j.functions.theirs_only.zero_run, 0],
 			['our starts in zero fill', j.functions.ours_only.zero_run, 7],
-			['emitted instructions', j.instructions.theirs, 42981],
+			['emitted instructions', j.instructions.theirs, 43016],
 			['our instructions, seeded', j.instructions.ours, 39820],
-			['instruction starts in both', j.instructions.both, 38408],
+			['instruction starts in both', j.instructions.both, 38443],
 		];
 		for (const [what, got, exp] of want) {
 			if (got !== exp) problems.push(`FAIL ${what}: ${got}, expected ${exp}. Re-measure before changing this number.`);
