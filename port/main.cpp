@@ -626,6 +626,19 @@ int main(int argc, char** argv) {
 	if (std::getenv("U2_VRAM_HASH")) {
 		print_vram_hash(m);
 	}
+	// U2_VRAM_DUMP=<path> writes the whole VRAM array raw, so two frames can be diffed to find WHERE a drawing went
+	// rather than whether the picture looks right. This exists because the text in the copyright notice is missing
+	// from the port and the picture cannot say whether that is a renderer gap or the program never writing it: a byte
+	// diff between the frame before the notice and the frame during it answers that directly.
+	if (const char* vd = std::getenv("U2_VRAM_DUMP")) {
+		if (FILE* f = std::fopen(vd, "wb")) {
+			std::fwrite(m.vram.data(), 1, m.vram.size(), f);
+			std::fclose(f);
+			std::printf("vramdump  %s (%zu bytes)\n", vd, m.vram.size());
+		} else {
+			std::printf("vramdump  %s: cannot open\n", vd);
+		}
+	}
 	// U2_SCREEN=1 prints the frame as a luminance ramp, character for character the way container/screen.js's
 	// toAscii does it, so the port and the supervisor's `GET /api/screen?mode=ascii` produce the same grid and the
 	// two screens can be compared by diff rather than by looking. Same cells (width/100, twice as tall), same ramp,
