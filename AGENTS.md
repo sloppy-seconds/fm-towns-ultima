@@ -672,6 +672,16 @@ Write it in `docs/` as OPEN and say what is missing.
 ### Git
 
 - Commit in logical units. `git init` is already done, branch `main`.
+- What earns a commit, and nothing else does: a capability change, a docs claim that no longer matches the code or the
+  measurements, a new assertion in a gate, or a kit pin bump. A plan item closing counts under the second, because
+  closing it changes what the plan says.
+- A negative result is a row in the ruled-out table of the page that owns the subject, not a commit of its own. It
+  rides along with the next commit that touches that subject. Measured on 2026-10-29: 146 commits in thirty hours,
+  most of them single probes, and the pages already held every one of those results.
+- One commit per defect or per plan item, not per experiment. The font ROM, the ANK font window and the 20-dot font
+  were one investigation and should have been one commit.
+- Commit at boundaries so work is not lost: when a fix is proven, when an item closes with a verdict, and at the end
+  of a session. Not after every measurement.
 - Do not commit the disc images, the `.hdm`, `emulator/`, `saves/`,
   `extracted/`, or `analysis/`.
 - Do not push anywhere without being asked.
