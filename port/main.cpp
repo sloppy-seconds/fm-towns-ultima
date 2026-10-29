@@ -626,6 +626,22 @@ int main(int argc, char** argv) {
 	if (std::getenv("U2_VRAM_HASH")) {
 		print_vram_hash(m);
 	}
+	// U2_VIDEO=1 prints the display state that decides what is on screen: the CRTC registers, the layer control byte and
+	// the sprite controller's registers. This exists because the copyright notice's box is drawn while the text is not,
+	// and the question is whether the second layer is enabled and where it points: a page that is drawn but not enabled
+	// and a page that is enabled but never drawn look identical in a screenshot and different here.
+	if (std::getenv("U2_VIDEO")) {
+		std::printf("video     crtc:");
+		for (int i = 0; i < 29; ++i) std::printf(" %04x", m.video.crtc[i]);
+		std::printf("\nvideo     vreg:");
+		// vreg is 2 bytes (0x448/0x44A). A first version of this looped to 16 and printed whatever followed it in memory,
+		// which was the environment strings, so the bound is stated here rather than assumed.
+		for (int i = 0; i < 2; ++i) std::printf(" %02x", m.video.vreg[i]);
+		std::printf("\nvideo     layer_ctrl %02x  display_page %d  sprite page %d busy %d regs", m.video.layer_ctrl,
+		            (int)m.video.display_page, (int)m.sprite.page, (int)m.sprite.busy);
+		for (int i = 0; i < 8; ++i) std::printf(" %02x", m.sprite.reg[i]);
+		std::printf("\n");
+	}
 	// U2_VRAM_DUMP=<path> writes the whole VRAM array raw, so two frames can be diffed to find WHERE a drawing went
 	// rather than whether the picture looks right. This exists because the text in the copyright notice is missing
 	// from the port and the picture cannot say whether that is a renderer gap or the program never writing it: a byte

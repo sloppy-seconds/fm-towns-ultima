@@ -30,21 +30,46 @@ Each of these was a plausible cause and each was measured.
 | the palette maps the text to black | `U2_PALETTE=1` at the notice and at the title | both palettes are identical and include `ffffff` at index 7, so a white glyph would be visible |
 | an asset fails to load | `U2_TRACE_INT=1`, looking at the file opens | every asset opens: `HEADTTL.TIF`, `ULTIMA.FMB`, the map, player, enemy and dungeon art, and every `.SND`. No failure |
 
-## The lead: the sprite/pad page is never composited
+## The sprite/pad theory, and why it is wrong
 
 `U2_VRAM_DUMP` at frame 90 and frame 105 shows the sprite pages change from **completely empty** to
-**35,373 non-zero bytes at `0x40000` and 29,713 at `0x60000`** exactly when the notice appears. The pad page is
-where `Machine::draw_sprites()` draws, and `tools/.../towns_video.cpp`'s `render()` composites only the two
-graphics layers. So whatever the sprite engine drew is in VRAM and never reaches the screen.
+**35,373 non-zero bytes at `0x40000` and 29,713 at `0x60000`** exactly when the notice appears. That looked like the
+answer: the pad page is where `Machine::draw_sprites()` draws, and `render()` composites only the two graphics layers.
 
-That matches the shape of the defect: the box and bars are layer art and appear, the text is the part drawn
-with sprites and does not.
+**`U2_VIDEO=1` refutes it.** Printing the display state at the three frames:
 
-**A first composite was written and reverted.** Adding a `Frame::pad()` pass that reads the pad page as 4bpp
-with the sprite line stride, nibble 0 transparent, and composites over both layers produced visible content in
-the box: two teal rectangles with yellow borders, each with a blue bar and a white square. That is sprite data
-reaching the screen, which proves the mechanism, but the geometry is wrong and it makes the notice look worse
-than empty. It is not in the tree.
+| frame | what it is | `layer_ctrl` | `vreg` | sprite page / regs |
+|---|---|---|---|---|
+| 90 | before the notice, black | `00` | `15 08` | page 0, all registers zero |
+| 105 | the notice | `0c` | `15 28` | page 0, all registers zero |
+| 150 | the title | `0f` | `15 08` | page 0, all registers zero |
+
+Three things follow, and they kill the sprite theory:
+
+- `layer_ctrl` bit `0x03`, the second layer, is **off** at the notice, so the pad page is not displayed
+- every sprite register is **zero** and the sprite engine never ran, so nothing was drawn into that page either: the
+  35 KB at `0x40000` is pattern data the program loaded, not sprites it drew
+- at frame 90 `layer_ctrl` is `00`, which is why the screen is black: nothing was enabled yet, rather than something
+  failing to render
+
+So the frame is composed from **layer 0 alone** (`0x0C`), the box and bars are in layer 0, and the text is not in VRAM
+anywhere. The write never happens.
+
+## The lead that is left
+
+The one number that changes between the notice and the title and has not been chased is **`vreg[1]`: `0x28` at the
+notice, `0x08` at the title.** That register is the video output control at port `0x44A`, and a mode change there is
+exactly the kind of thing that routes drawing through a path the port does not implement. `0x20` is the bit that
+differs.
+
+So the next measurement is not in the kit: it is the machine's VRAM during the notice, to see whether the text exists
+there at all and where. If it does, the offset names the writer and the `vreg` difference is the explanation. If it does
+not, then the machine's text is not in VRAM either and is coming from somewhere we have not modelled.
+
+A first composite of the pad page was written and reverted before this measurement existed: it put sprite content on
+screen (two teal rectangles with yellow bars) which proved the code path, but the geometry was wrong and it made the
+notice worse than empty. It is not in the tree, and with `layer_ctrl` proving the second layer is off, it was fixing a
+layer that is not displayed.
 
 ## What the next attempt needs
 
