@@ -95,3 +95,27 @@ writable volume on the floppy-boot route, so it is a session of its own and not 
 No routine in `docs/queue.json` has changed status. The 31 parked routines are still parked, and this pass recovered
 none of them: it established the flag, the toolchain's identity, and the one lever standing in the way, which is
 strictly less than a recovery and more than nothing.
+
+### A second routine refutes the single-flag reading
+
+`0x104190` is the next one tried, a 36-byte flag toggle with no parameters, and it does not fit the same story:
+
+```
+target  80 3d 2f fd 0d 00 00 74 0b a1 f8 fd 0d 00 80 70 09 80 eb 0f a1 f8 fd 0d 00 80 78 0b 00 75 04 … c3
+```
+
+That begins with `cmp byte [0xdfd2f],0`: **no frame at all**, straight in. So the game frames `0xe19f4` (six
+parameters) and does not frame `0x104190` (none), which is what a compiler does when it frames *only where it must*.
+`-off optimize_fp` therefore cannot be the build flag: it framed `0x104190` wrongly (the `DIFFERS` row above), while
+without it `0xe19f4` came out four bytes short.
+
+Two reads are possible and the measurements do not separate them:
+
+- the build used the default (`optimize_fp` on), and `0xe19f4` is framed because of something in its real source that
+  my candidate lacks, such as an address-taken local or a call
+- the build is genuinely a different compiler, which is what `docs/compiler-toggles.md` was left concluding on
+  `0xe3c58`
+
+What the pass does establish is the shape of the next test: **the flag is per-function behaviour, not a global switch**,
+so the search has to move to why one function is framed, not to which flag frames everything. That is a reading
+question about `0xe19f4`'s real source, and it is cheaper than another flag sweep.
