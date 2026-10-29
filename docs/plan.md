@@ -81,9 +81,10 @@ from the items below rather than maintained separately.
 | 4e Confirm the U2 palette in-game | AUTONOMOUS | **done**, the running game's table recorded, a human confirmed the screen |
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
-| 4j2 Compare our walk with fmtownskit's | AUTONOMOUS | **done**, 697 of 818 starts shared and seven bad seeds named |
-| 4j3 Cross-seed the two walks | PARTLY AUTONOMOUS | **done**, both directions measured: static test clean, recompile conflicts on our 30 |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
+| 4m Compare our walk with fmtownskit's | AUTONOMOUS | **done**, 697 of 818 starts shared and seven bad seeds named |
+| 4n Cross-seed the two walks | AUTONOMOUS | **done**, both directions measured: static test clean, recompile conflicts on our 30 |
+| 4o A verdict for each of the 30 conflicting starts | AUTONOMOUS | **yes**, the recompile half's loose end |
 | 5a Character creation | AUTONOMOUS | **done**, modifiers read from the code |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
 | 5c Time gates and epochs | AUTONOMOUS | **done**, all three gate tests named and the world clock read |
@@ -593,7 +594,7 @@ takes no GL path at all.
 screenshot. The stdio client completes the handshake and `tools/list` but never gets a
 `tools/call` response, and that is a bug in `tools/mcp-geartowns.py`, not in Geartowns.
 
-### 4j3. Cross-seed the two walks
+### 4n. Cross-seed the two walks
 
 **State:** DONE · **Autonomy:** AUTONOMOUS
 
@@ -623,7 +624,7 @@ function start, which is the same distinction the 77 drew.
 The comparison tool's first version could not fail, because it matched `/refused (?!0\b)/` against a line that
 states `2 refused` with the count first. It now parses the counts and treats a missing count as a failure.
 
-### 4j4. A verdict for each of the 30 conflicting starts
+### 4o. A verdict for each of the 30 conflicting starts
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
@@ -648,7 +649,7 @@ remaining work mechanical instead of a disagreement.
 rebuilding it means generating both from the tools that own them and adding our 30 addresses. Until that exists
 as a script the direction stays unmeasured. The conflict test is the reason to expect it to work.
 
-### 4j2. Compare our walk with fmtownskit's
+### 4m. Compare our walk with fmtownskit's
 
 **State:** DONE · **Autonomy:** AUTONOMOUS
 
@@ -1336,7 +1337,7 @@ drawn (`PAU`, then read the grid), and step the port to the same screen, which i
 finishes rather than a fixed frame count. Two stills of the same screen, then the ramp diff is meaningful, and
 the region-by-region difference becomes statable.
 
-### The rendered-frame route is blocked, and VRAM is the route that works
+#### The rendered-frame route is blocked, and VRAM is the route that works
 
 A rendered frame **cannot** be the comparison. The kit's `render()` gives 704x525 of the CRTC's layer windows, and
 the supervisor's capture is a 640x480 window **with its title bar in it**, which the vision model read back as
@@ -1369,7 +1370,7 @@ break on both sides at the same address (`BP 000C:<addr>` on the machine, `U2_ST
 VRAM there, at a point both reach exactly once. The obvious candidate is the instruction after the title art is
 blitted, which needs the blit located first, and locating it is the same read that would give 5b its viewport.
 
-### The attempt at that anchor, and what it found (all of it useful)
+#### The attempt at that anchor, and what it found (all of it useful)
 
 **Chosen anchor: `0x0e4b8d`**, the KYB_read call site, first hit, on both sides. The port side works and is
 informative: `U2_VRAM_HASH` now runs from a stop as well as from the end of a run, and at the first hit the port

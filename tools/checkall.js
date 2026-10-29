@@ -163,7 +163,7 @@ const runNode = (script, args = []) => {
 
 // E6. The two walks, compared. Ours is seeded from the 738 `E8 rel32` call targets, fmtownskit's from the MP
 // header entry plus the seed rules, and until tools/recondiff.js existed nobody had put the two sets side by
-// side. The numbers here are the measurement that item 4j2 recorded: 818 emitted functions against 738 call
+// side. The numbers here are the measurement that item 4m recorded: 818 emitted functions against 738 call
 // targets, 697 of them shared, and 41,847 instructions against 39,190.
 //
 // The assertion that earns this check is the last one. Seven of our 738 call targets land inside runs of zero

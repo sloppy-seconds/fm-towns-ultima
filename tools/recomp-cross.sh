@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tools/recomp-cross.sh - can the recompiler be taught the function starts our own walk holds?
 #
-# WHY. Item 4j3's second half. The two walks were compared and they contradict each other nowhere: 77 of
+# WHY. Item 4n's second half. The two walks were compared and they contradict each other nowhere: 77 of
 # fmtownskit's 121 exclusive starts are instruction boundaries our walk already places, and 44 it reaches that our
 # seed rule does not, while 30 call targets of ours it never decodes at all (docs/walk-comparison.md). Zero
 # conflicts in both directions means the difference is coverage, so the question is mechanical: add our starts to
