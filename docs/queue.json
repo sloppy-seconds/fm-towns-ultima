@@ -1,0 +1,342 @@
+{
+ "note": "The decompilation queue. One row per attempted routine; a routine with no row is unattempted. Derived: the address list and caller counts, from ENCHANT.EXP. Stored: status, cause, diff, levers, needs, unlocked_by.",
+ "rows": {
+  "49": {
+   "status": "not-c"
+  },
+  "69": {
+   "status": "not-c"
+  },
+  "100107": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "104190": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "104228": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "8b": {
+   "status": "not-c"
+  },
+  "a9": {
+   "status": "not-c"
+  },
+  "e07c8": {
+   "status": "matched"
+  },
+  "e120c": {
+   "status": "parked",
+   "cause": "register-choice"
+  },
+  "e19f4": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e1a24": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e2df4": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e2f00": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e2f48": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "e3a20": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e3a58": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "e42d0": {
+   "status": "matched"
+  },
+  "e5104": {
+   "status": "matched"
+  },
+  "e52a8": {
+   "status": "matched"
+  },
+  "e532c": {
+   "status": "matched"
+  },
+  "e5378": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e63fc": {
+   "status": "matched"
+  },
+  "e642c": {
+   "status": "matched"
+  },
+  "e6858": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "e7584": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e759c": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e8660": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "e9740": {
+   "status": "matched"
+  },
+  "e9c2c": {
+   "status": "matched"
+  },
+  "ec140": {
+   "status": "not-c"
+  },
+  "eeb6c": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "ef048": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "ef348": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "ef594": {
+   "status": "not-c"
+  },
+  "ef8f4": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "f3c24": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "f9f30": {
+   "status": "not-c"
+  },
+  "fa9f8": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "fb21c": {
+   "status": "not-c"
+  },
+  "fb280": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "fb2cc": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "fb78c": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "fceec": {
+   "status": "matched"
+  },
+  "fd99a": {
+   "status": "not-c"
+  },
+  "fd9f1": {
+   "status": "not-c"
+  },
+  "fda0b": {
+   "status": "not-c"
+  },
+  "fda25": {
+   "status": "not-c"
+  },
+  "fdb15": {
+   "status": "not-c"
+  },
+  "fdb93": {
+   "status": "not-c"
+  },
+  "fdba8": {
+   "status": "not-c"
+  },
+  "fdbbd": {
+   "status": "not-c"
+  },
+  "fdbd2": {
+   "status": "not-c"
+  },
+  "fdc2c": {
+   "status": "not-c"
+  },
+  "fdc59": {
+   "status": "not-c"
+  },
+  "fdc6e": {
+   "status": "not-c"
+  },
+  "fdc90": {
+   "status": "not-c"
+  },
+  "fdca0": {
+   "status": "not-c"
+  },
+  "fdcb0": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "fdcb6": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "fdcbc": {
+   "status": "not-c"
+  },
+  "fdccc": {
+   "status": "parked",
+   "cause": "base-fold"
+  },
+  "fdef1": {
+   "status": "not-c"
+  },
+  "fdfc0": {
+   "status": "not-c"
+  },
+  "fe011": {
+   "status": "not-c"
+  },
+  "fe048": {
+   "status": "not-c"
+  },
+  "fe0df": {
+   "status": "not-c"
+  },
+  "fe1bb": {
+   "status": "not-c"
+  },
+  "fe1d7": {
+   "status": "not-c"
+  },
+  "fe1ec": {
+   "status": "not-c"
+  },
+  "fe206": {
+   "status": "not-c"
+  },
+  "fe220": {
+   "status": "not-c"
+  },
+  "fe23a": {
+   "status": "not-c"
+  },
+  "fe254": {
+   "status": "not-c"
+  },
+  "fe26e": {
+   "status": "not-c"
+  },
+  "fe75d": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "fe7ae": {
+   "status": "not-c"
+  },
+  "fe809": {
+   "status": "not-c"
+  },
+  "fe882": {
+   "status": "not-c"
+  },
+  "fe948": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "fea70": {
+   "status": "not-c"
+  },
+  "fed97": {
+   "status": "not-c"
+  },
+  "fedaa": {
+   "status": "not-c"
+  },
+  "fedc7": {
+   "status": "not-c"
+  },
+  "fedfa": {
+   "status": "not-c"
+  },
+  "fee25": {
+   "status": "parked",
+   "cause": "unresolved"
+  },
+  "feeba": {
+   "status": "not-c"
+  },
+  "ff598": {
+   "status": "not-c"
+  },
+  "ff5d4": {
+   "status": "not-c"
+  },
+  "ff6c3": {
+   "status": "not-c"
+  },
+  "ff7dd": {
+   "status": "not-c"
+  },
+  "ff7e3": {
+   "status": "not-c"
+  },
+  "ff844": {
+   "status": "not-c"
+  },
+  "ff872": {
+   "status": "not-c"
+  },
+  "ff88f": {
+   "status": "not-c"
+  },
+  "ff8a1": {
+   "status": "not-c"
+  },
+  "ffac6": {
+   "status": "not-c"
+  },
+  "1017b0": {
+   "status": "not-c"
+  },
+  "103c64": {
+   "status": "not-c"
+  },
+  "103cf3": {
+   "status": "not-c"
+  },
+  "103d0d": {
+   "status": "not-c"
+  },
+  "103d6f": {
+   "status": "not-c"
+  },
+  "1042dc": {
+   "status": "not-c"
+  }
+ }
+}

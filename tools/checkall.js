@@ -161,6 +161,14 @@ const runNode = (script, args = []) => {
 	record('kit patches', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
 }
 
+// E5. The decompilation queue. docs/queue.json stores only what the ledger knows; tools/queue.js derives the 738
+// starts and their caller counts from the image and merges the two. This check exists because item 4j's finish is
+// "every routine carries a status and the statuses sum to 738", which is only checkable if something counts them.
+{
+	const r = runNode('queue.js', ['--counts']);
+	record('decompilation queue', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
+}
+
 // D2. The image tooling audit. Different in kind from every other check here,
 // and its absence is why four separate defects in `preflight.js` reached commits.
 //

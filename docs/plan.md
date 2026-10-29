@@ -635,6 +635,28 @@ queue summary, not a document.
 
 See [overnight-run.md](overnight-run.md) for the per-routine loop and the angle list.
 
+**Where the grind stands, counted rather than described.** `node tools/queue.js --counts` derives the queue from the
+image and prints, as of this pass:
+
+```
+statuses (738 starts):
+  matched        10
+  disp32          0
+  parked         31
+  not-c          61
+  unattempted   636
+  recovered      10  (matched + disp32)
+```
+
+The five statuses sum to 738, which is the item's own arithmetic check and is now asserted by `checkall.js` as
+`decompilation queue`. **Ten recovered, 636 unattempted**, so the queue is not close to empty and there is no honest
+way to say otherwise. The 31 parked rows all carry a cause (21 `base-fold`, 9 `unresolved`, 1 `register-choice`) and
+`tools/queue.js` reports all 31 as workable now, none blocked on an unmet dependency.
+
+**The next work is concrete rather than general**: the parked `base-fold` routines are exactly the set the disp32
+standard exists for, so they are the cheapest recoveries in the queue, and the pass that works them needs the compile
+channel (`tools/cc.sh` against `tools/cserve.js`). That channel is the gate on this item, not reasoning.
+
 **Worked example, and the finding it produced.** `0xe6a58` was solved and its four differences from
 the candidate were measured: an absolute base (`0x7a7d0`), a register-held parameter, an unsplit frame,
 and split-store addressing. The first is the disp32 standard, so under this plan it is a recovery, not
@@ -673,6 +695,26 @@ for the decompilation track.
 **Failure case, stated.** If the ledger is maintained by hand and drifts from `corpus.json`, the
 counts will disagree and the unlock query will report false positives. The tool must derive class and
 size from `corpus.json` and only store what it alone knows.
+
+**What is now known, and what is still missing.** `docs/queue.json` and `tools/queue.js` exist, and the split the item
+asked for is real rather than nominal: the **738 starts and their caller counts are derived from `ENCHANT.EXP`** by the
+same `E8 rel32` rule `docs/call-graph.md` counts with, and the file stores only what the ledger alone knows (status,
+cause, differing bytes, levers, needs, unlocked_by). A routine with no row is `unattempted` by definition, so the
+counts cannot drift from the image: they are multiplied, not mirrored. `node tools/checkall.js` runs it as
+`decompilation queue`, which fails on a status outside the vocabulary or a parked row with no cause.
+
+The ledger was seeded from `docs/routines.json`, which turned up a **frame bug worth more than the ledger**: of its 103
+rows, 1 matches a guest-frame start as written, 3 match at guest-0x20, and **102 match only at guest-0x200**. The
+register stores file offsets while the image, the recompiled module and the running machine all use guest addresses,
+which is a fourth frame in a codebase already tracking three ([two-frames-of-reference.md](two-frames-of-reference.md),
+item 6a). `tools/queue.js` converts once, by asking which candidate is a real start, and names any row it cannot place
+instead of dropping it: one does not place, `0xed6e0`, because the queue is built from call targets and a routine
+reached only by a stored pointer is invisible to that rule. That is a coverage gap for 4j, not a broken ledger.
+
+**Still open: the re-attempt pass.** The item's third clause, "the end-of-night re-attempt pass has run and its effect is
+recorded", needs the compile channel (`tools/cc.sh` against `tools/cserve.js`, with the High C floppy in the emulator)
+and has not run. `tools/queue.js` reports which parked routines are worth that pass, and today that is **31 parked, 31 of
+them workable**, none blocked on an unmet dependency.
 
 ### 4l. Read the compiler's real toggle list
 
