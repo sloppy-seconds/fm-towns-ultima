@@ -67,8 +67,9 @@ routine can:
 
 These are `0xE8` bytes that occur inside data and happen to point at zero fill. They are the collisions this
 project suspected in its own seed set, and the count is now exact: seven entries in the queue are not
-routines. The queue still counts them, because the queue is derived by the same byte rule, so 738 is an upper
-bound on the number of routines and 731 is the figure the image supports.
+routines. The queue still derives 738 call targets by the same byte rule, so 738 is an upper bound on the number
+of routines and 731 is the figure the image supports. The count and the correction are owned by
+[call-graph.md](call-graph.md), and `tools/queue.js` derives the exclusion so its totals read 731 from 738.
 
 That is a correction to the denominator used in the recovered fraction, not a change to the numerator.
 
@@ -125,27 +126,43 @@ falling inside an instruction the other walk proves.
 So the two walks contradict each other nowhere. Every difference is coverage or reachability, which is the
 outcome that allows the differences to be worked rather than argued.
 
-## What is still open, and the exact command it needs
+## The recompile half: our seeds are accepted, and they conflict
 
-Teaching fmtownskit the 30 we hold needs a recompile with those addresses added to its seed list, which is the
-second half of the cross-seed experiment. The invocation is recorded in
-[recompilation-result.md](recompilation-result.md):
+`tools/recomp-cross.sh` runs the second half of the experiment. It takes the starts our walk holds that the module
+never decodes, adds them as seeds through `U2_EXTRA_SEEDS`, recompiles into a separate directory, and hands both
+modules to `tools/recompcompare.js`.
+
+Measured, and the answer is not a clean pass:
 
 ```
-python3 -m fmtownskit.recomp --out build --exp game=ENCHANT.EXP@8+<672 seeds> <66 --no-code ranges>
+baseline   game: 818 functions, 41847 instructions, 137253 bytes, 30 indirect unresolved, 0 refused, 0 conflicts
+cross      game: 848 functions, 42224 instructions, 138434 bytes, 31 indirect unresolved, 2 refused, 32 conflicts
 ```
 
-So it is a scripted run rather than a command to retype: `tools/seeds.js` produces the 672, and the 66
-`--no-code` ranges come from the per-module ranges recorded for patch 8a. Until that run exists as a tool, the
-"teach them" direction stays unmeasured, and the conflict test above is the reason to expect it to work.
+All 30 seeds are emitted, the function count rises by exactly 30, and nothing is lost. But the run reports **2
+refused and 32 conflicts**, so the two decodes disagree about those regions rather than one simply having missed
+them. The static conflict test could not see this: `--test-seeds` asks whether an address lies inside an instruction
+**we** place, which is a one-sided question. The recompiler answers the other side, and it says no.
 
+So the sets do not converge by adding seeds. Each of the 30 now needs a verdict of its own: either our walk is right
+and the recompiler's decode of the surrounding bytes is wrong, or the address is a real instruction boundary that is
+not a function start, which is the distinction the 77 drew earlier.
 
+**A check that could not fail, recorded because it happened here.** The first version of `recompcompare.js` tested
+`/refused (?!0\b)/` against the report line. The report states its counts *before* the words, as "2 refused, 32
+conflicts", so that regex could never match and the tool printed `PASS` on a run with 32 conflicts. It now parses
+`(\d+) refused` and `(\d+) conflicts`, and a report line missing either count is itself a failure.
+
+## How it is checked
 
 `node tools/checkall.js` runs the comparison as the gate `walk comparison`. It asserts the eight counts
 above, the seven addresses by name, and the run length that holds each one, so a new bad seed fails loudly
 instead of quietly lowering a percentage and the threshold argument stays tied to its measurement.
 `tools/recondiff.js` exits 1 for exactly that reason, and a run that exits 0 while reporting call targets in
 zero fill is itself a failure.
+
+The cross-seed recompile is not in `checkall.js` on purpose: it needs the disc, the submodule and a full
+recompilation, and it is a measurement rather than a gate. `tools/recomp-cross.sh` is the command.
 
 The gate was tested in both directions before being trusted:
 

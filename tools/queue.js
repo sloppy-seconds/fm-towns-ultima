@@ -37,7 +37,14 @@ const REGISTER = path.join(ROOT, 'docs/routines.json');
 
 // The vocabulary, fixed. `disp32` means every byte agrees except the displacement of an absolute reference or a
 // call rel32, which is a recovery under the project's second standard and is counted as one.
-const STATUS = ['matched', 'disp32', 'parked', 'not-c', 'unattempted'];
+// `excluded` is DERIVED, never stored. A call target that lands inside a run of zero bytes is an `E8` byte inside
+// data pointing at padding, not a routine: seven of the 738 are that, they are named in docs/walk-comparison.md,
+// and deriving them here is what stops the queue carrying a denominator the image does not support. The count and
+// the correction live in docs/call-graph.md.
+const STATUS = ['matched', 'disp32', 'parked', 'not-c', 'unattempted', 'excluded'];
+const { zeroRuns, SEED_MIN } = require('./codelimits.js');
+const ZERO_RUNS = zeroRuns(fs.readFileSync(EXP).subarray(0x200), SEED_MIN);
+const inZeroRun = (a) => ZERO_RUNS.some(([lo, hi]) => a >= lo && a < hi);
 
 const hx = (n) => n.toString(16);
 
@@ -104,6 +111,16 @@ function merged() {
 		const key = hx(addr);
 		const stored = ledger.rows[key] || {};
 		const reg = byAddr.get(key);
+		// A verdict on an address that sits in zero fill would be a claim about bytes that are not code, which the
+		// ledger must not be able to make quietly. It is reported as INVALID rather than overridden.
+		if (inZeroRun(addr)) {
+			if (stored.status && stored.status !== 'unattempted') {
+				rows.push({ addr: key, callers, status: 'INVALID', cause: 'the ledger gives this address a status, but it lies inside a run of zero bytes' });
+			} else {
+				rows.push({ addr: key, callers, status: 'excluded', cause: 'call target inside a run of zero bytes, so not a routine' });
+			}
+			continue;
+		}
 		let status = stored.status, cause = stored.cause;
 		if (!status && reg) {
 			const m = FROM_REGISTER[reg.class];
@@ -181,10 +198,14 @@ function main(argv) {
 	}
 
 	if (argv.includes('--counts') || (!argv.includes('--parked') && !argv.includes('--rebuild'))) {
-		console.log(`\nstatuses (${total} starts):`);
+		const excluded = counts.excluded || 0;
+		const routines = total - excluded;
+		console.log(`\nstatuses (${routines} routines, ${excluded} excluded from ${total} call targets):`);
 		for (const s of STATUS) console.log(`  ${s.padEnd(12)} ${String(counts[s] || 0).padStart(4)}`);
 		const recovered = (counts.matched || 0) + (counts.disp32 || 0);
 		console.log(`  recovered     ${String(recovered).padStart(4)}  (matched + disp32)`);
+		const summed = STATUS.filter((s) => s !== 'excluded').reduce((a, s) => a + (counts[s] || 0), 0);
+		if (summed !== routines) console.log(`\nNOTE: the non-excluded statuses sum to ${summed}, not ${routines}`);
 		if (total !== 738) console.log(`\nNOTE: ${total} starts derived, not 738. Either the image is not the one the count`);
 		if (total !== 738) console.log(`      was taken from, or the E8 rule has changed. The count is owned by docs/call-graph.md.`);
 	}

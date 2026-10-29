@@ -82,7 +82,7 @@ from the items below rather than maintained separately.
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4j2 Compare our walk with fmtownskit's | AUTONOMOUS | **done**, 697 of 818 starts shared and seven bad seeds named |
-| 4j3 Cross-seed the two walks | PARTLY AUTONOMOUS | **partly done**, no conflicts in either direction, the recompile half needs a scripted seed set |
+| 4j3 Cross-seed the two walks | PARTLY AUTONOMOUS | **done**, both directions measured: static test clean, recompile conflicts on our 30 |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
 | 5a Character creation | AUTONOMOUS | **done**, modifiers read from the code |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
@@ -595,13 +595,43 @@ screenshot. The stdio client completes the handshake and `tools/list` but never 
 
 ### 4j3. Cross-seed the two walks
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | the conflict test runs unattended. The recompile half needs the exact seed set rebuilt from `tools/seeds.js`, which is scripted, plus the 66 no-code ranges, so it is startable but slow |
+| autonomy | both halves run unattended: the static test locally, the recompile from the disc and the submodule |
 | done when | every address in each walk's exclusive set carries a verdict from the other walk, and the recompile has been run with the addresses our walk holds so that the two sets are known to converge or the addresses that will not converge are named |
-| blocked by | nothing for the conflict test, and nothing for the recompile once the invocation is a tool rather than a command |
+| blocked by | nothing |
+
+**Both halves are now measured, and they disagree, which is the result.**
+
+- **Static test, clean both ways.** Their 121 exclusive starts: 77 boundaries we already place, 44 unreached by
+  our seeds, 0 mid-instruction, 0 zero fill. Our 30 that they never decode: all 30 are boundaries in our walk.
+  So neither walk contradicts the other about a *single address*.
+- **Recompile, and this is where it breaks.** `tools/recomp-cross.sh` adds our 30 as seeds through
+  `U2_EXTRA_SEEDS` and recompiles into a separate directory. Result: **848 functions** against 818, all 30 emitted,
+  nothing lost, and **2 refused with 32 conflicts** against 0 and 0. Instructions 42,224 against 41,847.
+
+So the addresses are not the problem and the bytes around them are. `--test-seeds` asks a one-sided question (is
+this address inside an instruction *we* place) and answers 0 conflicts, while the recompiler, given the same
+addresses, produces 32 conflicts in its own decode. The remaining work is per-address: for each of the 30, decide
+whether our boundary is right and its surroundings are wrong, or whether the address is a boundary that is not a
+function start, which is the same distinction the 77 drew.
+
+**Delivered:** `--seeds-file` and `--test-seeds` on `tools/cfgwalk.js`, `--emit-seeds` on `tools/recondiff.js`,
+`U2_EXTRA_SEEDS` and `--out` on `tools/port-build.sh`, and `tools/recomp-cross.sh` plus `tools/recompcompare.js`.
+The comparison tool's first version could not fail, because it matched `/refused (?!0\b)/` against a line that
+states `2 refused` with the count first. It now parses the counts and treats a missing count as a failure.
+
+### 4j4. A verdict for each of the 30 conflicting starts
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | unattended: the 30 addresses, the recompiler's conflict report and our own decode are all on disk |
+| done when | each of the 30 carries a verdict with its evidence, either "our boundary is right, its decode is wrong here" or "a boundary that is not a function start", and the 32 conflicts are each attributed to one of them or recorded as unexplained |
+| blocked by | nothing |
 
 **The conflict half is done, and it came back clean.** `tools/cfgwalk.js` gained `--seeds-file` and
 `--test-seeds`, both reading the guest-frame format `tools/runtime-seeds.txt` already uses. Results:
@@ -657,7 +687,7 @@ holding the first anchor (exit 2, anchor named).
 | field | value |
 |---|---|
 | autonomy | runs unattended via `tools/cc.sh`; no emulator interaction, no disc state |
-| done when | every routine in the queue carries a status, the statuses sum to 738, and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
+| done when | every routine in the queue carries a status, the statuses sum to the routine count owned by `docs/call-graph.md` (731, from 738 call targets with 7 in zero fill excluded), and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
 | blocked by | nothing |
 
 **This replaces the earlier "finish `0xe6a58`" framing, which was the wrong unit of work.** One
@@ -703,12 +733,14 @@ statuses (738 starts):
   disp32          0
   parked         31
   not-c          61
-  unattempted   636
+  unattempted   629
+  excluded        7
   recovered      10  (matched + disp32)
 ```
 
-The five statuses sum to 738, which is the item's own arithmetic check and is now asserted by `checkall.js` as
-`decompilation queue`. **Ten recovered, 636 unattempted**, so the queue is not close to empty and there is no honest
+The statuses sum to 731 routines, with 7 of the 738 call targets excluded because they lie inside zero fill, which
+is the item's own arithmetic check and is now asserted by `checkall.js` as `decompilation queue`.
+**Ten recovered, 629 unattempted**, so the queue is not close to empty and there is no honest
 way to say otherwise. The 31 parked rows all carry a cause (21 `base-fold`, 9 `unresolved`, 1 `register-choice`) and
 `tools/queue.js` reports all 31 as workable now, none blocked on an unmet dependency.
 

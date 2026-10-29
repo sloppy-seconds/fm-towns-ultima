@@ -34,6 +34,8 @@
 //   node tools/recondiff.js --recomp DIR read the emitted module from DIR instead of build/port/recomp,
 //                                       which is how the tool is tested against a deliberately incomplete
 //                                       module to prove it notices a missing function
+//   node tools/recondiff.js --emit-seeds F write the starts only our walk holds, one guest address per line,
+//                                       which is the input to the cross-seed recompile (tools/recomp-cross.sh)
 //
 // Exit 0 when the two walks are consistent by the rules below, 1 when a start fmtownskit calls a function
 // lands in zero fill or is not an instruction boundary in either walk, 2 when an input is missing or the
@@ -243,6 +245,17 @@ function main() {
 			functions_ours_only_not_decoded_by_them: sorted(fnMineOnly.notDecodedByThem).map(hx),
 			functions_ours_only_zero_run: sorted(fnMineOnly.zeroRun).map(hx),
 		};
+	}
+
+	if (args.includes('--emit-seeds')) {
+		// The starts our walk holds that the module never decodes. Those are the candidates for teaching the
+		// recompiler, and they are written in the guest frame because that is the frame every seed file here uses.
+		const i = args.indexOf('--emit-seeds');
+		const file = args[i + 1];
+		const list = sorted(fnMineOnly.notDecodedByThem).map(hx);
+		fs.writeFileSync(file, '# call targets our walk holds that fmtownskit does not decode, guest frame\n' + list.join('\n') + '\n');
+		console.log(`wrote ${list.length} addresses to ${file}`);
+		process.exit(0);
 	}
 
 	if (args.includes('--json')) {

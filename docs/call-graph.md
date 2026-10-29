@@ -211,6 +211,21 @@ they touch or not at all.
 **This is the owner of the number.** Other pages quote it by linking here rather than repeating it, so a
 drift has one place to fix.
 
+**CORRECTION, and it is the denominator.** Seven of the 738 call targets are not routines: they are `0xE8` bytes
+inside data that happen to point into runs of zero bytes. `tools/cfgwalk.js --test-seeds` and
+`tools/recondiff.js` measure them, the seven addresses are listed with the zero run that holds each in
+[walk-comparison.md](walk-comparison.md), and the split is three inside megabyte-scale extents against four in
+alignment gaps of 53 to 59 bytes. So:
+
+```
+738  call targets, which is the byte rule's count
+  7  of those lie inside zero fill and are not routines
+731  routines, which is what the recovered fraction is out of
+```
+
+`tools/queue.js` derives the exclusion rather than storing it, so its counts read `731 routines, 7 excluded from
+738 call targets` and the ledger cannot gain a verdict on bytes that are not code.
+
 ```
 738  call targets
 

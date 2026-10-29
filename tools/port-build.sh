@@ -11,6 +11,12 @@
 #   tools/port-build.sh              rebuild the recompilation, then cmake and run 60 frames
 #   tools/port-build.sh --reuse      skip the recompilation, use what is in the build directory
 #   tools/port-build.sh --frames N   run N vsyncs instead of 60
+#   tools/port-build.sh --out DIR    write everything under DIR instead of build/port, which is how the
+#                                    cross-seed recompile keeps its module away from the real one
+#
+# U2_EXTRA_SEEDS=FILE appends guest-frame seed addresses from FILE, in the same format as
+# tools/runtime-seeds.txt. It exists for tools/recomp-cross.sh, which asks whether the recompiler can be taught
+# the starts our own walk holds.
 #
 # Everything it writes goes under build/port/ and /var/tmp, never into the repository.
 
@@ -28,7 +34,8 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--reuse) REUSE=1; shift ;;
 		--frames) FRAMES="$2"; shift 2 ;;
-		*) echo "usage: tools/port-build.sh [--reuse] [--frames N]" >&2; exit 2 ;;
+		--out) OUT="$2"; RECOMP="$OUT/recomp"; shift 2 ;;
+		*) echo "usage: tools/port-build.sh [--reuse] [--frames N] [--out DIR]" >&2; exit 2 ;;
 	esac
 done
 
@@ -107,6 +114,16 @@ PY
 		fi
 	fi
 	echo "seeds     $(awk -F, '{print NF}' <<< "$SEED_LIST") in the runtime frame, plus the entry"
+	#    Extra seeds from a file, for the cross-seed experiment: the addresses this project's own walk holds that
+	#    the recompiler never decodes. Same format and same frame as runtime-seeds.txt, so one file shape serves all.
+	if [[ -n "${U2_EXTRA_SEEDS:-}" ]]; then
+		if [[ ! -f "$U2_EXTRA_SEEDS" ]]; then echo "U2_EXTRA_SEEDS=$U2_EXTRA_SEEDS does not exist" >&2; exit 2; fi
+		EXTRA=$(sed 's/#.*//' "$U2_EXTRA_SEEDS" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
+		if [[ -n "$EXTRA" ]]; then
+			SEED_LIST="$SEED_LIST,$EXTRA"
+			echo "seeds     plus $(awk -F, '{print NF}' <<< "$EXTRA") extra, from $U2_EXTRA_SEEDS"
+		fi
+	fi
 
 	# 3. Recompile, with the entry added because nothing CALLs it (docs/recomp-plan.md).
 	#    `--raw` is the right entry point here: the stripped image has no container header left, so the
