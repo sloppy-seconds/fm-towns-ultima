@@ -65,7 +65,7 @@ session_cmd() {
 	local build_step=""
 	if [ "${NOBUILD:-0}" != "1" ]; then
 		build_step="cmake -S /src/port -B /build -DCMAKE_BUILD_TYPE=Release \
--DRECOMP_DIR=/src/build/port/recomp -DFMT_RUNTIME=/src/references/vs-sr-dev/fmtownskit/runtime && \
+-DRECOMP_DIR=/src/build/port/recomp -DFMT_RUNTIME=/src/fmtownskit/runtime && \
 cmake --build /build -j\$((\$(nproc))) && "
 	fi
 	# The body only: the entrypoint already runs the argv it is given, and an inner `sh -lc` would nest a second

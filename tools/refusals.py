@@ -32,11 +32,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def load_kit():
-    """Import the decoder from the gitignored clone, or say how to get it."""
-    ref = os.path.join(ROOT, 'references', 'vs-sr-dev')
+    """Import the decoder from the submodule, or say how to get it."""
+    ref = ROOT
     if not os.path.isdir(os.path.join(ref, 'fmtownskit')):
-        sys.exit('fmtownskit not found under references/vs-sr-dev. '
-                 'See docs/decoder-comparison.md for the clone command.')
+        sys.exit('fmtownskit not found at ./fmtownskit. '
+                 'Run git submodule update --init fmtownskit.')
     sys.path.insert(0, ref)
     from fmtownskit import i386
     return i386

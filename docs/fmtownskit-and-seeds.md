@@ -3,8 +3,9 @@
 **A toolkit exists that does most of what this project has been building by hand, and the one thing it
 needs that `ENCHANT.EXP` cannot supply is the thing that keeps going wrong here: authoritative seeds.**
 
-The clone is at `references/vs-sr-dev/fmtownskit` on branch `mp-support` (not in git, `references/` is
-ignored). What follows is measured against this project's binary and against his three FM Towns ports.
+The kit is a git submodule at `fmtownskit`, pinned to a published upstream commit with this project's MP support
+applied as `patches/fmtownskit-mp-support.patch` (see [fmtownskit-patches.md](fmtownskit-patches.md)). What follows
+is measured against this project's binary and against his three FM Towns ports.
 
 ## The compiler is the same, so the comparison is fair
 

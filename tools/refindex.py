@@ -40,12 +40,12 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FMS = os.path.join(ROOT, 'references', 'vs-sr-dev')
+FMS = ROOT
 
 
 def load_fmtownskit():
     if not os.path.isdir(os.path.join(FMS, 'fmtownskit')):
-        sys.exit('fmtownskit not found under references/vs-sr-dev. See docs/fmtownskit-and-seeds.md.')
+        sys.exit('fmtownskit not found at ./fmtownskit. Run git submodule update --init fmtownskit.')
     sys.path.insert(0, FMS)
     from fmtownskit.recomp import discover
     from fmtownskit.exp import parse_no_code

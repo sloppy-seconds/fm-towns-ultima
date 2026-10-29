@@ -1,34 +1,42 @@
 # The fmtownskit patches
 
-`references/` is not committed, so a change that lives only in the vendored clone is a change that will be lost.
-Every edit this repository makes to the kit is in **`patches/fmtownskit-mp-support.patch`**, one file, and it is
-the authoritative list: the count of patches is whatever that file contains, and `node tools/patchcheck.js`
-derives it rather than trusting a number written here.
+`fmtownskit` is a git submodule at `./fmtownskit`, pinned to a commit on
+`https://github.com/vs-sr-dev/fmtownskit`, which is the shape the other games in that organisation use: their
+repositories carry `[submodule "fmtownskit"] path = fmtownskit`. The pin is a **published** commit, and this
+project's MP support is a patch series on top of it, in
+**`patches/fmtownskit-mp-support.patch`. That file is the authoritative list:** the count of patches is whatever it
+contains, and `node tools/patchcheck.js` derives it rather than trusting a number written here.
 
-## Applying it
+Why a series rather than a branch: the MP support was developed on a local `mp-support` branch of the old clone,
+seven commits that were never pushed, so no submodule could point at them. Regenerating the series as
+`git diff origin/main` folds those commits and the later working-tree edits into one file that applies to the
+published pin. The commit messages are not in the series, and the branch was preserved before the old clone was
+removed, in `/var/tmp/fmtownskit-mp-support.bundle`.
+
+## Setting it up
 
 ```
-git clone https://github.com/vs-sr-dev/fmtownskit references/vs-sr-dev/fmtownskit
-cd references/vs-sr-dev/fmtownskit
-git checkout mp-support            # commit 2203160 is what the patch was made against
-git apply /path/to/fm-family-ultima-trilogy/patches/fmtownskit-mp-support.patch
+git submodule update --init fmtownskit
+git -C fmtownskit apply patches/fmtownskit-mp-support.patch
 ```
 
-`git apply --check` first if the clone is at a different commit. If it does not apply, the commit has moved and
-each hunk below names the function it belongs in, so the change can be re-made by hand and the patch regenerated
-with `git diff -- exp.py recomp runtime`.
+That leaves the submodule's working tree **modified against its own HEAD**, which is expected and permanent:
+the pin stays clean so that anyone can fetch it, and the difference is described by the patch file. `git status`
+will therefore always report the submodule as having modified content.
 
 ## What it is checked against
 
-Measured, and the measurement is the acceptance criterion for item 8g: applying the patch to a **fresh clone at
-`2203160`** reproduces the working vendored tree **byte for byte** across all eleven files it touches. That was run
-both ways, `git apply --check` and `git apply` followed by `cmp` on each file, and nothing differed.
+`node tools/patchcheck.js` clones the submodule to a temporary directory, asserts that the pin is reachable from
+`origin/main` (a pin to a local commit looks exactly like a pin until a stranger tries to fetch it), applies the
+committed patch, and compares the result byte for byte with the submodule's working tree. It also fails if the
+working tree holds a change the patch does not describe. It skips with a printed note when the submodule has not
+been initialised, because a stranger with only the zip has not run `git submodule update` and should not be told
+the check failed.
 
-`node tools/patchcheck.js` repeats the whole check from scratch (clone to a temporary directory, apply, compare) and
-fails if the committed patch has drifted from the vendored clone. It skips with a printed note when `references/`
-is absent, because a stranger with only the zip has no clone and should not be told the check failed.
+Measured: the series names 16 files and 46 hunks, and applying it to a fresh clone at the pin reproduces all 16
+exactly.
 
-**One file in the clone is not ours.** `README.md` also shows as modified there: it describes the kit's own
+**One file in the submodule is not ours.** `README.md` also shows as modified there: it describes the kit's own
 `.agents/skills/fmtownskit/` documentation, which is work in progress on that clone and not this repository's. It
 is left exactly as found and deliberately excluded from the patch.
 

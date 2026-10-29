@@ -31,9 +31,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def load_kit():
-    ref = os.path.join(ROOT, 'references', 'vs-sr-dev')
+    ref = ROOT
     if not os.path.isdir(os.path.join(ref, 'fmtownskit')):
-        sys.exit('fmtownskit not found under references/vs-sr-dev.')
+        sys.exit('fmtownskit not found at ./fmtownskit. Run git submodule update --init fmtownskit.')
     sys.path.insert(0, ref)
     from fmtownskit import i386
     return i386

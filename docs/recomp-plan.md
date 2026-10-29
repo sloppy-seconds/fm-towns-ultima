@@ -22,9 +22,8 @@ This version is checkable, because the artefact is a binary.
 
 Both found by reading the generated `CMakeLists.txt` rather than by reasoning about the plan:
 
-1. **`set(FMT_RUNTIME .../fmtownskit/runtime)` points at a path that does not exist.** The toolkit lives at
-   `references/vs-sr-dev/fmtownskit/`. The build has never been attempted from this project, so nothing
-   caught it.
+1. **`set(FMT_RUNTIME .../fmtownskit/runtime)` points at a path that does not exist.** The toolkit now lives at
+   `fmtownskit/` as a submodule. The build has never been attempted from this project, so nothing caught it.
 2. **There is no `main()`.** The output is `recomp` as a `STATIC` library plus a `modules.cpp` that
    registers `g_mod_p_game`. Something has to load the image, set up memory, pick an entry point and call
    it. That file does not exist.

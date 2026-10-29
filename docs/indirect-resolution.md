@@ -9,7 +9,7 @@ wrong 21 sites.
 
 ## The interface already expects runtime resolution
 
-`references/vs-sr-dev/fmtownskit/recomp/discover.py` records indirect transfers and says what they are
+`fmtownskit/recomp/discover.py` records indirect transfers and says what they are
 for, in its own words at the point the walker refuses to guess:
 
 > Returning None is the correct answer: the transfer is indirect and unresolved, which is what
@@ -104,8 +104,8 @@ project's own tools:
 ```
 SEEDS=$(node tools/seeds.js --emit)
 RANGES=$(node tools/codelimits.js --args)
-cd references/vs-sr-dev
-python3 -m fmtownskit.recomp.discover ../../ENCHANT.EXP --raw --seed "$SEEDS" $RANGES --report
+cd $(git rev-parse --show-toplevel)
+python3 -m fmtownskit.recomp.discover ENCHANT.EXP --raw --seed "$SEEDS" $RANGES --report
 ```
 
 That reports **696 functions, 71 jump tables (67 bounded), 21 indirect transfers unresolved, 910

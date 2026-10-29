@@ -1,16 +1,22 @@
 #!/usr/bin/env node
-// The vendored kit's patches, checked rather than described.
+// The kit submodule's patch series, checked rather than described.
 //
-// Why. `references/` is gitignored, so every edit this repository makes to fmtownskit lives only in a clone that
-// is not committed. `patches/fmtownskit-mp-support.patch` is the record, and a record nobody tests drifts: the doc
-// says one thing, the clone another, and neither says so. This clones the kit to a temporary directory, applies
-// the committed patch there, and compares the result byte for byte with the working clone.
+// Why. `fmtownskit` is a git submodule pinned to a commit on the upstream repository, the same shape the other
+// games in that org use (`pc-4ddriving`, `pc-abelsmt` and `pc-thequeenofduellist` each carry
+// `[submodule "fmtownskit"] path = fmtownskit`). The pin is a PUBLISHED commit and the project's own MP support
+// is a patch series on top of it, because the branch that work was developed on was never pushed. So the pin
+// plus `patches/fmtownskit-mp-support.patch` is the whole truth about which kit this project runs.
 //
-// It also fails if the clone has changed in a way the patch does not describe, which is the case that matters when
-// somebody edits the kit and forgets to regenerate the patch.
+// A record nobody tests drifts: the doc says one thing, the submodule another, and neither says so. This clones
+// the submodule, checks that its pin is reachable from the upstream branch, applies the committed patch there,
+// and compares the result byte for byte with the submodule's working tree.
 //
-// Absent clone: it prints why and passes. A stranger with only the zip has no kit, and telling them the check
-// failed would be wrong. What it must not do is pass silently, so the skip says so on its own line.
+// It also fails if the working tree has changed in a way the patch does not describe, which is the case that
+// matters when somebody edits the kit and forgets to regenerate the patch.
+//
+// Absent submodule: it prints why and passes. A stranger with only the zip has not run
+// `git submodule update --init`, and telling them the check failed would be wrong. What it must not do is pass
+// silently, so the skip says so on its own line.
 'use strict';
 const fs = require('fs');
 const os = require('os');
@@ -18,7 +24,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const KIT = path.join(ROOT, 'references/vs-sr-dev/fmtownskit');
+const KIT = path.join(ROOT, 'fmtownskit');
 const PATCH = path.join(ROOT, 'patches/fmtownskit-mp-support.patch');
 
 const run = (cmd, args, opts = {}) =>
@@ -30,7 +36,7 @@ const filesIn = (patchText) =>
 console.log('patchcheck: the fmtownskit patch set');
 
 if (!fs.existsSync(KIT)) {
-	console.log('  skip  no kit clone at references/vs-sr-dev/fmtownskit, so there is nothing to check against');
+	console.log('  skip  no kit submodule at fmtownskit, so there is nothing to check against');
 	console.log('        (the patch file is still committed, and docs/fmtownskit-patches.md says how to apply it)');
 	process.exit(0);
 }
@@ -62,9 +68,23 @@ console.log(`  ok    the patch names ${files.length} files and ${(patchText.matc
 	if (missing.length) process.exitCode = 1;
 }
 
-// 2. The patch must apply to a clean clone at the same commit and reproduce the working tree exactly.
+// 2. The pin must be a published commit, and the patch must apply to it and reproduce the working tree exactly.
+// The first half is the point of using a submodule rather than a clone: a pin to a local commit cannot be
+// fetched by anyone else, and it would look exactly like a pin until a stranger tried to run this.
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'patchcheck-'));
 try {
+	const pin = run('git', ['-C', KIT, 'rev-parse', 'HEAD']).trim();
+	let published = false;
+	try {
+		run('git', ['-C', KIT, 'merge-base', '--is-ancestor', pin, 'origin/main']);
+		published = true;
+	} catch (e) {
+		published = false;
+	}
+	if (!published) {
+		console.log(`  FAIL  the pin ${pin.slice(0, 7)} is not reachable from origin/main, so nobody else can fetch it`);
+		process.exitCode = 1;
+	}
 	run('git', ['clone', '-q', KIT, tmp]);
 	const head = run('git', ['-C', tmp, 'rev-parse', '--short', 'HEAD']).trim();
 	run('git', ['-C', tmp, 'apply', '--check', PATCH]);

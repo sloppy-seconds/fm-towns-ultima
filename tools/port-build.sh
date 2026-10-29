@@ -17,7 +17,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KIT="$ROOT/references/vs-sr-dev/fmtownskit"
+KIT="$ROOT/fmtownskit"
 OUT="$ROOT/build/port"
 STRIPPED="/var/tmp/u2-ENCHANT-stripped.bin"
 RECOMP="$OUT/recomp"
@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ! -f "$KIT/runtime/towns.cmake" ]]; then
-	echo "the toolkit is not at $KIT (clone https://github.com/vs-sr-dev/fmtownskit, mp-support branch)" >&2
+	echo "the toolkit is not at $KIT (run git submodule update --init fmtownskit, then apply patches/fmtownskit-mp-support.patch)" >&2
 	exit 2
 fi
 if [[ ! -f "$ROOT/ENCHANT.EXP" ]]; then
@@ -137,7 +137,7 @@ PY
 	TB_NO_CODE="${TB_RANGES//--no-code /--no-code tbios=}"
 	echo "ranges    $(grep -o ':' <<< "$NO_CODE" | wc -l) for the game and $(grep -o ':' <<< "$TB_RANGES" | wc -l) for tbios, scoped per module"
 	rm -rf "$RECOMP" "$OUT/re_game" "$OUT/re_tbios"
-	(cd "$ROOT/references/vs-sr-dev" && python3 -m fmtownskit.recomp --out "$RECOMP" \
+	(cd "$ROOT" && PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m fmtownskit.recomp --out "$RECOMP" \
 		--raw "game=$STRIPPED@0xc+$SEED_LIST,0x101a20" $GAME_NO_CODE \
 		--raw "$TB_SPEC" $TB_NO_CODE) | tail -2
 	#    Every module's full report, including each unresolved indirect transfer with its operands, and each
@@ -157,7 +157,7 @@ PY
 	# Instruction coverage, from the same walk and the same seeds and ranges as the module. That is what lets
 	# the port tell a patched instruction from a data write: without it the raw diff is half a megabyte of
 	# the program filling its own data. See tools/insncoverage.py and plan item 7c.
-	PYTHONPATH="$ROOT/references/vs-sr-dev" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
+	PYTHONPATH="$ROOT" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
 		--image "$STRIPPED" --seeds "$SEED_LIST,0x101a20" $NO_CODE --out "$RECOMP/coverage.txt"
 fi
 
@@ -173,7 +173,10 @@ FILE "../../Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img" BINARY
     INDEX 01 00:00:00
 CUE
 echo "cue       $OUT/disc.cue (track 1 only, for the kit's reader)"
-cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" > "$OUT/cmake.log" 2>&1
+# -DFMT_RUNTIME is passed explicitly rather than left to the CMakeLists default, because the value is CACHEd: a
+# build tree created before the kit moved would keep pointing at the old path and fail with a message that names
+# the new one, which is the most confusing possible combination.
+cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
 	tail -20 "$OUT/build.log" >&2

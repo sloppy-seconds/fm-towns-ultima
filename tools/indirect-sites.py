@@ -34,13 +34,13 @@ HEADER = 0x200
 
 def load_sites(image_name, seeds=()):
     """Indirect transfer sites, as image offsets, from the recompiler's own walk."""
-    sys.path.insert(0, os.path.join(ROOT, "references", "vs-sr-dev"))
+    sys.path.insert(0, ROOT)
     try:
         from fmtownskit.recomp import discover
     except ImportError:
         raise SystemExit(
-            "cannot import fmtownskit. Run ./tools/decode-setup.sh, or check that\n"
-            "references/vs-sr-dev exists. This tool needs the decoder venv."
+            "cannot import fmtownskit. Run ./tools/decode-setup.sh, and check that the\n"
+            "fmtownskit submodule is initialised (git submodule update --init fmtownskit)."
         )
     prog = discover.load(image_name, seeds=seeds, name=os.path.basename(image_name))
     return set(prog.indirect), prog

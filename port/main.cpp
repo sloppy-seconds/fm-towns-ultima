@@ -45,10 +45,13 @@ extern const X86Module g_mod_p_game;
 // with a control-flow capture taken off the emulator: the first place they part is the bug. Without it the
 // only way to find a divergence is to guess which BIOS return was answered wrongly, which is the failure this
 // project keeps paying for.
-#ifdef X86_TRACE_ON
 // The VRAM signature, in one place because two callers need it: the end of a run and a U2_STOP_AT stop. Items 7a
 // compares this against the same 512 KB read from the machine's segment 0120, so a stop has to produce it too or the
 // comparison could only ever be taken at a frame count, which is not a comparable point.
+//
+// OUTSIDE the X86_TRACE_ON guard, unlike everything below it. It was inside, and the call at the end of a run is
+// not guarded, so a build without the trace failed to compile with "print_vram_hash was not declared in this
+// scope". VRAM hashing is an instrument in its own right (U2_VRAM_HASH) and does not need the trace to exist.
 static void print_vram_hash(const towns::Machine& m) {
 	auto fnv = [](const uint8_t* p, size_t n, uint32_t h) {
 		for (size_t i = 0; i < n; ++i) h = (h ^ p[i]) * 16777619u;
@@ -61,6 +64,8 @@ static void print_vram_hash(const towns::Machine& m) {
 		std::printf(" %08x", fnv(m.vram.data() + off, block, 2166136261u));
 	std::printf("\n");
 }
+
+#ifdef X86_TRACE_ON
 static FILE* g_trace_file = nullptr;
 static unsigned long long g_trace_written = 0, g_trace_limit = 0;
 static std::vector<uint8_t> g_trace_seen;     // one byte per 4 KB page of a 64 MB window, then bit set per byte

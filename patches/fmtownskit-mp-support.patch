@@ -1,23 +1,142 @@
+diff --git a/README.md b/README.md
+index bad7900..4f1a156 100644
+--- a/README.md
++++ b/README.md
+@@ -89,6 +89,22 @@ A dump is MAME's CPU state and physical RAM (`state.txt`, `ram.bin`) at a
+ moment the CPU is in protected mode with paging on; a port's oracle writes
+ it with a Lua script.
+ 
++## A skill for an agent
++
++`.agents/skills/fmtownskit/` packages the reading as an Agent Skills skill.
++`SKILL.md` holds the five facts true of every session (where the modules
++have to run from, which interpreter has capstone and which unicorn, that
++`mp-support` is a branch rather than a release, what belongs in the port
++instead of here, and that a number without a command is a guess) and a
++table of which reference answers which question. The eight references,
++one per job, cover the disc, the executable, the code map, the
++recompiler, the decoders, the machine, the runtime and the shape of a port.
++
++Pi and `npx skills` both find it, from this clone and from a port that
++carries the kit as a submodule. It is a digest and not a second manual:
++where a reference and a module's docstring disagree, the docstring is
++right and the skill is the thing to fix.
++
+ ## What a Towns CD is
+ 
+ Worth writing down in one place, because every port starts here. Checked on
+@@ -122,7 +138,7 @@ one disc so far (see *Checks*):
+ 
+ | Layer | Question it answers | Now | Next |
+ |---|---|---|---|
+-| 1. Recognise | What is on this disc? | `disc` (cue sheets, raw and cooked tracks, ISO 9660, the IPL record, the tracks' positions and pregaps), `exp` (Phar Lap P3, its symbol table, a P3 bound behind an MZ stub), `tbiosld` (a TBIOS of Phar Lap "MQ" modules, laid out and linked as TBIOSLD.SYS does) | MZ executables and RUN386's own loader; floppy images (.hdm) for the discs that come with a user disk |
++| 1. Recognise | What is on this disc? | `disc` (cue sheets, raw and cooked tracks, ISO 9660, the IPL record, the tracks' positions and pregaps), `exp` (Phar Lap P3 and the "MP" 16-bit-header form, its symbol table, a P3 bound behind an MZ stub), `tbiosld` (a TBIOS of Phar Lap "MQ" modules, laid out and linked as TBIOSLD.SYS does) | MZ executables and RUN386's own loader; floppy images (.hdm) for the discs that come with a user disk |
+ | 2. Extract | Turn standard formats into standard files | `disc --extract`, `disc --wav` | the TBIOS-level formats games share (sprite patterns, the sound BIOS's data), when a second game confirms them |
+ | 3. Map code | What does the code do, where? | `x86map` (descent, extents, every `int` with AH/AL, every port, every selector loaded, far calls through TBIOS's table, indirect transfers), `mamedump` (a running machine: GDT, LDT, paging, bytes found) | the TBIOS's own functions named by module and AH |
+ | 4. Translate | Turn 386 code into C++ | `i386` (the 386's integer instruction set exactly: 16- and 32-bit operand and address sizes, segment overrides, REP/LOCK, ModRM/SIB, the 0F map; later CPUs' instructions refused with a reason; the x87's escapes as a 386 with no coprocessor runs them), `i386emu` (an interpreter: the reference, its undefined flags listed), `recomp.discover` (functions and their bodies, jump tables bounded by the guard that really guards them -- or by `setcc`, `and` --, tables with no bound read until an entry's code conflicts or is refused, or to the next symbol, the descent rerun until clean; a program's symbols as seeds), `recomp.emit` and `python -m fmtownskit.recomp` (C++ per function, a module per program keyed by its code selector, calls as C++ calls with the return checked and unwound -- a call made by hand, `push RET; jmp F`, too --, jump tables as switches on the entry read, the 386's clocks a block at a time), `recomp.selftest` (the interpreter records, the C++ replays; the optest: every instruction form, one-instruction functions) | flags only where read; the clocks held against the oracle |
+@@ -147,7 +163,7 @@ one disc so far (see *Checks*):
+ | Module | Checked by |
+ |---|---|
+ | `disc` | The Queen of Duellist (Rev A; Redump's split dump, 10 tracks): every track's file matches the CRC32 MAME's software list gives, and the CHD made from the sheet has its SHA-1. The data track: ISO 9660, 2,932 blocks of 6,750 sectors (the rest zero), 167 files in 4 directories, extracted byte for byte as a separate reader does; nine CD-DA tracks whose pregaps (345 to 815 sectors) hold audio in seven of them |
+-| `exp` | the same disc's `DUEL.EXP`: a level-1 P3 image of 73,495 bytes at 0x200, entry 0xA7F0, stack top 0x13F20, no relocations. 4D Driving's `4DDFMT.EXP`: 290,132 bytes, entry 0x340A4 (`_mwINIT`), and its SYM1 table read to the last byte of both sizes: 2 segments, 2,047 symbols. On both, image + the minimum "extra" = the initial ESP. ABEL's three programs, each behind the same 0x850-byte MZ stub, the P3 where the MZ header's page count ends: `ABEL.EXE` 648,423 bytes of image (entry 0x40D20), `OPNG.EXE` 299,936 (0x27D14), `ENDG.EXE` 170,187 (0x11444), image + minimum = ESP on all three; the P3 read from behind the stub the same, byte for byte, as cut out by hand |
++| `exp` | the same disc's `DUEL.EXP`: a level-1 P3 image of 73,495 bytes at 0x200, entry 0xA7F0, stack top 0x13F20, no relocations. 4D Driving's `4DDFMT.EXP`: 290,132 bytes, entry 0x340A4 (`_mwINIT`), and its SYM1 table read to the last byte of both sizes: 2 segments, 2,047 symbols. On both, image + the minimum "extra" = the initial ESP. ABEL's three programs, each behind the same 0x850-byte MZ stub, the P3 where the MZ header's page count ends: `ABEL.EXE` 648,423 bytes of image (entry 0x40D20), `OPNG.EXE` 299,936 (0x27D14), `ENDG.EXE` 170,187 (0x11444), image + minimum = ESP on all three; the P3 read from behind the stub the same, byte for byte, as cut out by hand. Ultima II's `ENCHANT.EXP`: the "MP" form, a 30-byte header whose `(pages - 1) * 512 + lastPage` reproduces its 1,072,398 bytes exactly, the image the whole file at base 0 with no entry point at all, so a seed has to come from outside it; read through the P3 table instead, the relocation offset comes out 0x1A0020, past the end of the file |
+ | `tbiosld` | ABEL's TBIOS at OPNG's first instruction (session 2): the composed image and memory the same, **0 bytes differing**; at ABEL's, 365 bytes in the sound and int 04dh modules' work areas (OPNG's). Session 1: the eight modules of its TBIOS.INI composed from the disc's files (90,464 bytes: TBIOSTOP at 0, the graphic module at 0x300 ... the font module to 0x16160) against the TBIOS in the oracle's memory 66 s into the game (`mamedump --read 0x100000:0x17000`): the entry table the same but for slot 0x98 (the game's), and the 449 other bytes that differ all lie between a module's header and its first code -- its work areas, filled as it runs |
+ | `towns` | the memory maps, ports, IRQs and machine ids as MAME's fmtowns driver has them; confirmed by a game's code: the pad ports 0x4D0/0x4D2/0x4D6, the CRTC's 0x440/0x442/0x443, the sprite controller's 0x450/0x452, the sound status at 0x4E9 and IRQ13 as int 4Dh (slave PIC at 0x48) |
+ | `towns.PROFILES` | 4D Driving's dumps on MAME's `fmtowns` with 2 and 4 MB and `fmtmarty`: the program's segment at 0x200000 with 2 MB but **0x408000 with 4 MB** (physical 0x49000 both), its limit when it asks for all memory, selector 0x40 short of the RAM by the 32 KB a driver keeps; nothing else in the tables differs between 2 and 4 MB |
+@@ -167,6 +183,10 @@ one disc so far (see *Checks*):
+   Towns with the disc's TBIOS, its RAM and RUN386's placing a profile; the
+   Marty's own TBIOS (its ROM's extension: a TV zoom, the pad as a mouse) is
+   not run.
++* **The "MP" form is read from one binary.** `ENCHANT.EXP` is the only one
++  measured: the size arithmetic, base 0 and the absence of an entry point
++  hold there. Nothing yet shows an MP that loads anywhere else, so a port
++  that meets one has to say how it knows.
+ * **Profiles are read, not derived**: how RUN386 places a program by RAM
+   size and drivers is a table of what the dumps showed, not RUN386's rule.
+ * **RUN386's selectors** are read from two machines running, not from
 diff --git a/exp.py b/exp.py
-index 0b13830..8e040be 100644
+index b4e22ae..8e040be 100644
 --- a/exp.py
 +++ b/exp.py
-@@ -200,18 +200,26 @@ class Exp:
-         return [(n, getattr(self, n)) for n, _, _ in table]
+@@ -104,6 +104,24 @@ def read_symbols(t):
+     return segs, sorted(syms)
  
-     def _read_mp(self, data):
--        """The "MP" form: 30-byte header, image is everything after it, no entry point.
--
--        THE ENTRY POINT IS DELIBERATELY None. MP has no EIP field. The u16 at 0x18
--        reads as 30 on ENCHANT.EXP, which is the header size and is consistent with
--        where the zero padding begins, but reading it as an entry would start a walk
--        at address 0x1E, inside the header, and produce a confidently wrong map.
--        Callers must supply a seed. `i386.py` already does this for the `--raw` and
--        `--base`/`--far-table` paths, which is the same situation.
--
--        The base is 0 for the same reason `docs/` gives: every absolute operand in
--        ENCHANT.EXP is below 0x110000, which is only possible if the image loads at
--        0 rather than the 0x100000 that a 16-bit-header MP conventionally suggests.
+ 
++def parse_no_code(specs):
++    """LO:HI pairs, hex, to half-open ranges. One parser so the tools cannot disagree.
++
++    An empty range (LO == HI) is dropped rather than refused, so a generated list with a
++    degenerate entry still works. HI below LO is a mistake and is refused, because silently
++    producing an empty range would look like the guard was in place when it was not.
++    """
++    out = []
++    for s in specs or ():
++        lo_s, _, hi_s = s.partition(':')
++        lo, hi = int(lo_s, 16), int(hi_s, 16)
++        if hi < lo:
++            raise ValueError('--no-code %s: HI is below LO' % s)
++        if hi > lo:
++            out.append((lo, hi))
++    return out
++
++
+ def mz_length(data):
+     """An MZ header's own count of the file's bytes (pages of 512, the last one partial), or None."""
+     if data[:2] != b'MZ' or len(data) < 0x1C:
+@@ -112,9 +130,44 @@ def mz_length(data):
+     return pages * 512 - ((512 - last) if last else 0)
+ 
+ 
++# The "MP" header: the 16-bit-header form, 30 bytes, level 1 flat.
++#
++# WHY THIS IS A SEPARATE TABLE AND NOT A FIELD OFFSET FUDGE. "MP" and "P3" agree
++# only on the first two bytes. P3 puts a u32 file size at 0x06 and the image
++# descriptor at 0x26/0x2A; MP keeps a page count pair there and carries no image
++# descriptor at all, because the image is the whole rest of the file. Reading an MP
++# through FIELDS does not produce a slightly wrong answer, it produces a
++# confidently wrong one: on ENCHANT.EXP the "relocation offset" comes out as
++# 0x1A0020, which is past the end of a 0x105B8E-byte file.
++#
++# Sizes: `pages` at 0x04 counts 512-byte pages and the last page is partial, so the
++# file length is (pages - 1) * 512 + lastPage. This reproduces ENCHANT.EXP's
++# 1,072,398 bytes exactly, which is the arithmetic that identifies the variant.
++MP_FIELDS = [
++    ('last_page', 0x02, 'H'), ('pages', 0x04, 'H'),
++    ('reloc_count', 0x06, 'H'), ('reloc_offset', 0x08, 'I'),
++    ('header_paras', 0x0C, 'H'), ('min_extra', 0x0E, 'H'), ('max_extra', 0x10, 'H'),
++    ('esp', 0x12, 'I'), ('checksum16', 0x16, 'H'), ('header_size', 0x18, 'H'),
++]
++
++
++def mp_length(data):
++    """An MP header's own count of the file's bytes, or None if the pair is impossible."""
++    if len(data) < 0x1A:
++        return None
++    last, pages = struct.unpack_from('<HH', data, 2)
++    if pages == 0 or last > 512:
++        return None
++    return (pages - 1) * 512 + last
++
++
+ class Exp:
+     def __init__(self, data):
+         self.stub = 0
++        self.kind = 'P3'
++        if data[:2] == b'MP':
++            self._read_mp(data)
++            return
+         if data[:2] == b'MZ':
+             n = mz_length(data)
+             if n is None or data[n:n + 2] != b'P3':
+@@ -143,7 +196,83 @@ class Exp:
+         self.rtp = data[self.rtp_offset:self.rtp_offset + self.rtp_size]
+ 
+     def fields(self):
+-        return [(n, getattr(self, n)) for n, _, _ in FIELDS]
++        table = MP_FIELDS if self.kind == 'MP' else FIELDS
++        return [(n, getattr(self, n)) for n, _, _ in table]
++
++    def _read_mp(self, data):
 +        """The "MP" form: 30-byte header, image is everything after it, and an entry at 0x14.
 +
 +        THE ENTRY POINT IS THE DWORD AT 0x14, AND THE IMAGE BEGINS AT FILE 0x200.
@@ -38,15 +157,43 @@ index 0b13830..8e040be 100644
 +        this, the reader kept the whole file as the image with base 0 and reported no entry, which walked
 +        from file offset 0x101C20 as if it were address 0x101C20, so every immediate in the code missed its
 +        target by 0x200. That walk gave 498,320 instructions and 284,785 conflicts.
-         """
-         self.kind = 'MP'
-         self.data = data
-@@ -249,11 +257,19 @@ class Exp:
-         # This is the same finding as docs/two-frames-of-reference.md in the project
-         # this branch was written for, and it is why an MP cannot be handled by reusing
-         # the P3 image_offset field.
--        self.image_offset = 0
--        self.image = data
++        """
++        self.kind = 'MP'
++        self.data = data
++        for name, off, t in MP_FIELDS:
++            setattr(self, name, struct.unpack_from('<' + t, data, off)[0])
++        n = mp_length(data)
++        if n is None:
++            raise ValueError('MP: lastPage/pages at 0x02 are impossible (%d/%d)'
++                             % (self.last_page, self.pages))
++        if n != len(data):
++            raise ValueError('MP: lastPage/pages say %d bytes, the file has %d' % (n, len(data)))
++        if self.reloc_count:
++            raise ValueError('MP: %d relocations, not read here'
++                             % self.reloc_count)
++        # The header's own size field is trusted only where it is plausible. Below 0x1E
++        # it would overlap the fields already read, and past the file is impossible.
++        # The upper bound is tight rather than `<= len(data)`: a flat MP header is a
++        # handful of bytes, and a value like 0xFF only passed the loose form of this
++        # check, which was decoration. 0x400 is well past any MP header seen and well
++        # short of anything meaningful being misread as one.
++        if not 0x1E <= self.header_size <= 0x400:
++            raise ValueError('MP: header size %#x is not a plausible value'
++                             % self.header_size)
++        # THE IMAGE IS THE WHOLE FILE, NOT THE FILE MINUS THE HEADER.
++        #
++        # The header's size field says 0x1E and the obvious reading is that the image
++        # begins there. It does not. Measured on ENCHANT.EXP: the pixel writer this
++        # project records at 0xF3E24 opens `8b 44 24 0c C1 E0 07`, and those bytes are
++        # at raw file offset 0xF3E24. Decoding from image offset 0xF3E24 with the image
++        # starting at 0x1E lands on file offset 0xF3E42, which is `ec 53 56 57`
++        # (`in al,dx; push ebx; push esi; push edi`) and is a different function.
++        #
++        # So for this variant the header is PREPENDED to the address space rather than
++        # stripped from it: file offset and virtual address are the same number, base 0.
++        # This is the same finding as docs/two-frames-of-reference.md in the project
++        # this branch was written for, and it is why an MP cannot be handled by reusing
++        # the P3 image_offset field.
 +        # The image begins where the loader maps it, 0x200 into the file, and the header's addresses are
 +        # offsets into that image. The first 0x1E bytes are the header and the rest of the first 0x200 is
 +        # zero, so there is no field to read this from: it is the load convention, measured as described in
@@ -55,27 +202,58 @@ index 0b13830..8e040be 100644
 +            raise ValueError('MP: %d bytes is too short to hold an image at 0x200' % len(data))
 +        self.image_offset = 0x200
 +        self.image = data[0x200:]
-         self.image_size = len(self.image)
-         self.base_offset = 0
--        self.eip = None
++        self.image_size = len(self.image)
++        self.base_offset = 0
 +        # The entry, unchanged: it is already an address in the image.
 +        entry = struct.unpack_from('<I', data, 0x14)[0]
 +        self.eip = entry if 0 < entry < len(self.image) else None
-         self.esp = self.image_size + self.min_extra
-         self.segments, self.symbols = [], []
-         self.rtp = b''
++        self.esp = self.image_size + self.min_extra
++        self.segments, self.symbols = [], []
++        self.rtp = b''
+ 
+     def table_end(self, tbl):
+         """Where a table of dwords at `tbl`, read with no bound, ends: the first symbol past its
+@@ -181,6 +310,12 @@ def main(argv=None):
+     for n, v in e.fields():
+         if v:
+             print('%-16s %#x' % (n, v))
++    if e.kind == 'MP':
++        print('%-16s %s' % ('kind', 'MP'))
++        print('image: %d bytes at file offset %#x, loaded at %#x; entry UNKNOWN (MP carries none)'
++              % (e.image_size, e.image_offset, e.base_offset))
++        print('a seed is required: pass one to i386 / recomp.discover (see --seeds)')
++        return
+     print('%-16s %s' % ('run-time params', e.rtp[:16].hex(' ')))
+     print('image: %d bytes at file offset %#x, loaded at %#x; entry %#x, stack top %#x'
+           % (e.image_size, e.image_offset, e.base_offset, e.eip, e.esp))
+diff --git a/i386.py b/i386.py
+index 0eec510..a5ffb1e 100644
+--- a/i386.py
++++ b/i386.py
+@@ -801,6 +801,15 @@ def main(argv=None):
+     else:
+         e = expmod.Exp(data)
+         image, base, entry = e.image, e.base_offset, e.eip
++        # AN "MP" HAS NO ENTRY POINT, SO THE FIRST SEED IS THE ENTRY.
++        # P3 carries an EIP and seeds are additional. MP carries none (its 0x18 field
++        # is the header size, not an EIP), so without this every MP walk started at
++        # None and died in x86map with `NoneType - int`.
++        if entry is None:
++            if not seeds:
++                raise SystemExit('%s: this is an MP, which has no entry point; '
++                                 'give one with --seed' % a.file)
++            entry, seeds = seeds[0], seeds[1:]
+         if a.symbol_seeds:
+             seeds += [off for off, _, _ in e.symbols if off < int(a.symbol_seeds, 16) and off != entry]
+     if a.dis:
 diff --git a/recomp/__main__.py b/recomp/__main__.py
-index e622120..baa27ee 100644
+index 1172b71..baa27ee 100644
 --- a/recomp/__main__.py
 +++ b/recomp/__main__.py
-@@ -164,14 +164,32 @@ def main(argv=None):
+@@ -164,23 +164,61 @@ def main(argv=None):
      ap.add_argument('--slice', metavar='LO-HI', help="vectors only for the functions in LO-HI (hex), to "
                      "selftest/<name>_<lo>-<hi>.txt")
      ap.add_argument('--jobs', type=int, default=1, help='processes making vectors')
--    ap.add_argument('--no-code', action='append', default=[], metavar='LO:HI',
--                    help='a half-open range where code cannot be, hex, repeatable, applied to '
--                         'every module; zeros decode as instructions without error, so a '
--                         'descent into zero fill otherwise succeeds silently and endlessly')
 +    ap.add_argument('--no-code', action='append', default=[], metavar='[NAME=]LO:HI',
 +                    help='a half-open range where code cannot be, hex, repeatable. A plain LO:HI applies to '
 +                         'every module, and NAME=LO:HI applies to the module called NAME. Zeros decode as '
@@ -83,8 +261,8 @@ index e622120..baa27ee 100644
 +                         'silently and endlessly')
      a = ap.parse_args(argv)
      os.makedirs(os.path.join(a.out, 'selftest'), exist_ok=True)
+-    mods = []
      from .. import exp as expmod
--    nocode = expmod.parse_no_code(a.no_code)
 +    # --no-code is per module as well as global.
 +    #
 +    # WHY. One list applied to every module is wrong as soon as a build has two modules made from
@@ -103,20 +281,30 @@ index e622120..baa27ee 100644
 +
 +    def nocode_for(name):
 +        return list(nocode_all) + list(nocode_mod.get(name, ()))
-     mods = []
++    mods = []
      for spec in a.exp:
          name, path, cs, symend, seeds = parse(spec, False)
-@@ -188,13 +206,19 @@ def main(argv=None):
-             entry, seeds = seeds[0], seeds[1:]
-         prog = discover.Program(e.image, e.base_offset, [entry] + seeds, name,
-                                 table_end=e.table_end if e.symbols else None, names=e.names(),
--                                no_code=nocode)
+         e = expmod.Exp(open(path, 'rb').read())
+         if symend is not None:
+             seeds += [off for off, _, _ in e.symbols if off < symend and off != e.eip]
+-        prog = discover.Program(e.image, e.base_offset, [e.eip] + seeds, name,
+-                                table_end=e.table_end if e.symbols else None, names=e.names())
++        # An MP has no entry point (its 0x18 field is the header size), so its first
++        # seed is the entry, as in i386.py and x86map.py.
++        entry = e.eip
++        if entry is None:
++            if not seeds:
++                raise SystemExit('%s: this is an MP, which has no entry point; '
++                                 'give one in the seed list (name=FILE@CS+SEED)' % path)
++            entry, seeds = seeds[0], seeds[1:]
++        prog = discover.Program(e.image, e.base_offset, [entry] + seeds, name,
++                                table_end=e.table_end if e.symbols else None, names=e.names(),
 +                                no_code=nocode_for(name))
          mods.append(Module(name, prog, cs, e.image, e.base_offset))
      for spec in a.raw:
          name, path, cs, far, seeds = parse(spec, True)
          data = open(path, 'rb').read()
--        prog = discover.Program(data, 0, seeds, name, far, no_code=nocode)
+-        prog = discover.Program(data, 0, seeds, name, far)
 +        prog = discover.Program(data, 0, seeds, name, far, no_code=nocode_for(name))
          mods.append(Module(name, prog, cs, data, 0))
 +    # A --no-code that names a module this build does not have would silently do nothing, which is
@@ -128,6 +316,152 @@ index e622120..baa27ee 100644
      if a.optest:
          image, entries = ST.optest_image([m.prog for m in mods])
          prog = discover.Program(image, ST.OPTEST_BASE, entries, 'optest')
+diff --git a/recomp/discover.py b/recomp/discover.py
+index da2a0d6..2b76dcf 100644
+--- a/recomp/discover.py
++++ b/recomp/discover.py
+@@ -23,17 +23,39 @@ import argparse
+ import collections
+ import sys
+ 
++from .. import exp as expmod
+ from .. import i386
+ from ..i386 import Refused, decode
++from ..exp import parse_no_code
+ 
+ ENDS = ('ret', 'retf', 'iret', 'iretd', 'hlt', 'ljmp')
+ 
+ 
+ class Program:
+-    def __init__(self, image, base=0, entries=(), name='prog', far_table=None, table_end=None, names=None):
++    def __init__(self, image, base=0, entries=(), name='prog', far_table=None, table_end=None, names=None,
++                 no_code=()):
+         self.img, self.base, self.name = image, base, name
+         self.names = names or {}       # offset -> a program's symbols there (for the C++'s comments)
+         self.table_end = table_end     # a program's symbols: where a read table must stop
++        # NO_CODE: half-open [lo, hi) ranges where code cannot be, so a descent stops there.
++        #
++        # WHY THIS IS A PARAMETER AND NOT A SCAN. A linker tells a program where its
++        # uninitialised data begins (`_edata`, `_end`) and where its stack is; a program
++        # whose symbols were dropped does not, and the regions have to be found some other
++        # way. Both are the same fact -- this range cannot hold an instruction -- so the
++        # kit takes that fact and lets the caller find it. A scan for zero runs is one way,
++        # and it belongs to the caller, because how a program's regions can be recognised
++        # is not the same question on a program with symbols as on one without.
++        #
++        # A range need not be zero. A stack region is absent from the file rather than
++        # filled with zeros, and refusing to decode it is just as right.
++        #
++        # THE DAMAGE THIS PREVENTS. Zeros are valid x86: `00 00` is `add [eax], al`, two
++        # bytes, forever, with no error and no loss of alignment. A descent that reaches a
++        # zero region therefore does not fail, it succeeds silently and endlessly. Measured
++        # on a flat image 75.6 percent of which was zero fill: one seed produced a single
++        # 152,933-byte extent whose first byte was zero.
++        self.no_code = sorted((int(lo), int(hi)) for lo, hi in no_code)
+         self.insn = {}                 # addr -> Insn
+         self.functions = set()
+         self.targets = set()           # jump targets
+@@ -114,10 +136,20 @@ class Program:
+                 changed = True
+         return changed
+ 
++    def in_no_code(self, a):
++        """Whether `a` falls in a range the caller says cannot hold code."""
++        for lo, hi in self.no_code:
++            if lo <= a < hi:
++                return (lo, hi)
++        return None
++
+     def at(self, a):
+         off = a - self.base
+         if not 0 <= off < len(self.img):
+             raise Refused('outside the image')
++        r = self.in_no_code(a)
++        if r is not None:
++            raise Refused('in a no-code range %#x-%#x' % r)
+         return decode(self.img, off, a)
+ 
+     def _descend(self, work):
+@@ -177,6 +209,16 @@ class Program:
+             return None
+         if not 0 <= disp - self.base < len(self.img):
+             return None
++        # A TABLE IN A NO-CODE RANGE HAS NO CONTENTS TO READ.
++        #
++        # `jmp [edx*4 + 0xE034B]` at 0xE0543 points into a 151-byte zero run. The table is real
++        # and is filled at runtime; the file holds zeros. Reading it from the file returns sixteen
++        # zero dwords, and the descent then takes whatever the next path offers.
++        #
++        # Returning None is the correct answer: the transfer is indirect and unresolved, which is
++        # what `indirect` means and what the runtime is for. It is not a table with no entries.
++        if self.in_no_code(disp):
++            return None
+         bound = self._bound(pc, index)
+         limit = self.cut.get(pc, 256) if bound is None else bound
+         end = self.table_end(disp) if self.table_end and bound is None else None
+@@ -306,6 +348,12 @@ class Program:
+                  % (self.name, len(self.functions), len(self.insn), code, len(self.tables),
+                     sum(1 for t in self.tables.values() if t[2]), len(self.indirect),
+                     len(self.refused), len(self.conflicts()))]
++        if self.no_code:
++            # A count read without knowing the guard was on is not a count anybody can
++            # check, and the difference is large: on one flat image a single seed went
++            # from 143,025 instructions to 4,090 when two ranges were excluded.
++            lines.append('  no-code ranges: %s (a target there is refused, not decoded)'
++                         % ', '.join('%#x-%#x' % r for r in self.no_code))
+         for a, why in sorted(self.refused.items()):
+             lines.append('  refused at %#x: %s' % (a, why))
+         for a, b in self.conflicts()[:20]:
+@@ -315,19 +363,25 @@ class Program:
+         return '\n'.join(lines)
+ 
+ 
+-def load(path, raw=False, base=0, seeds=(), far_table=None, name=None, symbol_seeds=None):
++def load(path, raw=False, base=0, seeds=(), far_table=None, name=None, symbol_seeds=None, no_code=()):
+     """symbol_seeds: with a program's symbols, every symbol below this address (where its
+-    code ends) is an entry too."""
++    code ends) is an entry too. no_code: half-open [lo, hi) ranges where code cannot be."""
+     data = open(path, 'rb').read()
+     if raw:
+-        return Program(data, base, seeds, name or path, far_table)
+-    from .. import exp
+-    e = exp.Exp(data)
++        return Program(data, base, seeds, name or path, far_table, no_code=no_code)
++    e = expmod.Exp(data)
+     seeds = list(seeds)
+     if symbol_seeds is not None:
+         seeds += [off for off, _, _ in e.symbols if off < symbol_seeds and off != e.eip]
+-    return Program(e.image, e.base_offset, [e.eip] + seeds, name or path,
+-                   table_end=e.table_end if e.symbols else None, names=e.names())
++    entry = e.eip
++    if entry is None:                  # an MP has no entry point: its first seed is one
++        if not seeds:
++            raise SystemExit('%s: this is an MP, which has no entry point; give one with --seed'
++                             % path)
++        entry, seeds = seeds[0], seeds[1:]
++    return Program(e.image, e.base_offset, [entry] + seeds, name or path,
++                   table_end=e.table_end if e.symbols else None, names=e.names(),
++                   no_code=no_code)
+ 
+ 
+ def main(argv=None):
+@@ -338,12 +392,15 @@ def main(argv=None):
+     ap.add_argument('--far-table', metavar='FROM:TO')
+     ap.add_argument('--seed', default='')
+     ap.add_argument('--symbol-seeds', metavar='END', help='every symbol below END (hex) is an entry too')
++    ap.add_argument('--no-code', action='append', default=[], metavar='LO:HI',
++                    help='a half-open range where code cannot be, hex, repeatable')
+     ap.add_argument('--report', action='store_true')
+     ap.add_argument('--functions', action='store_true')
+     a = ap.parse_args(argv)
+     ft = tuple(int(x, 16) for x in a.far_table.split(':')) if a.far_table else None
+     p = load(a.file, a.raw, int(a.base, 16), [int(x, 16) for x in a.seed.split(',') if x], ft,
+-             symbol_seeds=int(a.symbol_seeds, 16) if a.symbol_seeds else None)
++             symbol_seeds=int(a.symbol_seeds, 16) if a.symbol_seeds else None,
++             no_code=parse_no_code(a.no_code))
+     print(p.report())
+     if a.functions:
+         print(' '.join('%x' % f for f in sorted(p.functions)))
 diff --git a/runtime/towns.h b/runtime/towns.h
 index 08029b9..07911df 100644
 --- a/runtime/towns.h
@@ -623,3 +957,453 @@ index 48bb159..3b4ed2e 100644
      uint8_t* p = g_x86_page[a >> 12];
      if (X86_UNLIKELY(!p || (a & 0xFFF) > 0xFFC)) { x86_mem_write(a, 4, v); return; }
      std::memcpy(p + (a & 0xFFF), &v, 4);
+diff --git a/tablecheck.py b/tablecheck.py
+new file mode 100644
+index 0000000..89d9d42
+--- /dev/null
++++ b/tablecheck.py
+@@ -0,0 +1,181 @@
++"""Does x86map's jump-table detection find the tables that are really there?
++
++WHY THIS EXISTS. On `ENCHANT.EXP` the tool reports table sites that Capstone
++decodes as ordinary code, and a first one-off check found a phantom function at
++0x68FFFF67 reached from a `table at 0xF0CED` which is `push 6; call 0xE6A58;
++add esp,0x44; ...` with no indirect transfer in it at all. One false positive on
++a handful of spot checks is not a rate. This measures the rate.
++
++THE HARDER QUESTION IS WHAT "REALLY THERE" MEANS, and it has to be answered
++without using the thing under test. It is a byte pattern: an indirect jump
++through a scaled index is one of a small set of encodings, and `jmp [reg*4+disp32]`
++is the only form `_table` claims. So the population is the set of addresses where
++that encoding actually occurs, found by scanning bytes rather than by decoding
++control flow. A table detector that reports a site where that encoding does not
++occur is wrong, whatever the table contents later look like.
++
++WHAT THIS DOES NOT SETTLE. It compares SITES, not table BASES or COUNTS. A site
++can be found at the right address with the wrong base or one entry short, and this
++passes it. That is a separate measurement and a smaller one, printed for the sites
++that do match so a reader can see how far apart the two are.
++
++    python -m fmtownskit.tablecheck GAME.EXP --seed 0xe6e68,0xe1c9c
++
++Exit status 1 if any reported site has no such encoding, so a caller can gate on
++it.
++"""
++import argparse
++import sys
++
++try:
++    import capstone
++    from capstone import x86_const as X
++except ImportError:      # pragma: no cover
++    capstone = None
++
++from . import exp as expmod
++from . import x86map
++
++# Every form of `jmp` OR `call` through an index*4 with no base register.
++# _table claims both: `self._table(pc, ins) if ... m in ('call', 'jmp')`.
++#
++# FF /4 = jmp, FF /2 = call, so the second opcode byte is 0x24 or 0x14. Both are
++# mod=00, rm=100 (SIB) with SIB.base=101 (disp32, no base) and scale=10 (times 4):
++# sib & 0xC7 == 0x85, i.e. 0x85, 0x8D, 0x95, 0x9D, 0xA5, 0xAD, 0xB5, 0xBD.
++#
++# LEAVING OUT FF 14 REPORTED A FALSE POSITIVE THAT WAS NOT ONE. 0xFE4D5 is
++# `2E FF 14 9D E6 E2 0F 00` = `call [ebx*4 + 0xFE2E6]`, a real table transfer, and
++# a scan for jmp only called it a false positive. The population has to be
++# everything the detector is allowed to claim, not everything that is convenient
++# to find.
++SIB_BYTES = range(0x85, 0xC0, 0x08)
++TRANSFER_OPCODES = (0x24, 0x14)      # /4 jmp, /2 call
++
++# PREFIXES ARE PART OF THE INSTRUCTION AND THE SCAN MISSED THEM.
++#
++# ENCHANT.EXP's jump table at 0xE2D29 is reached by
++#
++#   0xE2F21  2E FF 24 95 29 2D 0E 00     jmp [edx*4 + 0xE2D29]
++#
++# The 2E is a CS segment override. A scan for `FF 24 95` therefore finds it at
++# 0xE2F22, one byte late, and every site it reports is then compared against a
++# claimed site that is correct, and fails. That produced a 7-of-7 false-positive
++# rate for a detector whose bases were right all along. The scan has to begin at
++# the first prefix byte.
++LEGACY_PREFIXES = {0x2E, 0x36, 0x3E, 0x26, 0x64, 0x65, 0x66, 0x67, 0xF0, 0xF2, 0xF3}
++
++
++def encoded_sites(image):
++    """Every offset of an optional prefix run followed by `FF /2|/4 <sib> <disp32>`."""
++    out = []
++    n = len(image)
++    i = 0
++    while i < n:
++        j = i
++        while j < n and image[j] in LEGACY_PREFIXES:
++            j += 1
++        if (j + 6 <= n and image[j] == 0xFF and image[j + 1] in TRANSFER_OPCODES
++                and image[j + 2] in SIB_BYTES):
++            out.append(i)
++            i = j + 6
++        else:
++            i += 1
++    return out
++
++
++def confirmed_by_capstone(image, base, offset):
++    """The bytes at `offset` decode as exactly one jmp through [index*4+disp].
++
++    The byte scan alone would count an `FF 24 85` that happens to sit inside a
++    longer instruction or inside data. Requiring Capstone to decode it, at that
++    exact boundary, from exactly that offset, removes the accidental matches
++    that a two-byte pattern finds in any large binary.
++    """
++    md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
++    md.detail = True      # operands are only populated with detail on
++    ins = next(md.disasm(image[offset:offset + 16], base + offset), None)
++    if ins is None or ins.mnemonic not in ('jmp', 'call') or len(ins.operands) < 1:
++        return False
++    op = ins.operands[0]
++    if op.type != X.X86_OP_MEM:
++        return False
++    m = op.mem
++    return m.base == 0 and m.index != 0 and m.scale == 4
++
++
++def main(argv=None):
++    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
++    ap.add_argument('file')
++    ap.add_argument('--seed', default='', help='entries, hex, comma-separated')
++    ap.add_argument('--raw', action='store_true', help='the file is a flat image')
++    ap.add_argument('--base', default='0', help='with --raw, hex')
++    ap.add_argument('--verbose', action='store_true')
++    a = ap.parse_args(argv)
++
++    if capstone is None:
++        sys.exit('this needs capstone')
++
++    data = open(a.file, 'rb').read()
++    seeds = [int(x, 16) for x in a.seed.split(',') if x]
++    if a.raw:
++        image, base, entry = data, int(a.base, 16), (seeds[0] if seeds else None)
++        if entry is None:
++            sys.exit('--raw needs --seed')
++        seeds = seeds[1:]
++    else:
++        e = expmod.Exp(data)
++        image, base, entry = e.image, e.base_offset, e.eip
++        if entry is None:
++            if not seeds:
++                sys.exit('this is an MP, which has no entry point; give one with --seed')
++            entry, seeds = seeds[0], seeds[1:]
++
++    # 1. the population, found by bytes and confirmed by decoding
++    raw_offsets = encoded_sites(image)
++    real = {base + o for o in raw_offsets if confirmed_by_capstone(image, base, o)}
++
++    # 2. what the tool under test reports
++    m = x86map.Map(image, base, entry, seeds, None)
++    claimed = {s for s, tbl, n, bounded in m.tables}
++
++    hit = sorted(claimed & real)
++    miss = sorted(claimed - real)
++    unfound = sorted(real - claimed)
++
++    print('%s: %d bytes of encoding FF 24 <sib> <disp32> scale=4, %d of them decode as that jmp'
++          % (a.file, len(raw_offsets), len(real)))
++    print('x86map reported %d table sites' % len(claimed))
++    print('  site is a real jmp-through-table : %d' % len(hit))
++    print('  site is NOT (false positive)     : %d' % len(miss))
++    print('  real jmp sites it did not report : %d  (not necessarily tables)' % len(unfound))
++
++    if hit:
++        print('\nmatched, with the base and count the tool chose:')
++        for s, tbl, n, bounded in sorted(m.tables):
++            if s in real:
++                print('  %#x -> table %#x, %d entries, %s'
++                      % (s, tbl, n, 'bounded by a cmp' if bounded else 'read to a stop'))
++
++    if miss and a.verbose:
++        print('\nfalse positives:')
++        md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
++        for s in miss:
++            ins = next(md.disasm(image[s - base:s - base + 8], s), None)
++            print('  %#x decodes as %s' % (s, (ins.mnemonic + ' ' + ins.op_str) if ins else 'nothing'))
++
++    # A detector that has never been seen to fail is a comment, so the gate is
++    # "no false positives", not "some hits". Reporting nothing at all and calling
++    # that clean would hide the failure this exists to find.
++    if miss:
++        print('\n%d of %d reported sites are not jmp-through-table (%.1f%%)'
++              % (len(miss), len(claimed), 100.0 * len(miss) / max(1, len(claimed))))
++        return 1
++    if not claimed:
++        print('\nthe tool reported no tables at all: nothing was tested')
++        return 2
++    print('\nno false positives')
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/x86map.py b/x86map.py
+index 400f0bc..5fa6fbc 100644
+--- a/x86map.py
++++ b/x86map.py
+@@ -79,13 +79,18 @@ class Consts:
+ 
+ 
+ class Map:
+-    def __init__(self, image, base, entry, seeds=(), table_end=None):
++    def __init__(self, image, base, entry, seeds=(), table_end=None, no_code=()):
+         """table_end: a function giving where a table read with no bound must stop (a
+-        program's symbols: `exp.Exp.table_end`), or None."""
++        program's symbols: `exp.Exp.table_end`), or None.
++
++        no_code: half-open [lo, hi) ranges where code cannot be. A target there is listed
++        as a bad transfer rather than decoded; see `recomp.discover.Program` for why zeros
++        make an unguarded descent succeed silently."""
+         if capstone is None:
+             raise SystemExit('x86map needs capstone')
+         self.img = image
+         self.base = base
++        self.no_code = sorted((int(lo), int(hi)) for lo, hi in no_code)
+         self.md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_32)
+         self.md.detail = True
+         self.insn = {}                     # addr -> capstone insn
+@@ -98,10 +103,19 @@ class Map:
+         self._descend([entry] + list(seeds))
+         self.sites = self._sites()
+ 
++    def in_no_code(self, a):
++        """Whether `a` falls in a range the caller says cannot hold code."""
++        for lo, hi in self.no_code:
++            if lo <= a < hi:
++                return True
++        return False
++
+     def _at(self, a):
+         off = a - self.base
+         if not 0 <= off < len(self.img):
+             return None
++        if self.in_no_code(a):
++            return None
+         return next(self.md.disasm(self.img[off:off + 16], a), None)
+ 
+     def _descend(self, work):
+@@ -147,13 +161,49 @@ class Map:
+                     break
+                 pc += ins.size
+ 
++    def _plausible(self, base, n):
++        """How many of `n` dwords from `base` are addresses of decodable code.
++
++        Used only to choose between a declared table base and the instruction's own end, so it
++        must be cheap and must not decode. An entry counts when it lies inside the image and
++        outside the no-code ranges: that is enough to tell a table of code addresses from a
++        read that landed in the middle of code.
++        """
++        ok = 0
++        for k in range(n):
++            off = base - self.base + 4 * k
++            if off < 0 or off + 4 > len(self.img):
++                return ok
++            v = int.from_bytes(self.img[off:off + 4], 'little')
++            if v == 0:
++                continue
++            if 0 <= v - self.base < len(self.img) and not self.in_no_code(v):
++                ok += 1
++        return ok
++
+     def _table(self, pc, ins):
+         """A transfer through `[index*4 + table]`: the table's entries, or None.
+ 
+         The bound is the `cmp index8/index, N` and `ja` just before (N+1
+         entries). With none, entries are read while each is 0 (a hole) or an
+         address inside the image that decodes, up to 256 -- and, when the
+-        program has symbols, not past the next symbol (`table_end`)."""
++        program has symbols, not past the next symbol (`table_end`).
++
++        THE DISPLACEMENT IS NOT ALWAYS THE TABLE BASE. MetaWare emits jump tables
++        immediately after the jump instruction and leaves a biased value in the encoding's
++        displacement, so `jmp cs:[edx*4 + 0xE2D29]` can mean the table at 0xE2F29, which is
++        where the instruction ends. Reading at the displacement gives 23 dwords lifted out of
++        the middle of code and produces garbage targets that the descent then follows.
++
++        Measured on the image this was written for: at 0xE2F21 the declared base holds 0 valid
++        addresses out of 23 and the instruction's end holds 23 of 23. The same test on four
++        more sites gives 8 of 8 at the instruction's end, so it is a property of the compiler
++        rather than of one routine.
++
++        The choice is made on evidence, not on a rule: both candidates are scored and the
++        declared base is kept whenever it is at least as good, so a program whose tables really
++        are at the displacement is unaffected.
++        """
+         if not ins.operands or ins.operands[0].type != X.X86_OP_MEM:
+             return None
+         mem = ins.operands[0].mem
+@@ -191,6 +241,13 @@ class Map:
+                 bound = None if any(rewrites(r) for r in back[k + 2:]) else \
+                     (n + 1 if q.mnemonic in ('ja', 'jg') else n)
+         out = []
++        # Choose the base on evidence: the declared displacement, or the instruction's own end.
++        # A bound of 0 means the count is not yet known, so a fixed probe of 8 is used.
++        probe = bound if bound is not None else 8
++        end_candidate = pc + ins.size
++        if end_candidate != tbl and 0 <= end_candidate - self.base < len(self.img):
++            if self._plausible(end_candidate, probe) > self._plausible(tbl, probe):
++                tbl = end_candidate
+         end = self.table_end(tbl) if self.table_end and bound is None else None
+         for k in range(bound if bound is not None else 256):
+             off = tbl - self.base + 4 * k
+@@ -287,6 +344,95 @@ class Map:
+                         c.set(n, None)
+         return out
+ 
++    def refs_at(self, site):
++        """The absolute-address references made by the single instruction at `site`.
++
++        The same classification as `refs` for one instruction, which is what a caller wants
++        when walking the whole map once rather than searching for one address. `refs` asks
++        "who names this address"; this asks "what does this instruction name", and a sweep
++        needs the second, because calling `refs` per extent means passing a window and a
++        window wider than the gap to the next object reports that object too.
++
++        THAT IS NOT HYPOTHETICAL. Sweeping one extent of 3,984 bytes with the width as its
++        window produced 1,048 references, and on inspection they were the player record at
++        0xceca0 and 0xcdf6b to 0xcdf6f, which lie ABOVE the extent. The window had reached
++        past it. Nothing was wrong with the data; the question was asked wrongly.
++        """
++        ins = self.insn.get(site)
++        if ins is None or not ins.operands:
++            return []
++        m, ops = ins.mnemonic, ins.operands
++        out = []
++        for i, op in enumerate(ops):
++            if op.type == X.X86_OP_MEM:
++                d = op.mem.disp & 0xFFFFFFFF
++                # an absolute address has no base; a record offset such as [edx + 0xcdf6b]
++                # is still reported, with the base named, because that is how this program
++                # reaches its globals
++                indexed = bool(op.mem.index)
++                based = ins.reg_name(op.mem.base) if op.mem.base else None
++                dst = i == 0 and m in ('mov', 'movzx', 'movsx', 'add', 'sub', 'or', 'and',
++                                        'xor', 'inc', 'dec', 'shl', 'shr', 'sar')
++                if indexed:
++                    form = 'indexed-%s' % ('write' if dst else 'read')
++                elif based and m.startswith('lea'):
++                    form = 'address+base'
++                elif based:
++                    form = 'scalar-%s' % ('write' if dst else 'read')
++                elif m.startswith('lea'):
++                    form = 'address'
++                else:
++                    form = 'scalar-%s' % ('write' if dst else 'read')
++                out.append({'site': site, 'op': m, 'text': ins.op_str, 'form': form, 'disp': d,
++                            'base': based,
++                            'index': ins.reg_name(op.mem.index) if op.mem.index else None,
++                            'scale': op.mem.scale if op.mem.index else None})
++            elif op.type == X.X86_OP_IMM and m in ('push', 'mov', 'cmp', 'add', 'sub', 'or',
++                                                    'and', 'xor', 'test'):
++                v = op.imm & 0xFFFFFFFF
++                form = 'argument' if m == 'push' else 'immediate-%s' % m
++                out.append({'site': site, 'op': m, 'text': ins.op_str, 'form': form, 'disp': v,
++                            'base': None, 'index': None, 'scale': None})
++        return out
++
++    def refs(self, addr, window=0):
++        """Every reached instruction naming `addr`, with the form of the reference.
++
++        A search over the whole map, built from `refs_at` so the two cannot classify a
++        reference differently. Use `refs_at` for a sweep.
++
++        WHY FORM AND NOT JUST PRESENCE. Whether an address is touched at all is weak; how it
++        is touched is most of what a caller wanted to know. The same displacement means
++        different things in each of these, and the operand structure tells them apart without
++        knowing anything about the program:
++
++            lea edx, [eax*4 + 0xd03e7]   an array of dwords, indexed, stride from the scale
++            lea eax, [0xd03e7]           the address of a whole object, usually passed on
++            push 0xd03e7                 the same, as an argument, order less certain
++            mov [0xd03e7], al            a byte is written there: a scalar field, not a table
++            mov eax, [0xd03e7]           a word or dword is read: a scalar or a first element
++            cmp dword [0xd03e7], 0       read as one value, and compared
++
++        A displacement that lands in the MIDDLE of an object is indistinguishable here from
++        the object's start, so `window` widens the test to `addr - window <= disp < addr`. With
++        window=0 only an exact match is reported.
++
++        BASES ARE REPORTED, NOT DROPPED, and that distinction cost a blind spot. The first
++        version skipped every memory operand with a base register on the reasoning that
++        `[ebp-4]` is a frame slot rather than an absolute address. True, and irrelevant here:
++        this program reaches its globals as `[edx + 0xcdf6b]`, where edx holds a record base
++        the code computed. Dropping those reported 4 references to PLAYER_X where a
++        displacement scan of the same image finds 68 sites and 12 writes. So a base is kept
++        and named, and the caller can tell the two cases apart because a frame slot has a
++        small displacement and a global has a large one.
++        """
++        out = []
++        for a in sorted(self.insn):
++            for r in self.refs_at(a):
++                if addr - window <= r['disp'] < addr + max(1, window):
++                    out.append(r)
++        return out
++
+     def extents(self, slack=8):
+         ext = []
+         for a in sorted(self.insn):
+@@ -347,7 +493,18 @@ def main(argv=None):
+                          "is an entry too")
+     ap.add_argument('--dis', metavar='ADDR')
+     ap.add_argument('-n', type=int, default=30)
++    ap.add_argument('--no-code', action='append', default=[], metavar='LO:HI',
++                    help='a half-open range where code cannot be, hex, repeatable; a target '
++                         'there is listed rather than decoded. Zeros decode as instructions '
++                         'without error, so without this a descent into zero fill succeeds '
++                         'silently and endlessly')
+     ap.add_argument('--functions', action='store_true')
++    ap.add_argument('--refs', metavar='ADDR',
++                    help='every reached instruction naming this address, with the form of the '
++                         'reference: indexed (an array), address, scalar read or write, argument')
++    ap.add_argument('--refs-window', type=lambda s: int(s, 0), default=0, metavar='N',
++                    help='with --refs: also count displacements in ADDR-N..ADDR-1, for a '
++                         'displacement that lands inside an object')
+     ap.add_argument('--mnemonics', action='store_true', help='how often each instruction occurs')
+     a = ap.parse_args(argv)
+     data = open(a.file, 'rb').read()
+@@ -367,6 +524,13 @@ def main(argv=None):
+     else:
+         e = expmod.Exp(data)
+         image, base, entry = e.image, e.base_offset, e.eip
++        # An MP has no entry point (its 0x18 field is the header size), so the first
++        # seed is the entry, as in i386.py.
++        if entry is None:
++            if not seeds:
++                sys.exit('%s: this is an MP, which has no entry point; '
++                         'give one with --seed' % a.file)
++            entry, seeds = seeds[0], seeds[1:]
+         if a.symbol_seeds:
+             end = int(a.symbol_seeds, 16)
+             seeds += [off for off, _, _ in e.symbols if off < end and off != entry]
+@@ -378,7 +542,22 @@ def main(argv=None):
+                 break
+             print('  %06x  %-22s %s %s' % (ins.address, ins.bytes.hex(), ins.mnemonic, ins.op_str))
+         return
+-    m = Map(image, base, entry, seeds, e.table_end if e is not None and e.symbols else None)
++    m = Map(image, base, entry, seeds, e.table_end if e is not None and e.symbols else None,
++            no_code=expmod.parse_no_code(a.no_code))
++    if a.refs is not None:
++        target = int(a.refs, 16)
++        rows = m.refs(target, a.refs_window)
++        if not rows:
++            print('no reached instruction names %#x%s' % (target,
++                  '' if not a.refs_window else ' within %#x below it' % a.refs_window))
++            return
++        print('%#x: %d reference%s from reached code' % (target, len(rows), '' if len(rows) == 1 else 's'))
++        for r in rows:
++            idx = '' if r['index'] is None else '  idx=%s*%d' % (r['index'], r['scale'])
++            base = '' if r.get('base') is None else '  base=%s' % r['base']
++            print('  %-22s %#08x  %-8s %s%s%s'
++                  % (r['form'], r['site'], r['op'], r['text'], idx, base))
++        return
+     where = (lambda a: '') if e is None or not e.symbols else symbol_at(e)
+     ext = m.extents()
+     code = sum(i.size for i in m.insn.values())

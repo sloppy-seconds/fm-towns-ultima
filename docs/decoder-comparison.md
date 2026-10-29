@@ -14,7 +14,7 @@ are instructions the kit deliberately refuses.**
 to Capstone's. Run against the same 671-seed set the project's own tools use:
 
 ```
-$ PYTHONPATH=references/vs-sr-dev \
+$ PYTHONPATH=. \
   tools/.venv/bin/python3 -m fmtownskit.i386 ENCHANT.EXP \
       --seed "$(cat /var/tmp/mpwork/seedset.keep)" --check
 234155 instructions reached: 234153 agree with capstone, 0 differ, 2 refused here
@@ -91,8 +91,9 @@ independent evidence for the same conclusion.
 ## Reproducing it
 
 ```sh
-git clone https://github.com/vs-sr-dev/fmtownskit references/vs-sr-dev/fmtownskit
-export PYTHONPATH=$PWD/references/vs-sr-dev
+git submodule update --init fmtownskit
+git -C fmtownskit apply patches/fmtownskit-mp-support.patch
+export PYTHONPATH=$PWD
 ./tools/.venv/bin/python3 -m fmtownskit.i386 ENCHANT.EXP \
     --seed "$(cat /var/tmp/mpwork/seedset.keep)" --check
 ./tools/.venv/bin/python3 -m fmtownskit.i386 --sweep 20000

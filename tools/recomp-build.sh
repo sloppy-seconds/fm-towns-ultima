@@ -26,7 +26,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNTIME="$ROOT/references/vs-sr-dev/fmtownskit/runtime"
+RUNTIME="$ROOT/fmtownskit/runtime"
 
 DIR="${1:-}"
 shift || true
@@ -44,13 +44,13 @@ if [[ -z "$DIR" || ! -f "$DIR/CMakeLists.txt" ]]; then
 fi
 if [[ ! -f "$RUNTIME/x86.h" ]]; then
 	echo "the toolkit runtime is not at $RUNTIME" >&2
-	echo "clone https://github.com/vs-sr-dev/fmtownskit and check out the mp-support branch" >&2
+	echo "run git submodule update --init fmtownskit, which pins the commit and applies patches/fmtownskit-mp-support.patch" >&2
 	exit 2
 fi
 
 # 1. The generated CMakeLists points at a path that has never existed on this machine. Fix it in
 #    place, but only the first time, so a second run does not append a duplicate.
-if grep -q '/fmtownskit/runtime' "$DIR/CMakeLists.txt" && ! grep -q 'references/vs-sr-dev/fmtownskit/runtime' "$DIR/CMakeLists.txt"; then
+if grep -q '/fmtownskit/runtime' "$DIR/CMakeLists.txt" && ! grep -qF "$RUNTIME" "$DIR/CMakeLists.txt"; then
 	sed -i "s|set(FMT_RUNTIME .*)|set(FMT_RUNTIME $RUNTIME)|" "$DIR/CMakeLists.txt"
 	echo "patched FMT_RUNTIME -> $RUNTIME"
 fi
