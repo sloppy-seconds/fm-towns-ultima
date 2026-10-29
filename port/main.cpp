@@ -547,6 +547,23 @@ int main(int argc, char** argv) {
 			std::printf("trace     function entries in %04x:%08x..%08x\n", g_trace_fn_cs, g_trace_fn_lo, g_trace_fn_hi);
 		}
 	}
+	// U2_FN_DUMP=<off>:<len>:<path> writes that many bytes at gs:ebp+off the first time a traced entry fires, so the
+	// port's snapshot is taken inside the same call as the machine's breakpoint rather than after the frame.
+	if (const char* d = std::getenv("U2_FN_DUMP")) {
+		std::string s(d);
+		size_t c1 = s.find(':'), c2 = c1 == std::string::npos ? std::string::npos : s.find(':', c1 + 1);
+		if (c1 == std::string::npos || c2 == std::string::npos) {
+			std::fprintf(stderr, "U2_FN_DUMP: '%s' is not <off>:<len>:<path>\n", d);
+		} else {
+			g_trace_fn_dump_off = (uint32_t)std::strtoul(s.substr(0, c1).c_str(), nullptr, 16);
+			g_trace_fn_dump_len = (uint32_t)std::strtoul(s.substr(c1 + 1, c2 - c1 - 1).c_str(), nullptr, 16);
+			g_trace_fn_dump_path = std::getenv("U2_FN_DUMP");
+			static std::string path_storage = s.substr(c2 + 1);
+			g_trace_fn_dump_path = path_storage.c_str();
+			std::printf("trace     state dump %u bytes at gs:ebp+%x -> %s\n", g_trace_fn_dump_len, g_trace_fn_dump_off,
+			            g_trace_fn_dump_path);
+		}
+	}
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
 	// U2_TRACE_FAR=1 prints every distinct far call site into the TBIOS selector 0110, one line per site, with the
 	// caller's CS:EIP. The program does not reach its system layer with constant-selector `9a` instructions and stores
