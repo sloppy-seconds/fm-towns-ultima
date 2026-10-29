@@ -372,6 +372,33 @@ That matters because the port's font reads come from a **different** routine, `0
 and `F209`. The machine draws its labels through `0x6500` and the port reads glyphs through `0xF1C4`, so the two sides
 are not taking the same text path at all: one of them is drawing and the other is doing something adjacent to it.
 
+## The text is drawn, one row too high
+
+The port was assumed never to reach the glyph renderer. That was wrong, and a function-entry trace settled it: the port
+calls `0110:0000659C` at **frame 404**, and the register state on entry is almost identical to the machine's at the
+same call.
+
+| register | machine | port |
+|---|---|---|
+| EAX (pixel bits) | `0000000F` | `0000000F` |
+| ECX | `0000003A` | `0000003A` |
+| ESI | `FFFFFFFF` | `FFFFFFFF` |
+| EBP (state block) | `0007A7D8` | `0007A7D8` |
+| EBX | `018701D0` | `016D01D0` |
+| EDX | `01860187` | `000E016D` |
+| EDI (VRAM offset) | `00030EE8` | `0002DAE8` |
+
+The renderer computes `EDI = movsx(dx) * [ebp+0x20] + [ebp+0]` with the pitch `[ebp+0x20] = 512`, and the low 16 bits
+of `EDX` are that `dx`. On the machine `dx = 0x0187 = 391` and `EDI = 391*512 + 232`; in the port `dx = 0x016D = 365`
+and `EDI = 365*512 + 232`. **The x byte is 232 on both sides and the row differs by exactly 26.**
+
+With a 26-pixel text line, `y = row*26 + 1` puts the machine's glyph at **row 15** and the port's at **row 14**. So the
+port draws every menu label exactly one text row higher than the machine does, which is why the box looks empty: the
+labels are 26 pixels above the box they belong in, not absent.
+
+That changes the question from "why is no text drawn" to "why is the text cursor one row short", which is a state
+difference of the kind this project has hit six times before, and it is a much smaller question.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is

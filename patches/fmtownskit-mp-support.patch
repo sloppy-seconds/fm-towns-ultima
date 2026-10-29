@@ -441,10 +441,10 @@ index 08029b9..ff6092f 100644
  
  extern Machine* g_towns;
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..c3d402e 100644
+index 75d5dad..2216219 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
-@@ -10,9 +10,17 @@
+@@ -10,9 +10,18 @@
  #include "towns.h"
  #include <algorithm>
  #include <cstdlib>
@@ -458,11 +458,30 @@ index 75d5dad..c3d402e 100644
 +uint32_t g_trace_far_sel = 0;
 +uint32_t g_trace_far_all = 0;
 +uint32_t g_far_eax = 0;
++uint32_t g_trace_fn_cs = 0, g_trace_fn_lo = 0, g_trace_fn_hi = 0;
 +
  [[noreturn]] void x86_fault(X86Cpu& c, uint32_t site, const char* why) {
      std::fprintf(stderr, "fault at %04x:%08x: %s (eip %08x, frame %llu)\n", c.sreg[1], site, why, c.eip,
                   (unsigned long long)(g_towns ? g_towns->frame : 0));
-@@ -38,6 +46,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
+@@ -25,6 +34,17 @@ using towns::g_towns;
+ }
+ 
+ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
++    // PATCH, this repository: log every entry into one code-selector address range, deduped. This is how "does the
++    // program reach this routine at all" becomes answerable in a port whose functions are C++ calls with no
++    // instruction fetches to watch. Set from the port's U2_TRACE_FN=<cs>:<lo>:<hi>.
++    if (g_trace_fn_lo < g_trace_fn_hi && (cs & 0xFFFC) == (g_trace_fn_cs & 0xFFFC) && off >= g_trace_fn_lo
++        && off <= g_trace_fn_hi) {
++        static long entries = 0;
++        if (++entries <= (long)g_watch_max)
++            std::fprintf(stderr, "fn        %04x:%08x from %08x f%llu eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x\n",
++                         cs, off, site, (unsigned long long)(g_towns ? g_towns->frame : 0), c.r[0], c.r[3], c.r[1], c.r[2],
++                         c.r[6], c.r[7], c.r[5]);
++    }
+     X86Func f = x86_lookup_cs(cs & 0xFFFC, off);
+     if (!f) f = x86_lookup_cs(cs, off);
+     if (!f) {
+@@ -38,6 +58,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
  void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t next) {
      sel &= 0xFFFF;
      if (n == 2) off &= 0xFFFF;
@@ -494,7 +513,7 @@ index 75d5dad..c3d402e 100644
      if (call) {
          if (n == 4) { push32(c, c.sreg[1]); push32(c, next); }
          else { push16(c, c.sreg[1]); push16(c, next); }
-@@ -158,6 +191,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
+@@ -158,6 +203,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
      towns::Machine& m = *g_towns;
      m.advance(m.machine_time(c.clocks));
      c.eip = next;
@@ -1038,10 +1057,10 @@ index 2a0e2eb..7c7e0e4 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/x86.h b/runtime/x86.h
-index 48bb159..567ccbe 100644
+index 48bb159..e036647 100644
 --- a/runtime/x86.h
 +++ b/runtime/x86.h
-@@ -34,6 +34,27 @@ struct X86Cpu {
+@@ -34,6 +34,28 @@ struct X86Cpu {
  };
  
  typedef void (*X86Func)(X86Cpu&);
@@ -1058,6 +1077,7 @@ index 48bb159..567ccbe 100644
 +extern uint32_t g_trace_far_sel;          // log far transfers into this selector, once per call site; 0 is off
 +extern uint32_t g_trace_far_all;          // log that many transfers individually rather than once per site; 0 is off
 +extern uint32_t g_far_eax;                // EAX of the last traced transfer, printed beside a watched write
++extern uint32_t g_trace_fn_cs, g_trace_fn_lo, g_trace_fn_hi;  // log entries into one code range, deduped
 +extern uint32_t g_watch_max;              // how many hits to print, 64 unless a port raises it
 +extern const X86Cpu* g_x86_cur;          // the cpu running, for the caller's address; may be null
 +void x86_watch_write(uint32_t a, uint32_t v, int n);
@@ -1069,7 +1089,7 @@ index 48bb159..567ccbe 100644
  struct X86FuncEntry { uint32_t addr; X86Func fn; };
  struct X86Module {
      const char* name;
-@@ -51,29 +72,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
+@@ -51,29 +73,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
  void     x86_mem_write(uint32_t a, int n, uint32_t v);
  
  static inline uint32_t rd8(uint32_t a) {

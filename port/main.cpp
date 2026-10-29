@@ -532,6 +532,21 @@ int main(int argc, char** argv) {
 		g_rdw_hi = g_rdw_lo + (len ? len : 1);
 		std::printf("rdwatch   [%08x,%08x)\n", g_rdw_lo, g_rdw_hi);
 	}
+	// U2_TRACE_FN=<cs>:<lo>:<hi> logs every entry into one code-selector address range, deduped by (target, site).
+	// A port whose functions are C++ calls has no instruction fetches to watch, so "does the program ever reach this
+	// routine" cannot be answered by a read watch: this is the instrument for it.
+	if (const char* fspec = std::getenv("U2_TRACE_FN")) {
+		std::string s(fspec);
+		size_t c1 = s.find(':'), c2 = c1 == std::string::npos ? std::string::npos : s.find(':', c1 + 1);
+		if (c1 == std::string::npos || c2 == std::string::npos) {
+			std::fprintf(stderr, "U2_TRACE_FN: '%s' is not <cs>:<lo>:<hi>\n", fspec);
+		} else {
+			g_trace_fn_cs = (uint32_t)std::strtoul(s.substr(0, c1).c_str(), nullptr, 16);
+			g_trace_fn_lo = (uint32_t)std::strtoul(s.substr(c1 + 1, c2 - c1 - 1).c_str(), nullptr, 16);
+			g_trace_fn_hi = (uint32_t)std::strtoul(s.substr(c2 + 1).c_str(), nullptr, 16);
+			std::printf("trace     function entries in %04x:%08x..%08x\n", g_trace_fn_cs, g_trace_fn_lo, g_trace_fn_hi);
+		}
+	}
 	if (std::getenv("U2_VRAM")) m.set_count_access(true);
 	// U2_TRACE_FAR=1 prints every distinct far call site into the TBIOS selector 0110, one line per site, with the
 	// caller's CS:EIP. The program does not reach its system layer with constant-selector `9a` instructions and stores
