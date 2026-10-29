@@ -1,44 +1,68 @@
 # The fmtownskit patches
 
-`fmtownskit` is a git submodule at `./fmtownskit`, pinned to a commit on
-`https://github.com/vs-sr-dev/fmtownskit`, which is the shape the other games in that organisation use: their
-repositories carry `[submodule "fmtownskit"] path = fmtownskit`. The pin is a **published** commit, and this
-project's MP support is a patch series on top of it, in
-**`patches/fmtownskit-mp-support.patch`. That file is the authoritative list:** the count of patches is whatever it
-contains, and `node tools/patchcheck.js` derives it rather than trusting a number written here.
+`fmtownskit` is a git submodule at `./fmtownskit` pointing at **the fork**
+`https://github.com/paulczar/fmtownskit` on branch **`mp-support`**, with `vs-sr-dev/fmtownskit` recorded inside it
+as the `upstream` remote. That is the shape the other games in the upstream organisation use (their repositories
+carry `[submodule "fmtownskit"] path = fmtownskit`), with the URL pointed at ours so the pin is a commit anyone
+can fetch and the kit can be committed to rather than held as uncommitted edits.
 
-Why a series rather than a branch: the MP support was developed on a local `mp-support` branch of the old clone,
-seven commits that were never pushed, so no submodule could point at them. Regenerating the series as
-`git diff origin/main` folds those commits and the later working-tree edits into one file that applies to the
-published pin. The commit messages are not in the series, and the branch was preserved before the old clone was
-removed, in `/var/tmp/fmtownskit-mp-support.bundle`.
+The pin is `e68860e` on `mp-support`, which is upstream `main` plus **seven upstream-quality commits** for MP
+support plus one integration commit and one revert. Two-way editing is therefore ordinary git: commit inside the
+submodule, push to the fork, then bump the pin in this repository.
+
+**`patches/fmtownskit-mp-support.patch` is a mirror, not the transport.** It answers the question a reader of
+this repository actually has, which is what this project changed in the kit and why, in a form git branches do
+not provide. `patches/fmtownskit-base.txt` names the upstream commit it is a diff against. Nothing applies the
+patch in normal use, and `node tools/patchcheck.js` asserts the mirror is exact instead of trusting it.
 
 ## Setting it up
 
 ```
 git submodule update --init fmtownskit
-git -C fmtownskit apply patches/fmtownskit-mp-support.patch
 ```
 
-That leaves the submodule's working tree **modified against its own HEAD**, which is expected and permanent:
-the pin stays clean so that anyone can fetch it, and the difference is described by the patch file. `git status`
-will therefore always report the submodule as having modified content.
+That is the whole setup. No patch to apply, and the working tree is clean afterwards, so `git status` stays
+readable. A clone that skips it has an empty `fmtownskit/` and the port build stops on `x86.h` with a message
+that says so.
+
+## Editing the kit
+
+```
+cd fmtownskit
+# edit, then
+ git commit -am "what and why" && git push origin mp-support
+cd .. && git add fmtownskit && git commit -m "kit: bump the pin"
+# and regenerate the mirror so the two records agree
+git -C fmtownskit diff $(cat patches/fmtownskit-base.txt) > /var/tmp/mirror.patch
+cp /var/tmp/mirror.patch patches/fmtownskit-mp-support.patch
+node tools/patchcheck.js
+```
+
+`git submodule update --remote` now does something useful rather than something dangerous, because the tracked
+branch exists and is fetchable. Rebasing onto upstream is `git -C fmtownskit fetch upstream` and then a rebase,
+after which `patches/fmtownskit-base.txt` moves to the new upstream commit and the mirror is regenerated.
 
 ## What it is checked against
 
-`node tools/patchcheck.js` clones the submodule to a temporary directory, asserts that the pin is reachable from
-`origin/main` (a pin to a local commit looks exactly like a pin until a stranger tries to fetch it), applies the
-committed patch, and compares the result byte for byte with the submodule's working tree. It also fails if the
-working tree holds a change the patch does not describe. It skips with a printed note when the submodule has not
-been initialised, because a stranger with only the zip has not run `git submodule update` and should not be told
-the check failed.
+`node tools/patchcheck.js` asserts four things, in order, and each one is a failure mode this project has already
+had:
 
-Measured: the series names 16 files and 46 hunks, and applying it to a fresh clone at the pin reproduces all 16
-exactly.
+- **the working tree is clean**, so the branch is the whole truth and nothing is hiding in an uncommitted edit
+- **the base commit is an ancestor of the pin**, so the mirror is a diff against something real
+- **`git diff <base>` equals the mirror patch byte for byte**, so the readable record cannot drift from the branch
+- **the pin is on `origin/mp-support`**, so a fresh clone can fetch the commit it is told to check out. A pin to a
+  local-only commit looks exactly like a pin until somebody else tries to clone
 
-**One file in the submodule is not ours.** `README.md` also shows as modified there: it describes the kit's own
-`.agents/skills/fmtownskit/` documentation, which is work in progress on that clone and not this repository's. It
-is left exactly as found and deliberately excluded from the patch.
+It skips with a printed note when the submodule has not been initialised, because a stranger with only the zip has
+not run `git submodule update` and should not be told the check failed.
+
+Measured: the mirror names 15 files and 42 hunks, and is identical to `git diff f51f593` on the branch.
+
+**One thing deliberately not ours.** The kit's own `README.md` had a local edit describing its `.agents/`
+documentation work in progress. It sat uncommitted in the old clone, so folding that clone's working tree into a
+branch would have published somebody else's work in progress. It is reverted to the upstream content in commit
+`e68860e`, and the mirror names 15 files rather than the 16 it named when the patch was the transport.
+
 
 ## The patches
 

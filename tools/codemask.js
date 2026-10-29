@@ -29,12 +29,13 @@
 //
 // FILE is the output of `fmtownskit.recomp.discover ... --code-ranges`, one LO:HI per line.
 //
-// THAT IS A THIRD-PARTY DEPENDENCY AND IT IS NOT IN THIS REPOSITORY. fmtownskit lives under
-// references/ and references/ is gitignored, so a stranger cannot run this tool until they clone
-// https://github.com/vs-sr-dev/fmtownskit and apply the MP support (docs/fmtownskit-and-seeds.md).
-// Stated here because the alternative is a tool that looks self-contained and fails on the first
-// command, and because AGENTS.md requires every result to be reproducible from the disc rather than
-// from something produced in an earlier session.
+// THAT IS A THIRD-PARTY DEPENDENCY AND IT IS A SUBMODULE, NOT SOMETHING IN THIS REPOSITORY. fmtownskit lives at
+// ./fmtownskit, pinned to a commit on https://github.com/paulczar/fmtownskit (a fork of vs-sr-dev/fmtownskit) with
+// this project's MP support committed on branch mp-support. A stranger gets it with
+// `git submodule update --init fmtownskit` and needs nothing else, which is why docs/fmtownskit-patches.md no
+// longer describes applying a patch. Stated here because the alternative is a tool that looks self-contained and
+// fails on the first command, and because AGENTS.md requires every result to be reproducible from the disc rather
+// than from something produced in an earlier session.
 //
 // Exit status 1 if --from is missing or unreadable, because a mask that silently comes out empty
 // would look exactly like a clean result.

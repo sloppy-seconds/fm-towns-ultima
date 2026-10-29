@@ -1785,20 +1785,21 @@ nine" when the real set was larger and still moving.
 change, the measurement that motivated it and the item it belongs to. It carries the patch itself by reference
 rather than by copy, so there is one artefact to keep in step.
 
-**Checked, not described.** `fmtownskit` is now a submodule pinned to a published commit, and the patch is the
-whole `origin/main..working tree` series. Applying it to a **fresh clone at the pin** reproduces the working tree
-**byte for byte** across all **16 files and 46 hunks**, run both ways (`git apply --check`, then `git apply`
-followed by `cmp` per file). `tools/patchcheck.js` repeats that from scratch and is wired into `checkall.js` as
-`kit patches`: it clones the submodule to a temporary directory, asserts the pin is reachable from `origin/main`,
-applies the committed patch, compares, and also fails when the working tree holds a change the patch does not
-describe, which is the case that matters when somebody edits the kit and forgets to regenerate. When the submodule
-is not initialised it skips with a printed line, because a stranger with only the zip has not run
-`git submodule update --init` and should not be told the check failed.
+**Checked, not described.** `fmtownskit` is a submodule of the fork `paulczar/fmtownskit` on branch `mp-support`,
+with `vs-sr-dev/fmtownskit` recorded inside it as `upstream`. The pin is `e68860e`, which is upstream `main` plus
+seven MP commits, one integration commit and one revert, so editing the kit is ordinary git: commit, push, bump the
+pin. `node tools/patchcheck.js` asserts four things and is wired into `checkall.js` as `kit patches`: the working
+tree is clean, `patches/fmtownskit-base.txt` is an ancestor of the pin, `git diff <base>` equals
+`patches/fmtownskit-mp-support.patch` byte for byte (**15 files and 42 hunks**), and the pin is on
+`origin/mp-support` so a fresh clone can fetch it. When the submodule is not initialised it skips with a printed
+line, because a stranger with only the zip has not run `git submodule update --init` and should not be told the
+check failed.
 
-**Why the series is bigger than the first version.** The MP support was developed on a local `mp-support` branch,
-seven commits that were never pushed, so no submodule could pin them. Regenerating as `git diff origin/main` folds
-those seven commits and the later working-tree edits into one file that applies to the published pin. The commit
-messages are preserved in `/var/tmp/fmtownskit-mp-support.bundle`, made before the old clone was removed.
+**Why the mirror still exists, and why the numbers changed.** The patch is no longer the transport, only the
+readable answer to "what did this project change in the kit". The first version of it was 16 files: the extra one
+was the kit's own `README.md`, which sat modified in the old clone describing its `.agents/` work in progress.
+Folding that clone into a branch would have published somebody else's work, so it is reverted to the upstream
+content and the mirror names 15 files.
 
 **One file in the clone is deliberately excluded.** `README.md` there documents the kit's own
 `.agents/skills/fmtownskit/` work in progress, which is not this repository's change. The check names that

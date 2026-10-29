@@ -68,6 +68,7 @@ The game is commercial software, so it is not in this repository. You supply it.
 | **The game** | [archive.org/details/fmtownscdcollection](https://archive.org/details/fmtownscdcollection), file `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip` |
 | **The editor** | [sloppy-seconds.github.io/fm-towns-ultima](https://sloppy-seconds.github.io/fm-towns-ultima/), a browser save-disk editor that needs nothing installed |
 | **The emulator** | fetched by `tools/vendor.sh`, pinned so the setup is reproducible |
+| **The toolkit** | `git submodule update --init fmtownskit`, needed only to build the C++ port. A plain clone leaves it empty on purpose |
 
 ## What was worked out
 

@@ -1,3 +1,4 @@
 [submodule "fmtownskit"]
 	path = fmtownskit
-	url = https://github.com/vs-sr-dev/fmtownskit
+	url = https://github.com/paulczar/fmtownskit
+	branch = mp-support

@@ -17,6 +17,10 @@ Three routes. Pick the one that matches where you are.
 `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`. Unpack it
 into the repository directory.
 
+**The toolkit, if you want to build the C++ port.** `git submodule update --init fmtownskit`. A plain clone leaves
+`fmtownskit/` empty, and nothing in the emulator routes needs it, so this is the one step that is optional unless
+you are building `u2port`.
+
 **The emulator and ROMs.** Two downloads.
 
 1. **Tsugaru**, from

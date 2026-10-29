@@ -95,9 +95,13 @@ The detail is in **[docs/setup.md](docs/setup.md)**. The short version:
 
 ```bash
 # unpack the game zip into this directory, then:
+git submodule update --init fmtownskit   # only needed to build the port; the rest works without it
 ./tools/vendor.sh        # Tsugaru emulator + free ROMs into vendor/
 ./tools/check-disc.sh    # confirms your disc matches. plain shell, no Node
 ```
+
+`fmtownskit/` is a git submodule holding the FM Towns toolkit, and a plain `git clone` leaves it empty. Playing
+needs nothing from it. Building the C++ port needs all of it, and the build says so on `x86.h` if it is missing.
 
 Neither needs Node. `node tools/verify.js` checks 107 things, but that is for
 working on the extraction, not for playing.
