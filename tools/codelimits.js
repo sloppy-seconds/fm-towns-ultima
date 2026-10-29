@@ -48,6 +48,19 @@ const ROOT = path.join(__dirname, '..');
 // fragmenting into 387 pieces as min=16 does.
 const DEFAULT_MIN = 64;
 
+// AND A SECOND THRESHOLD, FOR A DIFFERENT QUESTION. DEFAULT_MIN answers "could this whole extent be data",
+// because it is the census of unreferenced regions. A seed check asks something narrower: could a routine
+// begin at this one address. Those want different strictness, and having one number do both is what made two
+// tools disagree in the same commit.
+//
+// The measurement that settled it. Seven of the 738 call targets land in zero fill, and they split by run
+// length into two clean groups: three inside megabyte-scale extents (207,322 and 337,645 bytes, so DEFAULT_MIN
+// catches them) and four inside alignment gaps of 53 to 59 bytes between routines (so DEFAULT_MIN does not).
+// The four are false positives for the same reason the three are, because an `E8` inside a 55-byte gap points
+// into padding, not at code. 16 catches both groups and does not fragment anything, because this threshold is
+// never used to census regions. See docs/walk-comparison.md.
+const SEED_MIN = 16;
+
 // The three runs docs/code-analysis.md records, as lengths from a start offset. Kept here
 // only so --check can prove the measurement and the doc still agree.
 //
@@ -189,4 +202,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { zeroRuns, headerRange, density, loadImage, DEFAULT_MIN };
+module.exports = { zeroRuns, headerRange, density, loadImage, DEFAULT_MIN, SEED_MIN };

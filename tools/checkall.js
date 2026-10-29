@@ -198,6 +198,14 @@ const runNode = (script, args = []) => {
 		if (got.join(',') !== seven.join(',')) {
 			problems.push(`FAIL our call targets in zero fill are ${got.join(',') || 'none'}, expected ${seven.join(',')}. A new one is a seed the image does not support.`);
 		}
+		// And the split by run length, because that is what separates the three the region census catches from the
+		// four it does not. Three sit in megabyte-scale extents, four in alignment gaps of 53 to 59 bytes, and the
+		// threshold those two groups justify is SEED_MIN in tools/codelimits.js.
+		const wantBytes = [207322, 337645, 337645, 59, 53, 53, 55];
+		const gotBytes = (j.functions.ours_only.zero_run_detail || []).map((d) => d.run_bytes);
+		if (gotBytes.join(',') !== wantBytes.join(',')) {
+			problems.push(`FAIL the zero runs holding our bad seeds are [${gotBytes.join(',')}], expected [${wantBytes.join(',')}]. The split is what the seed threshold rests on.`);
+		}
 		if (r.ok) problems.push('FAIL recondiff.js exited 0 while reporting call targets in zero fill, so its verdict is not wired to its finding');
 	}
 	record('walk comparison', problems);
@@ -485,10 +493,14 @@ const runNode = (script, args = []) => {
 	{
 		const cw = runNode('cfgwalk.js', ['--refusals']);
 		const got = (cw.out.match(/^seed 0x[0-9a-f]+/gm) || []).map((s) => s.replace(/\s+/, ' '));
-		const want = ['seed 0x174e9', 'seed 0x9b44b', 'seed 0x9847b'];
+		// In the GUEST frame, because `--refusals` converts and says so in its header. These three were 0x174e9,
+		// 0x9b44b and 0x9847b before that, in the tool's own file-minus-0x20 frame, and the mismatch made them
+		// look like different addresses from the seven tools/recondiff.js reports. See docs/walk-comparison.md.
+		const want = ['seed 0x17309', 'seed 0x9b26b', 'seed 0x9829b'];
 		const missing = want.filter((w) => !got.includes(w));
+		const framed = /^frame: guest/m.test(cw.out) ? [] : ['FAIL --refusals does not state which frame its addresses are in'];
 		record('cfgwalk refuses seeds inside zero fill',
-			missing.length ? ['missing: ' + missing.join(', ') + '   got: ' + (got.join(', ') || 'nothing')] : []);
+			missing.length ? ['missing: ' + missing.join(', ') + '   got: ' + (got.join(', ') || 'nothing'), ...framed] : framed);
 	}
 
 	// H. The TBIOS dispatch chain. tools/tbios.js maps each AH value the game uses to its handler in

@@ -46,6 +46,14 @@ const { Disc, defaultDisc } = require('./cd.js');
 const { zeroRuns, DEFAULT_MIN } = require('./codelimits.js');
 
 const ROOT = path.join(__dirname, '..');
+// THIS TOOL'S FRAME IS FILE MINUS 0x20, WHICH IS GUEST + 0x1E0. Two outputs name addresses, and both now say
+// which frame they are in, because one of them did not and it cost a session: `--refusals` printed file-0x20
+// while tools/recondiff.js printed guest, so three refused seeds and seven bad seeds in zero fill looked like two
+// different findings about the same bytes when they were the same three addresses. `--refusals` converts to the
+// guest frame because it is parsed by tools/checkall.js and quoted beside other tools. `--check` takes and
+// reports its argument in this tool's own frame, which is documented usage, so it states the frame instead.
+const FILE_TO_GUEST = 0x1e0;
+const hxGuest = (n) => '0x' + n.toString(16);
 const HEADER = 0x20;
 const LINE = /^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f ]+?)\s{2,}(.*)$/;
 
@@ -323,6 +331,7 @@ function main() {
 		// either. See docs/highc-codegen.md for the counts.
 		//
 		// The answer therefore names which kind of address this is, and says what it cannot tell you.
+		console.log(`frame: guest, which is this tool's addresses minus ${hxGuest(FILE_TO_GUEST)} (this tool works on the file minus ${hxGuest(HEADER)})`);
 		console.log(`walk from ${seeds.size} CALL targets`);
 		console.log(`  instructions decoded: ${r.decoded}`);
 		console.log(`  distinct boundaries:  ${r.boundary.size}`);
@@ -353,9 +362,10 @@ function main() {
 		// a guard that quietly stopped firing would otherwise only lower a number.
 		const seeds = callTargets(img);
 		const r = walk(img, seeds, walkOpts);
+		console.log(`frame: guest, converted from this tool's own frame by -${hxGuest(FILE_TO_GUEST)}`);
 		for (const x of r.refused) {
-			const from = x.at === null ? 'seed' : '0x' + x.at.toString(16);
-			console.log(`${from} 0x${x.target.toString(16)} ${x.why}`);
+			const from = x.at === null ? 'seed' : hxGuest(x.at - FILE_TO_GUEST);
+			console.log(`${from} ${hxGuest(x.target - FILE_TO_GUEST)} ${x.why}`);
 		}
 		console.log(`total ${r.refused.length}`);
 		return;

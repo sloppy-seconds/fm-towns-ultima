@@ -55,9 +55,15 @@ Of the 41 call targets the module does not emit as functions, 30 it never decode
 instructions but not emitted as starts. The remaining **seven land inside runs of zero bytes**, which no
 routine can:
 
-```
-0x17309  0x9829b  0x9b26b  0xcfc34  0xd295b  0xd29c5  0xd2c47
-```
+| address | zero run containing it | offset in the run | caught by |
+|---|---|---|---|
+| `0x17309` | 207,322 bytes | 36,631 | either threshold |
+| `0x9829b` | 337,645 bytes | 118,564 | either threshold |
+| `0x9b26b` | 337,645 bytes | 130,804 | either threshold |
+| `0xcfc34` | 59 bytes | 4 | the seed threshold only |
+| `0xd295b` | 53 bytes | 42 | the seed threshold only |
+| `0xd29c5` | 53 bytes | 16 | the seed threshold only |
+| `0xd2c47` | 55 bytes | 0 | the seed threshold only |
 
 These are `0xE8` bytes that occur inside data and happen to point at zero fill. They are the collisions this
 project suspected in its own seed set, and the count is now exact: seven entries in the queue are not
@@ -65,6 +71,26 @@ routines. The queue still counts them, because the queue is derived by the same 
 bound on the number of routines and 731 is the figure the image supports.
 
 That is a correction to the denominator used in the recovered fraction, not a change to the numerator.
+
+## Why the count read as three for a while, and what reconciled it
+
+The first version of this comparison reported seven, while `tools/cfgwalk.js --refusals` reported three seeds
+in zero fill, and the two sets looked unrelated. Two separate causes, both now removed:
+
+- **The frame.** `--refusals` printed addresses in the tool's own frame, file minus `0x20`. Converted by
+  `0x1E0`, its three are `0x17309`, `0x9b26b` and `0x9829b`, which are three of the seven above. It now
+  converts to the guest frame and prints `frame: guest` before any address, and `tools/checkall.js` asserts
+  that header rather than trusting it.
+- **The threshold.** `tools/cfgwalk.js` uses `DEFAULT_MIN = 64` from `tools/codelimits.js`, because that number
+  answers a different question: could a whole extent be data, for the census of unreferenced regions. Four of
+  the seven sit in alignment gaps of 53 to 59 bytes between routines, which that threshold does not catch and
+  should not, because raising the census to 16 would fragment 66 runs into 387.
+
+The resolution is two named constants in one file rather than one number doing both jobs. `DEFAULT_MIN` stays
+64 for the region census. `SEED_MIN` is 16 for the seed question, because an address inside a 55-byte gap
+between routines is not a routine start, and calling it doubtful would keep seven queue rows alive on a
+technicality. The four small-run cases are what justify the second constant, and they are asserted by run length
+so the argument cannot quietly become a matter of taste.
 
 ## What this comparison cannot do
 
@@ -82,22 +108,30 @@ Two further limits worth stating:
 ## How it is checked
 
 `node tools/checkall.js` runs the comparison as the gate `walk comparison`. It asserts the eight counts
-above and the seven addresses by name, so a new bad seed fails loudly instead of quietly lowering a
-percentage. `tools/recondiff.js` exits 1 for exactly that reason, and a run that exits 0 while reporting call
-targets in zero fill is itself a failure.
+above, the seven addresses by name, and the run length that holds each one, so a new bad seed fails loudly
+instead of quietly lowering a percentage and the threshold argument stays tied to its measurement.
+`tools/recondiff.js` exits 1 for exactly that reason, and a run that exits 0 while reporting call targets in
+zero fill is itself a failure.
 
 The gate was tested in both directions before being trusted:
 
 - a module copy with one emitted file removed drops the function count from 818 to 780 and the shared count
   from 697 to 663, so a missing or stale module cannot pass silently
 - deleting the file that holds the first anchor makes the tool exit 2 with the anchor named
+- the expected run length for one bad seed was changed from 337,645 to 337,646 and the gate reported
+  `FAIL the zero runs holding our bad seeds are [...], expected [...]`, so the run-length assertion is live
 
 ## What is now known
 
 - The two walks agree on 697 function starts and 36,658 instruction starts, so neither is badly wrong.
-- Seven of the 738 queue entries are `0xE8` bytes in data, listed above. The queue's denominator is
-  therefore 731 routines, and this is the first exact measurement of the collision count.
+- Seven of the 738 queue entries are `0xE8` bytes in data, listed above with the run holding each. Three are
+  in megabyte-scale extents and four in alignment gaps of 53 to 59 bytes, so the queue's denominator is 731
+  routines and the collision count is exact for the first time.
+- Two thresholds are needed, not one: 64 for the region census and 16 for the seed question, both named in
+  `tools/codelimits.js` with the split above as the reason.
 - 77 of the module's extra starts are instruction boundaries no CALL reaches, which is what a jump-table
   member or an indirect-only target looks like from our side.
 - 44 of them are addresses our seed rule cannot reach, and at least one of those decodes cleanly as a real
   function head. So our seed coverage has a measurable hole, and it is now enumerated rather than suspected.
+- `tools/cfgwalk.js --refusals` and `tools/recondiff.js` now report in the same frame and say so, so the
+  third and fifth occurrences of the frame defect are the last ones either tool can cause.

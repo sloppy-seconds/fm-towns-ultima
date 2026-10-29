@@ -47,14 +47,20 @@ const ROOT = path.resolve(__dirname, '..');
 const EXP = path.join(ROOT, 'ENCHANT.EXP');
 const RECOMP = path.join(ROOT, 'build/port/recomp');
 
+// ONE DEFINITION OF ZERO FILL, shared rather than copied. This file used to carry its own zeroRuns with its
+// own threshold of 16, while tools/cfgwalk.js used DEFAULT_MIN = 64 from tools/codelimits.js. The result was
+// two tools claiming different things about the same bytes in the same commit, and a page that said the two
+// definitions disagreed when the real cause was that they had never been compared. SEED_MIN is the seed-test
+// threshold and DEFAULT_MIN remains the region-census one, both named in codelimits.js with the measurement
+// that separates them.
+const { zeroRuns, SEED_MIN } = require('./codelimits.js');
+
 // cfgwalk's frame is guest + 0x1E0, because it strips the 0x20 MP header while the guest frame strips 0x200.
 // Measured, not assumed: `node tools/cfgwalk.js --check 0x1e9` and `--check 0x105c58` both answer "function
 // head", and those are guest 0x9 and 0x105a78, which are the first and last functions fmtownskit emits.
 const CFGWALK_TO_GUEST = 0x1e0;
 
-// A run of this many zero bytes is not code. fmtownskit's own walk refuses transfers into zero fill for the
-// same reason, and a function start inside one is the collision failure this project already had once.
-const ZERO_RUN = 16;
+// The run-length constant is owned by tools/codelimits.js as SEED_MIN. It used to be a local 16 here.
 
 const hx = (n) => '0x' + n.toString(16);
 
@@ -120,39 +126,24 @@ function theirWalks(sources) {
 	return { fns, insns };
 }
 
-// Runs of zero bytes in the image, as [start, end) pairs. A function start or a decoded instruction inside one
-// is the signal that a walk followed something it should not have.
-function zeroRuns(img) {
-	const runs = [];
-	let start = -1;
-	for (let i = 0; i < img.length; i++) {
-		if (img[i] === 0) {
-			if (start < 0) start = i;
-		} else if (start >= 0) {
-			if (i - start >= ZERO_RUN) runs.push([start, i]);
-			start = -1;
-		}
-	}
-	if (start >= 0 && img.length - start >= ZERO_RUN) runs.push([start, img.length]);
-	return runs;
-}
-
-function inRuns(runs, addr) {
+// A run of SEED_MIN zero bytes is not code. The threshold and the predicate both come from tools/codelimits.js,
+// so this tool cannot drift from tools/cfgwalk.js on the same question again.
+const inRuns = (runs, addr) => {
 	let lo = 0;
 	let hi = runs.length - 1;
 	while (lo <= hi) {
 		const mid = (lo + hi) >> 1;
 		if (addr < runs[mid][0]) hi = mid - 1;
 		else if (addr >= runs[mid][1]) lo = mid + 1;
-		else return true;
+		else return runs[mid];
 	}
-	return false;
-}
+	return null;
+};
 
 function main() {
 	const args = process.argv.slice(2);
 	const img = loadImage();
-	const runs = zeroRuns(img);
+	const runs = zeroRuns(img, SEED_MIN);
 	const recompAt = args.indexOf('--recomp');
 	const recompDir = recompAt >= 0 && args[recompAt + 1] ? path.resolve(args[recompAt + 1]) : RECOMP;
 
@@ -231,6 +222,10 @@ function main() {
 			ours_only: {
 				zero_run: fnMineOnly.zeroRun.length,
 				zero_run_addresses: sorted(fnMineOnly.zeroRun).map(hx),
+				zero_run_detail: sorted(fnMineOnly.zeroRun).map((a) => {
+					const r = inRuns(runs, a);
+					return { addr: hx(a), run_bytes: r ? r[1] - r[0] : 0, offset_in_run: r ? a - r[0] : -1 };
+				}),
 				not_decoded_by_them: fnMineOnly.notDecodedByThem.length,
 				other: fnMineOnly.other.length,
 			},
@@ -290,8 +285,12 @@ function main() {
 		}
 		if (report.functions.ours_only.zero_run) {
 			console.log('');
-			console.log('  OUR call targets that land in zero fill, every one. The image does not support these as routines:');
-			for (const a of sorted(fnMineOnly.zeroRun)) console.log(`    ${hx(a)}`);
+			console.log('  OUR call targets that land in zero fill, every one, with the run that contains it.');
+			console.log('  Three sit in megabyte-scale extents, four in alignment gaps below DEFAULT_MIN, which is why');
+			console.log('  tools/cfgwalk.js at 64 refuses three of them and the seed test at SEED_MIN catches all seven:');
+			for (const d of report.functions.ours_only.zero_run_detail) {
+				console.log(`    ${d.addr.padEnd(10)} run ${String(d.run_bytes).padStart(7)} bytes, at offset ${d.offset_in_run}`);
+			}
 		}
 	}
 
