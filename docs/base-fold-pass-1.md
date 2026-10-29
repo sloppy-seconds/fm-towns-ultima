@@ -305,3 +305,9 @@ writable volume plus DOS prompt is enough" being ruled out.
 candidates, in cost order: attach a floppy (`-FD0 /data/<image>.hdm -FD0UP`) to this same CD boot and see whether `A:`
 appears, or boot the hard disk with the CD absent and the compiler installed on that disk. The first is one flag and one
 `dir a:/`; the second needs the SDK on the disk.
+
+**Everything learned about typing at this machine is now in
+[driving-the-townsos-prompt.md](driving-the-townsos-prompt.md)**, in one place, because four sessions re-derived it and
+one of them wrote a false claim here that a mis-read screenshot had produced. Two rules from that page belong against
+this paragraph: a drive letter alone is not a command (`cd c:` then `dir` is the form), and the CD-boot configuration
+has **no writable volume at all**, which is the real reason no marker could ever appear.

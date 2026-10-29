@@ -1,0 +1,62 @@
+## Driving the TownsOS prompt
+
+Everything needed to type at this machine, gathered in one place. Four separate sessions re-derived parts of it, and
+one of them (this page's own first pass) contradicted another, so the rules are here with their evidence rather than
+scattered through experiment pages.
+
+### Reaching it
+
+Boot the **patched SDK CD**: three lines of its `AUTOEXEC.BAT` replaced in place at the same length, which is what
+`tools/hc17-harness.sh` documents and `docs/tsugaru-headless.md` records as working. The machine prints
+`Entering Interactive Mode.` and lands at `Q:\>`.
+
+Booting the **hard disk** is a different prompt that also reads `Q:\>`, which is why the two are easy to confuse. When
+a CD is seated the CD wins the boot, so a `-HD0` image's `AUTOEXEC.BAT` never runs at all and patching it changes
+nothing.
+
+### Typing into it
+
+- **`POST /api/keys {"text":"..."}`** sends characters, and **`POST /api/key {"keys":"Return"}`** sends named keys. That
+  is the route that works.
+- **The console's `TYPE` command is a no-op on this build.** `container/supervisor.js` records it: accepted without
+  error, does not move the guest, verified by identical screenshots. `tools/hc17-harness.sh` still uses `TYPE` because
+  it was written against an older supervisor, so its technique transfers but its transport does not.
+- **The keyboard is a Japanese 106 layout, and `xkey()` handles it.** `backslash` on that layout is the yen key and
+  yields `¥`, so the map sends `intl_backslash`, the keysym that emits a real `0x5C`. Colon, and the other characters
+  with no direct key, are handled the same way. So ASCII paths *can* be typed; a path that appears to have lost its
+  separator in a screenshot has probably been mis-read, not mistyped.
+- **A carriage return in the text does not reliably submit.** Send the line, then a named `Return`.
+- **Build JSON with a JSON encoder, not `printf`.** Hand-building put a bare `\p` into a payload, which is an invalid
+  JSON escape, and the command silently did not run.
+
+### The command grammar, and the one rule that costs a session
+
+**A drive letter alone is not a command.** `c:` answers `Wrong Command or File Name.` The form that works is
+**`cd c:`** and then a separate **`dir`**. The same applies to a path: `dir c:/` is not how a drive is listed.
+
+`dir` with no argument lists the current directory, and forward slashes are accepted in paths, so `cd q:/hc386/bin`
+works and avoids the backslash question entirely.
+
+**There are no drive letters beyond the CD when booting the CD.** `docs/highc-negative-result.md` measured the SRAM
+drive table and found none, and `dir a:/`, `dir c:/`, `dir d:/` each answer `No such file or directory`. So this
+configuration has **no writable volume at all**: the CD is read only, and a `-HD0` image attached while the CD boots is
+not a DOS drive. Nothing can be written from that prompt, which makes it useless for a compiler whose output is a file.
+
+**The workaround, and it is the shape to use**: put the complex part in a `.bat` on a volume that exists and is
+writable, and type one short command. That needs a floppy (`-FD0 <image> -FD0UP`) or an HDD boot, neither of which has
+been tried with the CD also present.
+
+### What this page does not claim
+
+`cd c:` followed by `dir` is recorded from Paul, who knows this machine's shell, and the run that tested it could not
+be read: the screenshot showed a scrolled directory listing and a clean prompt with no error line, which is consistent
+with success but is not proof. The screenshot instrument is named as unreliable here for a reason: a vision model
+transcribing a DOS screen garbled a path separator once and a claim was built on it.
+
+### Why this page exists
+
+The rules above were re-derived in four separate sessions, and one of them wrote "the supervisor cannot type a
+backslash" into a page, which is false and was traced to a mis-read screenshot. `docs/hdd-build-environment.md` already
+said to "type the path without the drive letter at all by first changing to the directory", and
+`docs/highc-negative-result.md` already said there were no drive letters beyond the CD. Both were correct, both were
+forgotten, and neither was where the work was happening. This page is that missing place.
