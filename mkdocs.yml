@@ -113,6 +113,7 @@ nav:
       - The fmtownskit patches: fmtownskit-patches.md
       - The state variables, by name: state-variables.md
       - Time gates and the four worlds: time-gates.md
+      - The first base-fold pass: base-fold-pass-1.md
       - Unsupervised work prompt: unsupervised-prompt.md
       - Testing whether code writes 0xEB: glyph-writer-test.md
       - Searching for the glyph bitmaps: glyph-bitmap-search.md

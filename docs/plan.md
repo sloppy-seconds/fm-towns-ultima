@@ -657,6 +657,24 @@ way to say otherwise. The 31 parked rows all carry a cause (21 `base-fold`, 9 `u
 standard exists for, so they are the cheapest recoveries in the queue, and the pass that works them needs the compile
 channel (`tools/cc.sh` against `tools/cserve.js`). That channel is the gate on this item, not reasoning.
 
+**The channel is up and the first pass ran**, recorded in [base-fold-pass-1.md](base-fold-pass-1.md). Three results, and
+none of them is a recovery:
+
+- The toolchain identifies itself in every object it writes: **High C 1.7, SMALL model**, read out of the OMF header
+  that `tools/compile-proof.sh` produces. Measured, not quoted.
+- **`-off optimize_fp` is confirmed on a second routine, `0xe19f4`**: it turns a 48-byte `esp`-relative function into a
+  46-byte `ebp`-relative one whose length and every instruction agree with the game. `docs/compiler-toggles.md` found
+  the same flag on `0xe52c8`.
+- What remains there is **register allocation only**: the game keeps the base in `eax` and the value in `edx`, our
+  build uses `ecx` and `eax`. Two different source shapes compile identically, so the source does not decide it, and
+  `-off auto_reg_alloc` fixes the value register but spills the base. The next lever is the allocator's order, and
+  `docs/compiler-toggles.md` holds the real toggle names.
+
+So the queue still reads **10 recovered of 738**, and that number is honest. The pass bought the flag, the toolchain's
+identity and one named lever, and it also exposed two frame bugs in this repository's own tools: `tools/cmpdisp.js`
+and therefore `tools/decompile-run.js` take **file-frame** addresses, which made the first scoring attempt score
+nothing at all.
+
 **Worked example, and the finding it produced.** `0xe6a58` was solved and its four differences from
 the candidate were measured: an absolute base (`0x7a7d0`), a register-held parameter, an unsplit frame,
 and split-store addressing. The first is the disp32 standard, so under this plan it is a recovery, not

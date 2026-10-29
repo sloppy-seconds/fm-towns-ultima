@@ -1,0 +1,81 @@
+## The first base-fold pass, through the DOS channel
+
+Plan items 4j and 4k. This is the first pass run with the compile channel standing up, and it produced one authentic
+flag, two bugs in this repository's own tools, and a named next lever. No routine is recovered yet, and this page says
+exactly why.
+
+### The channel came up and proved itself
+
+`podman run` with the settings `docs/compile-route-dos.md` records, `tools/compile-proof.sh`, then `tools/cserve.js`
+and `tools/cc.sh`. The proof's own verdict:
+
+```
+PASS: HELLO.OBJ is a 267-byte OMF object (first record 0x80 THEADR).
+00000000: 8007 0005 4845 4c4c 4f00 8808 0080 aa38  ....HELLO......8
+00000010: 3033 3836 3d88 1400 8000 4869 6768 2043  0386=.....High C
+00000020: 2031 2e37 2e20 534d 414c 4c84 8e04 0000   1.7. SMALL.....
+```
+
+So the object itself names the compiler: **High C 1.7, SMALL model**. That is worth having as a measured fact rather
+than a quoted one.
+
+A first compile through the API, `int f(int a, int b) { return a + b; }`:
+
+```
+8b 44 24 04 03 44 24 08 c3        # 13612 ms, 10 records
+```
+
+`mov eax,[esp+4]; add eax,[esp+8]; ret`, and note the `esp`-relative arguments: **by default this generator does not
+frame a leaf function at all.** That is the difference the rest of this page is about.
+
+### Two bugs in our own tools, both frame bugs
+
+- **`tools/cmpdisp.js` takes FILE-frame addresses** (`guest + 0x200`), not guest addresses. Asked for `0xe19f4` it
+  decoded 335 bytes of unrelated code and started with `00 00 68 ...`; asked for `0xe1bf4` it decoded the real
+  46-byte routine, `55 8b ec b8 f4 e3 00 00 ...`. Every tool that decodes the image this way has to be checked for the
+  same thing, and the repository already knows it has three frames in play.
+- **`tools/decompile-run.js` therefore mis-sizes routines**, because it calls the same decoder: it reported `0xe19f4`
+  as 335 bytes and left all three supplied attempts at `needs-source`, since its key is `0x` plus hex and the
+  attempt file's keys were bare hex. Both were mine, both were silent, and neither is a finding about the game.
+
+### The authentic flag, measured on a real routine
+
+`0xe19f4` is six stores into a static structure at `0xe3f4`, and the target is 46 bytes:
+
+```
+55 8b ec b8 f4e30000 8b 55 08 89 50 24 8b 55 0c 89 50 28 ... c9 c3
+```
+
+Four candidate sources were compiled against it. The shape is right in all of them; the differences are frames and
+registers, and they separate cleanly:
+
+| flags | first bytes of ours | result |
+|---|---|---|
+| none | `55 8b ec b9 f4e30000 8b 45 08 89 41 24` | 48 bytes, wrong length: no frame, `esp`-relative args |
+| `-off optimize_fp` | `55 8b ec b9 f4e30000 8b 45 08 89 41 24` | **46 bytes, length agrees**, every instruction agrees, registers differ |
+| `-off optimize_fp auto_reg_alloc` | `55 8b ec 50 b8 f4e30000 89 45 fc 8b 55 08 89 50 24` | value register becomes `edx`, matching the target, but the base spills to `[ebp-4]` |
+
+**`-off optimize_fp` is confirmed on a second routine.** `docs/compiler-toggles.md` found it on `0xe52c8`; here it
+converts a 48-byte `esp`-relative function into a 46-byte `ebp`-relative one, byte-length exact, with the frame, the
+field order and the epilogue all agreeing.
+
+### The lever that is left, and it is register allocation
+
+Target: `mov eax,0xe3f4` then `mov edx,[ebp+8]` then `mov [eax+0x24],edx`.
+Ours: `mov ecx,0xe3f4` then `mov eax,[ebp+8]` then `mov [ecx+0x24],eax`.
+
+Same instructions, same count, same length, and the pointer and value registers are swapped. Three source shapes were
+tried and two of them (`int *p` with indices, and a struct pointer) compile to the same bytes, so the source is not
+what decides it. `auto_reg_alloc` off moves the value into `edx` correctly but spills the base, which adds four bytes.
+So the target has register allocation **on** with a different preference order, and the toggle that sets that order is
+not yet known.
+
+The named search is therefore narrow: a toggle or flag that makes High C allocate the address constant to `eax` and
+the argument to `edx`, with allocation still on. `docs/compiler-toggles.md` has the real toggle list, which is where
+this starts rather than guessing at option names.
+
+### What this does not claim
+
+No routine in `docs/queue.json` has changed status. The 31 parked routines are still parked, and this pass recovered
+none of them: it established the flag, the toolchain's identity, and the one lever standing in the way, which is
+strictly less than a recovery and more than nothing.
