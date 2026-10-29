@@ -441,10 +441,10 @@ index 08029b9..ff6092f 100644
  
  extern Machine* g_towns;
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..8e7f3ff 100644
+index 75d5dad..122a5f5 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
-@@ -10,9 +10,20 @@
+@@ -10,9 +10,21 @@
  #include "towns.h"
  #include <algorithm>
  #include <cstdlib>
@@ -460,12 +460,13 @@ index 75d5dad..8e7f3ff 100644
 +uint32_t g_far_eax = 0;
 +uint32_t g_trace_fn_cs = 0, g_trace_fn_lo = 0, g_trace_fn_hi = 0;
 +uint32_t g_trace_fn_dump_off = 0, g_trace_fn_dump_len = 0;
++uint32_t g_trace_fn_dump_frame = 0;
 +const char* g_trace_fn_dump_path = nullptr;
 +
  [[noreturn]] void x86_fault(X86Cpu& c, uint32_t site, const char* why) {
      std::fprintf(stderr, "fault at %04x:%08x: %s (eip %08x, frame %llu)\n", c.sreg[1], site, why, c.eip,
                   (unsigned long long)(g_towns ? g_towns->frame : 0));
-@@ -25,6 +36,31 @@ using towns::g_towns;
+@@ -25,6 +37,32 @@ using towns::g_towns;
  }
  
  static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
@@ -482,7 +483,8 @@ index 75d5dad..8e7f3ff 100644
 +        // Dump the routine's state at the same instant the machine's breakpoint fires, so a comparison of two samples
 +        // is a comparison of the same moment. Done once: a per-call dump is a file per iteration and no more truth.
 +        static bool dumped = false;
-+        if (!dumped && g_trace_fn_dump_path && g_trace_fn_dump_len && g_towns) {
++        if (!dumped && g_trace_fn_dump_path && g_trace_fn_dump_len && g_towns
++            && g_towns->frame >= g_trace_fn_dump_frame) {
 +            dumped = true;
 +            const uint32_t at = c.sbase[5] + c.r[5] + g_trace_fn_dump_off;
 +            std::vector<uint8_t> buf(g_trace_fn_dump_len);
@@ -497,7 +499,7 @@ index 75d5dad..8e7f3ff 100644
      X86Func f = x86_lookup_cs(cs & 0xFFFC, off);
      if (!f) f = x86_lookup_cs(cs, off);
      if (!f) {
-@@ -38,6 +74,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
+@@ -38,6 +76,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
  void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t next) {
      sel &= 0xFFFF;
      if (n == 2) off &= 0xFFFF;
@@ -529,7 +531,7 @@ index 75d5dad..8e7f3ff 100644
      if (call) {
          if (n == 4) { push32(c, c.sreg[1]); push32(c, next); }
          else { push16(c, c.sreg[1]); push16(c, next); }
-@@ -46,6 +107,14 @@ void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t n
+@@ -46,6 +109,14 @@ void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t n
      x86_load_seg(c, 1, sel);
      X86Func f = find(c, (uint16_t)sel, off, next);
      f(c);
@@ -544,7 +546,7 @@ index 75d5dad..8e7f3ff 100644
      if (!call) return;
      // a far call returns through retf, which set CS and EIP; the caller checks EIP
      (void)old;
-@@ -158,6 +227,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
+@@ -158,6 +229,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
      towns::Machine& m = *g_towns;
      m.advance(m.machine_time(c.clocks));
      c.eip = next;
@@ -1088,10 +1090,10 @@ index 2a0e2eb..7c7e0e4 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/x86.h b/runtime/x86.h
-index 48bb159..345b5e5 100644
+index 48bb159..701d873 100644
 --- a/runtime/x86.h
 +++ b/runtime/x86.h
-@@ -34,6 +34,30 @@ struct X86Cpu {
+@@ -34,6 +34,31 @@ struct X86Cpu {
  };
  
  typedef void (*X86Func)(X86Cpu&);
@@ -1110,6 +1112,7 @@ index 48bb159..345b5e5 100644
 +extern uint32_t g_far_eax;                // EAX of the last traced transfer, printed beside a watched write
 +extern uint32_t g_trace_fn_cs, g_trace_fn_lo, g_trace_fn_hi;  // log entries into one code range, deduped
 +extern uint32_t g_trace_fn_dump_off, g_trace_fn_dump_len;     // dump state at the first traced entry
++extern uint32_t g_trace_fn_dump_frame;                        // ... at or after this frame
 +extern const char* g_trace_fn_dump_path;
 +extern uint32_t g_watch_max;              // how many hits to print, 64 unless a port raises it
 +extern const X86Cpu* g_x86_cur;          // the cpu running, for the caller's address; may be null
@@ -1122,7 +1125,7 @@ index 48bb159..345b5e5 100644
  struct X86FuncEntry { uint32_t addr; X86Func fn; };
  struct X86Module {
      const char* name;
-@@ -51,29 +75,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
+@@ -51,29 +76,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
  void     x86_mem_write(uint32_t a, int n, uint32_t v);
  
  static inline uint32_t rd8(uint32_t a) {

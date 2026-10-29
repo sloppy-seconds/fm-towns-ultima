@@ -560,6 +560,9 @@ int main(int argc, char** argv) {
 			g_trace_fn_dump_path = std::getenv("U2_FN_DUMP");
 			static std::string path_storage = s.substr(c2 + 1);
 			g_trace_fn_dump_path = path_storage.c_str();
+			// U2_FN_DUMP_AT=<frame> holds the dump back until that frame, so both sides can be made to fire on the same
+			// glyph: reach the menu, press a key, and dump on the first entry of the redraw.
+			if (const char* at = std::getenv("U2_FN_DUMP_AT")) g_trace_fn_dump_frame = (uint32_t)std::strtoul(at, nullptr, 10);
 			std::printf("trace     state dump %u bytes at gs:ebp+%x -> %s\n", g_trace_fn_dump_len, g_trace_fn_dump_off,
 			            g_trace_fn_dump_path);
 		}
