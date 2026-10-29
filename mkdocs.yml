@@ -204,6 +204,7 @@ nav:
       - fmtownskit and seeds: fmtownskit-and-seeds.md
       - The two walks, compared: walk-comparison.md
       - The notice's missing text: port-missing-text.md
+      - Handover: the missing menu text: handoff-menu-text.md
       - Guarded walk coverage: guarded-walk-coverage.md
       - Unreferenced extents: unreferenced-extents.md
       - Recompilation result: recompilation-result.md
