@@ -119,3 +119,32 @@ Two reads are possible and the measurements do not separate them:
 What the pass does establish is the shape of the next test: **the flag is per-function behaviour, not a global switch**,
 so the search has to move to why one function is framed, not to which flag frames everything. That is a reading
 question about `0xe19f4`'s real source, and it is cheaper than another flag sweep.
+
+### The cheap reading, done, and it closes the flag line
+
+`0xe19f4` has **21 callers, in pairs**, at `0xe31d3` to `0xe33be`: `0xe1a24` then `0xe19f4`, over and over every
+`0x30` bytes, eleven of each. So the pair are two setters for two six-word blocks of one structure at `0xe3f4`:
+`0xe19f4` writes `+0x24` to `+0x38`, `0xe1a24` writes `+0x3c` to `+0x50`, and the block of calls is a table of
+assignments with immediate arguments. That is a behavioural fact about the routine and it stands on its own, whatever
+happens to the bytes.
+
+The frame hypothesis was that a 24-byte parameter passed **by value** forces a frame with no locals, since six
+consecutive dwords at `[ebp+8]` look exactly like a struct parameter. Two candidates tested:
+
+| source | flags | ours | verdict |
+|---|---|---|---|
+| `struct S6` by value, field-by-field copy | none | `b9 f4e30000 8b 44 24 04 89 41 24` | 48 bytes, `esp`-relative |
+| `struct S6` by value, field-by-field copy | `-off optimize_fp` | `55 8b ec b9 f4e30000 8b 45 08 89 41 24` | 46 bytes, still `ecx`/`eax` |
+| `struct S6` by value, single assignment | either | `f3 a5` (`rep movsd`) | 27 bytes, wrong shape entirely |
+
+So the parameter is **six separate ints**, not a struct: a by-value struct either collapses to `rep movsd` or compiles
+to the same `ecx`/`eax` code as the six-argument version. Nothing about the source forces the frame.
+
+**The flag line is therefore closed for this routine, and closed by measurement rather than by giving up.** Nine
+combinations have now been tried, three of them named `-on`/`-off` toggles, one a signedness change, two a by-value
+parameter, and every one either produces `ecx`/`eax` or a wrong shape. The difference that remains is the allocator's
+preference order, and it is not reachable from any name this project can pass on the command line.
+
+The two explanations left are the ones `docs/compiler-toggles.md` reached on `0xe3c58`: **a different build of the
+compiler, or the optimiser-engaged driver route.** The driver route is the Towns one, needs `RUN386` and `TownsMENU`,
+and cannot coexist with a writable volume on the floppy boot, so it is a session rather than a flag.
