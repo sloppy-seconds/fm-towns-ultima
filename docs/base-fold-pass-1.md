@@ -90,6 +90,31 @@ fragment" rather than a flag. The one lever this page has **not** tried is the o
 eax,[ecx+ecx]` for a multiply by two). That path is the Towns one, which needs TownsMENU and cannot coexist with a
 writable volume on the floppy-boot route, so it is a session of its own and not a flag to try.
 
+### The driver route, run, and it agrees with the DOS route byte for byte
+
+With the transport finally working (colon as `'`, `d:` to switch, a staged batch, output read back with mtools), the
+comparison the previous section could not make:
+
+| generator | bytes for `0xe19f4` | length |
+|---|---|---|
+| target in the game | `55 8b ec b8 f4e30000 8b 55 08 89 50 24 ... c9 c3` | 46 |
+| DOS route, default | `b9 f4e30000 8b 44 24 04 89 41 24 ... c3` | 48 |
+| **driver route, default** | **`b9 f4e30000 8b 44 24 04 89 41 24 ... c3`** | **48** |
+| DOS route, `-off optimize_fp` | `55 8b ec b9 f4e30000 8b 45 08 89 41 24 ... c9 c3` | 46 |
+
+**The driver's default output is byte-identical to the DOS route's default.** So the optimiser-engaged route is *not*
+the difference: it produces the same unframed `ecx`/`eax` code, and neither matches the game. That closes the
+hypothesis `docs/highc-authentic-toolchain.md` was left with, and it does so negatively.
+
+The driver **with** `-off optimize_fp` is inconclusive and recorded as such: the run produced a fresh `R2.OBJ` (177 bytes,
+timestamped a minute later than the `.EXP`) and did not rewrite `R2.EXP`, so the code read back was still the previous
+run's. Whether the flag broke the link step or the driver ignores it is not established.
+
+**What that leaves.** Both generator routes with every flag this project can reach produce the same thing, and it is not
+the game's 46 bytes with the frame and the `eax`/`edx` registers. The remaining explanations are the ones
+`docs/compiler-toggles.md` named for `0xe3c58`: a different build of the compiler, or source shapes nobody has written
+yet. It is no longer a question about which route to use.
+
 ### What this does not claim
 
 No routine in `docs/queue.json` has changed status. The 31 parked routines are still parked, and this pass recovered

@@ -29,6 +29,30 @@ nothing.
 - **Build JSON with a JSON encoder, not `printf`.** Hand-building put a bare `\p` into a payload, which is an invalid
   JSON escape, and the command silently did not run.
 
+### Verified: typing a colon, and switching drives
+
+Every rule below was confirmed by screenshot **before** Return, which is what `docs/hdd-build-environment.md` says to do.
+Text typed, then what appeared in the guest:
+
+| typed | guest shows | result |
+|---|---|---|
+| `cd d` then the `;` key | `cd d;` | `Cannot change directory.` |
+| `cd d` then `shift+;` | `cd d+` | `Cannot change directory.` (the documented "colon as a plus") |
+| `cd d` then **the apostrophe key `'`** | `cd d:` | accepted, no error |
+| `d'` then Return | prompt becomes `D:\>` | drive switched |
+
+So **the colon is the `'` key on this keyboard**, and neither `;` nor `shift+;` produces one. With that:
+
+- **`cd d:` does not switch drive.** It is accepted silently, the prompt stays `Q:\>`, and then `run` answers
+  `Wrong Command or File Name` because the current drive is still the CD. `d:` alone switches, and the prompt becomes
+  `D:\>`.
+- **A batch on `D:` then runs normally**, and that is the whole working loop: stage the `.C` and a `.BAT` on the image
+  from the host with mtools, type `d'` and `run`, and read the output off the image with mtools.
+
+**Staging while the emulator runs works.** Files written to the HDD image with mtools while the container was up were
+still present after the next boot. An earlier note in this page's history said they were destroyed; that was a `grep`
+filter artefact, not a fact about the emulator.
+
 ### The command grammar, and the one rule that costs a session
 
 **A drive letter alone is not a command.** `c:` answers `Wrong Command or File Name.` The form that works is
