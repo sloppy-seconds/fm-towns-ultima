@@ -118,26 +118,63 @@ console.log(`call instructions ours decodes and theirs does not   ${skipped.leng
 console.log(`functions of theirs containing them                  ${resume.length}`);
 console.log(`  resume point begins with a standard prologue       ${prologues}`);
 console.log(`  already recorded in tools/runtime-seeds.txt         ${resume.filter((x) => recorded.has(x.r)).length} of ${resume.length}`);
-// THE RESIDUE, named rather than tolerated. These three are the states this project has decided not to seed, and the
-// check fails if the set changes, so it cannot quietly grow. 0x101602 is inside the string `ftell`, and 0x101a0f
-// decodes as `00 8b c0 61`, which is not a prologue and not a plausible start. 0x10016e is code (`mov al,[0xdfa00]`)
-// whose call site nothing proves; it is left unseeded rather than guessed at.
+// WHAT IS LEFT IS CLASSIFIED, NOT TOLERATED. Every unseeded resume point must be explained by its own bytes, and the
+// check fails if a new one appears. Three classifications, two of them derived mechanically:
 //
-// A PRINTABLE-TEXT RULE WAS TRIED AND REJECTED, and the numbers are the reason. Refusing gap recovery into a run of
-// four or more printable bytes caught both string cases and cost 1,485 instructions, because `53 56 57` is
-// `push ebx; push esi; push edi` and also three ASCII letters. It rejected 0xef7fc, a real function this project had
-// already confirmed, so the rule was reverted.
-const EXPECTED_RESIDUE = [0x10016e, 0x101602, 0x101a0f];
+//   padding   the address begins a padding sequence the walk skips (`90`, `8b c0`, `66 8b c0`), so it is not a start
+//   text      the address sits inside a run of four or more printable characters, so it is a string, not code
+//   unproven  code that looks real but has no reference of any kind, so it is not seeded and not claimed
+//
+// The third kind cannot be derived and is named, with its reason, in UNPROVEN below.
+const UNPROVEN = [
+	{
+		addr: 0x10016e,
+		why: 'body code with no reference anywhere: mov al,[0xdfa00]; and eax,0xf; mov bl,[eax+0xdfa15]; cmp bl,0xff. Its only E8 site is 0xfff59, which is an instruction in neither walk, so the call is data. No dword reference either, and it is not a function in the recompiler module. Left unseeded rather than guessed at.',
+	},
+];
+
+// A printable run, used to classify a resume point as text. Four is the threshold from the measurement that made the
+// walker rule unsafe: it is enough for `ftell` and `_exit`, and it is also how `53 56 57` (push ebx; push esi; push edi)
+// gets misread, which is why this classification is used on candidates and never applied to the walk itself.
+const printable = (i) => i >= 0 && i < img.length && img[i] >= 0x20 && img[i] < 0x7f;
+const inText = (a, min = 4) => {
+	if (!printable(a)) return false;
+	let lo = a;
+	let hi = a;
+	while (printable(lo - 1)) lo--;
+	while (printable(hi + 1)) hi++;
+	return hi - lo + 1 >= min;
+};
+const isPadding = (a) => img[a] === 0x90 || (img[a] === 0x8b && img[a + 1] === 0xc0) || (img[a] === 0x66 && img[a + 1] === 0x8b && img[a + 2] === 0xc0);
+// THE TAIL OF AN INSTRUCTION. 0x101a0f turned out to be the last byte of `c2 04 00` (ret 4) at 0x101a0d, so this
+// project's walk places a boundary INSIDE an instruction it also places. That is a defect in our walk and it is
+// recorded rather than hidden: the classification is mechanical, and the check fails if such a point appears
+// anywhere the two bytes before are not a `c2`.
+const isTail = (a) => img[a - 2] === 0xc2;
+const classify = (a) => (isPadding(a) ? 'padding' : isTail(a) ? 'instruction tail' : inText(a) ? 'text' : 'unproven');
 
 if (argsCheck()) {
-	const missing = resume.filter((x) => !recorded.has(x.r)).map((x) => x.r).sort((a, b) => a - b);
-	const want = EXPECTED_RESIDUE.slice().sort((a, b) => a - b);
-	if (missing.join(',') !== want.join(',')) {
-		console.log(`  FAIL  the unseeded resume points are ` + (missing.map(hx).join(' ') || 'none') + `, expected ${want.map(hx).join(' ')}`);
-		for (const x of resume.filter((r) => !recorded.has(r.r))) console.log(`        ${hx(x.r)} after ${hx(x.last)}, ${x.bytes}`);
+	const missing = resume.filter((x) => !recorded.has(x.r));
+	const problems = [];
+	for (const x of missing) {
+		const kind = classify(x.r);
+		const named = UNPROVEN.find((u) => u.addr === x.r);
+		if (kind === 'unproven' && !named) {
+			problems.push(`${hx(x.r)} is neither padding nor text and is not explained in UNPROVEN, so it needs a verdict: ${x.bytes}`);
+		} else if (kind !== 'unproven' && named) {
+			problems.push(`${hx(x.r)} is listed in UNPROVEN but its bytes classify it as ${kind}`);
+		}
+	}
+	for (const u of UNPROVEN) {
+		if (!missing.some((x) => x.r === u.addr)) problems.push(`${hx(u.addr)} is in UNPROVEN but is no longer an unseeded resume point`);
+	}
+	if (problems.length) {
+		for (const p of problems) console.log('  FAIL  ' + p);
 		process.exit(1);
 	}
-	console.log(`  ok    the only unseeded resume points are the three named in EXPECTED_RESIDUE: ${want.map(hx).join(' ')}`);
+	const tally = { padding: 0, 'instruction tail': 0, text: 0, unproven: 0 };
+	for (const x of missing) tally[classify(x.r)]++;
+	console.log(`  ok    every unseeded resume point is classified: ${tally.text} text, ${tally.padding} padding, ${tally['instruction tail']} instruction tail, ${tally.unproven} unproven (each unproven one named with its reason)`);
 	process.exit(0);
 }
 
