@@ -441,7 +441,7 @@ index 08029b9..ff6092f 100644
  
  extern Machine* g_towns;
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..122a5f5 100644
+index 75d5dad..fa639af 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
 @@ -10,9 +10,21 @@
@@ -518,9 +518,9 @@ index 75d5dad..122a5f5 100644
 +        g_far_eax = c.r[0];
 +        if (g_trace_far_all) {
 +            if (++calls <= (long)g_trace_far_all)
-+                std::fprintf(stderr, "call     f%llu %04x:%08x -> %04x:%08x eax %08x ebx %08x ecx %08x edx %08x\n",
++                std::fprintf(stderr, "call     f%llu %04x:%08x -> %04x:%08x eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x\n",
 +                             (unsigned long long)(g_towns ? g_towns->frame : 0), c.sreg[1], next, sel, off, c.r[0], c.r[3],
-+                             c.r[1], c.r[2]);
++                             c.r[1], c.r[2], c.r[6], c.r[7]);
 +            else if (calls == (long)g_trace_far_all + 1)
 +                std::fprintf(stderr, "call     capped at %u calls\n", g_trace_far_all);
 +        }
