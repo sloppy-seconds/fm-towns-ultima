@@ -407,10 +407,18 @@ index da2a0d6..2b76dcf 100644
      if a.functions:
          print(' '.join('%x' % f for f in sorted(p.functions)))
 diff --git a/runtime/towns.h b/runtime/towns.h
-index 08029b9..07911df 100644
+index 08029b9..d885071 100644
 --- a/runtime/towns.h
 +++ b/runtime/towns.h
-@@ -255,6 +255,13 @@ public:
+@@ -139,6 +139,7 @@ public:
+ 
+     // memory: host pages for the linear ranges that are plain memory
+     void map_ram(uint32_t linear, uint32_t size);           // zero-filled
++    void unmap_font_window();                               // drop RAM over the ANK font's physical pages
+     uint8_t* host(uint32_t linear);                         // the byte's host address, or null
+     void write_block(uint32_t linear, const uint8_t* p, uint32_t n);
+     void read_block(uint32_t linear, uint8_t* p, uint32_t n);
+@@ -255,6 +256,13 @@ public:
      void int93(X86Cpu& c, uint32_t eax, uint32_t& ret_eax, uint32_t buf);
      bool cd_paused = false;
      void int90(X86Cpu& c);              // the keyboard BIOS (KYB_*), as FORRBIOS.NSD answers it
@@ -733,7 +741,7 @@ index 039e526..3e33a0e 100644
  }
  
 diff --git a/runtime/towns_mem.cpp b/runtime/towns_mem.cpp
-index 7fd99da..d504de4 100644
+index 7fd99da..bc05795 100644
 --- a/runtime/towns_mem.cpp
 +++ b/runtime/towns_mem.cpp
 @@ -10,6 +10,20 @@
@@ -757,6 +765,34 @@ index 7fd99da..d504de4 100644
  namespace towns {
  
  Machine* g_towns;
+@@ -85,6 +99,12 @@ void Machine::map_ram(uint32_t linear, uint32_t size) {
+     }
+ }
+ 
++void Machine::unmap_font_window() {
++    // Drop the RAM pages covering the ANK font's physical window so read8's font cases answer instead. Without this the
++    // page table hits first and returns the zero-filled RAM that boot_towns put there.
++    for (uint32_t a = 0xCA000; a < 0xCC000; a += 0x1000) g_x86_page[a >> 12] = nullptr;
++}
++
+ uint8_t* Machine::host(uint32_t a) {
+     uint8_t* p = g_x86_page[a >> 12];
+     return p ? p + (a & 0xFFF) : nullptr;
+@@ -126,6 +146,14 @@ static uint8_t read8(Machine& m, uint32_t a) {
+         return m.sound.wave[bank | (a & 0xFFF)];
+     }
+     if (a >= 0xC2100000u && a < 0xC2140000u && !m.font.empty()) return m.font[(a - 0xC2100000u) % m.font.size()];
++    // THE ANK FONT'S PHYSICAL WINDOW, which is a different view of the same ROM. The emulator's townsdef.h gives the
++    // mapping outright: physical 0xCA000 is the 8x8 ANK block and reads font ROM offset 0x3D000, physical 0xCB000 is
++    // the 16x16 block and reads 0x3D800. It is not linear across the two, which is why a window mapped by subtraction
++    // alone gives the wrong glyphs. These addresses sit inside the low 768 KB that boot_towns maps as RAM, so the RAM
++    // pages for them have to be dropped first (Machine::unmap_font_window), or the page table answers instead and the
++    // game reads zeroes: that is what made the copyright notice's box empty while its bars, which are layer art, drew.
++    if (a >= 0xCA000u && a < 0xCB000u && !m.font.empty()) return m.font[(0x3D000u + (a - 0xCA000u)) % m.font.size()];
++    if (a >= 0xCB000u && a < 0xCC000u && !m.font.empty()) return m.font[(0x3D800u + (a - 0xCB000u)) % m.font.size()];
+     if (a >= 0x81000000u && a < 0x81020000u) return m.sprram[a - 0x81000000u];     // count_access
+     unknown("read of linear %08x (no device)", a & ~0xFFFu);
+     return 0;
 diff --git a/runtime/towns_sdl.cpp b/runtime/towns_sdl.cpp
 index 3328d10..e752a68 100644
 --- a/runtime/towns_sdl.cpp

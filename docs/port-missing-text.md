@@ -105,12 +105,12 @@ it is missing.
 **What it fixed, measured.** At frame 105 the notice now draws two lines that were previously absent: the top bar's
 `Ultima II - Revenge of Enchantress -`, and the bottom red bar's `データを読み込んでいます`. Text rendering works.
 
-**What is still wrong.** The box's contents render as two rows of blue squares rather than the copyright lines. So the
-fetch now happens and the *glyphs selected* are wrong, which is a different defect from the one this page started with:
-the characters are being read from the wrong place in the font, or through the kanji window rather than the ANK block.
-The next thing to check is the physical ANK mapping, `0xCA000` for 8x8 and `0xCB000` for 16x16, which fetch from font
-ROM offsets `0x3D000` and `0x3D800` rather than linearly (emulator's `townsdef.h`), and which the port's low-memory
-mapping will currently be shadowing with RAM.
+**What is still wrong.** The box's own copyright lines do not appear, and the crops of that box are blank. The ANK
+window was implemented as a correctness fix and it does change what the game reads (2,718 VRAM bytes move at the notice
+frame, as one to three byte runs, which is glyph pixels), but it did not put text in the box. So glyph selection
+is not the whole story either, and the next thing to establish is whether the machine has that text **in VRAM at all**
+during the notice. If it does, the offset names the writer. If it does not, the text is being displayed through a path
+this port does not model at all, and no VRAM-side fix will reach it.
 
 A first composite of the pad page was written and reverted before this measurement existed: it put sprite content on
 screen (two teal rectangles with yellow bars) which proved the code path, but the geometry was wrong and it made the

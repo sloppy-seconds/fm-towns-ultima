@@ -308,6 +308,9 @@ int main(int argc, char** argv) {
 			std::printf("machine   no font ROM at %s, so every glyph will be blank (set U2_FONT)\n", font_path);
 		} else {
 			m.font = std::move(glyphs);
+			// The 16x16 ANK block is reached at physical 0xCB000, inside the RAM that boot_towns mapped, so those pages
+			// have to be dropped for the font window to answer instead of the zero-filled RAM under it.
+			m.unmap_font_window();
 			std::printf("machine   font ROM %zu bytes from %s\n", m.font.size(), font_path);
 		}
 	}
