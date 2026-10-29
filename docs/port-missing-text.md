@@ -196,6 +196,33 @@ functions**, called from the same site. The port is not missing a call. It is ca
 different pixels out, which moves the fault from control flow to **the data or device that the routine reads**: a font
 table, or a decode the routine expects the environment to have prepared.
 
+## The machine capture, and why it is not done yet
+
+The comparison this page wants is the machine's VRAM against the port's at the copyright notice, because that is the
+one screen both sides reach. Two things are now in place and one thing is missing.
+
+**In place: the read path.** `MD 120:<off> 256` returns sixteen lines of 255 bytes, so **4,080 contiguous bytes per
+request**, which is the largest read it gives. The window `0x20000` to `0x40000` is therefore 32 requests, and it
+completed: 131,072 bytes in `/var/tmp/machine-notice-20000-40000.bin`.
+
+**Missing: the machine was not on the notice.** The screenshot taken at the same pause shows **TownsMENU V1.1L20**, and
+the byte histogram settles it: the machine's window is `0x88` x 59,454 and `0xFF` x 54,427 while the port's is `0x99`
+x 71,274 and `0x00` x 53,072. The two captures are of different screens, so the diff is meaningless and has not been
+reported as a result.
+
+**The two mistakes, both worth not repeating.**
+
+- Pausing on a clock does not work. The port reaches the notice at frame 105, about 1.75 s, and the machine takes
+  several seconds of disc access first. A `sleep` long enough for the machine's boot is long enough for it to have
+  moved past the notice.
+- `CS:EIP=000C` is **not** evidence that the game is running. TownsMENU is a protected-mode program too and runs under
+  the same code selector, so a state line showing `000C` and a linear address in the program's range proves nothing.
+  `python3 /opt/u2/u2flow.py --status` is the check, and it reports `in ultima2` honestly.
+
+The next version has to pause on a **screen signature** rather than a delay, and `tools/u2flow.py` already contains the
+machinery: `towns_menu_showing` and `game_menu_state` recognise screens from framebuffer pixels. Reusing them is the
+whole fix.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is
