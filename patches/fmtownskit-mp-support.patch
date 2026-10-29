@@ -877,10 +877,10 @@ index 039e526..6701f90 100644
  }
  
 diff --git a/runtime/towns_mem.cpp b/runtime/towns_mem.cpp
-index 7fd99da..d3c3089 100644
+index 7fd99da..71f4c01 100644
 --- a/runtime/towns_mem.cpp
 +++ b/runtime/towns_mem.cpp
-@@ -10,6 +10,46 @@
+@@ -10,6 +10,47 @@
  #include <set>
  #include <string>
  
@@ -920,14 +920,15 @@ index 7fd99da..d3c3089 100644
 +    }
 +    const X86Cpu* c = g_x86_cur;
 +    const uint32_t mask = n == 4 ? 0xFFFFFFFFu : n == 2 ? 0xFFFFu : 0xFFu;
-+    std::fprintf(stderr, "watch     %08x = %0*x (%dB) at %04x:%08x eax %08x\n", a, n * 2, v & mask, n,
-+                 c ? (unsigned)c->sreg[1] : 0, c ? c->eip : 0, g_far_eax);
++    std::fprintf(stderr, "watch     %08x = %0*x (%dB) at %04x:%08x eax %08x f%llu\n", a, n * 2, v & mask, n,
++                 c ? (unsigned)c->sreg[1] : 0, c ? c->eip : 0, g_far_eax,
++                 (unsigned long long)(towns::g_towns ? towns::g_towns->frame : 0));
 +}
 +
  namespace towns {
  
  Machine* g_towns;
-@@ -85,6 +125,12 @@ void Machine::map_ram(uint32_t linear, uint32_t size) {
+@@ -85,6 +126,12 @@ void Machine::map_ram(uint32_t linear, uint32_t size) {
      }
  }
  
@@ -940,7 +941,7 @@ index 7fd99da..d3c3089 100644
  uint8_t* Machine::host(uint32_t a) {
      uint8_t* p = g_x86_page[a >> 12];
      return p ? p + (a & 0xFFF) : nullptr;
-@@ -126,6 +172,18 @@ static uint8_t read8(Machine& m, uint32_t a) {
+@@ -126,6 +173,18 @@ static uint8_t read8(Machine& m, uint32_t a) {
          return m.sound.wave[bank | (a & 0xFFF)];
      }
      if (a >= 0xC2100000u && a < 0xC2140000u && !m.font.empty()) return m.font[(a - 0xC2100000u) % m.font.size()];
