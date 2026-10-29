@@ -211,6 +211,16 @@ const runNode = (script, args = []) => {
 	record('walk comparison', problems);
 }
 
+// E7. The call targets nothing really calls. The `E8 rel32` rule scans every byte, so table bytes can point at an
+// address that then decodes as plausible code and sits in the queue as a routine. The rule is "no call site pointing
+// here is an instruction in EITHER walk", and the second decoder is not optional: with ours alone it marks 124 targets
+// instead of 26. tools/non-call-targets.txt records the answer so tools/queue.js works on a clone with no module, and
+// this re-derives it whenever the module is present. Skips with a printed note when it is absent.
+{
+	const r = runNode('calltargets.js', ['--check']);
+	record('call targets that are not called', r.ok ? [] : r.out.split('\n').filter((l) => /FAIL|missing:|recorded but/.test(l)));
+}
+
 // E5. The decompilation queue. docs/queue.json stores only what the ledger knows; tools/queue.js derives the
 // universe instead, from the `E8` call targets in the image plus the starts in tools/runtime-seeds.txt, and merges the two. This check exists because item 4j's finish is
 // "every routine carries a status and the statuses sum to 738", which is only checkable if something counts them.

@@ -8,8 +8,8 @@
    "status": "not-c"
   },
   "100107": {
-   "status": "parked",
-   "cause": "base-fold"
+   "status": "excluded",
+   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
   },
   "104190": {
    "status": "parked",
@@ -174,13 +174,15 @@
    "status": "not-c"
   },
   "fdba8": {
-   "status": "not-c"
+   "status": "excluded",
+   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
   },
   "fdbbd": {
    "status": "not-c"
   },
   "fdbd2": {
-   "status": "not-c"
+   "status": "excluded",
+   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
   },
   "fdc2c": {
    "status": "not-c"
@@ -189,7 +191,8 @@
    "status": "not-c"
   },
   "fdc6e": {
-   "status": "not-c"
+   "status": "excluded",
+   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
   },
   "fdc90": {
    "status": "not-c"

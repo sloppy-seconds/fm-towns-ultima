@@ -84,7 +84,7 @@ from the items below rather than maintained separately.
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
 | 4m Compare our walk with fmtownskit's | AUTONOMOUS | **done**, 697 of 818 starts shared and seven bad seeds named |
 | 4n Cross-seed the two walks | AUTONOMOUS | **done**, both directions measured: static test clean, recompile conflicts on our 30 |
-| 4o A verdict for each of the 30 conflicting starts | AUTONOMOUS | **yes**, the recompile half's loose end |
+| 4o A verdict for each of the 30 conflicting starts | AUTONOMOUS | **done**, 22 are not routines and the rule found 26 in total |
 | 5a Character creation | AUTONOMOUS | **done**, modifiers read from the code |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
 | 5c Time gates and epochs | AUTONOMOUS | **done**, all three gate tests named and the world clock read |
@@ -626,13 +626,33 @@ states `2 refused` with the count first. It now parses the counts and treats a m
 
 ### 4o. A verdict for each of the 30 conflicting starts
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | unattended: the 30 addresses, the recompiler's conflict report and our own decode are all on disk |
+| autonomy | unattended: both walks, the image and the conflict report are on disk |
 | done when | each of the 30 carries a verdict with its evidence, either "our boundary is right, its decode is wrong here" or "a boundary that is not a function start", and the 32 conflicts are each attributed to one of them or recorded as unexplained |
 | blocked by | nothing |
+
+**The verdict, from one measurement: for each of the 30, is the site of any `E8` pointing at it an instruction start
+in either walk.** `tools/calltargets.js` answers that, and the answer splits the 30 cleanly:
+
+- **22 are not routines.** Every `E8` pointing at them sits in data in both decodes. The byte rule fired on table
+  bytes and the target then decoded as plausible code, which is why it looked like a routine at all.
+- **8 are a real disagreement.** Our walk decodes the call site as an instruction and theirs does not, so the open
+  question is whether that caller is code. Both walks are self-consistent and one is wrong. That is the residue of
+  this item and it is recorded here rather than resolved.
+
+**The rule reaches further than the 30.** Applied to all 738 call targets it finds **26** that nothing really calls,
+and with the 7 in zero fill that is 33 exclusions. So the queue went from 775 routines to **749**: 705 that a call
+site really points at, plus the 44 with no call site. Four of the 26 had carried ledger verdicts, having been
+attempted as routines before anyone asked whether they were routines at all. Those rows now say `excluded` with the
+reason, and the queue's INVALID status is what surfaced them, which is the check working as designed.
+
+**One measured correction to my own first attempt.** The rule needs *both* decoders. With this project's walk alone it
+marks **124** targets instead of 26, because a call site inside a region our seeds never cover is not one of our
+instruction starts even when it is plainly code. That version would have deleted 98 real routines from the queue.
+
 
 **The conflict half is done, and it came back clean.** `tools/cfgwalk.js` gained `--seeds-file` and
 `--test-seeds`, both reading the guest-frame format `tools/runtime-seeds.txt` already uses. Results:
@@ -733,19 +753,20 @@ image and prints, as of this pass:
 statuses (738 starts):
   matched        10
   disp32          0
-  parked         31
-  not-c          61
-  unattempted   629
-  excluded        7
+  parked         30
+  not-c          58
+  unattempted   651
+  excluded       33
   recovered      10  (matched + disp32)
 ```
 
-The statuses sum to 775 routines: 731 a call site points at, 44 with no call site from `tools/runtime-seeds.txt`,
-and 7 of the 738 call targets excluded because they lie inside zero fill. The count is owned by `docs/call-graph.md`
+The statuses sum to 749 routines: 705 that a real call site points at, 44 with no call site from
+`tools/runtime-seeds.txt`, and 33 of the 738 call targets excluded because they are not routines (7 in zero fill, 26
+pointed at only by `E8` bytes that are not instructions in either walk). The count is owned by `docs/call-graph.md`
 and the arithmetic is asserted by `checkall.js` as `decompilation queue`.
-**Ten recovered, 673 unattempted**, so the queue is not close to empty and there is no honest
-way to say otherwise. The 31 parked rows all carry a cause (21 `base-fold`, 9 `unresolved`, 1 `register-choice`) and
-`tools/queue.js` reports all 31 as workable now, none blocked on an unmet dependency.
+**Ten recovered, 651 unattempted**, so the queue is not close to empty and there is no honest
+way to say otherwise. The 30 parked rows all carry a cause (20 `base-fold`, 9 `unresolved`, 1 `register-choice`) and
+`tools/queue.js` reports all 30 as workable now, none blocked on an unmet dependency.
 
 **The next work is concrete rather than general**: the parked `base-fold` routines are exactly the set the disp32
 standard exists for, so they are the cheapest recoveries in the queue, and the pass that works them needs the compile

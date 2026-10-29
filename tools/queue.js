@@ -44,6 +44,24 @@ const SEEDS = path.join(ROOT, 'tools/runtime-seeds.txt');
 // the correction live in docs/call-graph.md.
 const STATUS = ['matched', 'disp32', 'parked', 'not-c', 'unattempted', 'excluded'];
 const { zeroRuns, SEED_MIN } = require('./codelimits.js');
+// A CALL TARGET IS ONLY REAL IF SOMETHING ACTUALLY CALLS IT. The `E8 rel32` rule scans every byte in the image, so a
+// byte pair inside a table can point anywhere, and the address it points at then decodes as plausible code and looks
+// like a routine. The test that separates them needs BOTH decoders: is the site of the call an instruction start in
+// either walk. Measured on the 30 starts the recompiler never decodes (item 4o), 22 have no call site that is an
+// instruction start in either walk, and the other 8 have one in ours but not theirs, so those 8 stay in the queue
+// because the walks really do disagree about whether the caller is code.
+//
+// Using both decoders matters more than it sounds. Applying this rule with only our own walk excludes 105 targets
+// instead of 22, because a call site inside a region our seeds never cover is not one of our instruction starts even
+// when it is plainly code. The list is therefore derived once by tools/calltargets.js, which has both walks, and read
+// from here, so the queue works on a clone that has no recompiled module.
+const NON_CALL_TARGETS = new Set();
+if (fs.existsSync(path.join(__dirname, 'non-call-targets.txt'))) {
+	for (const line of fs.readFileSync(path.join(__dirname, 'non-call-targets.txt'), 'utf8').split('\n')) {
+		const t = line.replace(/#.*/, '').trim();
+		if (t && /^(0x)?[0-9a-f]+$/i.test(t)) NON_CALL_TARGETS.add(parseInt(t.replace(/^0x/i, ''), 16));
+	}
+}
 const ZERO_RUNS = zeroRuns(fs.readFileSync(EXP).subarray(0x200), SEED_MIN);
 const inZeroRun = (a) => ZERO_RUNS.some(([lo, hi]) => a >= lo && a < hi);
 
@@ -132,10 +150,20 @@ function merged() {
 		// A verdict on an address that sits in zero fill would be a claim about bytes that are not code, which the
 		// ledger must not be able to make quietly. It is reported as INVALID rather than overridden.
 		if (inZeroRun(addr)) {
-			if (stored.status && stored.status !== 'unattempted') {
+			if (stored.status && stored.status !== 'unattempted' && stored.status !== 'excluded') {
 				rows.push({ addr: key, callers, status: 'INVALID', cause: 'the ledger gives this address a status, but it lies inside a run of zero bytes' });
 			} else {
 				rows.push({ addr: key, callers, status: 'excluded', cause: 'call target inside a run of zero bytes, so not a routine' });
+			}
+			continue;
+		}
+		// The second derived exclusion: a call target nothing actually calls, because every `E8` pointing at it sits in
+		// data. See instructionStarts() above for the measurement that established this rule.
+		if (callers > 0 && NON_CALL_TARGETS.has(addr)) {
+			if (stored.status && stored.status !== 'unattempted' && stored.status !== 'excluded') {
+				rows.push({ addr: key, callers, status: 'INVALID', cause: 'the ledger gives this address a status, but no call site pointing at it is an instruction' });
+			} else {
+				rows.push({ addr: key, callers, status: 'excluded', cause: 'every E8 pointing here is in data, so not a routine' });
 			}
 			continue;
 		}

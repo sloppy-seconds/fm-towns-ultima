@@ -1,0 +1,52 @@
+# Call targets nothing actually calls: every `E8` byte pointing at one of these sits in data.
+#
+# Format: one guest address per line, hex, `#` starts a comment. tools/queue.js reads this and reports these rows
+# as `excluded` rather than as work.
+#
+# WHY. The `E8 rel32` rule scans every byte of the image, so a byte pair inside a table can point anywhere, and the
+# address it points at then decodes as plausible code and looks like a routine. The test that separates a real call
+# target from one of these is whether the site of the call is an instruction start in EITHER walk. Both decoders are
+# needed: with our walk alone the rule excludes 105 targets, because a call site inside a region our seeds never
+# cover is not one of our instruction starts even when it is plainly code.
+#
+# WHERE FROM. Item 4o. The 30 starts fmtownskit never decodes were split by that test: 22 have no call site that is
+# an instruction start in either walk, and 8 have one in ours but not theirs. Only the 22 are here. The 8 stay in the
+# queue because the walks genuinely disagree about whether the caller is code, and a disagreement is not evidence.
+#
+# Re-derive with `node tools/calltargets.js`, which needs the recompiled module present. `--write` rewrites this file.
+# `node tools/checkall.js` re-derives and compares when the module is available, and skips with a printed note when it
+# is not, so a clone with only the disc is not told the check failed.
+
+0x3b4
+0x5a0
+0x8e1
+0x17309
+0x9829b
+0x9b26b
+0xcfc34
+0xd295b
+0xd29c5
+0xd2c47
+0xe6566
+0xe66b7
+0xe677d
+0xe67ff
+0xe7532
+0xecd37
+0xeec99
+0xefb2d
+0xfdb49
+0xfdba8
+0xfdbd2
+0xfdc6e
+0xffffe
+0x10008f
+0x1000cb
+0x100107
+0x10016e
+0x1001a7
+0x100782
+0x104595
+0x104679
+0x104744
+0x1047b5

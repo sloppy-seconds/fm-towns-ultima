@@ -188,12 +188,34 @@ The gate was tested in both directions before being trusted:
 - the expected run length for one bad seed was changed from 337,645 to 337,646 and the gate reported
   `FAIL the zero runs holding our bad seeds are [...], expected [...]`, so the run-length assertion is live
 
+## The verdict for the 30: 22 are not routines, 8 are a real disagreement
+
+Item 4o. The 30 starts our walk holds that the module never decodes were decided by one measurement: for each, is the
+site of any `E8` pointing at it an instruction start in either walk.
+
+- **22 of the 30 are not routines.** Every `E8` pointing at them sits in data in both decodes. Our byte rule fired on
+  table bytes, and the target then decoded as plausible code, which is why it looked like a routine at all. They are
+  in `tools/non-call-targets.txt` and the queue excludes them.
+- **8 are a genuine disagreement.** Our walk decodes their call site as an instruction and the other walk does not, so
+  the question is whether the caller is code. Both walks are self-consistent and one of them is wrong.
+
+The rule needs both decoders, measured: with this project's walk alone it marks **124** targets, against 26 with both,
+because a call site in a region our seeds never cover is not one of our instruction starts even when it is obviously
+code. Re-derived by `node tools/calltargets.js`, compared by `checkall.js`.
+
+**And it reaches further than the 30.** Applied to all 738 call targets the same rule finds **26** that nothing really
+calls, of which 22 came from item 4o, plus the 7 already excluded as zero fill, so the queue's denominator moved from
+775 to **749**: 705 routines a call site points at, plus 44 with no call site. Four of the 26 had carried ledger
+verdicts, having been attempted as routines; those rows now say `excluded` with the reason, and the queue's INVALID
+status is what surfaced them.
+
 ## What is now known
 
 - The two walks agree on **741** function starts and **37,275** instruction starts, so neither is badly wrong.
-- The `E8` rule is blind in both directions, and both are now measured: 7 of its 738 targets are data, and 44
-  routines have no call site at all. Those 44 are in `tools/runtime-seeds.txt` and in the queue, which is why the
-  shared function count reads 741 and the routine total reads 775.
+- The `E8` rule is blind in both directions, and both are now measured: 33 of its 738 targets are not routines (7 in
+  zero fill, 26 pointed at only by data bytes), and 44 routines have no call site at all. Those 44 are in
+  `tools/runtime-seeds.txt` and in the queue, which is why the shared function count reads 741 and the routine total
+  reads 749.
 - **Neither walk contradicts the other anywhere.** In the cross-seed test, 0 of their 121 extra starts fall
   inside an instruction we prove, and 0 of our 30 fall inside one of theirs. Every difference is coverage or
   reachability, which is the outcome that makes the differences workable.
