@@ -522,7 +522,12 @@ int main(int argc, char** argv) {
 	// no far pointer to it, so the callers exist only at run time. This is the measurement that names them.
 	if (std::getenv("U2_TRACE_FAR")) {
 		g_trace_far_sel = 0x0110;
-		std::printf("trace     far calls into selector 0110, one line per call site\n");
+		// U2_TRACE_FAR_ALL=<n> prints the first n transfers individually instead of one line per call site, and every
+		// watched write carries the EAX of the transfer in flight. A dispatcher takes its function number as an
+		// argument, so pairing the two is the only way to say which request produced which write.
+		if (const char* n = std::getenv("U2_TRACE_FAR_ALL")) g_trace_far_all = (uint32_t)std::strtoul(n, nullptr, 10);
+		std::printf("trace     far calls into selector 0110, %s\n",
+		            g_trace_far_all ? "every call" : "one line per call site");
 	}
 	// U2_SHOT=<path> writes the frame the machine is showing when the run ends, with the kit's own renderer, so
 	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this

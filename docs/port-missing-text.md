@@ -167,6 +167,35 @@ reading the image: the function number only exists at run time, in a register, o
 
 The trace itself is the instrument for the next attempt, and it is bounded: one line per call site, not per call.
 
+## Which dispatcher function draws, and the deduction that follows
+
+With every dispatcher call logged and each watched write carrying the `EAX` of the call in flight, 520 frames of
+splash and menu give **587 calls, 82 distinct `EAX` values**, and the writes fall out like this:
+
+| `EAX` | writes | through |
+|---|---|---|
+| `00006002` | 11,008 | `0110:0000409e`, `0110:00004195`, `0110:000081df` |
+| `0000469e` | 6,792 | `0110:000081df`, `0110:00008211` |
+| `00002b01` | 2,560 | `0110:000081df`, `0110:0000817d` |
+| `00006016` | 1,280 | `0110:0000409e`, `0110:00004195`, `0110:000081df` |
+| `0000466b` | 668 | `0110:00008211`, `0110:000081df` |
+| `0000419d` | 132 | `0110:00003d2e` |
+| `0000415a`, `0000419f` | 48 each | `0110:00008211`, `0110:00003759` |
+
+**Only eight of the eighty-two touch VRAM at all.** The other seventy-four are called and draw nothing, which is
+normal: most of the dispatcher's functions are DOS and file work, not pixels.
+
+The menu's own drawing is one call site, `000c:00000825`, issuing `0x415a`, `0x419d` and `0x419f` with coordinates in
+`EDX` (`0x15c` and `0x1e0`), and `000c:00000a99` issuing `0x6002` and `0x6016` with a pointer in `EBX` and packed
+coordinates in `EDX` (`0x000c0024`, `0x000c000e`). The buffer at `EBX` plus the data segment base, linear `0x47af1d`,
+is a table of small dwords rather than a string, so `0x6002` is a block or box primitive, not text output.
+
+**And this is the deduction worth carrying forward.** The machine runs the same program, so it issues the same
+calls in the same order. Therefore whatever draws the menu labels on the machine is **one of these same eight
+functions**, called from the same site. The port is not missing a call. It is calling the function and getting
+different pixels out, which moves the fault from control flow to **the data or device that the routine reads**: a font
+table, or a decode the routine expects the environment to have prepared.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is
