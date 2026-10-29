@@ -34,6 +34,7 @@ const ROOT = path.resolve(__dirname, '..');
 const EXP = path.join(ROOT, 'ENCHANT.EXP');
 const LEDGER = path.join(ROOT, 'docs/queue.json');
 const REGISTER = path.join(ROOT, 'docs/routines.json');
+const SEEDS = path.join(ROOT, 'tools/runtime-seeds.txt');
 
 // The vocabulary, fixed. `disp32` means every byte agrees except the displacement of an absolute reference or a
 // call rel32, which is a recovery under the project's second standard and is counted as one.
@@ -48,8 +49,15 @@ const inZeroRun = (a) => ZERO_RUNS.some(([lo, hi]) => a >= lo && a < hi);
 
 const hx = (n) => n.toString(16);
 
-// The 738 starts: every call target. Same rule as docs/call-graph.md and tools/callgraph.js, re-derived rather than
-// copied, because a count written in two places drifts.
+// The queue's universe: every call target, plus the starts measured off the machine and written down in
+// tools/runtime-seeds.txt. Same `E8 rel32` rule as docs/call-graph.md and tools/callgraph.js, re-derived rather
+// than copied, because a count written in two places drifts.
+//
+// WHY THE SEED FILE IS INCLUDED. A routine reached through a pointer taken at run time has no call site, so the
+// byte rule cannot see it and the queue would never offer it as work. 44 such starts came out of the comparison
+// with the recompiler (docs/walk-comparison.md), seeding this project's walk with them lifts it from 39,190 to
+// 39,826 instructions, and they are in the same file the recompiler already reads. They carry 0 callers, which is
+// what distinguishes them from a call target in the rows below.
 function starts() {
 	const img = fs.readFileSync(EXP).subarray(0x200);
 	const callers = new Map();
@@ -59,6 +67,16 @@ function starts() {
 		const t = a + 5 + rel;
 		if (t < 0 || t >= img.length) continue;
 		callers.set(t, (callers.get(t) || 0) + 1);
+	}
+	// The seed file is in the guest frame, which is the frame this map uses.
+	if (fs.existsSync(SEEDS)) {
+		for (const line of fs.readFileSync(SEEDS, 'utf8').split('\n')) {
+			const t = line.replace(/#.*/, '').trim();
+			if (!t || !/^(0x)?[0-9a-f]+$/i.test(t)) continue;
+			const at = parseInt(t.replace(/^0x/i, ''), 16);
+			if (at >= img.length) continue;
+			if (!callers.has(at)) callers.set(at, 0);
+		}
 	}
 	return callers;
 }
@@ -135,6 +153,7 @@ function merged() {
 			addr: key,
 			callers,
 			status: status || 'unattempted',
+			...(callers === 0 ? { via: 'runtime-seeds.txt' } : {}),
 			...(cause ? { cause } : {}),
 			...(stored.diff ? { diff: stored.diff } : {}),
 			...(stored.levers ? { levers: stored.levers } : {}),
@@ -200,14 +219,16 @@ function main(argv) {
 	if (argv.includes('--counts') || (!argv.includes('--parked') && !argv.includes('--rebuild'))) {
 		const excluded = counts.excluded || 0;
 		const routines = total - excluded;
-		console.log(`\nstatuses (${routines} routines, ${excluded} excluded from ${total} call targets):`);
+		const fromSeeds = rows.filter((r) => r.callers === 0 && r.status !== 'excluded').length;
+		const fromCalls = routines - fromSeeds;
+		console.log(`\nstatuses (${routines} routines: ${fromCalls} from call targets, ${fromSeeds} from the seed file, ${excluded} excluded):`);
 		for (const s of STATUS) console.log(`  ${s.padEnd(12)} ${String(counts[s] || 0).padStart(4)}`);
 		const recovered = (counts.matched || 0) + (counts.disp32 || 0);
 		console.log(`  recovered     ${String(recovered).padStart(4)}  (matched + disp32)`);
 		const summed = STATUS.filter((s) => s !== 'excluded').reduce((a, s) => a + (counts[s] || 0), 0);
 		if (summed !== routines) console.log(`\nNOTE: the non-excluded statuses sum to ${summed}, not ${routines}`);
-		if (total !== 738) console.log(`\nNOTE: ${total} starts derived, not 738. Either the image is not the one the count`);
-		if (total !== 738) console.log(`      was taken from, or the E8 rule has changed. The count is owned by docs/call-graph.md.`);
+		if (total !== 738 + fromSeeds) console.log(`\nNOTE: ${total} starts derived, not ${738 + fromSeeds}. Either the image is not the one the count`);
+		if (total !== 738 + fromSeeds) console.log(`      was taken from, or the E8 rule has changed. The count is owned by docs/call-graph.md.`);
 	}
 
 	if (problems.length) {

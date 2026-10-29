@@ -663,7 +663,8 @@ as a script the direction stays unmeasured. The conflict test is the reason to e
 counts differed by 80 function starts and 2,657 instructions. Under this project's rules that is either work
 nobody has seen or work that is not there, and those need opposite responses. Both turned out to be true.
 
-- The shared set is most of both walks: **697** function starts and **36,658** instruction starts.
+- The shared set is most of both walks: **741** function starts and **37,275** instruction starts, after the 44
+  starts from the seed file moved into the shared set. Before them it was 697 and 36,658.
 - **Seven of the 738 queue entries are not routines.** They are `0xE8` bytes inside data pointing at zero
   fill, named in [walk-comparison.md](walk-comparison.md). The queue is derived by that byte rule, so the
   real routine count is **731**, which corrects the denominator of the recovered fraction without touching
@@ -688,7 +689,7 @@ holding the first anchor (exit 2, anchor named).
 | field | value |
 |---|---|
 | autonomy | runs unattended via `tools/cc.sh`; no emulator interaction, no disc state |
-| done when | every routine in the queue carries a status, the statuses sum to the routine count owned by `docs/call-graph.md` (731, from 738 call targets with 7 in zero fill excluded), and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
+| done when | every routine in the queue carries a status, the statuses sum to the routine count owned by `docs/call-graph.md` (775: 731 call targets plus 44 with no call site, with 7 of the 738 excluded as zero fill), and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
 | blocked by | nothing |
 
 **This replaces the earlier "finish `0xe6a58`" framing, which was the wrong unit of work.** One
@@ -739,9 +740,10 @@ statuses (738 starts):
   recovered      10  (matched + disp32)
 ```
 
-The statuses sum to 731 routines, with 7 of the 738 call targets excluded because they lie inside zero fill, which
-is the item's own arithmetic check and is now asserted by `checkall.js` as `decompilation queue`.
-**Ten recovered, 629 unattempted**, so the queue is not close to empty and there is no honest
+The statuses sum to 775 routines: 731 a call site points at, 44 with no call site from `tools/runtime-seeds.txt`,
+and 7 of the 738 call targets excluded because they lie inside zero fill. The count is owned by `docs/call-graph.md`
+and the arithmetic is asserted by `checkall.js` as `decompilation queue`.
+**Ten recovered, 673 unattempted**, so the queue is not close to empty and there is no honest
 way to say otherwise. The 31 parked rows all carry a cause (21 `base-fold`, 9 `unresolved`, 1 `register-choice`) and
 `tools/queue.js` reports all 31 as workable now, none blocked on an unmet dependency.
 

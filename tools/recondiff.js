@@ -86,9 +86,12 @@ function runJson(args) {
 	}
 }
 
-// Our instruction starts, converted from cfgwalk's frame into the guest frame.
+// Our instruction starts, converted from cfgwalk's frame into the guest frame. The seed file is passed so this side
+// of the comparison is the same universe as tools/queue.js: call targets plus the starts measured off the machine.
+// Without it the walk decodes 39,190 instructions and the queue counts 44 routines that are not represented here,
+// which is exactly the kind of half-updated count this project keeps paying for.
 function ourInstructions() {
-	const out = runJson(['tools/cfgwalk.js', '--insns']);
+	const out = runJson(['tools/cfgwalk.js', '--insns', '--seeds-file', path.join(ROOT, 'tools/runtime-seeds.txt')]);
 	const set = new Set();
 	for (const line of out.split('\n')) {
 		const t = line.trim();
@@ -273,7 +276,7 @@ function main() {
 		console.log(`  ours only               ${report.instructions.ours_only}`);
 		console.log('');
 		console.log('FUNCTION STARTS');
-		console.log(`  ours (738 call targets) ${report.functions.ours}`);
+		console.log(`  ours (call targets + seed file) ${report.functions.ours}`);
 		console.log(`  theirs (emitted)        ${report.functions.theirs}`);
 		console.log(`  in both                 ${report.functions.both}`);
 		console.log('  theirs only:');

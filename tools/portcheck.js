@@ -110,8 +110,13 @@ const seeds = read('tools/runtime-seeds.txt');
 {
 	const lines = (seeds || '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
 	const bad = lines.filter((l) => !/^0x[0-9a-f]{6,8}$/.test(l));
-	if (lines.length === 4 && bad.length === 0) ok('the seed list holds its four measured entries', lines.join(' '));
-	else fail('the seed list holds its four measured entries', lines.length + ' lines, ' + bad.length + ' malformed');
+	// 45 entries: the four hook pointers read live off the machine, plus the 41 new starts that came out of the
+	// comparison with the recompiler (docs/walk-comparison.md). The four original ones must still be there, so the
+	// check names them rather than only counting, otherwise a rewrite that dropped the measured evidence would pass.
+	const measured = ['0x0ffb72', '0x0e7238', '0x0ffc90', '0x0fdf5f'];
+	const missing = measured.filter((a) => !lines.includes(a));
+	if (lines.length === 45 && bad.length === 0 && missing.length === 0) ok('the seed list holds 45 entries, including the four measured on the machine');
+	else fail('the seed list holds 45 entries, including the four measured on the machine', `${lines.length} lines, ${bad.length} malformed, missing ${missing.join(' ') || 'nothing'}`);
 }
 
 // ---- docs and code agree about the debug switches ----

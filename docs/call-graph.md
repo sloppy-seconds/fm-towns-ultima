@@ -215,16 +215,24 @@ drift has one place to fix.
 inside data that happen to point into runs of zero bytes. `tools/cfgwalk.js --test-seeds` and
 `tools/recondiff.js` measure them, the seven addresses are listed with the zero run that holds each in
 [walk-comparison.md](walk-comparison.md), and the split is three inside megabyte-scale extents against four in
-alignment gaps of 53 to 59 bytes. So:
+alignment gaps of 53 to 59 bytes.
+
+And the correction goes the other way too. The `E8` rule is blind to any routine reached through a pointer taken at
+run time, because nothing calls it by name. Comparing our walk with the recompiler's produced **44 starts the byte
+rule cannot see**, they are now in `tools/runtime-seeds.txt` with the measurement that justified each, and seeding
+this project's walk with them lifts it from 39,190 to 39,826 instructions. So:
 
 ```
 738  call targets, which is the byte rule's count
   7  of those lie inside zero fill and are not routines
-731  routines, which is what the recovered fraction is out of
+731  routines a call site points at
+ 44  routines with no call site, from the seed file, which the recompiler reaches and we did not
+775  routines, which is what the recovered fraction is out of
 ```
 
-`tools/queue.js` derives the exclusion rather than storing it, so its counts read `731 routines, 7 excluded from
-738 call targets` and the ledger cannot gain a verdict on bytes that are not code.
+`tools/queue.js` derives both corrections rather than storing them: the exclusion from the image with `SEED_MIN`, the
+additions from the seed file, and it reports `775 routines: 731 from call targets, 44 from the seed file, 7 excluded`.
+A ledger row that puts a status on an address in zero fill is reported as INVALID rather than quietly overridden.
 
 ```
 738  call targets

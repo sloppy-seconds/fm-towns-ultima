@@ -29,13 +29,16 @@ Run `node tools/recondiff.js`.
 
 | | ours | theirs | in both | theirs only | ours only |
 |---|---|---|---|---|---|
-| instruction starts | 39,190 | 41,847 | 36,658 | 5,189 | 2,532 |
-| function starts | 738 | 818 | 697 | 121 | 41 |
+| instruction starts | 39,826 | 41,847 | 37,275 | 4,572 | 2,551 |
+| function starts | 782 | 818 | 741 | 77 | 41 |
 
-The instruction overlap is 87.6 percent of their set and 93.5 percent of ours. The function overlap is 697,
-which is most of both, so the two walks broadly agree and the differences are the question.
+The instruction overlap is 89.1 percent of their set and 93.6 percent of ours. Our column is the `E8` call targets
+**plus the 44 starts in `tools/runtime-seeds.txt`**, which is why it reads 782 rather than 738, and why theirs-only
+has fallen from 121 to 77 since the first run of this comparison.
 
-## Their 121 extra function starts, classified
+## The 44 that were theirs alone, and are now banked
+
+The first run of this comparison found 121 starts the module emits that our seed rule does not. Classified:
 
 | class | count | what it means |
 |---|---|---|
@@ -43,11 +46,24 @@ which is most of both, so the two walks broadly agree and the differences are th
 | an instruction boundary our walk decoded but no CALL reaches | 77 | jump-table entries and indirect targets, which is a coherent explanation and not a defect |
 | an address our walk never reached | 44 | a reachability fact about our seeds, **not** a disagreement about the bytes |
 
-The third row needs care, and the first version of this tool got it wrong by calling it "not a boundary". It
-means only that our walk never arrived there. Guest `0xe7238` is one of the 44 and begins `ff 05 e0 ae 07 00`,
-which decodes cleanly as `inc dword ptr [0x7aee0]`. The address is very likely a real function head that no
-`E8` in the image points at, so our seed rule cannot find it and theirs can. `node tools/recondiff.js --verbose`
-lists all 44 with their bytes.
+The third row is the one with value in it, and it has been acted on. All 44 are in `tools/runtime-seeds.txt`, with a
+header saying where they came from and what the evidence is worth, and seeding this project's walk with them raises
+it from **39,190 to 39,826 instructions**. So they are no longer theirs alone: the row above now reads 77 and 0
+because 44 moved into the shared set.
+
+**What that did to the queue.** `tools/queue.js` reads the seed file as well as the `E8` rule, so its universe grew
+from 731 routines to **775**: 731 call targets, 44 with no call site, and 7 excluded as zero fill. `unattempted` rose
+from 629 to 673, which is the first time that number has gone up, and it went up because a whole class of routine
+became visible rather than because anything regressed. The counts are owned by [call-graph.md](call-graph.md).
+
+**And what it did not do.** The recompiled module is unchanged: 818 functions, 41,847 instructions, 0 refused and 0
+conflicts before and after. That is not a surprise and it is worth writing down, because the same file now feeds both
+consumers. These 44 are starts the recompiler already emits, so handing them back to it as seeds is a no-op. The 30
+in the next section are the opposite case, addresses it does not decode at all, and those are what moved its counts.
+
+This is the row that needed care, and the first version of this tool got it wrong by calling it "not a boundary". It
+means only that our walk never arrived there. Guest `0xe7238` is one of the 44 and begins `ff 05 e0 ae 07 00`, which
+decodes cleanly as `inc dword ptr [0x7aee0]`. `node tools/recondiff.js --verbose` lists all 44 with their bytes.
 
 ## Our 41, and the seven that are not routines
 
@@ -174,7 +190,10 @@ The gate was tested in both directions before being trusted:
 
 ## What is now known
 
-- The two walks agree on 697 function starts and 36,658 instruction starts, so neither is badly wrong.
+- The two walks agree on **741** function starts and **37,275** instruction starts, so neither is badly wrong.
+- The `E8` rule is blind in both directions, and both are now measured: 7 of its 738 targets are data, and 44
+  routines have no call site at all. Those 44 are in `tools/runtime-seeds.txt` and in the queue, which is why the
+  shared function count reads 741 and the routine total reads 775.
 - **Neither walk contradicts the other anywhere.** In the cross-seed test, 0 of their 121 extra starts fall
   inside an instruction we prove, and 0 of our 30 fall inside one of theirs. Every difference is coverage or
   reachability, which is the outcome that makes the differences workable.

@@ -24,3 +24,62 @@
 0x0e7238
 0x0ffc90
 0x0fdf5f
+
+# ---------------------------------------------------------------------------------------------------
+# THE 44 STARTS fmtownskit REACHES THAT THE `E8` RULE CANNOT, added after the cross-seed comparison.
+#
+# WHERE FROM. tools/recondiff.js compares this project's walk (seeded from every `E8 rel32` target) with the
+# recompiler's (seeded from the MP header entry plus the rules in tools/seeds.js and this file). 44 function
+# starts appear in its walk and in neither seed rule here, because nothing calls them by name: they are reached
+# through pointers taken at run time, which is the same reason the four above are here. Measured, not argued:
+# `node tools/cfgwalk.js --seeds-file <these>` raises the walk from 39,190 to 39,826 instructions, and the
+# conflict test answers `unreached` for all 44, which means no instruction this project places spans any of them.
+#
+# WHAT THEY ARE NOT. They are not proved function heads the way a call target is. The evidence is that a second,
+# independent decoder emits a function there and this project's decoder does not contradict it. Each needs its own
+# verdict, which is why they are seeds and not conclusions.
+#
+# 0x0e7238, 0x0fdf5f and 0x0ffb72 already appear above from the live hook-pointer dump, so they are not repeated
+# here. The list below is the 41 that are new, and the four above plus these 41 are the 44 the comparison names.
+
+0x0f40fe
+0x0f443a
+0x0fd3fa
+0x0fdde8
+0x0fe392
+0x0fe397
+0x0fe407
+0x0fe445
+0x0fe4c5
+0x0fe4da
+0x0fe4ee
+0x0fe4fd
+0x0fe545
+0x0fe561
+0x0fe57d
+0x0fe5a3
+0x0fe5bf
+0x0fe606
+0x0fe62c
+0x0fe652
+0x0fe678
+0x0fe69e
+0x0fe6c4
+0x0fe6d3
+0x0fe70f
+0x0fec66
+0x0fec68
+0x0fec9b
+0x0feca2
+0x0feca9
+0x0fecb0
+0x0fed08
+0x0fee7c
+0x0feec5
+0x0feec7
+0x0feec9
+0x0feedb
+0x0ff97f
+0x0ff9fa
+0x10168c
+0x10388c

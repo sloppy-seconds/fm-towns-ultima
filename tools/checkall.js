@@ -182,13 +182,13 @@ const runNode = (script, args = []) => {
 	if (j) {
 		const want = [
 			['emitted functions', j.functions.theirs, 818],
-			['call targets', j.functions.ours, 738],
-			['function starts in both', j.functions.both, 697],
+			['our starts (call targets plus the seed file)', j.functions.ours, 782],
+			['function starts in both', j.functions.both, 741],
 			["fmtownskit's function starts in zero fill", j.functions.theirs_only.zero_run, 0],
-			['our call targets in zero fill', j.functions.ours_only.zero_run, 7],
+			['our starts in zero fill', j.functions.ours_only.zero_run, 7],
 			['emitted instructions', j.instructions.theirs, 41847],
-			['our instructions', j.instructions.ours, 39190],
-			['instruction starts in both', j.instructions.both, 36658],
+			['our instructions, seeded', j.instructions.ours, 39826],
+			['instruction starts in both', j.instructions.both, 37275],
 		];
 		for (const [what, got, exp] of want) {
 			if (got !== exp) problems.push(`FAIL ${what}: ${got}, expected ${exp}. Re-measure before changing this number.`);
@@ -196,7 +196,7 @@ const runNode = (script, args = []) => {
 		const seven = ['0x17309', '0x9829b', '0x9b26b', '0xcfc34', '0xd295b', '0xd29c5', '0xd2c47'];
 		const got = (j.functions.ours_only.zero_run_addresses || []).slice().sort();
 		if (got.join(',') !== seven.join(',')) {
-			problems.push(`FAIL our call targets in zero fill are ${got.join(',') || 'none'}, expected ${seven.join(',')}. A new one is a seed the image does not support.`);
+			problems.push(`FAIL our starts in zero fill are ${got.join(',') || 'none'}, expected ${seven.join(',')}. A new one is a seed the image does not support.`);
 		}
 		// And the split by run length, because that is what separates the three the region census catches from the
 		// four it does not. Three sit in megabyte-scale extents, four in alignment gaps of 53 to 59 bytes, and the
@@ -211,8 +211,8 @@ const runNode = (script, args = []) => {
 	record('walk comparison', problems);
 }
 
-// E5. The decompilation queue. docs/queue.json stores only what the ledger knows; tools/queue.js derives the 738
-// starts and their caller counts from the image and merges the two. This check exists because item 4j's finish is
+// E5. The decompilation queue. docs/queue.json stores only what the ledger knows; tools/queue.js derives the
+// universe instead, from the `E8` call targets in the image plus the starts in tools/runtime-seeds.txt, and merges the two. This check exists because item 4j's finish is
 // "every routine carries a status and the statuses sum to 738", which is only checkable if something counts them.
 {
 	const r = runNode('queue.js', ['--counts']);
