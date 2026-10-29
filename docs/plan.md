@@ -639,9 +639,14 @@ in either walk.** `tools/calltargets.js` answers that, and the answer splits the
 
 - **22 are not routines.** Every `E8` pointing at them sits in data in both decodes. The byte rule fired on table
   bytes and the target then decoded as plausible code, which is why it looked like a routine at all.
-- **8 are a real disagreement.** Our walk decodes the call site as an instruction and theirs does not, so the open
-  question is whether that caller is code. Both walks are self-consistent and one is wrong. That is the residue of
-  this item and it is recorded here rather than resolved.
+- **8 are a real disagreement, and all 8 are real calls.** Our walk decodes the call site as an instruction and
+  theirs does not, so the question was whether that caller is code. Decided from the bytes: in every one of the 8 a
+  complete instruction ends exactly where the `e8` begins, including a standard `push ebp; mov ebp, esp` prologue at
+  `0x105346` and a `ret` with a padding `nop` at `0x1050f4`. So the conflict count from the cross recompile is their
+  decode spanning real calls, not our walk inventing them, which is the opposite of what the conflicts first looked
+  like. Three of the 8 are function-head disagreements rather than decode ones, and one of those, `0x1050f4`, is
+  settled by its bytes: it follows a `ret` and a `nop`, so it is a head, and both walks are wrong about it in
+  different ways. The per-address table is in [walk-comparison.md](walk-comparison.md).
 
 **The rule reaches further than the 30.** Applied to all 738 call targets it finds **26** that nothing really calls,
 and with the 7 in zero fill that is 33 exclusions. So the queue went from 775 routines to **749**: 705 that a call

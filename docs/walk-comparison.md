@@ -188,7 +188,7 @@ The gate was tested in both directions before being trusted:
 - the expected run length for one bad seed was changed from 337,645 to 337,646 and the gate reported
   `FAIL the zero runs holding our bad seeds are [...], expected [...]`, so the run-length assertion is live
 
-## The verdict for the 30: 22 are not routines, 8 are a real disagreement
+## The verdict for the 30: 22 are not routines
 
 Item 4o. The 30 starts our walk holds that the module never decodes were decided by one measurement: for each, is the
 site of any `E8` pointing at it an instruction start in either walk.
@@ -208,6 +208,34 @@ calls, of which 22 came from item 4o, plus the 7 already excluded as zero fill, 
 775 to **749**: 705 routines a call site points at, plus 44 with no call site. Four of the 26 had carried ledger
 verdicts, having been attempted as routines; those rows now say `excluded` with the reason, and the queue's INVALID
 status is what surfaced them.
+
+## The 8 that remain: every one is a real call
+
+The 8 addresses where our walk calls the call site code and theirs does not. Each was decided by the bytes around the
+site, and the test is whether a complete instruction ends exactly where the `e8` begins.
+
+| target | call site | bytes ending at the site | our head | their head | verdict |
+|---|---|---|---|---|---|
+| `0x610` | `0xe627a` | `68 d8 a7 07 00` = `push 0x7a7d8` | `0xe5ed0` | `0xe5ed0` | real call, their decode spans it |
+| `0xb5d` | `0xe71ae` | `68 d8 a7 07 00` = `push 0x7a7d8` | `0xe70ec` | `0xe70ec` | real call, their decode spans it |
+| `0x103cd4` | `0x102266` | `74 13` `je`, then `57` `push edi` | `0x102208` | `0x102208` | real call, their decode spans it |
+| `0x103d5c` | `0x10214b` | `f4` `hlt`, a one-byte instruction | `0x102088` | `0x102088` | real call, their decode spans it |
+| `0x10579c` | `0x105346` | `55 8b ec` `push ebp; mov ebp, esp`, then `ff 75 0c` | `0x105328` | `0x105328` | real call after a standard prologue |
+| `0x1050e8` | `0x1050f4` | `c3` `ret`, then `90` `nop` padding | `0x1050e8` | `0x10507c` | real call, and the site is a new function head |
+| `0x1019fc` | `0x101a1a` | `6a ff` = `push -1` | `0x1019fc` | `0x1019e4` | real call, function heads disagree |
+| `0x103d79` | `0x1057b5` | `57` `push edi` | `0x10579c` | `0x1056dc` | real call, function heads disagree |
+
+So all 8 targets are routines, which is why none of them is in `tools/non-call-targets.txt`, and the queue's 749 does
+not change. What differs is where a function begins, not whether the call is real.
+
+Three of the eight are function-head disagreements rather than decode disagreements, and one of those is settled by
+its bytes: `0x1050f4` follows a `ret` and a padding `nop`, so it is a function head, and both walks are wrong about it
+in different ways, ours by containing it in `0x1050e8` and theirs by starting at `0x10507c`. The other two, `0x101a1a`
+and `0x1057b5`, have a real call and an unsettled head.
+
+**What this says about the conflict count.** The cross recompile reported 32 conflicts and 2 refusals when these
+addresses were added to its seed list. On this evidence the conflicts are its decode spanning real call instructions,
+not our walk inventing calls, which is the opposite of what the conflicts first looked like.
 
 ## What is now known
 
