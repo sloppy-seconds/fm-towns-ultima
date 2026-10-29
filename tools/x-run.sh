@@ -84,6 +84,7 @@ do_start() {
 	echo "starting $NAME"
 	podman_ run -d --name "$NAME" \
 		-e "RESOLUTION=$RESOLUTION" \
+		-e "U2_FONT=/src/vendor/roms/FMT_FNT.ROM" \
 		-p "$XWEB:6080" -p "$XVNC:5900" \
 		-v "$ROOT:/src:ro$Z" \
 		-v "$VOLUME:/build" \

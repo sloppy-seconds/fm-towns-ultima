@@ -120,6 +120,29 @@ const seeds = read('tools/runtime-seeds.txt');
 	else fail('the seed list holds 88 entries, including the four measured on the machine', `${lines.length} lines, ${bad.length} malformed, missing ${missing.join(' ') || 'nothing'}`);
 }
 
+// ---- the TownsOS selector table, measured off the running game with `PRI GDT` ----
+// Every one of these was a silent base-of-zero before it was defined, and a selector that resolves to the wrong place
+// does not fault: it just draws or reads somewhere else, which is why the screen selector 0x0120 cost a session and
+// the font selector 0x0138 cost another. They are asserted as source text so a deletion cannot pass quietly.
+{
+	const want = [
+		['0x0120', '0x80000000', '0x7FFFF', 'VRAM, the screen'],
+		['0x0128', '0x80100000', '0x7FFFF', 'VRAM, planar-packed view'],
+		['0x0130', '0x81000000', '0x1FFFF', 'sprite RAM'],
+		['0x0138', '0xC2100000', '0x41FFF', 'the font ROM'],
+		['0x0140', '0xC2200000', '0xFFF', 'PCM wave RAM'],
+	];
+	const absent = want.filter(([sel, base, lim]) => !(main || '').includes(`set_desc(${sel}, ${base}, ${lim})`));
+	if (absent.length) fail('the TownsOS selectors are defined as measured', 'missing ' + absent.map(([s]) => s).join(' '));
+	else ok('the TownsOS selectors are defined as measured', want.map(([s]) => s).join(' '));
+}
+
+// ---- the font ROM is loaded, which is what makes the game's text appear ----
+{
+	if ((main || '').includes('m.font = std::move(glyphs)')) ok('the font ROM is loaded into the machine', 'U2_FONT or FMT_FNT.ROM');
+	else fail('the font ROM is loaded into the machine', 'no assignment to m.font');
+}
+
 // ---- docs and code agree about the debug switches ----
 // Every U2_* the docs offer has to exist in the port, and every one in the port has to be documented. A switch
 // documented but absent is a promise the tool cannot keep, and one present but undocumented is a knob nobody

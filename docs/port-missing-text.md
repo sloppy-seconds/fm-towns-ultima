@@ -55,16 +55,62 @@ Three things follow, and they kill the sprite theory:
 So the frame is composed from **layer 0 alone** (`0x0C`), the box and bars are in layer 0, and the text is not in VRAM
 anywhere. The write never happens.
 
-## The lead that is left
+## The lead that is left, and it is a strong one
 
-The one number that changes between the notice and the title and has not been chased is **`vreg[1]`: `0x28` at the
-notice, `0x08` at the title.** That register is the video output control at port `0x44A`, and a mode change there is
-exactly the kind of thing that routes drawing through a path the port does not implement. `0x20` is the bit that
-differs.
+Measured by counting the port's own unsatisfied segment loads at increasing frame counts:
 
-So the next measurement is not in the kit: it is the machine's VRAM during the notice, to see whether the text exists
-there at all and where. If it does, the offset names the writer and the `vreg` difference is the explanation. If it does
-not, then the machine's text is not in VRAM either and is coming from somewhere we have not modelled.
+| frames | what is on screen | segment loads with no descriptor |
+|---|---|---|
+| 30 | black | 1 |
+| 60 | black | 1 |
+| 90 | black | 1 |
+| 105 | the notice | **3** |
+| 150 | the title | 3 |
+
+**Two new selector loads appear at exactly the frame the notice is drawn**, and the port has no descriptor for them:
+`0128`, `0138`, `0140`. A selector the port cannot resolve is a silent base of zero, which is the same defect class as
+the screen selector `0120` that had to be defined before the port could draw anything at all. Whatever the notice draws
+through those selectors goes somewhere other than the layer the screen is showing.
+
+The font path was checked and is not it on its own: the kit already maps the font ROM at linear `0xC2100000` out of
+`Machine::font`, which nothing loads, but the game does **not** read that address during the notice: no `no device` read
+is logged in 105 frames. If those two selectors are how it reaches the font, the base is the thing that is missing.
+
+`vreg[1]` is ruled out as well. `0x28` at the notice is the machine's **reset** value, set in `towns_mem.cpp`, and bit
+`0x20` selects palette bank 1, which is byte-identical to bank 0. So that difference is not the cause.
+
+## Solved: the selectors, and the font ROM behind one of them
+
+The unsatisfied segment loads were the cause, and `PRI GDT` on the running game gives the descriptors outright. This is
+the whole TownsOS window table the program uses, measured rather than guessed:
+
+| selector | base | limit | what it is |
+|---|---|---|---|
+| `0120` | `0x80000000` | `0x7FFFF` | VRAM, the screen |
+| `0128` | `0x80100000` | `0x7FFFF` | VRAM through the planar-packed view |
+| `0130` | `0x81000000` | `0x1FFFF` | sprite RAM |
+| `0138` | `0xC2100000` | `0x41FFF` | **the font ROM** |
+| `0140` | `0xC2200000` | `0xFFF` | PCM wave RAM |
+| `0148` | `0xC2000000` | `0x7FFFF` | |
+
+`0138` is the answer. The kit already maps `0xC2100000` onto `Machine::font` (`TOWNSADDR_FONT_BASE` from the emulator's
+`townsdef.h`, mapped linearly through a `0x3FFFF` mask, which the kit matches), **but nothing ever loaded the ROM**, so
+every glyph read returned zero and the text was drawn as nothing. That is the empty box exactly: the box and bars are
+layer art, the text is a font fetch, and the fetch was zeroes.
+
+**What changed in the port:** the five selectors above are now defined, read off `PRI GDT`; and `FMT_FNT.ROM` is loaded
+into `Machine::font` at start-up, from `U2_FONT` or `FMT_FNT.ROM` in the working directory, with a printed warning when
+it is missing.
+
+**What it fixed, measured.** At frame 105 the notice now draws two lines that were previously absent: the top bar's
+`Ultima II - Revenge of Enchantress -`, and the bottom red bar's `データを読み込んでいます`. Text rendering works.
+
+**What is still wrong.** The box's contents render as two rows of blue squares rather than the copyright lines. So the
+fetch now happens and the *glyphs selected* are wrong, which is a different defect from the one this page started with:
+the characters are being read from the wrong place in the font, or through the kanji window rather than the ANK block.
+The next thing to check is the physical ANK mapping, `0xCA000` for 8x8 and `0xCB000` for 16x16, which fetch from font
+ROM offsets `0x3D000` and `0x3D800` rather than linearly (emulator's `townsdef.h`), and which the port's low-memory
+mapping will currently be shadowing with RAM.
 
 A first composite of the pad page was written and reverted before this measurement existed: it put sprite content on
 screen (two teal rectangles with yellow bars) which proved the code path, but the geometry was wrong and it made the

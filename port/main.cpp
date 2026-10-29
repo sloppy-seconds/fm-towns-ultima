@@ -297,8 +297,22 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the
-	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is
+	// THE FONT ROM. The game fetches glyphs through selector 0138, whose base on the machine is 0xC2100000, and the kit
+	// maps that linear range onto Machine::font. With the vector empty every glyph read returns zero, which draws
+	// nothing: the copyright notice's box and bars appeared and its text did not. The ROM is vendored, not disc data
+	// (it ships with the emulator's ROM set), so this is a warning when absent rather than a hard failure.
+	{
+		const char* font_path = std::getenv("U2_FONT") ? std::getenv("U2_FONT") : "FMT_FNT.ROM";
+		std::vector<uint8_t> glyphs = read_file(font_path);
+		if (glyphs.empty()) {
+			std::printf("machine   no font ROM at %s, so every glyph will be blank (set U2_FONT)\n", font_path);
+		} else {
+			m.font = std::move(glyphs);
+			std::printf("machine   font ROM %zu bytes from %s\n", m.font.size(), font_path);
+		}
+	}
+
+	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is
 	// reported and survived rather than treated as fatal, so the port still runs when only the CD is present.
 	if (g_floppy.open(floppy_path)) {
 		std::printf("machine   floppy opened from %s\n", floppy_path);
@@ -366,6 +380,25 @@ int main(int argc, char** argv) {
 	// through a fixed address, and a port without that descriptor gives it nowhere to draw. Every VRAM figure
 	// before this line was a measurement of a program that had been handed no screen.
 	m.set_desc(0x0120, 0x80000000, 0x7FFFF);
+	// THE REST OF THE DESCRIPTOR TABLE THIS PROGRAM USES, read off the running game with `PRI GDT` rather than guessed.
+	// Each is a window it reaches data through, and a selector with no descriptor resolves silently to base 0, so a
+	// missing one does not fault, it just points somewhere wrong:
+	//
+	//   0128  base 0x80100000  limit 0x7FFFF   VRAM through the planar-packed view (towns_mem.cpp's packed())
+	//   0130  base 0x81000000  limit 0x1FFFF   sprite RAM
+	//   0138  base 0xC2100000  limit 0x41FFF   THE FONT ROM
+	//   0140  base 0xC2200000  limit 0xFFF     the PCM wave RAM
+	//   0148  base 0xC2000000  limit 0x7FFFF
+	//
+	// 0138 is the one that matters here. The copyright notice's text is fetched from the font ROM through it, and the
+	// kit already maps 0xC2100000 onto Machine::font -- but nothing loaded the ROM, so every read returned zero and the
+	// glyphs were drawn as nothing. That is the whole of the empty box: the box is layer art and appeared, the text is a
+	// font fetch and was zeroes. The load itself is below, next to the other files this port opens.
+	m.set_desc(0x0128, 0x80100000, 0x7FFFF);
+	m.set_desc(0x0130, 0x81000000, 0x1FFFF);
+	m.set_desc(0x0138, 0xC2100000, 0x41FFF);
+	m.set_desc(0x0140, 0xC2200000, 0xFFF);
+	m.set_desc(0x0148, 0xC2000000, 0x7FFFF);
 
 	X86Cpu c;
 	std::memset(&c, 0, sizeof c);
