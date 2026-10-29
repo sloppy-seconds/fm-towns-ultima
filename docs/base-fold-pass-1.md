@@ -274,7 +274,6 @@ Three answers, in the order they were established:
   for `c:` itself. So the shell reached by booting this CD is **TownsOS's interactive mode**, not a DOS shell: drive
   letters are not commands there, and nothing on the hard disk can be run from it by typing DOS syntax. That is why the
   probe batch never ran, and it is the real reason every marker attempt failed.
-
 **So the driver route cannot be driven from the CD's prompt.** It needs the shell that is reached by booting the hard
 disk (`docs/highc-authentic-toolchain.md` describes that prompt as `Q:\>`, which is why the two were easy to confuse),
 and the CD wins the boot whenever it is seated. The untried combination is the HDD boot **without** the CD seated, with
@@ -283,3 +282,26 @@ the compiler already installed on that disk, or the CD's own `AUTOEXEC` patched 
 
 **And a correction to the paragraph above**: the prompt does not prove the guest can be driven, only that it can be
 reached. Typing works; the command language at that prompt does not match the one the scripts speak.
+
+### Three corrections to the paragraphs above, all from the user's two remarks
+
+**The backslash claim was wrong.** `container/supervisor.js` handles it, and says so in a comment at `xkey()`: the guest
+keyboard is a Japanese 106 layout, `backslash` there is the yen key and yields `\u00a5`, so the map sends
+`intl_backslash`, the X keysym whose purpose is to emit a real `0x5C` on that layout. The separator did reach the guest;
+what made `c:probe` look separator-less was the **vision model's transcription** of the screenshot, which is not a
+character-exact instrument and should not have been quoted as one.
+
+**Forward slashes work, and the shell is DOS-like.** With `/` typed instead of `\`, `dir` executed and listed the CD's
+root (`IMENU.IF2`, `TOWNS.ICO`, `TOWNS.SYS`, `T_FILE`, `T_TOOL`, `T_UTIL`, `VLIB`, `VOICE`). So the interpreter takes DOS
+commands and slash-separated paths, and the earlier `c:` failure was about the drive, not the syntax.
+
+**There is no writable drive at all in this configuration.** `dir a:/`, `dir c:/` and `dir d:/` each answered
+`No such file or directory.` Booting from the CD means the hard disk mounted as `-HD0` is **not** a DOS drive, and no
+floppy is attached, so the only volume is a read-only CD. That is why nothing could ever be written, why every marker
+was impossible, and it agrees with the limitation `docs/decompiling-experiment.md` records as "GDS resident plus
+writable volume plus DOS prompt is enough" being ruled out.
+
+**What that means for the next attempt, concretely.** The driver route needs a boot that produces a writable drive. Two
+candidates, in cost order: attach a floppy (`-FD0 /data/<image>.hdm -FD0UP`) to this same CD boot and see whether `A:`
+appears, or boot the hard disk with the CD absent and the compiler installed on that disk. The first is one flag and one
+`dir a:/`; the second needs the SDK on the disk.
