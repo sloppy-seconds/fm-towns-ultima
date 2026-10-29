@@ -34,7 +34,9 @@
 //   node tools/cfgwalk.js --at 0xe3904    show the walk from one entry
 //   node tools/cfgwalk.js --retmap        who pops arguments: plain ret against ret imm16
 //   node tools/cfgwalk.js --insns         every instruction start, one hex address per line
-//   node tools/cfgwalk.js --refusals      every transfer the zero guard refused, one per line
+//   node tools/cfgwalk.js --seeds-file F  add the guest-frame addresses in F to the seed set (runtime-seeds.txt format)
+//   node tools/cfgwalk.js --test-seeds F  per address in F: boundary, mid-instruction, zero-fill or unreached
+//   node tools/cfgwalk.js --refusals      every transfer the zero guard refused, one per line, in the guest frame
 //   node tools/cfgwalk.js --no-guard      follow transfers into zero fill anyway
 
 'use strict';
@@ -198,8 +200,46 @@ function callTargets(img) {
 	return out;
 }
 
-function walk(img, seeds, opts = {}) {
-	const boundary = new Set();
+// SEEDS FROM A FILE, in the same format the recompiler is given: one guest address per line in hex, `#` starts a
+// comment. tools/runtime-seeds.txt is that file and its header says so. The conversion from guest into this
+// tool's frame happens HERE and nowhere else, because a seed file in one frame read as another produces a walk
+// that is confidently nonsense rather than an error.
+//
+// Unreadable lines are returned rather than skipped. A silently dropped line is a seed that looks applied and is
+// not, which is the same class of defect as a `replace()` that no-ops.
+function readSeedsFile(file) {
+	if (!fs.existsSync(file)) return { seeds: [], bad: [`${file} does not exist`] };
+	const seeds = [];
+	const bad = [];
+	fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+		const t = line.replace(/#.*/, '').trim();
+		if (!t) return;
+		if (!/^(0x)?[0-9a-f]+$/i.test(t)) {
+			bad.push(`line ${i + 1}: ${t}`);
+			return;
+		}
+		seeds.push(parseInt(t.replace(/^0x/i, ''), 16) + FILE_TO_GUEST);
+	});
+	return { seeds, bad };
+}
+
+// The greatest value at or below `a`, or null. Used to find the instruction that might span an address without
+// decoding all 39,190 of them.
+function lastAtMost(sorted, a) {
+	let lo = 0;
+	let hi = sorted.length - 1;
+	let best = null;
+	while (lo <= hi) {
+		const mid = (lo + hi) >> 1;
+		if (sorted[mid] <= a) {
+			best = sorted[mid];
+			lo = mid + 1;
+		} else hi = mid - 1;
+	}
+	return best;
+}
+
+function walk(img, seeds, opts = {}) {	const boundary = new Set();
 	const noCode = opts.noCode || [];
 	const refused = [];
 	const work = [];
@@ -315,10 +355,71 @@ function main() {
 	const ranges = noGuard ? [] : zeroRanges(img);
 	const walkOpts = { noCode: ranges };
 
+	// EXTRA SEEDS, from a file in the guest frame. Both directions of the cross-seed experiment need this: the
+	// 121 starts fmtownskit finds that our `E8` rule does not, and the 41 we find that it does not. The baseline
+	// set stays call targets, so a run with no --seeds-file is unchanged byte for byte.
+	const sfIdx = args.indexOf('--seeds-file');
+	const extra = sfIdx >= 0 && args[sfIdx + 1] ? readSeedsFile(args[sfIdx + 1]) : { seeds: [], bad: [] };
+	if (extra.bad.length) {
+		console.error(`--seeds-file: ${extra.bad.length} unreadable line(s): ${extra.bad.slice(0, 5).join(', ')}`);
+		process.exit(2);
+	}
+	const allSeeds = () => {
+		const s = callTargets(img);
+		for (const a of extra.seeds) s.add(a);
+		return s;
+	};
+
+	// THE CONFLICT TEST. A seed is only a seed if the address it names is not already inside an instruction. This
+	// answers that per address without decoding all 39,190 boundaries: find the greatest boundary at or below the
+	// address and ask whether that instruction spans it. Four verdicts, in order of strength:
+	//
+	//   boundary         our walk already decodes an instruction here, so the seed is redundant but sound
+	//   mid-instruction  the address falls inside an instruction we place, so the seed is wrong under our decode
+	//   zero-fill        an `E8` in data pointing into padding, which is how the seven bad queue rows arose
+	//   unreached        nothing spans it, so it is a new start and the seed is acceptable
+	//
+	// `unreached` is the interesting verdict and it is not proof of a function head. It says our walk does not
+	// contradict the address, which is exactly what a cross-seed is for.
+	if (args.includes('--test-seeds')) {
+		const i = args.indexOf('--test-seeds');
+		const file = args[i + 1];
+		const list = readSeedsFile(file);
+		if (list.bad.length) {
+			console.error(`--test-seeds: ${list.bad.length} unreadable line(s): ${list.bad.slice(0, 5).join(', ')}`);
+			process.exit(2);
+		}
+		const base = callTargets(img);
+		const r = walk(img, base, walkOpts);
+		const sorted = [...r.boundary].sort((x, y) => x - y);
+		const rows = list.seeds.map((a) => {
+			const guest = hxGuest(a - FILE_TO_GUEST);
+			if (r.boundary.has(a)) return { guest, verdict: 'boundary', detail: 'our walk already decodes an instruction here' };
+			if (inRanges(a, ranges)) return { guest, verdict: 'zero-fill', detail: 'the address is inside a run of zero bytes' };
+			const b = lastAtMost(sorted, a);
+			const ins = b === null ? null : decodeOne(img, b);
+			if (ins && b + ins.size > a) {
+				return { guest, verdict: 'mid-instruction', detail: `inside the ${ins.size}-byte instruction at ${hxGuest(b - FILE_TO_GUEST)}: ${ins.text}` };
+			}
+			return { guest, verdict: 'unreached', detail: 'no instruction we place spans this address' };
+		});
+		const tally = {};
+		for (const row of rows) tally[row.verdict] = (tally[row.verdict] || 0) + 1;
+		if (args.includes('--json')) {
+			console.log(JSON.stringify({ file, tested: rows.length, tally, rows }, null, 1));
+			return;
+		}
+		console.log(`conflict test against ${base.size} CALL targets, ${r.decoded} instructions decoded`);
+		for (const k of ['boundary', 'mid-instruction', 'zero-fill', 'unreached']) console.log(`  ${k.padEnd(16)} ${tally[k] || 0}`);
+		console.log('');
+		for (const row of rows) console.log(`  ${row.guest.padEnd(10)} ${row.verdict.padEnd(16)} ${row.detail}`);
+		return;
+	}
+
 	if (args.includes('--check')) {
 		const i = args.indexOf('--check');
 		const check = Number(args[i + 1]);
-		const seeds = callTargets(img);
+		const seeds = allSeeds();
 		const r = walk(img, seeds, walkOpts);
 		const isBoundary = r.boundary.has(check);
 		const isCallTarget = seeds.has(check);
@@ -360,7 +461,7 @@ function main() {
 		// One line per refused transfer, in a shape a check can assert. This exists so the
 		// guard can be tested by its effect: turning it off makes these lines disappear, and
 		// a guard that quietly stopped firing would otherwise only lower a number.
-		const seeds = callTargets(img);
+		const seeds = allSeeds();
 		const r = walk(img, seeds, walkOpts);
 		console.log(`frame: guest, converted from this tool's own frame by -${hxGuest(FILE_TO_GUEST)}`);
 		for (const x of r.refused) {
@@ -379,7 +480,7 @@ function main() {
 		// caller, deliberately, because a silent conversion here is the failure this project has had four times:
 		// a mismatched frame yields a clean empty intersection rather than an error. Measured for the record:
 		// `--check 0x1e9` and `--check 0x105c58` are call targets here, and those are guest 0x9 and 0x105a78.
-		const seeds = callTargets(img);
+		const seeds = allSeeds();
 		const r = walk(img, seeds, walkOpts);
 		const bounds = [...r.boundary].sort((a, b) => a - b);
 		for (const a of bounds) console.log(a.toString(16));
@@ -395,9 +496,9 @@ function main() {
 		//
 		// So this counts only where the walk has PROVED an instruction starts, and asks ndisasm what the
 		// instruction at that boundary actually is.
-		const seeds = callTargets(img);
+		const seeds = allSeeds();
 		const r = walk(img, seeds, walkOpts);
-		console.log(`walk from ${seeds.size} CALL targets`);
+		console.log(`walk from ${seeds.size} seeds, ${seeds.size - callTargets(img).size} of them from the file`);
 		console.log(`  instructions decoded: ${r.decoded}`);
 		console.log(`  distinct boundaries:  ${r.boundary.size}`);
 		reportRefusals(r);
@@ -463,9 +564,9 @@ function main() {
 		return;
 	}
 
-	const seeds = callTargets(img);
+	const seeds = allSeeds();
 	console.log(`image ${img.length} bytes`);
-	console.log(`seeding with ${seeds.size} CALL targets\n`);
+	console.log(`seeding with ${seeds.size} seeds, ${seeds.size - callTargets(img).size} of them from the file\n`);
 	const t0 = Date.now();
 	const r = walk(img, seeds, walkOpts);
 	const ms = Date.now() - t0;

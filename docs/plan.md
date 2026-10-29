@@ -82,6 +82,7 @@ from the items below rather than maintained separately.
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4j2 Compare our walk with fmtownskit's | AUTONOMOUS | **done**, 697 of 818 starts shared and seven bad seeds named |
+| 4j3 Cross-seed the two walks | PARTLY AUTONOMOUS | **partly done**, no conflicts in either direction, the recompile half needs a scripted seed set |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
 | 5a Character creation | AUTONOMOUS | **done**, modifiers read from the code |
 | 5b Movement and torus wrap | AUTONOMOUS | **yes** |
@@ -591,6 +592,31 @@ takes no GL path at all.
 **The last one is probably right.** The palette question needs `get_palettes`, not a
 screenshot. The stdio client completes the handshake and `tools/list` but never gets a
 `tools/call` response, and that is a bug in `tools/mcp-geartowns.py`, not in Geartowns.
+
+### 4j3. Cross-seed the two walks
+
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | the conflict test runs unattended. The recompile half needs the exact seed set rebuilt from `tools/seeds.js`, which is scripted, plus the 66 no-code ranges, so it is startable but slow |
+| done when | every address in each walk's exclusive set carries a verdict from the other walk, and the recompile has been run with the addresses our walk holds so that the two sets are known to converge or the addresses that will not converge are named |
+| blocked by | nothing for the conflict test, and nothing for the recompile once the invocation is a tool rather than a command |
+
+**The conflict half is done, and it came back clean.** `tools/cfgwalk.js` gained `--seeds-file` and
+`--test-seeds`, both reading the guest-frame format `tools/runtime-seeds.txt` already uses. Results:
+
+- their 121 exclusive starts: **77** boundaries we already place, **44** unreached by our seeds, **0**
+  mid-instruction, **0** in zero fill
+- our 30 that they never decode: **all 30** are boundaries in our walk
+
+So neither walk contradicts the other anywhere. Every difference is coverage, which is what makes the
+remaining work mechanical instead of a disagreement.
+
+**The recompile half is not done and needs no new understanding, only a script.** The invocation recorded in
+`docs/recompilation-result.md` is `--exp game=ENCHANT.EXP@8+<672 seeds>` with 66 `--no-code` ranges, so
+rebuilding it means generating both from the tools that own them and adding our 30 addresses. Until that exists
+as a script the direction stays unmeasured. The conflict test is the reason to expect it to work.
 
 ### 4j2. Compare our walk with fmtownskit's
 

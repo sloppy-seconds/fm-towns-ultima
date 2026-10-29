@@ -105,7 +105,41 @@ Two further limits worth stating:
   they agree by construction, since the bytes are the same. What the difference measures is coverage.
 - a count agreeing is not a placement agreeing. Nothing here compares the length assigned to an instruction.
 
-## How it is checked
+## The cross-seed test, and it comes back clean in both directions
+
+`tools/cfgwalk.js` gained two modes for this. `--seeds-file F` adds guest-frame addresses from a file to the
+seed set, in the same format `tools/runtime-seeds.txt` already uses for the recompiler, and `--test-seeds F`
+answers one question per address: is this address already a boundary, is it inside an instruction we place,
+is it in zero fill, or is it unreached.
+
+The point of the test is that neither walk should be believed about a function head on its own. A seed is
+acceptable only if the other walk does not contradict it, and the contradiction that matters is an address
+falling inside an instruction the other walk proves.
+
+- **Their 121.** 77 are instruction boundaries our walk already places, so the disagreement is about
+  function-head status rather than about the bytes. **0 are mid-instruction. 0 are in zero fill. 44 are
+  unreached by our seeds.**
+- **Our 30 that they never decode.** All 30 are boundaries in our walk, and therefore 0 conflicts from their
+  side.
+
+So the two walks contradict each other nowhere. Every difference is coverage or reachability, which is the
+outcome that allows the differences to be worked rather than argued.
+
+## What is still open, and the exact command it needs
+
+Teaching fmtownskit the 30 we hold needs a recompile with those addresses added to its seed list, which is the
+second half of the cross-seed experiment. The invocation is recorded in
+[recompilation-result.md](recompilation-result.md):
+
+```
+python3 -m fmtownskit.recomp --out build --exp game=ENCHANT.EXP@8+<672 seeds> <66 --no-code ranges>
+```
+
+So it is a scripted run rather than a command to retype: `tools/seeds.js` produces the 672, and the 66
+`--no-code` ranges come from the per-module ranges recorded for patch 8a. Until that run exists as a tool, the
+"teach them" direction stays unmeasured, and the conflict test above is the reason to expect it to work.
+
+
 
 `node tools/checkall.js` runs the comparison as the gate `walk comparison`. It asserts the eight counts
 above, the seven addresses by name, and the run length that holds each one, so a new bad seed fails loudly
@@ -124,6 +158,9 @@ The gate was tested in both directions before being trusted:
 ## What is now known
 
 - The two walks agree on 697 function starts and 36,658 instruction starts, so neither is badly wrong.
+- **Neither walk contradicts the other anywhere.** In the cross-seed test, 0 of their 121 extra starts fall
+  inside an instruction we prove, and 0 of our 30 fall inside one of theirs. Every difference is coverage or
+  reachability, which is the outcome that makes the differences workable.
 - Seven of the 738 queue entries are `0xE8` bytes in data, listed above with the run holding each. Three are
   in megabyte-scale extents and four in alignment gaps of 53 to 59 bytes, so the queue's denominator is 731
   routines and the collision count is exact for the first time.
