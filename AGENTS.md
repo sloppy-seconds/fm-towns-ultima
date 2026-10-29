@@ -672,16 +672,23 @@ Write it in `docs/` as OPEN and say what is missing.
 ### Git
 
 - Commit in logical units. `git init` is already done, branch `main`.
-- What earns a commit, and nothing else does: a capability change, a docs claim that no longer matches the code or the
-  measurements, a new assertion in a gate, or a kit pin bump. A plan item closing counts under the second, because
-  closing it changes what the plan says.
-- A negative result is a row in the ruled-out table of the page that owns the subject, not a commit of its own. It
-  rides along with the next commit that touches that subject. Measured on 2026-10-29: 146 commits in thirty hours,
-  most of them single probes, and the pages already held every one of those results.
+- Commit per **subject**, not per measurement. A subject is one defect, one plan item, or one instrument that a block
+  of investigation needed. It is not a finding, and it is not a kit tweak.
+- What earns a commit: a capability change, a new assertion in a gate, or a docs claim the code has outgrown. A docs
+  **finding** does not earn one on its own. Findings accumulate on the page that owns the subject and land with the
+  next functional change, or once when the subject settles.
+- A negative result is a row in the ruled-out table of the page that owns the subject, never a commit. Measured on
+  2026-10-29: 146 commits in thirty hours, most of them single probes, and the pages already held every one of those
+  results.
 - One commit per defect or per plan item, not per experiment. The font ROM, the ANK font window and the 20-dot font
   were one investigation and should have been one commit.
-- Commit at boundaries so work is not lost: when a fix is proven, when an item closes with a verdict, and at the end
-  of a session. Not after every measurement.
+- Kit changes batch as well. Several tweaks in one kit commit, then **one** pin bump for the block. An instrument
+  tweak followed by its own pin bump is two closure points for no progress. Measured on 2026-10-30: 7 commits in
+  eight hours across both repositories, 2 of them pure pin bumps and 1 docs-only, and the task they served was still
+  unfinished.
+- Committing does not end a task. Gates passing, a clean tree and a commit message are three things that look like an
+  ending and none of them is one. Before writing a closing report, check the task's own done-when.
+- Commit before anything risky, as a savepoint. That is safety, not completion.
 - Do not commit the disc images, the `.hdm`, `emulator/`, `saves/`,
   `extracted/`, or `analysis/`.
 - Do not push anywhere without being asked.
