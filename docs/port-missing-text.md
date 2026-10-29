@@ -331,6 +331,47 @@ That is the shape of the fault to look for next: the port has to be reading a di
 which selects a different writer, and the menu's text is drawn by a mode that does not lay down the glyph. It is also
 where the `ADTR` observation above starts to matter, because `gs:[ebp+...]` means whatever GS and EBP are at the time.
 
+## The emulator's debugger, and how to turn it on
+
+`BP` answers `Error: Debugger is not enabled.` because the debugger is a **runtime** feature, and features are switched
+on with `ENABLE <name>`, not by naming them. The console command that works is:
+
+```
+ENABLE DEBUG
+  >Debugger is ON.
+BP 0110:0000659C
+BL
+  >=>00 0110:0000659C
+```
+
+`DEBUG` alone answers `Do what?`, and so does every other feature name (`IOMON`, `CMDLOG`, `AUTODISASM`):
+`TownsCommandInterpreter::Interpret` only consults `primaryCmdMap`, while the feature names live in `featureMap` and are
+read only by `Execute_Enable`, which requires `argv[1]`. This is worth recording because the error message names the
+missing state and not the missing syntax, and two sessions lost time to it.
+
+## What the debugger then showed
+
+Breaking on `0110:0000659C` while the menu redraws gives the whole plot in registers:
+
+```
+CS:EIP=0110:0000659C  LINEAR:000204D0
+EAX=0000000F  EBX=018701D0  ECX=0000003A  EDX=01860187
+ESI=FFFFFFFF  EDI=00030EE8  EBP=0007A7D8  ESP=0011E994
+```
+
+- **`EDI = 0x00030EE8`** is the VRAM offset being written, which lands in the glyph row at `y384`. So ES is the VRAM
+  segment and the plot address is a plain offset, exactly as the row analysis said.
+- **`EAX = 0x0F`** is the pixel bits before the mask is applied, so one glyph cell contributes four bits at a time.
+- `EBP = 0x0007A7D8` is TBIOS's state block, the `gs:[ebp+...]` the mode selector reads. With GS base zero that address
+  holds code rather than state, so **GS has a non-zero base and has to be measured before those fields can be read**.
+- `HIST` at the break shows the instructions immediately before the plot: `0110:6537`, `653B`, `653D`, `6542`, `654A`,
+  `654D`, `6550`, `6553`. **The renderer is the routine at `0x6500` to `0x6560`**, in the same TBIOS block as the
+  four pixel writers, and it selects a writer and calls it.
+
+That matters because the port's font reads come from a **different** routine, `0110:0000F1C4` with siblings at `F1DC`
+and `F209`. The machine draws its labels through `0x6500` and the port reads glyphs through `0xF1C4`, so the two sides
+are not taking the same text path at all: one of them is drawing and the other is doing something adjacent to it.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is
