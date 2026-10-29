@@ -313,6 +313,16 @@ int main(int argc, char** argv) {
 			m.unmap_font_window();
 			std::printf("machine   font ROM %zu bytes from %s\n", m.font.size(), font_path);
 		}
+		// The 20-dot font, a second ROM in its own window at linear 0xC2180000. Separate from the ANK font, and a
+		// program drawing a title screen's large text may be using this one.
+		const char* font20_path = std::getenv("U2_FONT20") ? std::getenv("U2_FONT20") : "FMT_F20.ROM";
+		std::vector<uint8_t> glyphs20 = read_file(font20_path);
+		if (glyphs20.empty()) {
+			std::printf("machine   no 20-dot font ROM at %s (set U2_FONT20)\n", font20_path);
+		} else {
+			m.font20 = std::move(glyphs20);
+			std::printf("machine   20-dot font ROM %zu bytes from %s\n", m.font20.size(), font20_path);
+		}
 	}
 
 	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is

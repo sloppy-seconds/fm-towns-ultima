@@ -407,7 +407,7 @@ index da2a0d6..2b76dcf 100644
      if a.functions:
          print(' '.join('%x' % f for f in sorted(p.functions)))
 diff --git a/runtime/towns.h b/runtime/towns.h
-index 08029b9..d885071 100644
+index 08029b9..ff6092f 100644
 --- a/runtime/towns.h
 +++ b/runtime/towns.h
 @@ -139,6 +139,7 @@ public:
@@ -432,6 +432,14 @@ index 08029b9..d885071 100644
      void int8e(X86Cpu& c);              // KimG (the kanji input manager), as FORRBIOS.NSD answers it
      void intfd(X86Cpu& c);
      // the timer BIOS, int 97h (the ROM's, which FORRBIOS.NSD hands protected-mode calls to; read
+@@ -273,6 +281,7 @@ public:
+     // tracing
+     bool trace_io = false, trace_int = false;
+     std::vector<uint8_t> font;          // FMT_FNT.ROM if given (not needed so far)
++    std::vector<uint8_t> font20;        // FMT_F20.ROM, the 512 KB 20-dot font at 0xC2180000
+ };
+ 
+ extern Machine* g_towns;
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
 index 75d5dad..7344066 100644
 --- a/runtime/towns_cpu.cpp
@@ -741,7 +749,7 @@ index 039e526..3e33a0e 100644
  }
  
 diff --git a/runtime/towns_mem.cpp b/runtime/towns_mem.cpp
-index 7fd99da..bc05795 100644
+index 7fd99da..c810251 100644
 --- a/runtime/towns_mem.cpp
 +++ b/runtime/towns_mem.cpp
 @@ -10,6 +10,20 @@
@@ -778,10 +786,14 @@ index 7fd99da..bc05795 100644
  uint8_t* Machine::host(uint32_t a) {
      uint8_t* p = g_x86_page[a >> 12];
      return p ? p + (a & 0xFFF) : nullptr;
-@@ -126,6 +146,14 @@ static uint8_t read8(Machine& m, uint32_t a) {
+@@ -126,6 +146,18 @@ static uint8_t read8(Machine& m, uint32_t a) {
          return m.sound.wave[bank | (a & 0xFFF)];
      }
      if (a >= 0xC2100000u && a < 0xC2140000u && !m.font.empty()) return m.font[(a - 0xC2100000u) % m.font.size()];
++    // THE 20-DOT FONT, a second ROM with its own window (emulator's townsdef.h: base 0xC2180000, 512 KB, masked).
++    // It is separate from the ANK font above and from the PCM window at 0xC2200000, and a program that renders a title
++    // screen's large text can be using this one rather than the ANK block.
++    if (a >= 0xC2180000u && a < 0xC2200000u && !m.font20.empty()) return m.font20[(a - 0xC2180000u) % m.font20.size()];
 +    // THE ANK FONT'S PHYSICAL WINDOW, which is a different view of the same ROM. The emulator's townsdef.h gives the
 +    // mapping outright: physical 0xCA000 is the 8x8 ANK block and reads font ROM offset 0x3D000, physical 0xCB000 is
 +    // the 16x16 block and reads 0x3D800. It is not linear across the two, which is why a window mapped by subtraction
