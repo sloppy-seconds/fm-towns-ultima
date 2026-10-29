@@ -309,5 +309,7 @@ appears, or boot the hard disk with the CD absent and the compiler installed on 
 **Everything learned about typing at this machine is now in
 [driving-the-townsos-prompt.md](driving-the-townsos-prompt.md)**, in one place, because four sessions re-derived it and
 one of them wrote a false claim here that a mis-read screenshot had produced. Two rules from that page belong against
-this paragraph: a drive letter alone is not a command (`cd c:` then `dir` is the form), and the CD-boot configuration
-has **no writable volume at all**, which is the real reason no marker could ever appear.
+this paragraph: a drive letter alone is not a command (`cd d:` then `dir` is the form), and **the hard disk is mounted
+as `D:` and already holds the previous session's compiles** (`R1.C`, `R1.EXP` and a Phar Lap `R1.MAP`), which answers
+the "where can it write" question that this page spent four runs on. `dir d:/` failing was the command form, not an
+absent drive.

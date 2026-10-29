@@ -37,14 +37,41 @@ nothing.
 `dir` with no argument lists the current directory, and forward slashes are accepted in paths, so `cd q:/hc386/bin`
 works and avoids the backslash question entirely.
 
-**There are no drive letters beyond the CD when booting the CD.** `docs/highc-negative-result.md` measured the SRAM
-drive table and found none, and `dir a:/`, `dir c:/`, `dir d:/` each answer `No such file or directory`. So this
-configuration has **no writable volume at all**: the CD is read only, and a `-HD0` image attached while the CD boots is
-not a DOS drive. Nothing can be written from that prompt, which makes it useless for a compiler whose output is a file.
-
-**The workaround, and it is the shape to use**: put the complex part in a `.bat` on a volume that exists and is
+**SUPERSEDED by the correction below: the hard disk IS mounted, as `D:`.** This paragraph was written from `dir a:/`,
+`dir c:/` and `dir d:/` all answering `No such file or directory`, and concluded there was no writable volume. The
+failures were the wrong command form, not missing drives. Keep the measurement (`docs/highc-negative-result.md` found
+no extra letters in the SRAM drive table) and drop the conclusion: `cd d:` then `dir` reaches the hard disk.**The workaround, and it is the shape to use**: put the complex part in a `.bat` on a volume that exists and is
 writable, and type one short command. That needs a floppy (`-FD0 <image> -FD0UP`) or an HDD boot, neither of which has
 been tried with the CD also present.
+
+### CORRECTION: the hard disk IS there, as `D:`, and it already holds compiles
+
+> This page said "no writable volume at all" in the paragraph above. **That is wrong**, and it cost a session. The
+> `-HD0` image is mounted and writable as **`D:`** when this CD boots. `dir d:/` failed because of the syntax rule two
+> sections up, not because the drive was absent: **`cd d:` then `dir`**. The same mistake made `dir a:/` and `dir c:/`
+> look like absent drives when they were the wrong form of the command.
+
+What is actually on `D:`, read from the host with `MTOOLS_SKIP_CHECK=1 mdir -i saves/scratch-tos11en.h0@@1536 ::`:
+the TownsOS system files, 98 directory entries, **and the previous session's compile work**:
+
+```
+R1  C      65 2026-10-26 18:19     char *f(char *p) { while (*p != '=' && *p) p++; p++; return p; }
+R1  MAP   706 2026-10-26  8:20     386|LINK: 2.2dJ -- Copyright (C) 1986-90 Phar Lap Software, Inc.
+R1  EXP   536 2026-10-26  8:20
+```
+
+Three things follow, and the first one means the driver route is **already known to work**:
+
+- That `R1.MAP` is Phar Lap's linker map, so `hc386` compiled and linked on this image, through the driver, in an
+  earlier session. The route does not need proving; it needs remembering.
+- The source it built is the **`"="` scanner at `0xe9e2c`**, the routine `docs/routines.json` records as `matched`
+  byte-exact through the DOS route. So on that routine the driver's output matched the DOS route's, which is the first
+  real comparison between the two generators and it says **they agree by default**.
+- The 536-byte `R1.EXP` is what a later run of mine read back and called "a stale output containing a different
+  function". It was stale, but it was not mysterious: it was this file, from this compile.
+
+**The correct shape for the next attempt**, with the drive letter right: at `Q:\>`, `cd d:`, then run the driver with a
+source already on `D:` and its output landing there. No floppy is needed, and none of the four failing runs needed one.
 
 ### What this page does not claim
 
