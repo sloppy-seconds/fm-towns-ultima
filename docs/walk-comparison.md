@@ -237,6 +237,56 @@ and `0x1057b5`, have a real call and an unsettled head.
 addresses were added to its seed list. On this evidence the conflicts are its decode spanning real call instructions,
 not our walk inventing calls, which is the opposite of what the conflicts first looked like.
 
+## And all 8 targets decode into readable routines
+
+A real call is only useful if there is a routine on the other end, so each of the 8 targets was decoded linearly from
+the target with Capstone until a terminator:
+
+| target | instructions | ends | what it is |
+|---|---|---|---|
+| `0x610` | 15 | `ret` at `0x638` | pushes, loads three stack arguments, returns |
+| `0xb5d` | 18 | `ret` at `0xb8d` | pushes three registers, loads arguments, returns |
+| `0x1019fc` | 7 | `ret` at `0x101a10` | `push ebp; mov ebp, esp`, calls `0x101a31` then `0x103348` |
+| `0x103cd4` | 4 | `ret 4` at `0x103ce6` | stores its argument to `0xe0132` and converts it with `fild` |
+| `0x103d5c` | 3 | `jmp 0x103d4a` | a thunk: `mov cx, 0; call 0x103c44`, then a tail jump |
+| `0x103d79` | 4 | `ret 4` at `0x103d83` | loads its argument with `fbld tbyte ptr [eax]`, an 80-bit value |
+| `0x1050e8` | 3 | `ret` at `0x1050f3` | a thunk: `push 0xe3a8; call 0x10507c; ret` |
+| `0x10579c` | 13 | `jmp 0x1057ca` | `enter 0x1c, 0`, three pushes, a tail jump |
+
+Every one reaches a terminator without passing through zero fill, and the shapes are idiomatic High C of this era:
+two thunks, four argument-taking routines, one `enter` frame, and two using x87 for `long double`. Nothing here looks
+like a decode that wandered into data.
+
+**One of them settles the boundary question by itself.** `0x1050e8` is `push 0xe3a8; call 0x10507c; ret`, so `0x10507c`
+is a real function that it calls, and the next function begins at `0x1050f4` after a `ret` and a `nop`. Their walk
+keeps `0x1050f4` inside the `0x10507c` function, which means it extends that function past its own `ret`.
+
+## None of the 8 was decoded or recompiled
+
+Measured four ways, because the first attempt at this question used the wrong search pattern and would have been
+worthless. Direct calls are emitted as `push32(c, ret); f_XXXXXXXX(c); X86_RET(c, ret)`, so the test is whether
+`f_<target>(c)` appears anywhere. It was validated first against `f_00101a31(c)`, a call their decode really makes.
+
+| test | result for all 8 |
+|---|---|
+| a function definition in the module | none |
+| a call site anywhere in the module | none |
+| the address covered by an instruction of theirs | 2 of 8, and only as described below |
+| an entry in their function table | none |
+
+Six of the eight fall in **gaps**: no instruction of their decode covers the address at all. The other two are
+nominally covered, but only as the middle of a **12-byte instruction at `0x103d5b`** and a **14-byte instruction at
+`0x103d76`**, starting 1 and 3 bytes before them. Nothing else in the module has instructions that long, and two in a
+row at the exact addresses where a coherent three-instruction routine decodes is the signature of a misaligned walk
+rather than a real encoding.
+
+**What that means for the port.** Five of the eight call sites sit inside functions that both walks decode from the
+same head. So the port runs those functions and skips the call, because its decode of the surrounding bytes carries
+straight through the `e8`. That is a fidelity gap rather than a missing routine, and it is why the cross recompile
+conflicted: asking for these addresses as functions forces the recompiler to re-decode their callers.
+
+
+
 ## What is now known
 
 - The two walks agree on **741** function starts and **37,275** instruction starts, so neither is badly wrong.
