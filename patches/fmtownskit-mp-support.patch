@@ -441,7 +441,7 @@ index 08029b9..ff6092f 100644
  
  extern Machine* g_towns;
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..9eda88f 100644
+index 75d5dad..dd70280 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
 @@ -10,9 +10,18 @@
@@ -513,7 +513,22 @@ index 75d5dad..9eda88f 100644
      if (call) {
          if (n == 4) { push32(c, c.sreg[1]); push32(c, next); }
          else { push16(c, c.sreg[1]); push16(c, next); }
-@@ -158,6 +203,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
+@@ -46,6 +91,14 @@ void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t n
+     x86_load_seg(c, 1, sel);
+     X86Func f = find(c, (uint16_t)sel, off, next);
+     f(c);
++    // The return values are the other half of the contract: a program that asks the system layer for a cursor or a
++    // metric and gets a different answer lays itself out differently, with no call missing and no fault raised.
++    if (g_trace_far_sel && sel == (g_trace_far_sel & 0xFFFF) && g_trace_far_all) {
++        static long rets = 0;
++        if (++rets <= (long)g_trace_far_all)
++            std::fprintf(stderr, "ret       %04x:%08x <- %04x eax %08x ebx %08x ecx %08x edx %08x f%llu\n", old, next, sel,
++                         c.r[0], c.r[3], c.r[1], c.r[2], (unsigned long long)(g_towns ? g_towns->frame : 0));
++    }
+     if (!call) return;
+     // a far call returns through retf, which set CS and EIP; the caller checks EIP
+     (void)old;
+@@ -158,6 +211,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
      towns::Machine& m = *g_towns;
      m.advance(m.machine_time(c.clocks));
      c.eip = next;
