@@ -287,24 +287,59 @@ conflicted: asking for these addresses as functions forces the recompiler to re-
 
 
 
-## What is now known
+## The fidelity gap, and the fix that closed most of it
+
+This is what the 8 turned out to be a symptom of. Measured across the whole image: **138 call instructions that this
+project's walk decodes and the recompiler's does not**, of which 137 sit in a gap rather than inside a misread
+instruction. One cause: the recompiler stops each function at its terminating `ret` and never resumes after the 2 to 4
+bytes of alignment padding that follow, so a function with no caller never enters the module and every call inside it is
+absent from the port.
+
+`tools/resumepoints.js` derives the fix: for each function of theirs that contains a skipped call, the first
+instruction start of ours after their last. **41 of those resume points are seeds now**, 25 of the first 35 confirmed by
+a standard prologue.
+
+What the recompile did, in three rounds:
+
+| | functions | instructions | refused | conflicts | skipped calls |
+|---|---|---|---|---|---|
+| before | 818 | 41,847 | 0 | 0 | 138 |
+| after the first 33 seeds | 855 | 42,890 | 0 | 0 | 20 |
+| after 41 seeds | **863** | **42,981** | **0** | **0** | **7** |
+
+**Two seeds failed the test and are recorded as failures.** `0x1019f6` and `0x101602` decode as `pop edi` followed by
+`65 78 69` and a prefixed jump followed by `74 65 6c 6c`: both spell text, so this project's walk had wandered into a
+string. Seeding them made the recompiler refuse at `0x101a1c` (`ff /7`, an invalid opcode group) and report 59 conflicts
+clustered from `0x1019ff` to `0x101a9e`, which is the entry point's neighbourhood.
+
+**The residue is 7 skipped calls in 3 functions, and two of those are this project's defect, not the recompiler's.** The
+three unseeded resume points are named in `EXPECTED_RESIDUE` inside the tool, so the residue cannot grow unnoticed, and
+`checkall.js` asserts it. `0x1019fc`, one of the original 8 targets, stays absent for the same reason: its call site is
+in that conflicted neighbourhood.
+
 
 - The two walks agree on **741** function starts and **37,275** instruction starts, so neither is badly wrong.
 - The `E8` rule is blind in both directions, and both are now measured: 33 of its 738 targets are not routines (7 in
   zero fill, 26 pointed at only by data bytes), and 44 routines have no call site at all. Those 44 are in
   `tools/runtime-seeds.txt` and in the queue, which is why the shared function count reads 741 and the routine total
   reads 749.
-- **Neither walk contradicts the other anywhere.** In the cross-seed test, 0 of their 121 extra starts fall
+## What is now known
+
+- **Neither walk contradicts the other anywhere at an address.** In the cross-seed test, 0 of their extra starts fall
   inside an instruction we prove, and 0 of our 30 fall inside one of theirs. Every difference is coverage or
   reachability, which is the outcome that makes the differences workable.
 - Seven of the 738 queue entries are `0xE8` bytes in data, listed above with the run holding each. Three are
-  in megabyte-scale extents and four in alignment gaps of 53 to 59 bytes, so the queue's denominator is 731
-  routines and the collision count is exact for the first time.
+  in megabyte-scale extents and four in alignment gaps of 53 to 59 bytes. Together with the 19 more that nothing
+  really calls, the queue's denominator is **787** routines. The two walks now agree on **786** function starts and
+  **38,408** instruction starts, from 697 and 36,658 when this comparison started.
 - Two thresholds are needed, not one: 64 for the region census and 16 for the seed question, both named in
   `tools/codelimits.js` with the split above as the reason.
 - 77 of the module's extra starts are instruction boundaries no CALL reaches, which is what a jump-table
   member or an indirect-only target looks like from our side.
 - 44 of them are addresses our seed rule cannot reach, and at least one of those decodes cleanly as a real
   function head. So our seed coverage has a measurable hole, and it is now enumerated rather than suspected.
-- `tools/cfgwalk.js --refusals` and `tools/recondiff.js` now report in the same frame and say so, so the
-  third and fifth occurrences of the frame defect are the last ones either tool can cause.
+- The fidelity gap had one cause and it is fixed for 131 of 138 sites: the recompiler never resumes after a `ret` plus
+  alignment padding, so a function with no caller was invisible to it. 41 derived resume points are seeds now, and the
+  port went from 818 to 863 functions with 0 refused and 0 conflicts.
+- `tools/cfgwalk.js --refusals` and `tools/recondiff.js` now report in the same frame and say so, so the third and
+  fifth occurrences of the frame defect are the last ones either tool can cause.

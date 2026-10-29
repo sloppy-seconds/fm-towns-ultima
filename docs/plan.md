@@ -714,7 +714,7 @@ holding the first anchor (exit 2, anchor named).
 | field | value |
 |---|---|
 | autonomy | runs unattended via `tools/cc.sh`; no emulator interaction, no disc state |
-| done when | every routine in the queue carries a status, the statuses sum to the routine count owned by `docs/call-graph.md` (775: 731 call targets plus 44 with no call site, with 7 of the 738 excluded as zero fill), and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
+| done when | every routine in the queue carries a status, the statuses sum to the routine count owned by `docs/call-graph.md` (787: 712 call targets that something really calls, plus 75 with no call site, with 26 of the 738 excluded as not routines), and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
 | blocked by | nothing |
 
 **This replaces the earlier "finish `0xe6a58`" framing, which was the wrong unit of work.** One
@@ -760,16 +760,15 @@ statuses (738 starts):
   disp32          0
   parked         30
   not-c          58
-  unattempted   651
-  excluded       33
+  unattempted   686
+  excluded       26
   recovered      10  (matched + disp32)
 ```
 
-The statuses sum to 749 routines: 705 that a real call site points at, 44 with no call site from
-`tools/runtime-seeds.txt`, and 33 of the 738 call targets excluded because they are not routines (7 in zero fill, 26
-pointed at only by `E8` bytes that are not instructions in either walk). The count is owned by `docs/call-graph.md`
-and the arithmetic is asserted by `checkall.js` as `decompilation queue`.
-**Ten recovered, 651 unattempted**, so the queue is not close to empty and there is no honest
+The statuses sum to 787 routines: 712 that a real call site points at, 75 with no call site from
+`tools/runtime-seeds.txt`, and 26 of the 738 call targets excluded because they are not routines. The count is owned by
+`docs/call-graph.md` and the arithmetic is asserted by `checkall.js` as `decompilation queue`.
+**Ten recovered, 686 unattempted**, so the queue is not close to empty and there is no honest
 way to say otherwise. The 30 parked rows all carry a cause (20 `base-fold`, 9 `unresolved`, 1 `register-choice`) and
 `tools/queue.js` reports all 30 as workable now, none blocked on an unmet dependency.
 

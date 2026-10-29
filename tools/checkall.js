@@ -181,14 +181,14 @@ const runNode = (script, args = []) => {
 	}
 	if (j) {
 		const want = [
-			['emitted functions', j.functions.theirs, 818],
-			['our starts (call targets plus the seed file)', j.functions.ours, 782],
-			['function starts in both', j.functions.both, 741],
+			['emitted functions', j.functions.theirs, 863],
+			['our starts (call targets plus the seed file)', j.functions.ours, 813],
+			['function starts in both', j.functions.both, 786],
 			["fmtownskit's function starts in zero fill", j.functions.theirs_only.zero_run, 0],
 			['our starts in zero fill', j.functions.ours_only.zero_run, 7],
-			['emitted instructions', j.instructions.theirs, 41847],
-			['our instructions, seeded', j.instructions.ours, 39826],
-			['instruction starts in both', j.instructions.both, 37275],
+			['emitted instructions', j.instructions.theirs, 42981],
+			['our instructions, seeded', j.instructions.ours, 39820],
+			['instruction starts in both', j.instructions.both, 38408],
 		];
 		for (const [what, got, exp] of want) {
 			if (got !== exp) problems.push(`FAIL ${what}: ${got}, expected ${exp}. Re-measure before changing this number.`);
@@ -209,6 +209,15 @@ const runNode = (script, args = []) => {
 		if (r.ok) problems.push('FAIL recondiff.js exited 0 while reporting call targets in zero fill, so its verdict is not wired to its finding');
 	}
 	record('walk comparison', problems);
+}
+
+// E8. The calls the port was skipping. The recompiler stops each function at its terminating `ret` and never resumes
+// after the alignment padding that follows, so a function with no caller never enters the module and the calls inside
+// it are absent from the port. tools/resumepoints.js derives those resume points and asserts that every one is seeded
+// except three named in the tool, so the residue cannot grow unnoticed. Measured before this: 138 skipped calls.
+{
+	const r = runNode('resumepoints.js', ['--check']);
+	record('calls the port was skipping', r.ok ? [] : r.out.split('\n').filter((l) => /FAIL|^ {8}0x/.test(l)));
 }
 
 // E7. The call targets nothing really calls. The `E8 rel32` rule scans every byte, so table bytes can point at an

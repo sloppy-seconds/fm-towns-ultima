@@ -174,15 +174,13 @@
    "status": "not-c"
   },
   "fdba8": {
-   "status": "excluded",
-   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
+   "status": "not-c"
   },
   "fdbbd": {
    "status": "not-c"
   },
   "fdbd2": {
-   "status": "excluded",
-   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
+   "status": "not-c"
   },
   "fdc2c": {
    "status": "not-c"
@@ -191,8 +189,7 @@
    "status": "not-c"
   },
   "fdc6e": {
-   "status": "excluded",
-   "cause": "no call site pointing here is an instruction in either walk, so the E8 is in data (item 4o)"
+   "status": "not-c"
   },
   "fdc90": {
    "status": "not-c"

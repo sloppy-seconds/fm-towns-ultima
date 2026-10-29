@@ -83,3 +83,65 @@
 0x0ff9fa
 0x10168c
 0x10388c
+
+# ---------------------------------------------------------------------------------------------------
+# THE 35 FUNCTION STARTS THE RECOMPILER NEVER RESUMES AT, derived by tools/resumepoints.js.
+#
+# WHY THEY ARE MISSING THERE. Every one is the same shape: its function ends at a terminating `ret`, then come 2 to 4
+# bytes of alignment padding (`8b c0`, `90`, `00 00`, `66 8b c0`), then a new function begins. The recompiler's walk is
+# seed driven and these functions have no caller, so nothing ever resumes after the `ret`. This project's walk resumes
+# because it does gap recovery after alignment padding. Measured: 138 call instructions that our walk decodes and its
+# does not, 137 of them in that gap, across these 35 functions.
+#
+# THE EVIDENCE THAT THEY ARE FUNCTIONS. 25 of the 35 begin with `55 8b ec` (push ebp; mov ebp, esp) or `c8` (enter).
+# Two of the rest begin `53 56 57`, the register-only prologue, and one is the thunk at 0x103d5c. What they are not is
+# called directly by anything, which is why both the `E8` rule and the recompiler's seeds miss them.
+#
+# TWO WERE SUSPECT AND BOTH FAILED THE TEST, which is why they are not in the list below. 0x1019f6 decoded as
+# `pop edi` followed by `65 78 69` ("_exi") and 0x101602 as a prefixed jump followed by `74 65 6c 6c` ("tell"), both of
+# which spell text, so this project's walk had wandered into a string. Seeding them made the recompiler refuse at
+# 0x101a1c (`ff /7`, an invalid opcode group) and report 59 conflicts clustered from 0x1019ff to 0x101a9e, which is the
+# entry point's neighbourhood and not a coincidence. With them removed the recompile is 0 refused and 0 conflicts. The
+# 33 that remain are the ones this file carries, and the two failures are recorded here rather than deleted.
+
+0x0e0624
+0x0e0998
+0x0e0d60
+0x0e1aec
+0x0e3b88
+0x0e58a4
+0x0e5904
+0x0e5a78
+0x0e5d1c
+0x0e6214
+0x0e714c
+0x0e745c
+0x0e8b38
+0x0ef7fc
+0x0effc4
+0x0f16ac
+0x0f8218
+0x0f95e0
+0x0fa4a0
+0x0fab00
+0x0fdb49
+0x0fdba8
+0x0fdbd2
+0x0fdc6e
+0x0ffffe
+0x102130
+0x102250
+0x103ad0
+0x103d5c
+0x1041ec
+0x1050ac
+0x105340
+0x10579c
+0x0e0a08
+0x10008f
+0x10217c
+0x10420c
+0x1050e8
+0x1000cb
+0x102194
+0x1050f4
