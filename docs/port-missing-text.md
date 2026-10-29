@@ -223,6 +223,50 @@ The next version has to pause on a **screen signature** rather than a delay, and
 machinery: `towns_menu_showing` and `game_menu_state` recognise screens from framebuffer pixels. Reusing them is the
 whole fix.
 
+## The machine and the port, byte for byte on the same menu
+
+The machine was put on the game menu with `u2flow.py` **without** `--journey`, which stops there by design after
+pressing space once. Both sides then hold the same screen, and their VRAM differs by **2,733 bytes of 524,288, or
+0.52%**. Everywhere else is identical, including the exact counts of the palette values `0x99` (120,464 both sides)
+and `0xEE` (5,215 both).
+
+The whole difference is **two text rows**. The blue background rows line up exactly on both sides, `y348` to `y363`
+and `y380` to `y413`, and the port holds a flat **160 blue bytes on every one of them**, a solid fill. The machine
+holds 160 only on the edges and drops to **74 to 110** in rows `y384` to `y394` and `y400` to `y410`, because glyph
+pixels replace blue pixels there. One row, `y388`, side by side:
+
+```
+machine: f0 df | dd dd dd dd dd dd dd dd dd | bb bb dd dd bb bb bb dd bd bb bb bb bb dd dd dd dd bb db dd bd ...
+port:    f0 df | dd dd dd dd dd dd dd dd dd | dd dd dd dd dd dd dd dd dd dd dd dd dd dd dd dd dd dd dd dd dd ...
+```
+
+The glyphs are **palette index 11** (`0xBB`) on a background of index 13 (`0xDD`), and the port draws the background
+and nothing else. That is the missing text, located to the byte.
+
+**What this rules out.** The port does write those rows: 9,340 writes into `0x8002C000` for `0x4000` and 9,764 into
+`0x80030000`, all from TBIOS (`0110:000081DF`, `0000409E`, `00008211`, `00004195`, `000089F2`). So the box is drawn,
+the geometry is right, and the text inside it is not. This is not a misplaced screen, a wrong page, a skipped layer
+or a missing call: it is the same function producing the fill and no glyphs.
+
+**The font-window gate is not the cause either.** The emulator selects KVRAM or the ANK font for the physical window at
+`0xC0000` with port `0xFF99`, alias physical `0xCFF99`, as `ANKFont = data & 1`. The kit implements neither, which made
+this the leading suspect. But a watch over `0xCFF00` to `0xD0100` for the whole run records **zero writes**, so the
+program never touches that register here.
+
+**Where that leaves it.** The drawing code runs and produces no glyph pixels, so what TBIOS reads when it looks up a
+character is empty. That points at the string or the glyph table the routine reads from RAM, not at control flow, and
+it matches the shape of the six earlier walls in this project: machine state the port fabricates.
+
+## Two corrections to the driving, both measured
+
+- **Space does not dismiss the splash in the port.** With `U2_KEYS=400:3920` the run ends still showing the title
+  artwork and holds 84 bytes of blue, where `400:1E61` (`'a'`) reaches the menu and holds 8,320. The machine takes
+  space, the port takes `'a'`. That is a port behaviour worth its own item.
+- **`MD 120:<off>` reads ordinary memory once the program is running.** A Phar Lap extender installs its own GDT, so
+  selector `0120` no longer means TownsOS's VRAM window: the first capture came back as x86 machine code
+  (`c1 e2 10 5b 66 f7 e3 ... c3`). `MD 0:<linear>` addresses from base zero and VRAM is linear `0x80000000`, which is
+the form that works. Two captures were wasted on this, and the second was nearly reported as a real difference.
+
 ## What that leaves
 
 The text is not an ASCII string in the executable, not a plain string in any asset, and not either font ROM. It is
