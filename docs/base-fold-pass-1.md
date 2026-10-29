@@ -148,3 +148,39 @@ preference order, and it is not reachable from any name this project can pass on
 The two explanations left are the ones `docs/compiler-toggles.md` reached on `0xe3c58`: **a different build of the
 compiler, or the optimiser-engaged driver route.** The driver route is the Towns one, needs `RUN386` and `TownsMENU`,
 and cannot coexist with a writable volume on the floppy boot, so it is a session rather than a flag.
+
+### The driver route: reachable, and not yet trustworthy
+
+**One real unblock.** The route needs a source file inside the TownsOS hard disk image, and the documented method for
+that is `mount -o loop,offset=1536`, which needs `sudo`. This host has no passwordless sudo, and the route works
+without it: the image is a TOWNS**SYSTEM** filesystem at byte `1536` and mtools reads and writes it with
+`MTOOLS_SKIP_CHECK=1`.
+
+```
+MTOOLS_SKIP_CHECK=1 mdir -i saves/scratch-tos11en.h0@@1536 ::
+ Volume in drive : is TOWNSSYSTEM
+ CONFIG   SYS        84 1989-11-21  19:01
+```
+
+Booting `localhost/fmtowns:latest` with `TSUGARU_EXTRA=-CD /data/hc.ccd -HD0 /data/<copy>.h0` and no `-BOOTKEY`
+reaches the prompt, and `hc386 R1.C` under it writes `R1.EXP` beside the source.
+
+**What is not established, and why it is written as a failure.** Two runs gave contradictory results and both are
+suspect:
+
+- the first returned a 560-byte `R1.EXP` holding the candidate compiled exactly as the DOS route's *default* produced
+  it (`b9 f4e30000 8b 44 24 04 89 41 24 ...`, 48 bytes, unframed)
+- the second returned a 536-byte `R1.EXP` holding **a different function entirely**, the `"="` scanner at `0xe9e2c`,
+  which cannot come from this source. It was a **stale output left on the image by an earlier session**, and the
+  read-back could not tell it from a new one
+- a third run, with `R1.EXP` deleted from the image first, produced **no `R1.EXP` at all** under
+  `hc386 R1.C -off optimize_fp`, so the command did not take effect
+
+So the route is reachable and has produced nothing trustworthy. The defect is in the driving, not the toolchain: the
+script sleeps and types blind, which is exactly the failure `tools/hc17-harness.sh` was written to avoid (it scrapes
+the screen for the prompt). A driver-route measurement needs prompt detection and stale-output deletion before the
+boot, and that is the next step rather than another flag.
+
+**What it does say about the question asked.** The one run whose output was plausibly fresh matched the DOS route's
+default byte for byte, so the first thing to test with a reliable driver is not the route but the route **with a
+flag**, since the driver is where the optimiser engages.
