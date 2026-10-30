@@ -179,6 +179,11 @@ The C++ reimplementation plays this game. It is the recompiled 386 code running 
 the toolkit's FM Towns machine, not the emulator, and it boots through the splash,
 the game menu and into the overworld on its own.
 
+**It is early and buggy.** Character creation does not work, so at the game menu pick
+*Journey Onward* and a character that already exists, and expect `Esc` or `Q` to end
+the run. The tested route, and every known defect with the observation that found it,
+is [what is broken in the port](docs/port-defects.md).
+
 ```bash
 ./tools/x-run.sh start          # build if needed, start, print the URLs
 ./tools/x-run.sh stop           # tear down, the build volume is kept

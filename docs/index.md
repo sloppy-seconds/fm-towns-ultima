@@ -96,6 +96,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Unreferenced extents](unreferenced-extents.md) | 7,788 bytes nothing reached refers to, and the three wrong readings of it before the measurement stood. |
 | [Recompilation result](recompilation-result.md) | 709 functions to 205,189 lines of C++ that compiles and passes its self-test. 98.7 percent of the C-shaped corpus. The port it was measured short of now runs and plays. |
 | [Recompilation conflicts](recompilation-conflicts.md) | 366 conflicts are 12 functions and two causes. Removing the obvious seed does not help, and the measurement says why. |
+| [What is broken in the port](port-defects.md) | Three defects, each with the play observation that found it, the route that has actually been played, and what a new entry has to carry. |
 | [Three games compared](three-games-compared.md) | No shared engine, 3 percent identical once shared BSS is removed. A shared toolchain, and tooling that opens all three. |
 | [Seed sets](seed-sets.md) | Deriving function starts for U1 and U3 where there are no symbols, validated against U2 first, and three walks with zero conflicts. |
 | [The wrap found](movement-wrap-found.md) | The routine that clamps a coordinate at 63, as arithmetic. A torus of 64 in both axes, and it does not change the map id. |

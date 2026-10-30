@@ -265,5 +265,45 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		);
 }
 
+// ---- the port's defect page, and the route the quickstarts give ----
+// docs/port-defects.md exists to stop a bug list filling up with plausible bugs nobody saw, and its rule is
+// structural: an entry needs the observation that produced it, so a row with an empty observation cell is exactly
+// the padded entry the page forbids. The second half is the other failure case, a quickstart that offers Generate
+// Character because the menu has it, caught by requiring the tested route and the link wherever the port is documented.
+{
+	const page = read('docs/port-defects.md');
+	if (page === null) fail('the port defect page exists', 'docs/port-defects.md missing');
+	else {
+		const rows = page.split('\n').filter((l) => /^\|\s*\d+\s*\|/.test(l));
+		const thin = rows.filter((l) => (l.split('|')[3] || '').trim().length < 20);
+		if (!rows.length) fail('the defect table has rows', 'none found');
+		else if (thin.length)
+			fail('every defect row carries the observation that found it', thin.length + ' of ' + rows.length + ' rows have a thin observation cell');
+		else ok('every defect row carries the observation that found it', rows.length + ' rows');
+	}
+	const portSection = (src, anchor) => {
+		const i = src.indexOf(anchor);
+		if (i < 0) return null;
+		const rest = src.slice(i + anchor.length);
+		const m = rest.match(/\n#{2,3} /);
+		return m ? rest.slice(0, m.index) : rest;
+	};
+	for (const [file, anchor] of [
+		['README.md', '### Play the recompiled port instead'],
+		['docs/quickstart.md', '**The same browser window can show the recompiled port instead of the emulator.**'],
+	]) {
+		const seg = portSection(read(file) || '', anchor);
+		if (seg === null) fail(file + ' has a port section', 'anchor not found');
+		else {
+			const bad = [];
+			if (!/Journey Onward/i.test(seg)) bad.push('no Journey Onward route');
+			if (!/port-defects\.md/.test(seg)) bad.push('no link to the defect page');
+			if (/Generate [Cc]haracter/.test(seg) && !/dead end/.test(seg)) bad.push('offers Generate Character without naming it a dead end');
+			if (bad.length) fail(file + ' gives the tested port route', bad.join(', '));
+			else ok(file + ' gives the tested port route', 'Journey Onward, the defect page, creation named a dead end');
+		}
+	}
+}
+
 console.log(failures ? 'portcheck: ' + failures + ' failed' : 'portcheck: ' + checks + ' checks pass');
 process.exit(failures ? 1 : 0);

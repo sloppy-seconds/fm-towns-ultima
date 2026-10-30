@@ -142,8 +142,8 @@ It prints the URLs. Open `http://<host>:6080/vnc.html`.
 
 **The same browser window can show the recompiled port instead of the emulator.**
 That is the C++ reimplementation, the game's own 386 code recompiled and running on
-the toolkit's FM Towns machine, and it is playable. It has its own container so the
-two can run side by side.
+the toolkit's FM Towns machine, and it plays with a character that already exists. It
+has its own container so the two can run side by side.
 
 ```bash
 ./tools/x-run.sh start     # builds if needed, prints the URLs
@@ -153,12 +153,25 @@ Open `http://<host>:6081/vnc.html` for the port, or `ai:5901` for raw VNC. The
 project is mounted read only and the compile goes to a named volume. `NOBUILD=1`
 skips the build, `ARGS` passes arguments to the port binary.
 
+**The port is early and buggy, and the route matters.** Character creation does not
+work, so `Generate Character` is a dead end even though the menu offers it. The route
+that has actually been played:
+
+1. Put a disk with characters on it where the container looks, before starting it.
+   The repository ships one: `unzip -o assets/save-disk/userdisk.hdm.zip -d saves/`.
+2. Press space through the splash to the game menu.
+3. `Journey Onward`.
+4. Pick a character that already exists. In-game slot 1 is `E`.
+
+`Esc` and `Q` end the run abnormally. Every known defect, with the observation that
+found it, is in [what is broken in the port](port-defects.md).
+
 | port | what |
 |---|---|
 | 6080 | the game, in a browser. Also `/editor` for the character editor |
 | 8080 | the HTTP API, for driving the game without looking at it |
 
-Then follow [playing the game](#actually-playing) below.
+For the emulator, then follow [playing the game](#actually-playing) below.
 
 ### Driving the game from a script, without clicking
 

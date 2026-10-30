@@ -98,7 +98,7 @@ from the items below rather than maintained separately.
 | 7a Does the port's screen match the machine's | AUTONOMOUS | **done**, the menu pair exists: 0 bytes differing on the displayed page, and an off-screen half-tone differing by phase |
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
-| 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
+| 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, failure demonstrated on a mutated copy |
 | 7f Give the port a floppy drive | AUTONOMOUS | **done**, floppy, keyboard and screen, the title draws |
 | 7g Watch the port from another machine | AUTONOMOUS | **done**, a generic X container, the title draws in a browser |
 | 7h The port's kanji text | AUTONOMOUS | **done**, the font is on the disc rather than in a ROM, and the menu box VRAM matches the machine byte for byte |
@@ -110,7 +110,7 @@ from the items below rather than maintained separately.
 | 9f A release, and what may be in it | NEEDS A DECISION | no, three shapes and Paul picks one |
 | 9g Cross-compiling for Windows and macOS | NEEDS A DECISION | no, and 9f may retire it |
 | 9h The README's claims and links, checked | AUTONOMOUS | **yes** |
-| 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | partly, needs Paul's observations |
+| 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
@@ -2088,13 +2088,13 @@ because this one depends on them and a reader should meet them together.
 
 ### 9i. The tested route, and a list of what is broken
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** DONE · **Autonomy:** PARTLY AUTONOMOUS
 
 | field | value |
 |---|---|
 | autonomy | partly. The page can be assembled from the repository's own record, but the list opens with Paul's observations from playing and those have to be given, not inferred |
 | done when | the port quickstart gives the route that has actually been played, game menu then Journey Onward then an existing character, and says in one sentence that character creation does not work, while a page lists every known port defect with the observation that found it and nothing on the list without one. The failure case: a quickstart that offers Generate Character because the menu has it, or a defect list padded with plausible bugs nobody saw |
-| blocked by | Paul's observations from playing the port, which are the first entries and cannot be invented |
+| blocked by | nothing. The play report arrived on 2026-10-30 and is the first two entries |
 
 The user-facing fact is blunt and belongs in the README: the port is early and buggy. The specific fact is that
 character creation does not work, so Generate Character on the game menu is a dead end and the only tested path is
@@ -2105,6 +2105,22 @@ The defect page has one rule that keeps it useful: an entry needs the observatio
 characteristic failure is a confident sentence nobody measured, and a bug list is the most tempting place in the
 project to write one. "Character creation does not work" is admissible because it was played. "Combat may be broken"
 is not, until somebody sees it break.
+
+**What landed.** `docs/port-defects.md` holds three entries, and each carries its observation: the port dies during
+ordinary play with no trigger identified, `Esc` and `Q` end a run abnormally, and character creation is a dead end
+while Journey Onward with an existing character works. The first two are Paul's play report, recorded as play
+observations with no diagnosis and no backtrace, and the page says so rather than guessing at a mechanism. The third
+is what `assets/save-disk/` exists for.
+
+The route is now in both places a reader meets the port: the README's port section and `docs/quickstart.md` route 2,
+each with the four steps, the disk to unzip first, and the sentence that creation does not work. `docs/quickstart.md`
+also stopped implying that the emulator's "actually playing" steps apply to the port, because those steps begin with
+Generate character.
+
+The page's rule is enforced rather than asked politely. `tools/portcheck.js` fails when a defect row has no
+observation cell, and fails when either quickstart drops the Journey Onward route, the link to the page, or the words
+naming character creation a dead end. Both were seen to fail: on an empty root, and on a copy with one observation
+cell blanked and one link removed.
 
 ### 9j. A save disk with characters, and where it may live
 
@@ -2160,8 +2176,8 @@ The disk's contents, from `savedisk.js ls` and `slots`: `ROSTER1.UT2` at 3,701 b
 `E`, `D` and `B` and slot 3 empty, plus `WORLD1` to `WORLD3` at 68,096 each. The game's list is 1-indexed and the
 roster is 0-indexed, so in-game slot 1 is `E`. That sentence is what the checksum protects.
 
-Still to do, and it belongs to 9a and 9d rather than here: the quickstarts have to tell the reader to expand the zip
-and pick slot 1.
+Still to do, and it belongs to 9a rather than here: the README's first screen has to tell the reader to expand the
+zip and pick slot 1. `docs/quickstart.md` does say it, as part of 9i's tested route.
 
 ### 9e. CI that proves the tree builds, without the game
 

@@ -10,7 +10,7 @@ unzip -o assets/save-disk/userdisk.hdm.zip -d saves/
 ```
 
 That writes `saves/userdisk.hdm`, 1,261,568 bytes, which is the path every tool and every container in this
-repository already expects. The zip is 3,637 bytes.
+repository already expects. The zip is 3,629 bytes.
 
 ## What is on it
 
@@ -38,6 +38,8 @@ Three characters, one empty slot, three world files. The game's character list i
 The port's tested route is the game menu, then Journey Onward, then pick a character that already exists.
 Character creation does not work yet, so a player who picks Generate Character reaches a dead end. Without this file
 the quickstart would have to say "play the original first and make a character", which is a poor first five minutes.
+The full list of what the port gets wrong, each with the observation that found it, is
+[docs/port-defects.md](../../docs/port-defects.md).
 
 It also gives every measurement a fixed starting state. The port's VRAM comparisons and the save-format work were
 taken from a disk of this shape, and a checksum makes that state reproducible.
