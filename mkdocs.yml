@@ -204,6 +204,7 @@ nav:
       - fmtownskit and seeds: fmtownskit-and-seeds.md
       - The two walks, compared: walk-comparison.md
       - What is broken in the port: port-defects.md
+      - Building the port from the download: port-from-source.md
       - The notice's missing text: port-missing-text.md
       - Handover for the missing menu text: handoff-menu-text.md
       - Guarded walk coverage: guarded-walk-coverage.md

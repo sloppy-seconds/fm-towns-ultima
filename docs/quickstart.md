@@ -164,7 +164,9 @@ that has actually been played:
 4. Pick a character that already exists. In-game slot 1 is `E`.
 
 `Esc` and `Q` end the run abnormally. Every known defect, with the observation that
-found it, is in [what is broken in the port](port-defects.md).
+found it, is in [what is broken in the port](port-defects.md). To build the port from
+the download rather than run the container, including the recompile and the cmake
+step, see [building the port from the download](port-from-source.md).
 
 | port | what |
 |---|---|

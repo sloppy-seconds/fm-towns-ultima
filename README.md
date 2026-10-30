@@ -37,7 +37,8 @@ unzip -o assets/save-disk/userdisk.hdm.zip -d saves/
 
 Open `http://<host>:6081/vnc.html`, and at the game menu pick *Journey Onward* and
 a character that already exists. Character creation does not work yet, and the port
-is early and buggy: **[what is broken](docs/port-defects.md)**.
+is early and buggy: **[what is broken](docs/port-defects.md)**. From the zip to a
+built binary, step by step: **[build the port from source](docs/port-from-source.md)**.
 
 ## The goal, and what the port is
 

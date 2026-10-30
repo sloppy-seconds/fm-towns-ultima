@@ -115,6 +115,7 @@ that the port links, which is `ci-port-build.sh`.
 | `makesave.js` | Build a save disk with characters from the command line. Imports the same modules the browser editor uses, so it is the headless test for the page. |
 | `test-savedisk.js` | Assertions for the FAT12 and roster logic, against a synthetic disk. Needs no game data. |
 | `precommit-guard.sh` | Blocks commits containing copyrighted game data. Install as a git hook, see below. |
+| `getfile.js` | Write one named file out of the disc image, and nothing else: `node tools/getfile.js ENCHANT.EXP`, or `--list ENCHANT` to see what matches. Case-insensitive on the basename, and more than one match is an error rather than a guess. It exists because several tools need one disc file on disk first, and until now each did it with an ad-hoc `node -e` over `cd.js` quoted into a doc page, which is the pattern that makes a quickstart depend on the author's disk. It does not strip, convert or interpret: the `0x200` strip is a claim about a frame and belongs with the caller. |
 | `cd.js` | Shared library. Disc reader, ISO9660 walk, PNG/WAV writers, decoders for 4bpp packed/planar/byte-per-pixel and `.SND`. Import this rather than duplicating the format logic. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See `docs/assets-and-graphics.md` 5.4 for which layout to use per file. |
 | `crossdiff.js` | Rabin-Karp shared-substring search between executables. Used in `docs/save-disk.md` 6.5. |

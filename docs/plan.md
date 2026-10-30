@@ -105,7 +105,7 @@ from the items below rather than maintained separately.
 | 9a The README's first screen | AUTONOMOUS | **done**, two quickstarts above the fold, the copyright warning with them |
 | 9b The goal, in the README, in one screen | AUTONOMOUS | **done**, the goal section, and the port named a recompile rather than a decompile |
 | 9c The page on why this is hard | AUTONOMOUS | **done**, `docs/why-this-is-hard.md`, nine obstacles each linked to the page that measured it |
-| 9d A port quickstart that starts from the download | AUTONOMOUS | **yes** |
+| 9d A port quickstart that starts from the download | AUTONOMOUS | **done**, `docs/port-from-source.md`, verified in a clean clone, and it found a step that only worked on the author's disk |
 | 9e CI that proves the tree builds | AUTONOMOUS | **done**, `.github/workflows/port-build.yml`, the port links against a synthetic module with no game file present |
 | 9f A release, and what may be in it | NEEDS A DECISION | no, three shapes and Paul picks one |
 | 9g Cross-compiling for Windows and macOS | NEEDS A DECISION | no, and 9f may retire it |
@@ -2095,7 +2095,7 @@ number, so the page cites the seed pages rather than repeating it.
 
 ### 9d. A port quickstart that starts from the download
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2114,6 +2114,26 @@ The route this page must give is the one that has been played, which is not the 
 menu, then Journey Onward, then pick a character that already exists. 9i owns the defect list that makes that the only
 route worth documenting, and 9j owns the disk it picks from. Both sit next to this item rather than in numerical order,
 because this one depends on them and a reader should meet them together.
+
+**What landed.** `docs/port-from-source.md`, ten steps from the zip to a drawn screen, and every command in it run on
+2026-10-30 in a clean clone at `/var/tmp/ci-clone` created with `git clone` plus `git submodule update --init`, with
+no `build/` and no `fmtownskit/` until the page told it to have them. The final measurement: 120 frames headless,
+`U2_SHOT` written, 7 colours in the frame, and the vision model read the notice screen off it.
+
+**The item's own failure case happened, and is fixed.** A clean clone's `port-build.sh` produced a TBIOS module of
+307 functions and faulted at `0110:6d73` on frame 80, because the TBIOS seeds come from
+`saves/analysis/entry-boot-tool.txt`, a 3.2 MB gitignored emulator capture that only the author has. That is exactly
+"a step that only works because an artefact was already on the author's disk". The derivation is now checked in as
+`tools/tbios-seeds.txt` (5,395 seeds, 39 KB), `port-build.sh` falls back to it when the capture is absent and says
+which it used, `tools/tbios-seeds.py --check` asserts the file still equals the derivation, and `checkall.js` runs
+that check and skips with a printed note where the capture does not exist. With the fallback the clean clone builds
+331 module sources and reaches the notice.
+
+**Two steps the item did not list and the clone forced.** `ENCHANT.EXP` is inside the disc image, not in the zip, so
+the page needs an extraction step, and there was no tool for it: `tools/getfile.js` is that step, generic over the
+disc and the filename. And the port needs the font ROM, so `vendor.sh` is not only about the emulator: without
+`U2_FONT` the program runs and every glyph is blank. `decode-setup.sh` is the third step nobody writes down until a
+build fails on the coverage pass.
 
 ### 9i. The tested route, and a list of what is broken
 
