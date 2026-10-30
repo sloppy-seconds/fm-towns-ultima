@@ -106,7 +106,7 @@ from the items below rather than maintained separately.
 | 9b The goal, in the README, in one screen | AUTONOMOUS | **done**, the goal section, and the port named a recompile rather than a decompile |
 | 9c The page on why this is hard | AUTONOMOUS | **done**, `docs/why-this-is-hard.md`, nine obstacles each linked to the page that measured it |
 | 9d A port quickstart that starts from the download | AUTONOMOUS | **yes** |
-| 9e CI that proves the tree builds | AUTONOMOUS | **yes**, measured: the port links against a synthetic module |
+| 9e CI that proves the tree builds | AUTONOMOUS | **done**, `.github/workflows/port-build.yml`, the port links against a synthetic module with no game file present |
 | 9f A release, and what may be in it | NEEDS A DECISION | no, three shapes and Paul picks one |
 | 9g Cross-compiling for Windows and macOS | NEEDS A DECISION | no, and 9f may retire it |
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
@@ -1987,7 +1987,8 @@ link against. What CI *can* do was measured this session: a 4 KB synthetic image
 fmtownskit.recomp --raw game=/tmp/syn.bin@0xc+0x0` produces `modules.cpp` and `p_game_000.cpp`, and `port/main.cpp`
 links against it into a **434,104-byte** `u2port`. So "the port builds" is checkable on every push without a
 copyrighted file anywhere in the pipeline, and "the port plays the game" is not checkable in CI at all and never
-will be.
+will be. Re-measured on 2026-10-30 in the trixie container on a clean clone, the linked `u2port` is 3,874,992 bytes.
+The 434,104 figure above came from an earlier session and was not reproduced, so 9e quotes the new one.
 
 That distinction is the whole phase. A release cannot contain the module either, for the same reason, so the useful
 release is not a binary.
@@ -2209,7 +2210,7 @@ zip and pick slot 1. `docs/quickstart.md` does say it, as part of 9i's tested ro
 
 ### 9e. CI that proves the tree builds, without the game
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2225,6 +2226,30 @@ same steps a human does rather than a plain `submodule update`.
 
 **Not in scope, and should not creep in:** running the port. It needs the game, and a workflow that fakes that would
 be testing a different program.
+
+**What landed.** `.github/workflows/port-build.yml`, on push and pull_request, four steps: checkout with
+`submodules: recursive`, `node tools/patchcheck.js`, build `container/Containerfile.x` and run
+`tools/ci-port-build.sh` inside it, then `node tools/checkall.js --no-build`. Verified end to end on this machine in
+a clean clone at `/var/tmp/ci-clone` with the submodule fetched from GitHub and no game file anywhere: the synthetic
+module gave `modules.cpp` and `p_game_000.cpp`, and `u2port` linked at **3,874,992 bytes**. The commands are in
+`tools/ci-port-build.sh`, and it refuses to run when `ENCHANT.EXP` is present.
+
+**Three things the item's wording got wrong, and what was done instead.**
+
+The item said CI must "apply `patches/fmtownskit-mp-support.patch`". It must not. The kit's changes ride on the
+submodule's `mp-support` branch, and the patch file is a readable mirror that `patchcheck.js` asserts is exact, so
+applying it on top would be wrong. The workflow runs `patchcheck.js` instead, which is the step a plain submodule
+update would skip.
+
+The phase header quoted a 434,104-byte `u2port` from an earlier session's measurement. That number was not
+reproduced and is not used. The figure above is from the run described here, in the trixie container, on a clean
+clone.
+
+The item assumed `node tools/checkall.js` can run without the disc. It could not: it read `ENCHANT.EXP` at top level
+and died with ENOENT, and nine of its checks failed on a tree that had done nothing wrong. `checkall.js` now
+auto-detects a disc-less tree, or takes `--no-disc`, skips exactly those nine by name, and prints the count. The skip
+list was derived by running the whole file in the clean clone and taking everything that failed there, which is also
+the demonstration that the skips are load-bearing.
 
 ### 9f. A release, and what may legally be in it
 

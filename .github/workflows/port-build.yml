@@ -1,0 +1,50 @@
+# Prove the tree builds on every push, without the game.
+#
+# WHY THIS IS ITS OWN WORKFLOW. The port's module is the recompiler's output over ENCHANT.EXP, and the disc is
+# not in this repository and never will be, so a clone alone has nothing to link. `tools/ci-port-build.sh` closes
+# the gap with a synthetic image: it proves `port/main.cpp`, the kit's runtime and the recompiler's emitted module
+# still compile and link together. That is the half of "the port builds" that is checkable without distributing a
+# copyrighted binary. The half that plays the game is not checkable in CI at all, and no step here pretends it is.
+#
+# WHY A CONTAINER AND NOT THE RUNNER. The port links SDL3, and `ubuntu-latest` is Ubuntu 24.04, which has no
+# libsdl3-dev package at all. So the build runs in `container/Containerfile.x`, which is Debian trixie for exactly
+# that reason, and the workflow reuses the image the project already ships rather than fighting the runner's apt.
+#
+# WHAT A GREEN TICK MEANS: the kit pin and its mirror patch agree, the port links against a fresh recompiler
+# output, and every check in `tools/checkall.js` that does not need the disc passes. The disc checks skip
+# themselves and print how many, which is the honest shape rather than a silent pass.
+name: Port builds without the game
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: port-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  port:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # The kit's changes to upstream ride on the submodule's branch, and patches/ is the readable mirror of them.
+      # This is the step a plain `submodule update` would skip, and it is the one that fails when the mirror drifts.
+      - name: Check the kit pin and its mirror patch
+        run: node tools/patchcheck.js
+
+      - name: Build the port against a synthetic module
+        run: |
+          docker build -f container/Containerfile.x -t u2port-ci container/
+          docker run --rm -v "$GITHUB_WORKSPACE:/work" --entrypoint bash u2port-ci \
+            /work/tools/ci-port-build.sh
+
+      # `--no-build` because the Pages workflow already builds the site strictly, and mkdocs is not in this image.
+      - name: Run the checks
+        run: node tools/checkall.js --no-build

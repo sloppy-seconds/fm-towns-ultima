@@ -32,9 +32,36 @@ const ROOT = path.join(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const QUIET = process.argv.includes('--quiet');
 const NO_BUILD = process.argv.includes('--no-build');
+// The disc is not in this repository and never will be, so both a stranger and CI have a tree with no game in it.
+// `--no-disc` says so out loud, and it is also auto-detected, because a run that reports fourteen failures when the
+// answer is "you have no disc" teaches the next person to ignore the gate. Skips are counted and printed at the end,
+// which is what makes a skip a fact rather than a silent pass.
+const NO_DISC = process.argv.includes('--no-disc') || !fs.existsSync(path.join(ROOT, 'ENCHANT.EXP'));
+// Filled in by name. A check belongs here when its input is a byte of the disc, not when it merely lives near one
+// that is not. The list was derived by running the whole file in a clean clone and taking every check that failed
+// there, which is also the demonstration that the skips are real: without this set those nine fail on a tree that
+// has done nothing wrong. Several other disc tools already skip themselves, and those are left alone.
+const DISC_CHECKS = new Set([
+	'verify',
+	'walk comparison',
+	'return convention split by ownership',
+	'disp32 comparison works and can fail',
+	'corpus census is reproducible',
+	'decoder session agrees with one-shot',
+	'cfgwalk refuses seeds inside zero fill',
+	'TBIOS dispatch chain',
+	'fnstrings reports raw addresses',
+]);
+let skipped = 0;
 
 const results = [];
-const record = (name, failures) => results.push({ name, failures });
+const record = (name, failures) => {
+	if (NO_DISC && DISC_CHECKS.has(name)) {
+		skipped++;
+		return;
+	}
+	results.push({ name, failures });
+};
 
 const pages = () => fs.readdirSync(DOCS).filter((f) => f.endsWith('.md'));
 
@@ -677,7 +704,7 @@ console.log(bad.length ? bad.join('; ') : 'agree');
 	// through, so 0x1528 reads STRENGTH when expanded. Asserted by decoding, because the six
 	// earlier readings of this byte were all plausible and all wrong, and the only way to keep
 	// one settled is to test it against a string whose meaning is already known.
-	{
+	if (!NO_DISC) {
 		const buf = fs.readFileSync(path.join(ROOT, 'ENCHANT.EXP'));
 		const at = 0x1528;
 		const end = buf.indexOf(0, at);
@@ -778,4 +805,5 @@ if (total) {
 	console.log(`\n${total} problem(s). This exits non-zero, so it can gate a commit.`);
 	process.exit(1);
 }
+if (skipped) console.log(`\n${skipped} checks skipped: no disc present. This run proves the tree, not the disc.`);
 console.log('\nall checks pass.');

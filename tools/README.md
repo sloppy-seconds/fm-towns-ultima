@@ -24,6 +24,14 @@ operand.**
 All of them locate the disc `.img` automatically by looking beside the tools
 directory, so run them from the repo root.
 
+**Running without the disc, which is what a fresh clone and CI do.** `checkall.js`
+auto-detects a tree with no game in it, and `--no-disc` forces it either way. The nine
+checks whose input is a byte of the disc are skipped and the run prints how many, so a
+skip is a stated fact rather than a quiet pass. Tools that read the image directly
+already skip themselves with a printed note. What a no-disc run does prove is the tree:
+docs and nav, plan metadata, the port's measured constants, the kit's mirror patch, and
+that the port links, which is `ci-port-build.sh`.
+
 | Script | What it does |
 |---|---|
 | `check-disc.sh` | **Start here if you only want to play.** Confirms your files match the expected rip. Plain POSIX shell, no Node. |
@@ -93,6 +101,7 @@ directory, so run them from the repo root.
 | `recomp-build.sh` | **Builds the recompiled C++ module and executes one function in the host process.** Patches the generated `CMakeLists.txt` path, drops in `recomp-run1.cpp` as the missing `main()`, adds the target, builds with cmake, and runs an address. 8.6 seconds for 794 functions. A run that stops on `int 0x90` is a result, not a failure. See `docs/recomp-plan.md`. |
 | `port-build.sh` | Builds `u2port`, the recompiled game on fmtownskit's machine: strips the image, derives seeds and no-code ranges, recompiles the game and TBIOS as two modules with their own ranges, writes the one-track cue the kit's disc reader needs, and runs it. `--reuse` skips the recompile. Every recompilation also writes `build/port/recomp/report.txt`, each module's functions, instructions, jump tables, every unresolved indirect transfer with its operands, and every refusal. That file is where item 7d's 30 and 67 come from, so it is named in the build output rather than left to be found. |
 | `insncoverage.py` | Writes the address and size of every instruction the recompiler decoded, from the same walk and the same seeds, so the port's code diff can tell a patched instruction from a data write. Item 7c. |
+| `ci-port-build.sh` | The build proof for a tree with no game in it, and what `.github/workflows/port-build.yml` runs. The port's module is the recompiler's output over `ENCHANT.EXP`, so a clone has nothing to link, and this supplies a 4 KB synthetic image instead: zero fill, which decodes as `add [eax],al`, so the recompiler emits a real module and `port/main.cpp` links against it into a `u2port` of 3,874,992 bytes. Measured in `container/Containerfile.x` on a clean clone with the submodule initialised. It refuses to run when `ENCHANT.EXP` is present, so it cannot be mistaken for the real build, and it proves the three move together rather than proving the port plays. Run it in that image because the port links SDL3 and Ubuntu 24.04 has no `libsdl3-dev`. |
 | `runtime-seeds.txt` | Function entries measured on the machine rather than derived from the image, in the guest frame, with where each came from. Read by `port-build.sh`. |
 | `divergence.py` | Compares the port's first-execution trace against the machine's control-flow capture and reports where they part. `-DX86_TRACE_ON` plus `U2_TRACE_FILE` on the port, `cfgprobe.py capture` for the machine. It found the missing `A:` drive. |
 | `u2flow.py` | Drives the game from the Towns OS menu to a loaded character, checking the screen before every keypress and stopping rather than guessing. `--status` reports the screen without changing it, `--dry-run` checks and sends nothing, `--journey` does the walk. **Run it inside the container** (`podman exec fmtowns python3 /opt/u2/u2flow.py --journey`): it drives `xdotool` against `DISPLAY=:99`, which does not exist on the host. Baked into the image for that reason. |
