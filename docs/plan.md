@@ -102,9 +102,9 @@ from the items below rather than maintained separately.
 | 7f Give the port a floppy drive | AUTONOMOUS | **done**, floppy, keyboard and screen, the title draws |
 | 7g Watch the port from another machine | AUTONOMOUS | **done**, a generic X container, the title draws in a browser |
 | 7h The port's kanji text | AUTONOMOUS | **done**, the font is on the disc rather than in a ROM, and the menu box VRAM matches the machine byte for byte |
-| 9a The README's first screen | AUTONOMOUS | **yes**, the commands already exist and were run |
-| 9b The goal, in the README, in one screen | AUTONOMOUS | not yet, waits on 9c |
-| 9c The page on why this is hard | AUTONOMOUS | **yes**, the evidence is already on other pages |
+| 9a The README's first screen | AUTONOMOUS | **done**, two quickstarts above the fold, the copyright warning with them |
+| 9b The goal, in the README, in one screen | AUTONOMOUS | **done**, the goal section, and the port named a recompile rather than a decompile |
+| 9c The page on why this is hard | AUTONOMOUS | **done**, `docs/why-this-is-hard.md`, nine obstacles each linked to the page that measured it |
 | 9d A port quickstart that starts from the download | AUTONOMOUS | **yes** |
 | 9e CI that proves the tree builds | AUTONOMOUS | **yes**, measured: the port links against a synthetic module |
 | 9f A release, and what may be in it | NEEDS A DECISION | no, three shapes and Paul picks one |
@@ -1994,7 +1994,7 @@ release is not a binary.
 
 ### 9a. The README's first screen: two quickstarts
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2011,9 +2011,18 @@ the port, which is what this session actually used and what works over SSH with 
 **What must not move above the fold.** The copyright warning. The game is supplied by the reader, and a first screen
 that omits that invites somebody to ask where the download is. The quickstart names the archive.org zip and moves on.
 
+**What landed.** The first screen is now the download warning, then two runnable blocks: `vendor.sh` plus
+`container-run.sh` for the original, and the submodule plus the disk zip plus `x-run.sh` for the port. Three commands
+each, both URLs, both linking a full page, and the port block says in the first screen that character creation does not
+work. Provenance and "what this repository contains" moved below them, and the archive.org block is now part of the
+warning rather than a section of its own.
+
+Two stale cross-references went with it, both found by grepping for `section ` after the renumbering: a pointer to a
+section 2b that has never existed, and save-disk API routes said to be in section 5 when they are in `tools/README.md`.
+
 ### 9b. The goal, in one screen, in the README
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2031,9 +2040,19 @@ oracle that a real decompile can be diffed against, screen by screen, which is t
 (`docs/plan.md` 7a and `U2_VRAM_DUMP`). A decompile with no oracle is a claim. What exists now is the oracle, and a
 game that is playable in the meantime.
 
+**What landed.** The README has a "The goal, and what the port is" section above the fold, with the three claims and
+links to `why-this-is-hard.md` and `reimplementation-gap.md`.
+
+**One wording in this item was wrong, and the README does not repeat it.** The done-when asked for "C++ with inline
+assembly fragments". Measured on 2026-10-30: `grep -rn 'asm' port/` returns nothing, and neither does the generated
+module in `build/port/recomp`. There is no inline assembly in the port. What is hand-written is the glue, `port/main.cpp`
+at 955 lines and `port/floppy.h` at 193, which supplies what TownsOS would have handed the program. The README says
+that instead, because the distinction the item is protecting, recompile rather than decompile, survives the correction
+and a false detail would not have.
+
 ### 9c. The page that answers "why is this hard"
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2063,6 +2082,15 @@ This is the longer document the README links. The obstacles, in the order a pers
 - **Why a Borland-era binary is easier.** It would carry a symbol table or at least uniform prologues, its runtime
   library would be identifiable, and there would be published tools expecting it. None of those helpers exist here,
   which is why a game-agnostic recompiler from another FM Towns project is what made this tractable.
+
+**What landed.** `docs/why-this-is-hard.md`, nine obstacles in the order a person meets them, each linked to the page
+that measured it and with no number copied forward. It is in the nav under "Where it stands" and the site builds strict.
+
+**Two bullets in this item were wrong and the page states the measurement instead.** The item said only a minority of
+functions open with `push ebp`. `docs/function-recovery.md` measured 142 of the 247 strongly-called targets carrying
+`55 8b ec`, so a majority of the frequently-called ones do, and the obstacle is that the rest are missed entirely and
+that the byte pair also occurs inside data. The item also asked for "88 seeds" as a figure, and no page owns that
+number, so the page cites the seed pages rather than repeating it.
 
 ### 9d. A port quickstart that starts from the download
 

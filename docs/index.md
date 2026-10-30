@@ -111,6 +111,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [The decompilation loop](decompilation-loop.md) | The strategy and the Andon Cord, amended where the experiment contradicted it. |
 | [The decompilation plan](decompilation-plan.md) | Running the loop unattended, and the honest ceiling. |
 | [The goal, stated](goal-behavioural-faithfulness.md) | Behavioural faithfulness, not byte-identical. What that retires and what it makes urgent. |
+| [Why this is hard](why-this-is-hard.md) | Nine obstacles between this binary and a readable decompile, each linked to the page that measured it rather than restated. |
 | [Compiler API](compiler-api.md) | A C source in, the emitted bytes out, over HTTP. About 12 seconds per compile. |
 | [AGENTS.md audit](agents-md-audit.md) | Measured cost and effectiveness of the agent operating document: what works, what is stale, what to cut. |
 | [Open questions](open-questions.md) | What is still unknown, ordered by cost to resolve. |

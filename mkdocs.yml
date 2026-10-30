@@ -238,6 +238,7 @@ nav:
       - The decompilation loop: decompilation-loop.md
       - The decompilation plan: decompilation-plan.md
   - Where it stands:
+      - Why this is hard: why-this-is-hard.md
       - Reading the code: code-analysis.md
       - The consumable function: consumable-function.md
       - A source review of game meta-notes: u2-game-meta-analysis.md

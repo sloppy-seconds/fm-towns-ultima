@@ -7,30 +7,55 @@ Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 **[Save game editor](https://sloppy-seconds.github.io/fm-towns-ultima/)** and its
 **[source](web/)**
 
-The editor runs in a browser, needs nothing installed, and edits a save disk
-entirely on your machine. If that is all you want, you can stop reading here.
-
-**Almost all of this is Ultima II work.** Ultima I and III sit on the same disc and
-were used throughout as cross-validation, never as subjects. The save-editing
-machinery generalises to them, because all three write plain ASCII rosters, but
-that work has not been attempted. See [the docs](docs/index.md) for what would be
-needed and what is genuinely U2-specific.
-
-## Where the game comes from
-
-The game is commercial software still in copyright, so it is not in this
-repository and never will be. You supply it. The copy this work was built
-against is:
+**You supply the game.** It is commercial software still in copyright, so it is
+not in this repository and never will be, and nothing extracted from it is
+committed either. Download
 
 > **https://archive.org/details/fmtownscdcollection**
 > file: `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`
 
-The zip contains the CD image as four files (`.img`, `.ccd`, `.cue`, `.sub`) and
-the save floppy (`[UserDisk].hdm`). Unpack it into this directory. Section 0
-gives checksums so you can confirm you have the same rip.
+and unpack it into this directory. Both routes below need it. The FM Towns ROMs
+are fetched by `tools/vendor.sh`, and the free clean-room set is fine.
 
-You also need the FM Towns ROMs, which the emulator requires. Section 2 covers
-that, including a free set with no copyright problem.
+## Play the original, in a browser
+
+```bash
+./tools/vendor.sh                # Tsugaru and the free ROMs, into vendor/
+./tools/container-run.sh start   # builds the image first time, prints the URLs
+```
+
+Open `http://<host>:6080/vnc.html`. For a native window, Windows, macOS, or the
+editor with nothing installed: **[docs/quickstart.md](docs/quickstart.md)**.
+
+## Play the recompiled port, in a browser
+
+```bash
+git submodule update --init fmtownskit
+unzip -o assets/save-disk/userdisk.hdm.zip -d saves/
+./tools/x-run.sh start           # builds the port first time, prints the URLs
+```
+
+Open `http://<host>:6081/vnc.html`, and at the game menu pick *Journey Onward* and
+a character that already exists. Character creation does not work yet, and the port
+is early and buggy: **[what is broken](docs/port-defects.md)**.
+
+## The goal, and what the port is
+
+The goal is Ultima II in readable C. Not a summary of what the code seems to do, but
+the rules as arithmetic a person could reimplement from, with the data tables and the
+control flow that ties them together. That has not happened yet, and
+**[why this is hard](docs/why-this-is-hard.md)** is the honest answer to why.
+
+**The port is not the decompilation.** It is the game's own 386 code mechanically
+translated into C++ by a recompiler, plus hand-written C++ glue that supplies what
+TownsOS would have handed the program at start-up. No decompiler produced it, and no
+candidate C was written for it. It is a recompile, and the difference matters.
+
+What it is for is two things. It proves the corpus is complete enough to run the game,
+and it is the oracle a real decompile gets checked against, screen by screen, which is
+the comparison this project already runs. A decompile with no oracle is a claim, and
+what exists now is the oracle, plus a playable game in the meantime. The measured
+distance to the reimplementation is **[the gap](docs/reimplementation-gap.md)**.
 
 ## What this repository contains
 
@@ -38,6 +63,15 @@ Nothing copyrighted. Scripts, tests and documentation only. Everything the game
 needs is supplied by you, and everything derived from the disc stays gitignored.
 
 Documentation: **https://sloppy-seconds.github.io/fm-towns-ultima/docs/**
+
+**Almost all of this is Ultima II work.** Ultima I and III sit on the same disc and
+were used throughout as cross-validation, never as subjects. The save-editing
+machinery generalises to them, because all three write plain ASCII rosters, but
+that work has not been attempted. See [the docs](docs/index.md) for what would be
+needed and what is genuinely U2-specific.
+
+The editor runs in a browser, needs nothing installed, and edits a save disk
+entirely on your machine. If that is all you want, you can stop reading here.
 
 ## How this was made
 
@@ -257,7 +291,8 @@ script. `stats` answers "is this screen in colour yet" with a colour census,
 `ascii` gives layout, and `text` gives a character grid for reading menus.
 
 Full route list in `tools/README.md`. The save-disk routes (`/api/save/info`,
-`/api/save/slot`, `/api/save/clone`, `/api/save/delete`) are covered in section 5.
+`/api/save/slot`, `/api/save/clone`, `/api/save/delete`) are covered in
+[`tools/README.md`](tools/README.md).
 
 ### Reading hardware state
 
@@ -282,7 +317,7 @@ backslashes.
 | option | why |
 |---|---|
 | `vendor/roms` | the ROM directory, first argument, no flag |
-| `-CD <file>.ccd` | the disc. Use the `.ccd`, not the `.cue` (see section 2b). The `.img` must sit beside it. |
+| `-CD <file>.ccd` | the disc. Use the `.ccd`, not the `.cue`: this disc's cue uses `PREGAP`, which is ambiguous. The `.img` must sit beside it, unmodified. |
 | `-CMOS saves/CMOS.BIN` | BIOS settings, created on first clean quit |
 | `-FD0 <file>.hdm` | the save floppy. Without it the game will refuse to make a character. |
 
