@@ -71,6 +71,7 @@ static unsigned long long g_trace_written = 0, g_trace_limit = 0;
 static std::vector<uint8_t> g_trace_seen;     // one byte per 4 KB page of a 64 MB window, then bit set per byte
 static uint32_t g_stop_at = 0, g_stop_dump = 0, g_stop_len = 0;
 static unsigned long long g_stop_count = 0, g_stop_hits = 0;
+static unsigned long long g_stop_frame = 0;
 // First executions only, in the order they happen. A full instruction trace of a real start-up is hundreds of
 // millions of lines and would have to be paged through; the order in which each address is *first* executed is
 // a few tens of thousands of lines, is bounded whatever the run length, and is what a comparison against the
@@ -79,8 +80,14 @@ static unsigned long long g_stop_count = 0, g_stop_hits = 0;
 // U2_STOP_AT=<guest addr> stops the run when that instruction runs and prints memory, so a value can be read at
 // exactly the same point on both sides. That is how a divergence in an allocator's return value gets compared
 // rather than guessed at.
+//
+// U2_STOP_FRAME=<n> ignores hits before frame n. Without it a routine that also runs during start-up is compared at
+// start-up and never at the operation under study: the first hit of TBIOS's text renderer is the copyright notice,
+// and the game menu's own call is 14 hits later. That is a comparison of the wrong moment, which reads exactly like
+// a real difference.
 void x86_trace(X86Cpu& c, uint32_t at) {
 	if (g_stop_at && at == g_stop_at) {
+		if (g_stop_frame && (!towns::g_towns || towns::g_towns->frame < g_stop_frame)) return;
 		if (++g_stop_hits < g_stop_count) return;      // U2_STOP_COUNT stops at the Nth hit, not the first
 		std::printf("stop      reached 0x%06x on hit %llu after %llu instructions\n", at, g_stop_hits,
 		            g_trace_written);
@@ -412,6 +419,52 @@ int main(int argc, char** argv) {
 	m.set_desc(0x0138, 0xC2100000, 0x41FFF);
 	m.set_desc(0x0140, 0xC2200000, 0xFFF);
 	m.set_desc(0x0148, 0xC2000000, 0x7FFFF);
+	// 0040 is flat low RAM, and TownsOS's own GDT entry for it is base 0, limit 0x3FFFFF. It is needed here for one
+	// reason: TBIOS holds the kanji font as a far pointer into low RAM through this selector, and a selector with no
+	// descriptor resolves to base 0 with the read going nowhere.
+	m.set_desc(0x0040, 0, 0x3FFFFF);
+
+	// THE KANJI FONT, which is in no ROM. TBIOS reaches a two-byte character's bitmap through a far pointer kept in
+	// its own image at CS:0x1E8: the offset is the font base and the selector gets the glyph. TownsOS replaces the
+	// placeholder in that slot at boot with 0003B7E1:0040, pointing at a RAM copy of the font. The port boots TBIOS
+	// without TownsOS's loader, so its copy kept the placeholder, which points into the character ROM at 0138:6400 --
+	// and that range of the character ROM is blank. Every two-byte character in the game therefore rendered from an
+	// empty font: the menu's labels and the copyright notice's Japanese drew nothing while the single-byte ANK text,
+	// which comes from the ROM at 0x3D000, drew correctly.
+	//
+	// The font itself is UTFONT.FNT on the disc: two banks of 94 records, 48 bytes each, one record per code:
+	//
+	//   +0 u16 0  +2 u16 tag (0x7535 or 0x7635)  +4 u8 index  +5 32 bytes of bitmap  +37 11 bytes of pad
+	//
+	// The bitmap offset is +5, and it was measured rather than read off that layout. The machine holds 0003B7E1:0040
+	// at TBIOS:0x1E8, and the 32 bytes it copies for code 0x752F are 00 00 07 e0 1f f8 3e 7c ..., which is
+	// UTFONT.FNT 0x2a5 (the record at 0x2a0 plus 5) and not 0x2a7. Both wrong offsets were tried: +7 leaves the menu
+	// 1,435 bytes from the machine's and +6 leaves 3,396, while +5 leaves 0 across the whole menu box.
+	// TBIOS indexes the font as (code - 0x7521) * 32 for codes 0x7521-0x757E and (code - 0x75C3) * 32 for
+	// 0x7621-0x767E, so it wants the two banks packed with the record headers stripped and no gap between them. The
+	// base address is the machine's own, so the two sides hold the same font at the same place.
+	{
+		std::vector<uint8_t> utf;
+		const uint32_t FONT_BASE = 0x3B7E1;
+		const uint32_t BANK = 94 * 48;            // one bank of records as stored, header included
+		if (!m.disc.file("\\UTFONT.FNT", utf) || utf.size() < 2 * BANK) {
+			std::printf("machine   no kanji font (\\UTFONT.FNT, %zu bytes) on the disc: two-byte characters will draw "
+			            "nothing\n",
+			            utf.size());
+		} else {
+			std::vector<uint8_t> packed(188 * 32);
+			for (int n = 0; n < 188; ++n) {
+				const size_t rec = n < 94 ? (size_t)n * 48 : (size_t)BANK + (size_t)(n - 94) * 48;
+				std::memcpy(packed.data() + (size_t)n * 32, utf.data() + rec + 5, 32);
+			}
+			m.write_block(FONT_BASE, packed.data(), (uint32_t)packed.size());
+			uint8_t ptr[6] = {(uint8_t)(FONT_BASE), (uint8_t)(FONT_BASE >> 8), (uint8_t)(FONT_BASE >> 16),
+			                  (uint8_t)(FONT_BASE >> 24), 0x40, 0x00};
+			m.write_block(0x100000 + 0x1E8, ptr, sizeof ptr);
+			std::printf("machine   kanji font %zu glyphs at 0x%x, from \\UTFONT.FNT (%zu bytes)\n", packed.size() / 32,
+			            FONT_BASE, utf.size());
+		}
+	}
 
 	X86Cpu c;
 	std::memset(&c, 0, sizeof c);
@@ -451,10 +504,12 @@ int main(int argc, char** argv) {
 		g_stop_at = (uint32_t)std::strtoul(sa, nullptr, 16);
 		if (const char* sd = std::getenv("U2_STOP_DUMP")) g_stop_dump = (uint32_t)std::strtoul(sd, nullptr, 16);
 		if (const char* sc = std::getenv("U2_STOP_COUNT")) g_stop_count = std::strtoull(sc, nullptr, 10);
+		if (const char* sf = std::getenv("U2_STOP_FRAME")) g_stop_frame = std::strtoull(sf, nullptr, 10);
 		if (!g_stop_count) g_stop_count = 1;
 		g_stop_len = 64;
 		std::printf("stop      will stop at 0x%06x on hit %llu%s\n", g_stop_at, g_stop_hits + g_stop_count,
 		            g_stop_dump ? "" : " (no U2_STOP_DUMP, registers only)");
+		if (g_stop_frame) std::printf("stop      ignoring hits before frame %llu\n", g_stop_frame);
 	}
 #endif
 	// U2_KEYS=<frame>:<scan><ascii>,... presses keys on given frames, which is how the port is driven past a

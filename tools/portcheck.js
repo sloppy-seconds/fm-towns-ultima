@@ -143,6 +143,22 @@ const seeds = read('tools/runtime-seeds.txt');
 	else fail('the font ROM is loaded into the machine', 'no assignment to m.font');
 }
 
+// ---- the kanji font, which is in no ROM, is loaded and TBIOS is pointed at it ----
+// Two-byte characters are fetched through a far pointer at TBIOS:0x1E8, and the ROM's own placeholder there points at a
+// blank range of the character ROM. TownsOS replaces it at boot with 0003B7E1:0040; the port has to do the same, and
+// the bitmap offset inside UTFONT.FNT's records is 5, which was measured against the machine and not read off the
+// layout. Each of the three is asserted separately because losing any one of them brings back the empty menu with no
+// message at all.
+{
+	const code = stripComments(main || '');
+	requireText(code, '\\UTFONT.FNT', 'the kanji font is read from the disc');
+	requireText(code, 'utf.data() + rec + 5', 'the glyph bitmap offset in UTFONT.FNT is 5');
+	requireText(code, 'm.write_block(0x100000 + 0x1E8, ptr, sizeof ptr)', 'TBIOS is pointed at the kanji font');
+	requireText((main || ''), 'set_desc(0x0040, 0, 0x3FFFFF)', 'selector 0040 is flat low RAM, as TownsOS defines it');
+	if (/rec \+ [678]/.test(code)) fail('the glyph bitmap offset in UTFONT.FNT is 5', 'a different offset is in the code');
+	else ok('no other bitmap offset is present', '+5 only');
+}
+
 // ---- docs and code agree about the debug switches ----
 // Every U2_* the docs offer has to exist in the port, and every one in the port has to be documented. A switch
 // documented but absent is a promise the tool cannot keep, and one present but undocumented is a knob nobody

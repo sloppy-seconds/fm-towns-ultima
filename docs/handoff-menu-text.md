@@ -1,5 +1,21 @@
 # Handover: the menu's missing text in the port
 
+**RESOLVED.** The cause was not the one this handover proposed, and the difference matters for anyone reading it as a
+worked example. The labels were never a missing call or a loop that ran once: both were measured and both were
+correct. The port drove the same text engine as the machine, with the same arguments and the same string, and read
+its glyphs out of a font that was empty. Two-byte characters come from `\UTFONT.FNT` on the disc, loaded into RAM by
+TownsOS and reached through a far pointer at `TBIOS:0x1E8`, and the port had kept the blank placeholder the disc's
+own `TBIOS.BIN` ships. The port now loads that file and points TBIOS at it, and the menu box's VRAM matches the
+machine's capture with **0 bytes differing**. Full account, with the measurements: `docs/port-missing-text.md`,
+section "Solved: the kanji font is on the disc, not in a ROM", and plan item 7h.
+
+Everything below is left as written, because the ruled-out table is still accurate and the instruments are still
+the right ones. Two of its conclusions are now known to be wrong: "the defect is in how many times the game's label
+loop executes" is false, and so is "the port calls it once in the entire run" unless it means one call for one
+label. Where this handover and the page disagree, the page is the later reading.
+
+---
+
 Everything a fresh agent needs to finish this without re-deriving it. Written to be read top to bottom once, then
 used as a checklist. Every number here was measured, and the command that produced it is named.
 
@@ -152,6 +168,14 @@ Features are enabled only as `ENABLE <name>`. `DEBUG` alone answers `Do what?`.
   of the 81,920-byte `tbios.bin`. Treat the entry trace's `cs:off` as authoritative and the watch's register dump as a
   hint. This has not been resolved and is worth a check before trusting any single attribution.
 - **The emulator debugger is off by default.** `BP` answers `Error: Debugger is not enabled.` until `ENABLE DEBUG`.
+- A monitor left armed makes the machine look halted, and `RESET` does not clear it. A session that ends with
+  `ENABLE CRTC2MON` or `ENABLE IOMON` leaves monitors that print a line and stop the VM, so every `RUN` stops on the
+  first I/O access and reads as the program crashing one frame at a time. `DIS CRTC2MON`, `DIS IOMON`, `DIS FDCMON`
+  and the other monitor features clear them. `RESET` reboots the VM and leaves them armed, and it also leaves the VM
+  paused at `F000:FFF0`, so a reset needs a `RUN` before anything responds.
+- `U2_STOP_AT` fires at start-up unless told otherwise. TBIOS's text renderer is entered 14 times before the game
+  menu draws and the first entry is the copyright notice, so a comparison "at the text renderer" is a comparison of
+  two different operations. `U2_STOP_FRAME=<n>` now skips hits before frame n. Use it before believing any stop.
 
 ## Where the artefacts are
 

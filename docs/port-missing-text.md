@@ -4,6 +4,13 @@ The port draws the copyright notice's chrome and, still, none of its text. This 
 what has been ruled out by measurement, and the one instrument that should finish it. It exists so the next attempt
 starts from here rather than from the beginning.
 
+**Status after the kanji font fix. The game menu is solved and its VRAM now matches the machine's capture byte for
+byte. The notice's box is not, and the page below is the record of that hunt rather than a description of the current
+build.** The notice screen was last observed before the fix and has not been re-observed since, so the opening
+sentence is an earlier reading and not a claim about this build. The last section is the finding that closed the
+menu: two-byte characters are fetched through a far pointer at `TBIOS:0x1E8` which pointed at a blank part of the
+character ROM, and the font is `\UTFONT.FNT` on the disc rather than any ROM.
+
 ## What the two screens are
 
 Captured at 1 Hz on both sides, with the port restarted at the same moment so its first second is included.
@@ -422,3 +429,68 @@ Two real defects were found and fixed on the way to this page, independent of wh
 had no font ROM, so every glyph fetch in the program returned zero, and it had no descriptors for the TownsOS windows
 the program uses. Both are asserted now, the selectors and the font load by `tools/portcheck.js`, so deleting one fails
 the gate instead of going quiet.
+
+## Solved: the kanji font is on the disc, not in a ROM
+
+The page above spent a long time asking which routine fails to run. The answer is that every routine runs. The port
+executes the same text engine as the machine, with the same arguments, and reads a font that is empty.
+
+**The pointer.** TBIOS keeps two far pointers to character bitmaps in its own image, at `CS:0x1E0` for the
+single-byte ANK font and `CS:0x1E8` for two-byte kanji. The handler reads them with a CS override
+(`2e c5 05 e8 01 00 00` at `0xF3EA` is `LDS EAX, CS:[0x1E8]`), adds the glyph index scaled by 32, and copies 32
+bytes into a stack buffer.
+
+**What each side holds in that slot**, read on the machine with `MD 0:1A11C` (selector `0110` at base `0x19F34`,
+so `CS:0x1E8` is linear `0x1A11C`) and in the port with `U2_STOP_AT` and `U2_STOP_DUMP=1001e8`:
+
+| side | `CS:0x1E8` | what that resolves to |
+|---|---|---|
+| the disc's `TBIOS.BIN`, and the port | `00006400:0138` | the character ROM at `0x6400`, which is blank there |
+| the running machine | `0003B7E1:0040` | low RAM, selector `0040` base 0 limit `0x3FFFFF` |
+
+`PRI GDT` on the machine gives `0040:LnBase=00000000 Lim=003FFFFF`, so the machine's pointer is a flat view of a
+buffer at linear `0x3B7E1`. TownsOS replaces the disc's placeholder at boot. The port boots TBIOS without TownsOS's
+loader, so it kept the placeholder.
+
+**Why the symptom looked like two different faults.** Single-byte characters take the path at `0xF2D0`, which uses
+`CS:0x1E0` and reads the ANK block at ROM offset `0x3D800`, and that data is real in `FMT_FNT.ROM`. So the port's
+top bar and red bar text drew correctly. Two-byte characters take `0xF3F8` and read through `CS:0x1E8`, so every
+Japanese label rendered from an empty font. The copyright notice's box and the game menu are the two screens where
+that is visible, which is why they looked like one defect and behaved like two.
+
+**Where the font comes from.** Not a ROM. Searching the five vendored ROMs for the first glyph's bytes found nothing.
+Searching the disc's 140 files found `UTFONT.FNT`, 9,184 bytes: two banks of 94 records of 48 bytes, one per code,
+with the bitmap at offset 5. The offset is measured, not inferred: the 32 bytes the machine copies for code `0x752F`
+are `00 00 07 e0 1f f8 3e 7c ...`, which is `UTFONT.FNT` `0x2a5` and not `0x2a7`.
+
+**What the port does now.** It reads `\UTFONT.FNT` from the disc, packs the 188 glyphs (94 per bank, 32 bytes each,
+headers stripped) at linear `0x3B7E1`, defines selector `0040` as TownsOS defines it, and writes `0003B7E1:0040` into
+the TBIOS image at `0x1001E8`. Nothing else in the text path changed.
+
+**The confirmation, which is a byte count and not a screenshot.** Against the machine's menu capture,
+`U2_VRAM_DUMP` at frame 900:
+
+| build | bytes differing, rows 344 to 416 (the menu box) |
+|---|---|
+| before | 2,733 |
+| bitmap offset +7 | 1,435 |
+| bitmap offset +6 | 3,396 |
+| bitmap offset +5 | **0** |
+
+The remaining difference over the whole 512 KB is 8,765 bytes in rows 764 to 949, a region outside the menu box
+that the port leaves zero. It was present before this change and is not explained by it.
+
+**Two things this cost, worth not repeating.**
+
+A flag: the machine's debugger had been left by an earlier session with monitor-only breakpoints armed on CRTC and
+I/O events, and `RESET` does not clear them. Every `RUN` stopped on the first one, which reads as the program
+halting. `DIS CRTC2MON` and `DIS IOMON` fixed it, and `ENABLE DEBUG` does not turn monitors on, so a machine that
+stops on the first frame is a reason to list features rather than to distrust the program.
+
+A gap in the port's instrument: `U2_STOP_AT` had no frame gate, so it always fired at start-up. TBIOS's text
+renderer is entered 14 times before the menu draws, and the first entry draws the copyright notice, so every
+comparison was of the wrong moment and several of them looked like real differences. `U2_STOP_FRAME=<n>` now skips
+hits before frame n, and the whole chain was then compared at the same call: `0xF190` on entry, `0xF3F8` at the
+character fetch, `0xF447` after it, `0xF523` at the blitter call. Registers, segment bases and the state block agree
+at all four on both sides.
+

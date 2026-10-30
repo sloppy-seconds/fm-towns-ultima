@@ -100,6 +100,7 @@ from the items below rather than maintained separately.
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
 | 7f Give the port a floppy drive | AUTONOMOUS | **done**, floppy, keyboard and screen, the title draws |
 | 7g Watch the port from another machine | AUTONOMOUS | **done**, a generic X container, the title draws in a browser |
+| 7h The port's kanji text | AUTONOMOUS | **done**, the font is on the disc, not in a ROM; menu box VRAM now matches the machine byte for byte |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **done**, the null was `Disc::data_`, not `handle` |
@@ -1629,6 +1630,36 @@ keystrokes take. Audio has no device in the container and the front-end says so 
 
 **Ports** are 6081 for the browser and 5901 for raw VNC, chosen so they do not collide with the emulator's 6080 and
 5900. `XWEB`, `XVNC`, `RESOLUTION` and `ARGS` override them, and `NOBUILD=1` reuses what is in the build volume.
+
+### 7h. The port's kanji text
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Both sides could be read at the same instruction, and the font file is on the disc |
+| done when | the port's menu box holds glyph pixels and its VRAM differs from the machine's capture by nothing inside the box. The failure case: a box drawn, a highlight drawn, and no characters in it |
+| blocked by | nothing |
+
+**What was wrong.** Two-byte characters are fetched through a far pointer that TBIOS keeps in its own image at
+`CS:0x1E8`: the offset is the font base, the selector gets the glyph. On the machine that slot holds
+`0003B7E1:0040`, a copy of `\UTFONT.FNT` in low RAM that TownsOS places at boot. The port boots TBIOS without
+TownsOS's loader, so the slot kept the value the disc's own `TBIOS.BIN` carries, `00006400:0138`, which points
+at a blank range of the character ROM. Every two-byte character therefore rendered from an empty font, while the
+single-byte ANK text, which comes from the ROM at `0x3D000`, drew correctly. That split is exactly the symptom
+recorded on `docs/port-missing-text.md`: bars and boxes drew, Japanese text did not.
+
+**What is now known, and how it was confirmed.** The port loads `UTFONT.FNT` from the disc, packs its 188 glyphs
+32 bytes each at the machine's own address, and writes the patched far pointer into the TBIOS image. Glyph
+bitmaps sit at offset 5 of each 48-byte record, measured against the machine's font buffer and not read off the
+file's layout; +7 and +6 were both tried and both leave the menu visibly wrong. With +5 the menu box's VRAM is
+byte-identical to the machine's capture, 0 bytes differing over rows 344 to 416 where the same comparison was
+2,733 bytes before the fix. `tools/portcheck.js` asserts the load, the offset, the pointer patch and the `0040`
+descriptor, and the offset check was seen to fail against a copy with +7 in it.
+
+**Still open, and not this item.** VRAM outside the menu box still differs from that capture in rows 764 to 949,
+8,765 bytes, which is a region the port leaves zero and the machine fills. It is outside every band this item
+touched and it was present before the fix.
 
 ## Phase 8: the toolkit, and what this work owes it
 
