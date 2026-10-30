@@ -2339,8 +2339,15 @@ obliges, and the FreeTOWNS terms.
 still stands and is recorded here rather than argued away: the artefact is a binary that starts and then needs a
 module its platform cannot easily produce, and shape B now gives Windows and macOS a working path with one artefact.
 So the honest reading of this item is a cross-compiled front-end for people who want to build the port on those
-platforms, not a way to play on them. The first step is tractable and needs no hardware: `libsdl3-dev` for mingw, the
-kit's SDL front-end built against it, and a CI matrix that links.
+platforms, not a way to play on them.
+
+**Measured on 2026-10-30, and it sizes the first step.** Debian trixie has 74 `mingw-w64` packages and not one of
+them is SDL, by `apt-cache search mingw | grep -i sdl` over updated lists in the same container the port builds in.
+So the mingw route is not a package install, it is a cross-build of SDL3 itself with cmake and mingw before the
+kit's SDL front-end has anything to link against. macOS is further still: there is no cross toolchain here at all,
+and the done-when is a machine that ran the binary, which this project has never had. That is the work priced rather
+than guessed, and the first tractable slice is the SDL3 cross-build plus a link of `towns_sdl.cpp` against it, which
+needs no hardware to check.
 
 What it would take: `libsdl3-dev` for mingw, the kit's SDL front-end built against it, and a CI matrix. What it
 would not fix: the module. So the artefact is a binary that starts and then asks for a recompiled module the user
