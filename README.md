@@ -173,6 +173,32 @@ Override ports with `PORT_WEB`, `PORT_VNC`, `PORT_API`, and the screen size with
 `RESOLUTION` (use `1024x800x24`, the emulator window is 640x496 and a 640x480
 virtual screen clips it).
 
+### Play the recompiled port instead
+
+The C++ reimplementation plays this game. It is the recompiled 386 code running on
+the toolkit's FM Towns machine, not the emulator, and it boots through the splash,
+the game menu and into the overworld on its own.
+
+```bash
+./tools/x-run.sh start          # build if needed, start, print the URLs
+./tools/x-run.sh stop           # tear down, the build volume is kept
+./tools/x-run.sh logs           # follow it
+./tools/x-run.sh shot out.png   # capture the virtual display
+```
+
+| port | what |
+|---|---|
+| 6081 | the port in a browser, at `http://<host>:6081/vnc.html` |
+| 5901 | raw VNC |
+
+The ports are 6081 and 5901 so they do not collide with the emulator's 6080 and
+5900, and both can run at once. `NOBUILD=1` skips the compile, `ARGS` passes
+arguments to the port binary, `RESOLUTION` sets the virtual screen. The project is
+mounted read only and the build goes to a named volume, so nothing the container
+writes lands in the working tree.
+
+Same platform caveat as the emulator container: it has only been run on Linux.
+
 ### Does this work on macOS or Windows?
 
 **Untested.** Stated plainly rather than implied.

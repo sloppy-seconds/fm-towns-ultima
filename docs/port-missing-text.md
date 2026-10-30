@@ -480,6 +480,31 @@ the TBIOS image at `0x1001E8`. Nothing else in the text path changed.
 The remaining difference over the whole 512 KB is 8,765 bytes in rows 764 to 949, a region outside the menu box
 that the port leaves zero. It was present before this change and is not explained by it.
 
+**What that remainder is, and why it is not a rendering fault.** It is the one characterisation this comparison
+needed and the first reading of it was wrong twice, so it is recorded as measured.
+
+Rows 764 to 949 are VRAM page 1, rows 252 to 437 in page-1 terms, and `U2_VIDEO=1` reports `display_page 0` at the
+menu, so the region is off screen while that holds. Its ink bounding box is identical on both sides, x 58 to 687,
+and of the pixels inside it 34,469 carry ink on both sides, 8,474 carry ink only on the machine and 15 only in the
+port. Every differing pixel is one of indices 1, 4, 5 or 7, which are the levels a 4-bit dither is built from.
+
+The block is not static during the run. Sampling it frame by frame gives three states that recur: 15,270 non-zero
+bytes around frames 200 and 350, 16,543 from frame 401 onward, and 21,476 at frame 300. The machine's capture is
+the 21,476 state and the port reaches it exactly, **0 bytes differing**, at frame 300. From frame 400 onward the
+block never changes again, so the port is not animating something the machine leaves still: both sides wrote the
+same dither into an off-screen page at the same point in their own timelines, and the two captures caught different
+moments of it.
+
+The writer is `0110:00004267`, a TBIOS dithered fill, and `U2_WATCH=8005f800:10000` records it putting
+`00000000`, `55555555`, `05000500` and `00050000` into that rectangle, which is what a shaded panel's half-tone
+looks like. It runs at the splash and again at the menu draw. The port and the machine disagree about the dither
+level per pixel, not about the shape, the position or the colour.
+
+So the honest statement is a characterised difference, not a match and not a fault: the menu screen's displayed
+page is byte-identical, and an off-screen page differs in a half-tone fill whose phase depends on when the capture
+was taken. It would matter only if the game flipped `display_page` to 1 while this fill was on screen, which has
+not been observed.
+
 **Two things this cost, worth not repeating.**
 
 A flag: the machine's debugger had been left by an earlier session with monitor-only breakpoints armed on CRTC and

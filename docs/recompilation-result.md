@@ -3,6 +3,13 @@
 **Yes it recompiles, the output compiles and runs, and 98.7 percent of the C-shaped corpus is
 in it. It is not a playable port, and the reason is not the recompiler.**
 
+**Superseded, and the correction is the interesting part: the port plays.** Everything below is a measurement of the
+recompiler's coverage taken before a runtime existed. The runtime now exists, in `port/` on the kit's FM Towns
+machine, and it boots this game through its title, its menu and into the overworld, with a character panel, on the
+recompiled code. The distance to a *reimplementation* is a different and larger question, and
+`reimplementation-gap.md` owns it. What this page still says correctly is where the corpus is thin, and that is
+worth keeping because it is what a reimplementation will trip over.
+
 ## What was run
 
 ```
@@ -72,6 +79,11 @@ That is worth keeping as an example of the difference between a tool that says w
 and one that emits plausible nonsense.
 
 ## What is still missing for a playable port
+
+**Superseded.** The port plays, so this table was a list of things that turned out not to be in the way. It is kept
+because each row is a real property of the output and each still matters for a reimplementation, which is the actual
+goal. What made the port run was the runtime around the recompiled code, not more coverage: a boot of TownsOS and
+TBIOS, the descriptor table, a disc, a floppy, a keyboard and a screen.
 
 | requirement | state |
 |---|---|

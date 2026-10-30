@@ -140,6 +140,19 @@ podman, and builds a container locally (911 MB) the first time.
 
 It prints the URLs. Open `http://<host>:6080/vnc.html`.
 
+**The same browser window can show the recompiled port instead of the emulator.**
+That is the C++ reimplementation, the game's own 386 code recompiled and running on
+the toolkit's FM Towns machine, and it is playable. It has its own container so the
+two can run side by side.
+
+```bash
+./tools/x-run.sh start     # builds if needed, prints the URLs
+./tools/x-run.sh stop
+```
+Open `http://<host>:6081/vnc.html` for the port, or `ai:5901` for raw VNC. The
+project is mounted read only and the compile goes to a named volume. `NOBUILD=1`
+skips the build, `ARGS` passes arguments to the port binary.
+
 | port | what |
 |---|---|
 | 6080 | the game, in a browser. Also `/editor` for the character editor |

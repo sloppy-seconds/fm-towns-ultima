@@ -94,7 +94,7 @@ from the items below rather than maintained separately.
 | 5g Name the call graph | AUTONOMOUS | **yes**, mechanical |
 | 6a One frame per tool, declared | AUTONOMOUS | **yes**, the table is measured |
 | 6b What int 93h returns for AL=0x20 | AUTONOMOUS | **done**, measured off the machine |
-| 7a Does the port's screen match the machine's | AUTONOMOUS | **open**, VRAM hashes on both sides and the metric validated, no same-screen pair yet |
+| 7a Does the port's screen match the machine's | AUTONOMOUS | **done**, the menu pair exists: 0 bytes differing on the displayed page, and an off-screen half-tone differing by phase |
 | 7c What else the program patches at run time | AUTONOMOUS | **done**, one byte |
 | 7d The indirect transfers the port meets next | AUTONOMOUS | **done**, 35 of 97 execute and all resolve |
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
@@ -1329,7 +1329,7 @@ regression found late costs more than a routine page found late.
 
 ### 7a. Does the port's screen match the machine's
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -1352,12 +1352,14 @@ The other two are the `y` scan-code handler at `0x0e4ebf`, reached only because 
 path the machine's capture did not. Zero remain unexplained, and the divergences that were real were always
 machine state the port lacked: the `A:` drive, the keyboard, and the screen selector `0120`.
 
-*The screen comparison has an instrument on both sides and no valid pair yet.* `U2_SCREEN=1` prints the frame as
-a luminance ramp, character for character as `container/screen.js`'s `toAscii` does, so the port's grid and
-`GET /api/screen?mode=ascii` are the same metric. Sampling the machine once a second through a boot and a
+*The screen comparison has an instrument on both sides and no valid pair yet.* **Superseded: the pair exists now.**
+See the closing section below. The paragraph is kept because the instrument it describes is the one that produced the
+pair, and because the 51 percent figure was a real measurement of the wrong thing. `U2_SCREEN=1` prints the frame as
+an ASCII ramp for the port, so the port's grid and `GET /api/screen?mode=ascii` are the same metric. Sampling the
+machine once a second through a boot and a
 journey gives a best agreement of **51 percent of cells at t=6s**, which is two *different* moments of a moving
 sequence rather than the same screen: the port's frame is one instant at 600 frames and the machine's samples
-track a boot, a title and a select screen. So the item's allowed outcome here is recorded as **a failure to
+track a boot, a title and a select screen. So the item's allowed outcome here was recorded as **a failure to
 produce a comparable pair**, not as a match or a difference.
 
 **What the next attempt needs**, so it is not rediscovered: pause the machine at the moment the title is fully
@@ -1418,6 +1420,33 @@ it. Two workable shapes follow: arm the breakpoint only once `u2flow` reports `i
 only U2's own image can reach (the title art's load, which happens once per run) and anchor there. Either way the
 comparison needs a stop that is **after** the first screen is drawn, which the port-side measurement above now
 rules out `0x0e4b8d`'s first hit as being.
+
+#### The pair, obtained on the game menu
+
+The anchor turned out not to need a breakpoint at all. Both sides reach the game menu and then sit there, so two
+stills taken after the menu has settled are the same screen by construction, and the comparison becomes a diff of
+two 512 KB arrays with no timing in it.
+
+| | measurement |
+|---|---|
+| machine | `machine-vram-menu.bin`, read through segment `0120` while `u2flow` sat at the game menu |
+| port | `U2_VRAM_DUMP=/var/tmp/port-menu6.bin` at 900 frames, `U2_KEYS=400:3520` |
+| whole array | 8,765 of 524,288 bytes differ |
+| the menu box, rows 344 to 416 | **0 bytes differ** |
+| VRAM page 1, rows 764 to 949 | 8,765 bytes differ, off screen while `display_page` is 0 |
+
+So the item's answer is a **match on the displayed page and a characterised difference off it**. That is the third
+of the three outcomes the acceptance clause allows, and it is the one worth having, because the difference is
+named: it is a TBIOS dithered fill at `0110:00004267` whose half-tone level depends on when the capture was taken,
+the port reaches the machine's exact state of it at frame 300, and it is invisible while the game displays page 0.
+The full measurement is in
+[port-missing-text.md](port-missing-text.md#solved-the-kanji-font-is-on-the-disc-not-in-a-rom), which is also where
+the menu's own defect was found.
+
+**What the failure case looked like when it was not covered**, kept because it is the thing this item existed for:
+before the kanji font fix the same comparison reported **2,733 bytes differing inside the menu box**, which is a
+port that drew the box, the highlight and the bars and no characters at all. One number, and it said which part of
+the screen was wrong.
 
 ### 7c. What else the program patches at run time
 
@@ -1657,9 +1686,10 @@ byte-identical to the machine's capture, 0 bytes differing over rows 344 to 416 
 2,733 bytes before the fix. `tools/portcheck.js` asserts the load, the offset, the pointer patch and the `0040`
 descriptor, and the offset check was seen to fail against a copy with +7 in it.
 
-**Still open, and not this item.** VRAM outside the menu box still differs from that capture in rows 764 to 949,
-8,765 bytes, which is a region the port leaves zero and the machine fills. It is outside every band this item
-touched and it was present before the fix.
+**Still open at the time of writing, and since characterised.** VRAM outside the menu box differed from that capture
+in rows 764 to 949, 8,765 bytes, a region the port left zero. It was not this item's, and item 7a has since named
+it: it is a TBIOS dithered fill into VRAM page 1, off screen while the game displays page 0, and its half-tone level
+depends on the moment the capture was taken. The port reaches the machine's exact state of it at frame 300.
 
 ## Phase 8: the toolkit, and what this work owes it
 
