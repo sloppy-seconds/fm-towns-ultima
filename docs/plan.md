@@ -100,7 +100,17 @@ from the items below rather than maintained separately.
 | 7e A port regression the checks can run | AUTONOMOUS | **done**, `tools/portcheck.js`, 17 checks, failure demonstrated |
 | 7f Give the port a floppy drive | AUTONOMOUS | **done**, floppy, keyboard and screen, the title draws |
 | 7g Watch the port from another machine | AUTONOMOUS | **done**, a generic X container, the title draws in a browser |
-| 7h The port's kanji text | AUTONOMOUS | **done**, the font is on the disc, not in a ROM; menu box VRAM now matches the machine byte for byte |
+| 7h The port's kanji text | AUTONOMOUS | **done**, the font is on the disc rather than in a ROM, and the menu box VRAM matches the machine byte for byte |
+| 9a The README's first screen | AUTONOMOUS | **yes**, the commands already exist and were run |
+| 9b The goal, in the README, in one screen | AUTONOMOUS | not yet, waits on 9c |
+| 9c The page on why this is hard | AUTONOMOUS | **yes**, the evidence is already on other pages |
+| 9d A port quickstart that starts from the download | AUTONOMOUS | **yes** |
+| 9e CI that proves the tree builds | AUTONOMOUS | **yes**, measured: the port links against a synthetic module |
+| 9f A release, and what may be in it | NEEDS A DECISION | no, three shapes and Paul picks one |
+| 9g Cross-compiling for Windows and macOS | NEEDS A DECISION | no, and 9f may retire it |
+| 9h The README's claims and links, checked | AUTONOMOUS | **yes** |
+| 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | partly, needs Paul's observations |
+| 9j A save disk with characters, and where it may live | NEEDS A DECISION | no, and one shape changes a safeguard |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **done**, the null was `Disc::data_`, not `handle` |
@@ -1930,6 +1940,247 @@ content and the mirror names 15 files.
 **One file in the clone is deliberately excluded.** `README.md` there documents the kit's own
 `.agents/skills/fmtownskit/` work in progress, which is not this repository's change. The check names that
 exception rather than silently ignoring it.
+
+## Phase 9: the front door, and a binary someone can run
+
+This phase exists because the repository explains itself to someone who already knows what it is. The README opens
+with where the game comes from and what the repository contains, which is the wrong order for the two audiences that
+actually arrive: somebody who wants to play, and somebody who wants to know whether a faithful decompile to C is
+possible. Everything here is presentation and packaging, except one constraint that shapes all of it.
+
+**The constraint, measured, and it decides what CI can do.** The port cannot be built without the game. Its module
+is the output of the recompiler over `ENCHANT.EXP`, so `RECOMP_DIR` is empty on a fresh clone and there is nothing to
+link against. What CI *can* do was measured this session: a 4 KB synthetic image through `python3 -m
+fmtownskit.recomp --raw game=/tmp/syn.bin@0xc+0x0` produces `modules.cpp` and `p_game_000.cpp`, and `port/main.cpp`
+links against it into a **434,104-byte** `u2port`. So "the port builds" is checkable on every push without a
+copyrighted file anywhere in the pipeline, and "the port plays the game" is not checkable in CI at all and never
+will be.
+
+That distinction is the whole phase. A release cannot contain the module either, for the same reason, so the useful
+release is not a binary.
+
+### 9a. The README's first screen: two quickstarts
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The commands were all run this session and are already written down in `docs/quickstart.md` |
+| done when | the first screen after the title holds exactly two runnable quickstarts, one for the emulated original and one for the port, each three commands or fewer with its URLs, each linking to a full page, and no explanatory paragraph above them. The failure case: a visitor who wants to play has to read what the repository contains before finding a command |
+| blocked by | nothing |
+
+The current page puts "Where the game comes from" and "What this repository contains" first, then eight numbered
+sections. A person who wants to play reads two screens of provenance before reaching `container-run.sh`. Both routes
+are the container and VNC route for now: `tools/container-run.sh` for the emulated original and `tools/x-run.sh` for
+the port, which is what this session actually used and what works over SSH with no local display. The native
+`run.sh` route and the editor stay where they are, below the fold.
+
+**What must not move above the fold.** The copyright warning. The game is supplied by the reader, and a first screen
+that omits that invites somebody to ask where the download is. The quickstart names the archive.org zip and moves on.
+
+### 9b. The goal, in one screen, in the README
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Prose, with the evidence already measured on other pages |
+| done when | the README has a section stating the goal as a faithful decompile to C, stating plainly that the port is C++ with inline assembly fragments and is a recompile rather than a decompile, stating that the port is the oracle the decompile will be checked against, and linking the long page. The failure case: a reader finishes it believing the port is the decompilation, or believing the decompile has been dropped |
+| blocked by | nothing |
+| depends on | 9c |
+
+Three sentences carry it, and each is a fact this repository already owns rather than a hope.
+
+The goal is Ultima II in readable C, as arithmetic a person could reimplement from. The port is not that. It is the
+game's own 386 code mechanically translated to C++, with hand-written assembly where the translation could not be
+trusted, and it is useful for two things: it proves the corpus is complete enough to run the game, and it gives an
+oracle that a real decompile can be diffed against, screen by screen, which is the check this project already runs
+(`docs/plan.md` 7a and `U2_VRAM_DUMP`). A decompile with no oracle is a claim. What exists now is the oracle, and a
+game that is playable in the meantime.
+
+### 9c. The page that answers "why is this hard"
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Every obstacle named is already a measured finding on another page |
+| done when | a docs page states each obstacle with a link to the page that measured it rather than a restatement of the number, has a nav entry in `mkdocs.yml`, and builds. The failure case: an obstacle asserted with no citation, or a page that exists but is unreachable from the docs site |
+| blocked by | nothing |
+
+This is the longer document the README links. The obstacles, in the order a person trying this would meet them:
+
+- **The compiler, and the version.** MetaWare High C 1.73, and the version matters: it emits the game's `idiv` and
+  its naive `sar`/`sub` halving chain, and 2.31 does not. Two compilers were calibrated before that was settled.
+- **Getting a compiler onto an FM Towns at all.** The kit has to run inside the emulator, from floppies built with
+  this project's own tools. The recipe is frozen in `compiling-on-fm-towns.md` because nothing about it is guessable.
+- **No symbols.** The three game binaries carry no `SYM1`. `TMENU.EXP` on the same disc does, which is a trap of
+  its own: it names the Fujitsu layer and cannot be transferred, measured and recorded as a negative.
+- **No usable prologue, and no reliable function boundaries.** Only a minority of functions open with `push ebp`.
+  The one signal that works is the `call` target, and 738 of them is a set to work through rather than a solution.
+- **Zero padding that defeats scanning.** A 337 KB zero region means a byte pattern match can land in data, and
+  `capstone` and `ndisasm` disagree on 122,199 addresses when both are swept. Decoding has to start from a seed.
+- **Seeds, and what unlocks them.** 88 seeds, a walk, 30 conflicting starts, and a recompiler that can be taught
+  starts our own walk holds that its static rules miss.
+- **Indirect transfers.** Not a wall, as it turned out: an unresolved transfer is emitted as a dynamic call and
+  works. The count was chased for a session before that was measured.
+- **The runtime, which is where the time actually went.** Descriptors, a disc, a floppy, a keyboard, a screen, the
+  font ROM, the kanji font on the disc. None of it is decompilation and all of it had to work before a single
+  screen was right.
+- **Why a Borland-era binary is easier.** It would carry a symbol table or at least uniform prologues, its runtime
+  library would be identifiable, and there would be published tools expecting it. None of those helpers exist here,
+  which is why a game-agnostic recompiler from another FM Towns project is what made this tractable.
+
+### 9d. A port quickstart that starts from the download
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. Every command exists and was run this session |
+| done when | one page takes a stranger from the archive.org zip to a running port: the zip, unpacking it, the submodule and its patch, the recompile, the cmake build, the run, and the container route. Verified on a clean clone in a scratch directory with `build/` and the submodule removed, every command pasted from the page. The failure case: a step that only works because an artefact was already on the author's disk, which is exactly what `build/port/recomp` is |
+| blocked by | nothing |
+| depends on | 9a |
+
+`docs/quickstart.md` covers playing the original. It covers the port only as a container that builds itself. The
+from-source route is real and written down in `tools/port-build.sh`, but nobody reading the README would find it, and
+it has a trap worth naming on the page: the recompilation is keyed by runtime address, so it runs on the stripped
+image and every seed is shifted by `0x200`. A page that skips that produces a module whose every lookup is `0x200`
+out, which is this repository's most expensive recurring mistake.
+
+The route this page must give is the one that has been played, which is not the one the game's own menu suggests: game
+menu, then Journey Onward, then pick a character that already exists. 9i owns the defect list that makes that the only
+route worth documenting, and 9j owns the disk it picks from. Both sit next to this item rather than in numerical order,
+because this one depends on them and a reader should meet them together.
+
+### 9i. The tested route, and a list of what is broken
+
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | partly. The page can be assembled from the repository's own record, but the list opens with Paul's observations from playing and those have to be given, not inferred |
+| done when | the port quickstart gives the route that has actually been played, game menu then Journey Onward then an existing character, and says in one sentence that character creation does not work, while a page lists every known port defect with the observation that found it and nothing on the list without one. The failure case: a quickstart that offers Generate Character because the menu has it, or a defect list padded with plausible bugs nobody saw |
+| blocked by | Paul's observations from playing the port, which are the first entries and cannot be invented |
+
+The user-facing fact is blunt and belongs in the README: the port is early and buggy. The specific fact is that
+character creation does not work, so Generate Character on the game menu is a dead end and the only tested path is
+Journey Onward with a character already on the disk. That is exactly the kind of thing a reader discovers by losing
+twenty minutes, and the quickstart exists to stop that.
+
+The defect page has one rule that keeps it useful: an entry needs the observation that produced it. This repository's
+characteristic failure is a confident sentence nobody measured, and a bug list is the most tempting place in the
+project to write one. "Character creation does not work" is admissible because it was played. "Combat may be broken"
+is not, until somebody sees it break.
+
+### 9j. A save disk with characters, and where it may live
+
+**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+
+| field | value |
+|---|---|
+| autonomy | needs Paul. Two shapes, and one of them changes a safeguard that exists for a reason |
+| done when | from a fresh clone a reader reaches a character-ready disk in one command, either because an image is committed under `assets/savedisk/` and `.gitignore` carries a named exception for it, or because a script regenerates one and `verify.js` asserts its checksum, or because 9j is CUT on the measured grounds that the zip's own disk already has characters. The failure case: an image committed by defeating the `*.hdm` rule with `git add -f`, or a generator whose output nobody asserts |
+| blocked by | the decision, because `*.hdm` is ignored globally and that rule is a safeguard rather than an accident |
+
+**Measured first, because it changes the item: the disk the zip ships is already populated.** `node
+tools/savedisk.js slots saves/userdisk.hdm` reports slot 0 `"E"`, slot 1 `"D"`, slot 2 `"B"` and slot 3 empty, and
+`ls` shows `ROSTER1 UT2` at 3,701 bytes with `WORLD1` to `WORLD3` at 68,096 each. So Journey Onward plus an existing
+character works on a fresh unzip with no new artefact at all, and what `newdisk` produces is a blank disk rather than
+what the zip contains.
+
+So the item is narrower than it looks. What a committed disk would add is a state that has been *played*: a character
+standing in the overworld rather than a character that has just been selected, which is also the state this session's
+port measurements were taken against. That is worth something, and it is not worth un-ignoring a rule by accident.
+
+The mechanical obstacle is exact and is why this is a decision rather than a task: `.gitignore` line 28 is `*.hdm`,
+globally, and line 163 adds `/saves/`. `assets/savedisk/anything.hdm` is therefore untrackable today, and `AGENTS.md`
+says un-ignoring a line is a conversation. The three shapes:
+
+| shape | what it costs | what it risks |
+|---|---|---|
+| commit the image under `assets/savedisk/`, with a named exception in `.gitignore` | one line of ignore, one binary in history | a `.hdm` in git forever, and the exception invites the next one |
+| commit a script that builds the disk from the zip and asserts its checksum | a script and a `verify.js` assertion, no exception | nothing, and it is the only shape that stays reproducible from the zip |
+| nothing, and have the quickstart say which slot to pick | zero | a reader starts at character selection with a fresh character rather than in the world |
+
+The second shape is how this repository answers every other question of this kind, and it also gives `assets/savedisk`
+something to hold that is not a game artefact: the recipe and the expected checksum.
+
+### 9e. CI that proves the tree builds, without the game
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The build was demonstrated this session against a synthetic module, and `.github/workflows/pages.yml` already exists so the wiring is known |
+| done when | a workflow runs on push and pull_request and does all of: initialise the submodule and apply `patches/fmtownskit-mp-support.patch`, run the recompiler over a synthetic image, configure and link `u2port` against that module, and run `node tools/checkall.js`. It fails when the link fails and passes without any game file present. The failure case: a workflow that passes because it built a subset of the tree, or that quietly requires a copyrighted file |
+| blocked by | nothing |
+
+Two things make this cheap and one makes it easy to get wrong. Cheap: the builder already exists as
+`container/Containerfile.x`, which is Debian trixie precisely because Ubuntu 24.04 has no `libsdl3-dev`, so the
+workflow can run in that image and not fight the runner's packages. Easy to get wrong: the port needs the kit, and
+the kit is a submodule plus a patch series that `tools/patchcheck.js` already verifies, so the workflow must do the
+same steps a human does rather than a plain `submodule update`.
+
+**Not in scope, and should not creep in:** running the port. It needs the game, and a workflow that fakes that would
+be testing a different program.
+
+### 9f. A release, and what may legally be in it
+
+**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+
+| field | value |
+|---|---|
+| autonomy | needs Paul. The three shapes below have different costs and only one gives Windows and macOS users anything |
+| done when | one release has been cut through a written workflow, and its contents are enumerated with the reason each item is or is not copyrighted. The failure case: a release artefact containing the game, the disc image, the recompiled module, or any extracted asset |
+| blocked by | a decision on which shape, and that decision is the item |
+
+The constraint from the phase header decides this. A release cannot ship `u2port` in a form that plays, because a
+playing `u2port` needs a module built from the reader's own disc. Three shapes:
+
+| shape | what ships | cost | who it helps |
+|---|---|---|---|
+| A, source only | a tag and the docs site | nothing new | nobody gains a binary |
+| B, a container image to `ghcr.io` | the builder and runner image, no game in it | one workflow, reusing `Containerfile.x` | the only shape that gives Windows and macOS a working path |
+| C, host binaries | a Linux binary built where the disc exists | a manual upload per release | somebody who has the disc and does not want a 20 minute compile |
+
+B is the recommendation, and it is the one that retires 9g: `podman run -v /path/to/game:/src:ro` is the same
+command on every platform, the image contains nothing copyrighted because the module is built from the mount, and
+it is the route this session already used.
+
+### 9g. Cross-compiling for Windows and macOS
+
+**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+
+| field | value |
+|---|---|
+| autonomy | needs Paul. It may be work worth not doing |
+| done when | either a mingw and a macOS build of the port link and start, with the untested-platform caveat removed from the README because a machine ran them, or the item is CUT with the reason recorded on the page |
+| blocked by | no Windows or macOS machine has ever run this project, and a cross-compiled binary still needs a module built from the reader's disc |
+
+What it would take: `libsdl3-dev` for mingw, the kit's SDL front-end built against it, and a CI matrix. What it
+would not fix: the module. So the artefact is a binary that starts and then asks for a recompiled module the user
+cannot easily produce on the platform it was built for. Shape B in 9f solves the same problem with one artefact
+instead of three, and does not need a Windows machine to be believed.
+
+If it is done anyway, the honest done-when is a machine that ran it, because this repository's platform rule is that
+untested means untested, and that rule exists for good reason: the shell scripts do not run in `cmd` or PowerShell
+at all.
+
+### 9h. The README's claims and links, checked
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. `tools/checkall.js` already collects checks of this shape |
+| done when | `checkall.js` fails when the archive.org URL, the docs site URL or the editor URL is inconsistent between the pages that carry it, or when a relative link in `README.md` does not resolve to a file. The failure case: a check that greps for one string only, which is what let three copies of the archive link drift already |
+| blocked by | nothing |
+
+The README is about to grow the two most-copied links in the project, and it already carries a duplicate-link problem
+that `AGENTS.md` names: the archive link, the editor and docs URLs, and the scope paragraph appear in several places.
+A rewrite is the moment a link goes stale in one of them, and the check is a page of work against finding out from a
+reader.
 
 ---
 
