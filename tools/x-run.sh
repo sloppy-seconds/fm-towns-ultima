@@ -22,9 +22,17 @@
 #   RESOLUTION  Xvfb geometry             (default 1024x768x24)
 #   ARGS        arguments for the port    (default: none)
 #   NOBUILD=1   skip the compile and run whatever is already in the build volume
+#   IMAGE       the image to use      (default u2-x, built locally from container/Containerfile.x). Point it at
+#               the published image and nothing is built locally at all.
 #
-# What runs inside, in order: Xvfb on :99, x11vnc on it, websockify serving noVNC on 6080, then
-#   cmake -S /src/port -B /build ... && cmake --build /build && /build/u2port --graphics=sdl ...
+# What runs inside, in order: Xvfb on :99, x11vnc on it, websockify serving noVNC on 6080, then:
+#
+#   1. the recompile, but only if no module exists yet. If the host already ran tools/port-build.sh the module in
+#      /src/build/port/recomp is used as it is. If a previous container run left one in the volume, that is used.
+#      Otherwise the container does the whole recompile itself into the volume, which is what makes a published
+#      image enough on its own: the host needs the game files and nothing but a container runtime.
+#   2. cmake configure and build of the port into /build/b.
+#   3. the port itself, with --graphics=sdl on the display.
 #
 # The project is mounted READ ONLY at /src. The build goes to a named volume, /build, so it survives a restart
 # and so that nothing the container writes lands in the working tree as root-owned files.
@@ -59,19 +67,31 @@ do_build() {
 	podman_ build -f "$ROOT/container/Containerfile.x" -t "$IMAGE" "$ROOT/container"
 }
 
-# The command the container runs: configure, compile, then play. Kept as one string because it is the container's
-# argv, and written out rather than inlined so that a failure names the step it failed in.
+# The command the container runs. Written out rather than inlined so that a failure names the step it failed in,
+# and as one shell script because the branch about which module to use has to be evaluated inside the container,
+# where the volume is, not here on the host.
 session_cmd() {
-	local build_step=""
-	if [ "${NOBUILD:-0}" != "1" ]; then
-		build_step="cmake -S /src/port -B /build -DCMAKE_BUILD_TYPE=Release \
--DRECOMP_DIR=/src/build/port/recomp -DFMT_RUNTIME=/src/fmtownskit/runtime && \
-cmake --build /build -j\$((\$(nproc))) && "
+	if [ "${NOBUILD:-0}" = "1" ]; then
+		printf 'exec /build/b/u2port --graphics=sdl %s /src/ENCHANT.EXP /build/tbios.bin /build/disc.cue /src/saves/userdisk.hdm' "$ARGS"
+		return
 	fi
-	# The body only: the entrypoint already runs the argv it is given, and an inner `sh -lc` would nest a second
-	# shell around it. The container's own log showed exactly that nesting before this was fixed.
-	printf '%s' "${build_step}exec /build/u2port --graphics=sdl ${ARGS} \
-/src/ENCHANT.EXP /src/build/port/tbios.bin /src/build/port/disc.cue /src/saves/userdisk.hdm"
+	cat <<SH
+set -e
+if [ -f /src/build/port/recomp/modules.cpp ]; then
+	echo "module    recompiled on the host, using /src/build/port/recomp"
+	RECOMP=/src/build/port/recomp; TB=/src/build/port/tbios.bin; CUE=/src/build/port/disc.cue
+elif [ -f /build/recomp/modules.cpp ]; then
+	echo "module    recompiled in this volume already, using /build/recomp"
+	RECOMP=/build/recomp; TB=/build/tbios.bin; CUE=/build/disc.cue
+else
+	echo "module    none found, recompiling the game and TBIOS inside the container"
+	cd /src && ./tools/port-build.sh --out /build --no-run --no-coverage
+	RECOMP=/build/recomp; TB=/build/tbios.bin; CUE=/build/disc.cue
+fi
+cmake -S /src/port -B /build/b -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR=\$RECOMP -DFMT_RUNTIME=/src/fmtownskit/runtime
+cmake --build /build/b -j\$(nproc)
+exec /build/b/u2port --graphics=sdl ${ARGS} /src/ENCHANT.EXP \$TB \$CUE /src/saves/userdisk.hdm
+SH
 }
 
 do_start() {

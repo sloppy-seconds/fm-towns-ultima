@@ -14,10 +14,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # The display and its viewers, the toolchain, and the two tools worth having inside: xdotool to type into the
 # guest and ImageMagick to capture the virtual screen for evidence.
+#
+# nodejs is here because the container does the recompile as well as the C++ build, and the seed derivation runs
+# through tools/seeds.js, tools/codelimits.js and the disc reader in tools/cd.js. It arrived as somebody else's
+# dependency before, which is not a thing to build an image on.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         xvfb x11vnc novnc websockify xauth xdotool imagemagick \
         cmake g++ make pkg-config libsdl3-dev \
-        python3 python3-venv ca-certificates \
+        python3 python3-venv nodejs ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY x-entry.sh /usr/local/bin/x-entry.sh

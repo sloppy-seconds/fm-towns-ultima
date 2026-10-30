@@ -12,7 +12,15 @@
 #   tools/port-build.sh --reuse      skip the recompilation, use what is in the build directory
 #   tools/port-build.sh --frames N   run N vsyncs instead of 60
 #   tools/port-build.sh --out DIR    write everything under DIR instead of build/port, which is how the
-#                                    cross-seed recompile keeps its module away from the real one
+#                                    cross-seed recompile keeps its module away from the real one, and how the
+#                                    container builds into its writable volume rather than a read-only mount
+#   tools/port-build.sh --no-run     build and stop, which is what the container route wants
+#   tools/port-build.sh --no-coverage
+#                                    skip the instruction-coverage pass, the only step that needs tools/.venv.
+#                                    coverage.txt is what item 7c's patched-instruction diff reads, so a build
+#                                    without it is a build that cannot do that diff, and it says so in its output.
+#   DISC_IMG=/path/to/x.img          the disc image to write into the one-track cue, if it is not the one .img
+#                                    file beside the tools
 #
 # U2_EXTRA_SEEDS=FILE appends guest-frame seed addresses from FILE, in the same format as
 # tools/runtime-seeds.txt. It exists for tools/recomp-cross.sh, which asks whether the recompiler can be taught
@@ -30,21 +38,26 @@ RECOMP="$OUT/recomp"
 
 REUSE=0
 FRAMES=60
+NO_RUN=0
+NO_COVERAGE=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--reuse) REUSE=1; shift ;;
 		--frames) FRAMES="$2"; shift 2 ;;
 		--out) OUT="$2"; RECOMP="$OUT/recomp"; shift 2 ;;
-		*) echo "usage: tools/port-build.sh [--reuse] [--frames N] [--out DIR]" >&2; exit 2 ;;
+		--no-run) NO_RUN=1; shift ;;
+		--no-coverage) NO_COVERAGE=1; shift ;;
+		*) echo "usage: tools/port-build.sh [--reuse] [--frames N] [--out DIR] [--no-run] [--no-coverage]" >&2; exit 2 ;;
 	esac
 done
 
 if [[ ! -f "$KIT/runtime/towns.cmake" ]]; then
-	echo "the toolkit is not at $KIT (run git submodule update --init fmtownskit, then apply patches/fmtownskit-mp-support.patch)" >&2
+	echo "the toolkit is not at $KIT. Run: git submodule update --init fmtownskit" >&2
+	echo "(do not apply patches/fmtownskit-mp-support.patch, the submodule's branch already carries those changes)" >&2
 	exit 2
 fi
 if [[ ! -f "$ROOT/ENCHANT.EXP" ]]; then
-	echo "ENCHANT.EXP is not in $ROOT; see README section 1" >&2
+	echo "ENCHANT.EXP is not in $ROOT. It is a file on the disc, not in the zip: node tools/getfile.js ENCHANT.EXP" >&2
 	exit 2
 fi
 
@@ -180,8 +193,12 @@ PY
 	# Instruction coverage, from the same walk and the same seeds and ranges as the module. That is what lets
 	# the port tell a patched instruction from a data write: without it the raw diff is half a megabyte of
 	# the program filling its own data. See tools/insncoverage.py and plan item 7c.
-	PYTHONPATH="$ROOT" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
-		--image "$STRIPPED" --seeds "$SEED_LIST,0x101a20" $NO_CODE --out "$RECOMP/coverage.txt"
+	if [[ $NO_COVERAGE -eq 1 ]]; then
+		echo "coverage  skipped (--no-coverage), so $RECOMP/coverage.txt is absent and item 7c's diff cannot run on this module"
+	else
+		PYTHONPATH="$ROOT" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
+			--image "$STRIPPED" --seeds "$SEED_LIST,0x101a20" $NO_CODE --out "$RECOMP/coverage.txt"
+	fi
 fi
 
 # 4. Build the port.
@@ -190,12 +207,23 @@ fi
 # audio tracks' PREGAP is ambiguous and Tsugaru's author documents that. The kit's reader refuses PREGAP
 # entirely ("a gap not in the files is not read here"), and the program only needs the data track, which
 # begins at index 0 of the image. So this hands it the ISO and nothing else.
+# The path is relative to the cue, because that is how the kit's reader resolves it: an absolute path gets joined
+# onto the cue's directory and comes out as `build/port//var/home/...`. It is computed rather than hardcoded
+# because the cue does not always live under the project. The container builds into a volume at /build while the
+# disc sits at /src, and `../..` is a different file in each of the two places.
+DISC_IMG="${DISC_IMG:-$(find "$ROOT" -maxdepth 1 -name '*.img' -print -quit)}"
+if [[ -z "$DISC_IMG" || ! -f "$DISC_IMG" ]]; then
+	echo "no disc .img found beside $ROOT, and the port needs one to open. Set DISC_IMG=/path/to/the.img" >&2
+	exit 2
+fi
+DISC_IMG="$(realpath "$DISC_IMG")"
+DISC_REL="$(realpath --relative-to="$OUT" "$DISC_IMG")"
 cat > "$OUT/disc.cue" <<CUE
-FILE "../../Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img" BINARY
+FILE "$DISC_REL" BINARY
   TRACK 01 MODE1/2352
     INDEX 01 00:00:00
 CUE
-echo "cue       $OUT/disc.cue (track 1 only, for the kit's reader)"
+echo "cue       $OUT/disc.cue (track 1 only, for the kit's reader, resolving to $DISC_IMG)"
 # -DFMT_RUNTIME is passed explicitly rather than left to the CMakeLists default, because the value is CACHEd: a
 # build tree created before the kit moved would keep pointing at the old path and fail with a message that names
 # the new one, which is the most confusing possible combination.
@@ -206,6 +234,11 @@ cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	exit 1
 }
 echo "built     $OUT/b/u2port"
+
+if [[ $NO_RUN -eq 1 ]]; then
+	echo "run       skipped (--no-run). Everything is under $OUT."
+	exit 0
+fi
 
 # 5. Run it.
 # `--graphics=none` is not optional here. The port's default is a window, because a person running it wants to see
