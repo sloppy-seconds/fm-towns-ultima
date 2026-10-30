@@ -239,6 +239,12 @@ writes lands in the working tree.
 
 Same platform caveat as the emulator container: it has only been run on Linux.
 
+If a release has been published, `IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest
+./tools/x-run.sh start` uses the published toolchain image instead of building one. That
+image contains no game code and cannot: the module that plays is the game translated, and
+it is built from your own copy at run time. What a release carries, and why it cannot
+carry more: [building the port from the download](docs/port-from-source.md).
+
 ### Does this work on macOS or Windows?
 
 **Untested.** Stated plainly rather than implied.

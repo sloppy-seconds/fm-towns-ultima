@@ -125,15 +125,28 @@ disc and the recompiled code are all working together.
 ./tools/x-run.sh start
 ```
 
-That builds the same thing inside `container/Containerfile.x` from a read-only mount, into a named volume, and
+That builds inside `container/Containerfile.x` from a read-only mount of the project, into a named volume, and
 serves the display at `http://<host>:6081/vnc.html`. It is the route the README's first screen gives, and the one
-that has been played.
+that has been played. If no module exists yet the container runs the recompile itself, so the host needs the game
+files and a container runtime and nothing else, and a published release image skips even the image build:
+
+```bash
+IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest ./tools/x-run.sh start
+```
 
 ## 10. In the game
 
 At the game menu pick *Journey Onward* and a character that already exists. `Generate Character` does not work yet,
 and `Esc` or `Q` will end the run. The list of what is broken, each with the observation that found it, is
 [here](port-defects.md).
+
+## What a release contains, and what it cannot
+
+`.github/workflows/release.yml` publishes two things from a `v*` tag. The image above goes to ghcr.io, and a host
+tarball built by `tools/release-package.sh` goes on the release. Neither can contain a playing port, because a
+playing `u2port` embeds the recompiled game and the recompiled game is the game. So the tarball holds the binary
+built against a synthetic module, the kit's MIT licence text, and a `README.txt` that says all of that in plain
+words. The route that plays is this page, or the container with your own disc mounted.
 
 ## What CI proves, and what it cannot
 

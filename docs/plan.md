@@ -107,8 +107,8 @@ from the items below rather than maintained separately.
 | 9c The page on why this is hard | AUTONOMOUS | **done**, `docs/why-this-is-hard.md`, nine obstacles each linked to the page that measured it |
 | 9d A port quickstart that starts from the download | AUTONOMOUS | **done**, `docs/port-from-source.md`, verified in a clean clone, and it found a step that only worked on the author's disk |
 | 9e CI that proves the tree builds | AUTONOMOUS | **done**, `.github/workflows/port-build.yml`, the port links against a synthetic module with no game file present |
-| 9f A release, and what may be in it | NEEDS A DECISION | no, three shapes and Paul picks one |
-| 9g Cross-compiling for Windows and macOS | NEEDS A DECISION | no, and 9f may retire it |
+| 9f A release, and what may be in it | BLOCKED ON HUMAN | no, the workflow is written and locally verified, and cutting the release needs a tag pushed |
+| 9g Cross-compiling for Windows and macOS | PARTLY AUTONOMOUS | **scheduled followup**, decided 2026-10-30, and it needs machines to run the result on |
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
@@ -2273,13 +2273,13 @@ the demonstration that the skips are load-bearing.
 
 ### 9f. A release, and what may legally be in it
 
-**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
 
 | field | value |
 |---|---|
-| autonomy | needs Paul. The three shapes below have different costs and only one gives Windows and macOS users anything |
+| autonomy | blocked on a person to push the tag. The workflow, the packaging and the verification are done |
 | done when | one release has been cut through a written workflow, and its contents are enumerated with the reason each item is or is not copyrighted. The failure case: a release artefact containing the game, the disc image, the recompiled module, or any extracted asset |
-| blocked by | a decision on which shape, and that decision is the item |
+| blocked by | `git tag v1.0.0 && git push --tags`, which is Paul's to do. Everything the tag triggers is written and locally verified |
 
 The constraint from the phase header decides this. A release cannot ship `u2port` in a form that plays, because a
 playing `u2port` needs a module built from the reader's own disc. Three shapes:
@@ -2294,15 +2294,53 @@ B is the recommendation, and it is the one that retires 9g: `podman run -v /path
 command on every platform, the image contains nothing copyrighted because the module is built from the mount, and
 it is the route this session already used.
 
+**Decided on 2026-10-30, both shapes.** B and C, and 9g scheduled after rather than blocking.
+
+**What landed.** `.github/workflows/release.yml`, three jobs. `image` builds `container/Containerfile.x` and pushes
+`ghcr.io/<repo>:port-<tag>` and `:port-latest`. `host` builds the port against a synthetic module inside that same
+image and packages `u2port-linux-x86_64.tar.gz`. `release` cuts the GitHub Release with the tarball and a body that
+enumerates every artefact and why it is or is not copyrighted. `workflow_dispatch` runs the same path with a
+`dev-<sha>` image tag and no release, so the plumbing can be exercised without publishing.
+
+**The constraint decided the shape of C, and it is worth stating because it is counterintuitive.** A `u2port` that
+plays embeds the recompiled module, and the module is the game translated, so no published binary can be a playable
+one. The host artefact is therefore the port built against the synthetic module: it links, it starts, it has nothing
+to run, and its `README.txt` says so in plain words along with the runtime libraries it needs (SDL3 and its audio
+and X set, measured with `ldd`: alsa, pipewire, pulse, sndio, X11, wayland). `tools/release-package.sh` refuses when
+`ENCHANT.EXP` is present and refuses when the staging directory holds anything game-shaped, and the refusal was
+demonstrated by copying a module source into the stage and reading it fail.
+
+**Verified locally rather than claimed.** In a clean clone with no game file, `release-package.sh` produced a
+tarball of three files, sha256 `5243584404f05a548949bca9efc9f56dd9b010822129c841bdfdef01adef61c5`. And the promise
+B makes was tested end to end: with `IMAGE=` pointing at the built image, a clean clone with `build/port` removed
+recompiled the game and TBIOS inside the container (865 and 5,573 functions), linked, ran on the virtual display,
+and the shot at that point read the Ultima II title screen. That is what makes `IMAGE=` worth having: the host
+needed the game files and a container runtime and nothing else.
+
+**What B needed to be true.** The container had to be able to do the recompile, which it could not: `x-run.sh` only
+ever ran cmake, and the module was assumed to exist on the host. `port-build.sh` gained `--no-run` and
+`--no-coverage`, its one-track cue now resolves the disc relative to itself instead of a hardcoded `../..` (an
+absolute path is joined onto the cue's directory by the kit's reader and comes out doubled, which is how it was
+found), `Containerfile.x` installs `nodejs` explicitly rather than inheriting it, and `x-run.sh` recompiles into
+the volume when no module exists. `THIRD-PARTY-NOTICES.md` gained the kit's MIT terms, which the static link
+obliges, and the FreeTOWNS terms.
+
 ### 9g. Cross-compiling for Windows and macOS
 
-**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | needs Paul. It may be work worth not doing |
+| autonomy | partly. A mingw cross-build can be attempted here and its link is checkable, but the done-when is a machine that ran the binary |
 | done when | either a mingw and a macOS build of the port link and start, with the untested-platform caveat removed from the README because a machine ran them, or the item is CUT with the reason recorded on the page |
 | blocked by | no Windows or macOS machine has ever run this project, and a cross-compiled binary still needs a module built from the reader's disc |
+
+**Decided on 2026-10-30: do it, as a followup, and do not let it hold 9f.** The item's own argument against itself
+still stands and is recorded here rather than argued away: the artefact is a binary that starts and then needs a
+module its platform cannot easily produce, and shape B now gives Windows and macOS a working path with one artefact.
+So the honest reading of this item is a cross-compiled front-end for people who want to build the port on those
+platforms, not a way to play on them. The first step is tractable and needs no hardware: `libsdl3-dev` for mingw, the
+kit's SDL front-end built against it, and a CI matrix that links.
 
 What it would take: `libsdl3-dev` for mingw, the kit's SDL front-end built against it, and a CI matrix. What it
 would not fix: the module. So the artefact is a binary that starts and then asks for a recompiled module the user

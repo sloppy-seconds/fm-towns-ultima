@@ -1,0 +1,151 @@
+# Cut a release: the toolchain image on ghcr.io, and the host binary that contains no game.
+#
+# WHAT MAY BE PUBLISHED, and this is the whole design of the thing. A u2port that plays embeds the recompiled game,
+# because the module is statically linked and the module is the game translated into another form. So neither the
+# image nor the tarball may contain it, and neither does: the image is a toolchain (base Debian plus apt packages
+# plus this repo's scripts, pulled in by the user's own clone), and the host binary is built by
+# `tools/ci-port-build.sh` against a 4 KB synthetic image, so it has no game byte by construction. The route that
+# plays builds the module from the reader's own disc, on the reader's own machine, which is what `IMAGE=... ./tools/
+# x-run.sh start` does.
+#
+# WHY BOTH SHAPES. The container is the one command that works on every platform, and the host binary is for the
+# person who has a desktop Linux with SDL3 and does not want a container. Neither is a way of shipping the game,
+# and both say so in their own text: the tarball carries a README.txt that states it, and the image cannot run
+# anything until a project is mounted into it.
+#
+# TRIGGERS. A tag `v*` cuts a real release. `workflow_dispatch` runs the same build and pushes the image with a
+# `dev-<sha>` tag, so the plumbing can be exercised without publishing a release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  image:
+    name: Publish the port toolchain image
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Name the tags
+        id: meta
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            {
+              echo "tags<<TAGS"
+              echo "ghcr.io/${GITHUB_REPOSITORY}:port-${GITHUB_REF_NAME}"
+              echo "ghcr.io/${GITHUB_REPOSITORY}:port-latest"
+              echo "TAGS"
+              echo "latest=ghcr.io/${GITHUB_REPOSITORY}:port-latest"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "tags<<TAGS"
+              echo "ghcr.io/${GITHUB_REPOSITORY}:dev-${GITHUB_SHA::7}"
+              echo "TAGS"
+              echo "latest=ghcr.io/${GITHUB_REPOSITORY}:dev-${GITHUB_SHA::7}"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: container
+          file: container/Containerfile.x
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  host:
+    name: Build the host binary, with no game in it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # The build happens in the image it ships from, because the port links SDL3 and the runner's Ubuntu has no
+      # libsdl3-dev. release-package.sh refuses to run when ENCHANT.EXP is present, and a CI checkout never has it.
+      - name: Build and package
+        run: |
+          docker build -f container/Containerfile.x -t u2port-ci container/
+          docker run --rm -v "$GITHUB_WORKSPACE:/work" --entrypoint bash u2port-ci \
+            -lc 'cd /work && ./tools/release-package.sh'
+
+      - name: Record the digest
+        id: sum
+        run: echo "sha256=$(sha256sum dist/u2port-linux-x86_64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: u2port-linux-x86_64
+          path: dist/u2port-linux-x86_64.tar.gz
+
+    outputs:
+      sha256: ${{ steps.sum.outputs.sha256 }}
+
+  release:
+    name: Publish the release
+    if: github.ref_type == 'tag'
+    needs: [image, host]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: u2port-linux-x86_64
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: u2port-linux-x86_64.tar.gz
+          body: |
+            ## The image
+
+            `ghcr.io/${{ github.repository }}:port-latest` (also tagged `port-${{ github.ref_name }}`).
+
+            It is a toolchain, not a game: Debian trixie with a C++20 compiler, SDL3, python, node and a virtual
+            display. Nothing copyrighted is in it, and it cannot run anything until you mount this repository and
+            your own copy of the game into it:
+
+            ```bash
+            git clone https://github.com/${{ github.repository }}
+            cd $(basename ${{ github.repository }})
+            git submodule update --init fmtownskit
+            # unpack the archive.org game zip into this directory, then:
+            ./tools/vendor.sh
+            unzip -o assets/save-disk/userdisk.hdm.zip -d saves/
+            IMAGE=ghcr.io/${{ github.repository }}:port-latest ./tools/x-run.sh start
+            ```
+
+            Open `http://<host>:6081/vnc.html`, pick *Journey Onward*, and choose a character that already exists.
+            Character creation does not work yet, and `Esc` or `Q` ends the run. What is broken, each entry with
+            the observation that found it: `docs/port-defects.md`.
+
+            ## The host binary
+
+            `u2port-linux-x86_64.tar.gz`, sha256 `${{ needs.host.outputs.sha256 }}`.
+
+            **It contains no game.** The module that makes the port play is the game translated, so it is not
+            distributed here; this is the port built against a synthetic module. It starts, and it has nothing to
+            run. `README.txt` inside the archive says all of this and names the runtime libraries. If you want a
+            port that plays, use the image above, or build it from your own disc with
+            `docs/port-from-source.md`.
+
+            ## What is not here, and never will be
+
+            The disc images, the floppy, the executables, the artwork, the audio, the ROMs, and anything extracted
+            or recompiled from them. You supply the game.

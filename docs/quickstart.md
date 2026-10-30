@@ -153,6 +153,13 @@ Open `http://<host>:6081/vnc.html` for the port, or `ai:5901` for raw VNC. The
 project is mounted read only and the compile goes to a named volume. `NOBUILD=1`
 skips the build, `ARGS` passes arguments to the port binary.
 
+If nothing has recompiled the module yet, the container does that too, into its volume,
+so the host needs the game files and a container runtime and nothing else. If a release
+has been published, `IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest
+./tools/x-run.sh start` uses that image instead of building one locally. The image is a
+toolchain and contains no game code, and it cannot: the module that plays is the game
+translated, and it is built from your own copy at run time.
+
 **The port is early and buggy, and the route matters.** Character creation does not
 work, so `Generate Character` is a dead end even though the menu offers it. The route
 that has actually been played:

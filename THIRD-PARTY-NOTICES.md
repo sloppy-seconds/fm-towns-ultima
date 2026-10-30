@@ -4,8 +4,10 @@ This project's own code is its own. The material below is other people's, and is
 recorded here because attribution is a condition of reuse and a note in a docs page is
 not enough on its own.
 
-Nothing listed here is vendored into this repository. The reference clones live in
-`references/`, which is gitignored, and are fetched by hand when needed.
+Nothing from the reference clones below is copied into this project's source or committed
+here. The two entries after them are different in kind: `fmtownskit` is a git submodule
+whose code is compiled into the port, and the FreeTOWNS ROMs are downloaded by
+`tools/vendor.sh` and never committed.
 
 ## Ultima III reference implementations
 
@@ -50,6 +52,40 @@ committed to this repository.
 
 If MIT code is ever adopted rather than read, the notice above is the one to carry, and
 the adopted file should say where it came from.
+
+## fmtownskit
+
+<https://github.com/vs-sr-dev/fmtownskit>, used through the fork
+<https://github.com/paulczar/fmtownskit> on branch `mp-support`.
+
+```
+MIT License
+
+Copyright (c) 2026 Samuele Voltan
+```
+
+This is the FM Towns toolkit: the 386 recompiler, the emulated machine, the TBIOS and DOS
+layers and the SDL window. `fmtownskit/runtime/` is compiled into `u2port`, statically,
+which the MIT licence permits, and the release tarball carries this licence text as
+`LICENSE.fmtownskit` for that reason. This project's own changes to the kit ride on the
+fork's branch and are mirrored in `patches/fmtownskit-mp-support.patch`, which
+`tools/patchcheck.js` asserts is exact.
+
+## FreeTOWNS
+
+<https://ysflight.in.coocan.jp/FM/towns/FreeTOWNS/e.html>, fetched by `tools/vendor.sh`
+into `vendor/roms/`, which is gitignored.
+
+A clean-room reimplementation of the FM Towns firmware rather than a Fujitsu dump, so it
+carries no copyright problem, and it is what this project uses. Its terms are three: mark
+who modified what, make clear the compatible ROM is **different** from the ROM extracted
+from real FM Towns hardware and so will not cover every application, and never ask
+Fujitsu questions about it. The bundled `LICENSE.md` in the download carries them, and
+this repository has modified nothing in it.
+
+One consequence worth stating, because it looks like a bug: the port needs the font ROM,
+and the FreeTOWNS set is not byte-identical to silicon. Text drawn through it is correct
+for this game and is not a claim about real hardware.
 
 ## Not covered here
 
