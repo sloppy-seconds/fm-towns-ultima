@@ -508,8 +508,12 @@ function main() {
 		// instructions. 341 of 1365 looked like a tidy one-third split, which is exactly why it needed checking
 		// rather than quoting.
 		//
-		// So this counts only where the walk has PROVED an instruction starts, and asks ndisasm what the
-		// instruction at that boundary actually is.
+		// So this counts only where the walk has PROVED an instruction starts, and asks the shared decoder what the
+		// instruction at that boundary actually is. Asking ndisasm was the original form and it under-reported:
+		// that decoder renders `9b c2 04 00` as ONE line, `wait ret word 0x4`, whose mnemonic is `wait`, so a scan
+		// for instructions beginning `ret` never saw it. Capstone reports `wait` then `ret 0x4`, which is what the
+		// bytes say. Measured: 0 callee-pops before the change, 101 after, and every one of them in the library
+		// region. See docs/highc-codegen.md.
 		const seeds = allSeeds();
 		const r = walk(img, seeds, walkOpts);
 		console.log(`walk from ${seeds.size} seeds, ${seeds.size - callTargets(img).size} of them from the file`);
@@ -556,6 +560,17 @@ function main() {
 		console.log('  callee-pops sites by 64K region:');
 		for (const k of [...regions.keys()].sort((a, b) => a - b)) {
 			console.log('    0x' + k.toString(16).padStart(6, '0') + ': ' + regions.get(k));
+		}
+		if (args.includes('--json')) {
+			// A machine-readable form so the gate asserts the property rather than parsing prose. `popAt` is in
+			// this tool's frame (file minus 0x20) and is what makes the ownership test checkable: every callee-pops
+			// return must sit at or above the library floor.
+			console.log(JSON.stringify({
+				plain, pops, total,
+				popSizes: [...popSizes.entries()].sort((a, b) => b[1] - a[1]),
+				regions: [...regions.entries()].sort((a, b) => a[0] - b[0]),
+				popAt: popAt.sort((a, b) => a - b),
+			}));
 		}
 		console.log('');
 		console.log('  A split that follows ownership would cluster in the library regions. One that spreads');

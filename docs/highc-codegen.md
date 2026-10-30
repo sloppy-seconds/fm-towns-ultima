@@ -144,10 +144,11 @@ Both forms are common, and they are the same convention at different points: a f
 arguments off `ebp`, an unframed one reads them off `esp`. **Neither passes arguments in registers.** The earlier
 guess in this page that High C used a register convention was wrong, and the count says so.
 
-**Clean-up is NOT split. The caller cleans, always.** This was a byte count first and an instruction count
-second, and the two disagree completely.
+**Clean-up is NOT split by the compiler. It is split by OWNERSHIP.** The game code is caller-cleans
+throughout and the callee-pops returns are all in the library layer. The first measurement said the
+opposite, and it was wrong because of the decoder.
 
-The byte scan said:
+The byte count came first:
 
 ```
 c3        plain ret        1024
@@ -156,25 +157,66 @@ c2 imm16  ret and pop N     341
 
 **341 is exactly one third of 1023**, which was tidy enough to be suspicious when it was written down. So it was
 checked against the walk, which knows where instructions actually begin, and asks the decoder what each return is
-rather than counting bytes:
+rather than counting bytes.
+
+**Superseded: the first instruction-level answer.** `node tools/cfgwalk.js --retmap` reported this, and the
+conclusion drawn from it was that the game was `cdecl` throughout:
 
 ```
-ret instructions at proved boundaries: 771
-  plain ret   (caller cleans): 771   100.0%
-  ret imm16   (callee pops):     0     0.0%
+ret instructions at proved boundaries: 776
+  plain ret   (caller cleans): 776  100.0%
+  ret imm16   (callee pops):     0    0.0%
 ```
 
-**Zero. All 343 raw `c2` bytes are inside data or inside longer instructions, and not one is a return.** Of the
-74 that sit immediately after a `leave` or a `ret`, which is where a real callee-pops return would be, none
-survived the boundary test either.
+**That zero was a decoder artefact, not a fact about the game.** The scan at the time went through
+`ndisasm`, which renders `9b c2 04 00` as ONE line:
 
-So the convention is plain **`cdecl` throughout**: arguments are pushed by the caller and popped by the caller, in
-every one of 771 returns the walk could prove. There is no `stdcall` subset, no ownership split, and no mixed
-convention to attribute. The tidy one-third was a coincidence in which one byte value happens to be common in this
-image's data.
+```
+00103F1A  9BC20400  wait ret word 0x4
+```
 
-**This is the single most useful result so far**, because it means a decompiler can type every call the same way.
-Had the byte count been believed, a third of all call sites would have been given the wrong stack adjustment.
+whose mnemonic is `wait`. A scan for instructions beginning `ret` cannot see a return that follows an x87
+`wait`, and every library stub of that shape was invisible. It is the same defect class as the dead
+`ret n` regex in `tools/preflight.js`: the return is there, and the detector was asking a slightly
+different question. `docs/tooling-policy.md` records the migration that fixed both.
+
+**The measurement, through the shared decoder:**
+
+```
+ret instructions at proved boundaries: 781
+  plain ret   (caller cleans): 680  87.1%
+  ret imm16   (callee pops):   101  12.9%
+  argument bytes popped, commonest first: 4x51 8x28 12x14 16x4 28x1 24x1 32x1 20x1
+
+callee-pops sites by 64K region:
+  0x100000: 101
+```
+
+**Every one of the 101 sits in the `0x100000` region.** `0xff000` is the library floor this project
+classifies with, so the game code below it has **no** callee-pops return: 100 percent caller-cleans. The
+library layer above it uses `stdcall`-style returns, and the commonest pop is 4 bytes, which is a single
+argument. Two ways to check one by hand:
+
+```
+$ xxd -s 0x103f0d -l 8 ENCHANT.EXP
+00103f0d: dd44 2404 c208 008b                      .D$.....
+
+$ xxd -s 0x103f6f -l 12 ENCHANT.EXP
+00103f6f: 8b44 2404 df30 9bc2 0400 8b44            .D$..0.....D
+```
+
+The first is `fld qword [esp+4]` then `ret 8`. The second is `mov eax,[esp+4]`, `fbstp [eax]`, `wait`,
+`ret 4`. Both are x87 helpers, and in both the callee pops its own argument.
+
+**What this means for a decompiler is better than the old answer, not worse.** The split follows ownership,
+so it is predictable: inside the game, every call is typed the same way and the caller adjusts the stack.
+At the boundary to the library the callee does. Had the first count been believed, the decompiler would
+have been right about the game and wrong about the layer beneath it, which is where the graphics, sound and
+text primitives live.
+
+The counts 680 and 101 are asserted as a *property* rather than a number by `tools/checkall.js`
+(`return convention split by ownership`): at least one callee-pops return must exist, so the zero cannot
+return silently, and every one of them must sit at or above the library floor.
 
 ## The frame-pointer rule, measured across all 738 routines
 
@@ -286,7 +328,7 @@ it does not need a toolchain, and the experiment can spend its effort on the que
 | question | status now |
 |---|---|
 | register or stack arguments | **answered by counting**: stack, both framed and unframed forms |
-| who cleans the stack | **answered by instruction count**: the caller, in 771 of 771 proved returns |
+| who cleans the stack | **answered by instruction count**: the caller, in every proved return inside the game code. 101 callee-pops returns exist and all are in the library layer above `0xff000` |
 | when a frame pointer is emitted | **rule found**: framed iff the routine addresses the stack through `ebp`. The 84.3% figure is a floor, not the true accuracy, because most of its "exceptions" are not functions |
 | multiply-by-20 `lea`-then-shift sequence | **CONFIRMED by compiling**: `lea [reg+reg*4]` then `shl 2` is `i*20` exactly |
 | how a `switch` is emitted | **CONFIRMED by compiling**: `jmp dword near [cs:eax*4+disp]`, table holds segment-relative offsets |

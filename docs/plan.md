@@ -568,6 +568,16 @@ in an unconditional `jmp` and `scanRoutine` stops only at a `ret`, so both the o
 extents include the following stub. It is noted here rather than fixed, because changing
 the stop rule would move census rows beyond this item's mandate.
 
+**The migration also refuted a published conclusion.** `docs/highc-codegen.md` claimed the game
+was `cdecl` throughout, "0 of 771" returns popping their own arguments. `node tools/cfgwalk.js
+--retmap` now reports **781 returns, 680 plain and 101 callee-pops, and all 101 sit in the
+`0x100000` library region**. The zero was the same defect as the dead regex: ndisasm renders
+`9b c2 04 00` as one line, `wait ret word 0x4`, whose mnemonic is `wait`, so a scan for
+instructions beginning `ret` could not see a return following an x87 `wait`. The corrected
+reading is better for a decompiler, not worse: the split follows ownership, so every call
+inside the game is caller-cleans and only the library boundary is different. That page is
+corrected and `checkall.js` now asserts the property, so the zero cannot return silently.
+
 The `ret n` reason had never fired, in any census row, because ndisasm prints `ret word 0x8` and the
 regex wanted `ret 0x`. It was a dead check until this migration, which is worth knowing whatever
 the corpus says. The two size changes are in the `db` class: the routine bodies covered more bytes

@@ -218,6 +218,43 @@ const runNode = (script, args = []) => {
 	record('walk comparison', problems);
 }
 
+// E9. The return convention is split by OWNERSHIP, not chosen by the compiler.
+//
+// WHY THIS IS A CHECK AND NOT A PARAGRAPH. `docs/highc-codegen.md` asserted, with a measurement behind it,
+// that the game was `cdecl` throughout: "ret imm16 (callee pops): 0, 0.0%" over 771 returns. That measurement
+// was made through ndisasm, which renders `9b c2 04 00` as ONE line, `wait ret word 0x4`, whose mnemonic is
+// `wait`. A scan for instructions beginning `ret` therefore could not see a return that follows an x87 `wait`,
+// and every library stub of that shape was invisible. Capstone reports it as `wait` then `ret 0x4`.
+//
+// The claim is not merely miscounted, it is backwards about who owns the convention: the game code is caller-
+// cleans throughout and the callee-pops returns are all in the library region above `0xff000`. So this asserts
+// the PROPERTY rather than a count, because a count would fail on every legitimate rebuild:
+//
+//   - at least one callee-pops return exists, so "0 of N" cannot come back silently
+//   - every one of them is at or above the library floor, so the split cannot spread into game code unnoticed
+{
+	const problems = [];
+	const LIBRARY_FLOOR = 0xff000; // the same floor tools/preflight.js classifies with
+	try {
+		const r = execFileSync(process.execPath, [path.join(__dirname, 'cfgwalk.js'), '--retmap', '--json'],
+			{ cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
+		const line = r.split('\n').filter((l) => l.startsWith('{')).pop();
+		const j = JSON.parse(line);
+		if (!j.pops) {
+			problems.push('no callee-pops returns found at all, which is the superseded claim in docs/highc-codegen.md');
+		}
+		const inGame = (j.popAt || []).filter((a) => a < LIBRARY_FLOOR);
+		if (inGame.length) {
+			problems.push(`${inGame.length} callee-pops return(s) below the library floor: ` +
+				inGame.slice(0, 5).map((a) => '0x' + a.toString(16)).join(', ') +
+				'. The split is by ownership, so a game-code callee-pops return means either the walk or the claim is wrong');
+		}
+	} catch (e) {
+		problems.push('retmap failed to run: ' + ((e.stdout ?? '') + (e.stderr ?? '')).split('\n')[0]);
+	}
+	record('return convention split by ownership', problems);
+}
+
 // E8. The calls the port was skipping. The recompiler stops each function at its terminating `ret` and never resumes
 // after the alignment padding that follows, so a function with no caller never enters the module and the calls inside
 // it are absent from the port. tools/resumepoints.js derives those resume points and asserts that every one is seeded
