@@ -20,6 +20,17 @@ set -euo pipefail
 # Anything matching these must never be committed.
 DENY_RE='\.(img|sub|cue|ccd|iso|mds|mdf|bin|nrg|hdm|d77|d88|hdf|vhd|fdi|2hd|zip|7z|rar|lzh|tar|tgz|exe|exp|com|sys|drv|386|rex|snd|eup|fmb|tif|tiff|mp3|mp2|mp1|dg3|dic|fnt|rom|dat|png|gif|bmp|wav|flac)$'
 
+# ONE PATH IS ALLOWED THROUGH BY NAME, and only one. assets/save-disk/userdisk.hdm.zip is the save disk the port's
+# quickstart needs, because character creation does not work yet and the tested route picks an existing character.
+# It is a zip because the disk is 1,261,568 bytes of almost pure zero fill and packs to 3,629.
+#
+# Why this is not the hole it looks like: it holds three characters and three world files that the game wrote while
+# it was played, and nothing from the disc, which is what every other denied extension here is for. The exception is
+# an exact path rather than a pattern, so no other zip and no hdm can use it. And tools/portcheck.js reads the
+# archive's central directory and asserts the uncompressed size and CRC-32, so the file cannot be swapped for
+# something else without failing the gate. Decision and reasoning: assets/save-disk/README.md and plan item 9j.
+ALLOW_RE='^assets/save-disk/userdisk\.hdm\.zip$'
+
 # Files above this size are suspicious for a docs-and-scripts repository.
 MAX_BYTES=1048576
 
@@ -30,6 +41,10 @@ status=0
 
 while IFS= read -r f; do
 	[ -z "$f" ] && continue
+	if printf '%s' "$f" | grep -qE "$ALLOW_RE"; then
+		printf 'allowed by name: %s\n' "$f" >&2
+		continue
+	fi
 	if printf '%s' "$f" | grep -qiE "$DENY_RE"; then
 		printf 'BLOCKED: looks like copyrighted game data: %s\n' "$f" >&2
 		status=1

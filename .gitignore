@@ -108,6 +108,19 @@
 *.[dD][iI][cC]
 *.[fF][nN][tT]
 
+# --- One save disk is tracked on purpose -----------------------------------
+# assets/save-disk/userdisk.hdm.zip is the only disk image in git, and the exception is named rather than
+# global because every other *.hdm is disc-derived and must stay out. The disk inside holds nothing from
+# the disc: a FAT12 volume, a 3,701-byte roster of three characters and three world files, all written by
+# the game while it was played. It is here so the port's quickstart can start from a character that has
+# been in the world instead of from character creation, which does not work yet.
+#
+# It is compressed because the disk is 1,261,568 bytes and almost all of it is zero fill: the zip is 3,637
+# bytes, 347 to 1. The zip is built with a fixed DOS timestamp, so the same disk zips to the same bytes and
+# the checksum in tools/portcheck.js is a check on the disk rather than on when it was packed.
+# Un-ignoring a path is a deliberate act (AGENTS.md) and this is the narrowest form of it: one file.
+!assets/save-disk/userdisk.hdm.zip
+
 # --- Vendored third-party binaries -----------------------------------------
 # tools/vendor.sh downloads Tsugaru and the FreeTowns ROMs here. Third-party
 # binaries, gitignored as a unit.

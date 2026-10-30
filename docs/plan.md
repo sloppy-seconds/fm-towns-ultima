@@ -110,7 +110,7 @@ from the items below rather than maintained separately.
 | 9g Cross-compiling for Windows and macOS | NEEDS A DECISION | no, and 9f may retire it |
 | 9h The README's claims and links, checked | AUTONOMOUS | **yes** |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | partly, needs Paul's observations |
-| 9j A save disk with characters, and where it may live | NEEDS A DECISION | no, and one shape changes a safeguard |
+| 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **done**, the null was `Disc::data_`, not `handle` |
@@ -2075,13 +2075,16 @@ is not, until somebody sees it break.
 
 ### 9j. A save disk with characters, and where it may live
 
-**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | needs Paul. Two shapes, and one of them changes a safeguard that exists for a reason |
-| done when | from a fresh clone a reader reaches a character-ready disk in one command, either because an image is committed under `assets/savedisk/` and `.gitignore` carries a named exception for it, or because a script regenerates one and `verify.js` asserts its checksum, or because 9j is CUT on the measured grounds that the zip's own disk already has characters. The failure case: an image committed by defeating the `*.hdm` rule with `git add -f`, or a generator whose output nobody asserts |
-| blocked by | the decision, because `*.hdm` is ignored globally and that rule is a safeguard rather than an accident |
+| autonomy | autonomous. Paul decided the shape, and the packaging is mechanical |
+| done when | from a fresh clone a reader reaches a character-ready disk in one command, and the repository carries a check that the disk is the one the quickstart describes. The failure case: an image committed by defeating the `*.hdm` rule with `git add -f`, or a generator whose output nobody asserts |
+| blocked by | nothing |
+
+**Decided: the image is committed, zipped, under `assets/save-disk/`.** What follows records what was measured before
+the decision, because it narrowed the item, and then what landed.
 
 **Measured first, because it changes the item: the disk the zip ships is already populated.** `node
 tools/savedisk.js slots saves/userdisk.hdm` reports slot 0 `"E"`, slot 1 `"D"`, slot 2 `"B"` and slot 3 empty, and
@@ -2105,6 +2108,27 @@ says un-ignoring a line is a conversation. The three shapes:
 
 The second shape is how this repository answers every other question of this kind, and it also gives `assets/savedisk`
 something to hold that is not a game artefact: the recipe and the expected checksum.
+
+**What landed instead: the image, zipped, with the exception narrowed to one filename.** The path is
+`assets/save-disk/userdisk.hdm.zip`, and the zip is not a detail. The disk is 1,261,568 bytes and almost all of it is
+zero fill, so it packs to **3,629 bytes**, 347 to 1, using `zip -X -9` on a copy whose modification time is fixed to
+1980-01-01. The fixed timestamp means the same disk always packs to the same bytes, which is what makes a check on
+the archive meaningful rather than a check on when somebody packed it. Measured reproducible: two packs from the same
+disk in different directories are byte-identical.
+
+The exception is `!assets/save-disk/userdisk.hdm.zip` and nothing else, because `*.hdm` and `*.zip` are both ignored
+for the same reason and a glob exception would have widened both. `tools/portcheck.js` asserts two things and was seen
+to fail on both: the zip's central directory names `userdisk.hdm` with uncompressed size 1,261,568 and CRC-32
+`f4d2c1ea`, which is a check on the disk rather than on the container, and the general `*.hdm` and `*.zip` rules are
+still present. The failure was demonstrated by packing a blank disk of the same size under the same name: same size,
+different CRC, and the check refused it.
+
+The disk's contents, from `savedisk.js ls` and `slots`: `ROSTER1.UT2` at 3,701 bytes with slots 0, 1 and 2 named
+`E`, `D` and `B` and slot 3 empty, plus `WORLD1` to `WORLD3` at 68,096 each. The game's list is 1-indexed and the
+roster is 0-indexed, so in-game slot 1 is `E`. That sentence is what the checksum protects.
+
+Still to do, and it belongs to 9a and 9d rather than here: the quickstarts have to tell the reader to expand the zip
+and pick slot 1.
 
 ### 9e. CI that proves the tree builds, without the game
 

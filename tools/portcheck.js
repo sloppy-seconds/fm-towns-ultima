@@ -201,5 +201,69 @@ else fail('every documented switch exists in the port', 'documented but absent: 
 if (undocumented.length) fail('every switch in the port is documented', undocumented.join(', '));
 else ok('every switch in the port is documented', inCode.size + ' switches');
 
+// ---- the one tracked save disk, and the ignore rule that has to stay narrow ----
+// assets/save-disk/userdisk.hdm.zip is the only disk image in git. The port's tested route is Journey Onward with a
+// character that already exists, so a quickstart that says "pick slot 1" is only true while this file is the one it
+// was written against. The check reads the zip's central directory and asserts the entry's name, uncompressed size and
+// CRC-32, which is a check on the disk rather than on the container bytes: the same disk packed again gives the same
+// numbers, and a different disk cannot pass.
+//
+// The second half matters as much as the first: the exception must not have been implemented by weakening the general
+// rules, because every other *.hdm here is disc-derived and every *.zip is a disc rip.
+{
+	const crypto = require('crypto');
+	const zipPath = path.join(ROOT, 'assets', 'save-disk', 'userdisk.hdm.zip');
+	let entry = null;
+	const want = { name: 'userdisk.hdm', size: 1261568, crc32: 0xf4d2c1ea };
+	let buf = null;
+	try {
+		const z = fs.readFileSync(zipPath);
+		// End of central directory: 0x06054B50, scanned back from the end because a zip comment may follow it.
+		let eocd = -1;
+		for (let i = z.length - 22; i >= 0 && i > z.length - 65558; i--) {
+			if (z.readUInt32LE(i) === 0x06054b50) {
+				eocd = i;
+				break;
+			}
+		}
+		if (eocd < 0) throw new Error('no end-of-central-directory record');
+		const cd = z.readUInt32LE(eocd + 16);
+		if (z.readUInt32LE(cd) !== 0x02014b50) throw new Error('no central directory header');
+		const nameLen = z.readUInt16LE(cd + 28);
+		entry = {
+			crc32: z.readUInt32LE(cd + 16),
+			size: z.readUInt32LE(cd + 24),
+			name: z.toString('latin1', cd + 46, cd + 46 + nameLen),
+		};
+	} catch (e) {
+		fail('the tracked save disk is present and readable', e.message);
+	}
+	if (entry) {
+		const okNow = entry.name === want.name && entry.size === want.size && entry.crc32 === want.crc32;
+		if (okNow)
+			ok('the tracked save disk is the one the quickstart names', entry.name + ' ' + entry.size + ' bytes crc32 ' + entry.crc32.toString(16));
+		else
+			fail(
+				'the tracked save disk is the one the quickstart names',
+				`got ${entry.name} ${entry.size} bytes crc32 ${entry.crc32.toString(16)}, expected ${want.name} ` +
+					`${want.size} bytes crc32 ${want.crc32.toString(16)} ` +
+					'(update the numbers here, the table in assets/save-disk/README.md and any quickstart slot number together)'
+			);
+	}
+	const ignore = read('.gitignore') || '';
+	const keepsGeneralRule = /^\*\.[hH]\[dD\]\[mM\]/m.test(ignore) || /^\*\.hdm$/m.test(ignore);
+	const keepsZipRule = /^\*\.[zZ]\[iI]\[pP\]/m.test(ignore) || /^\*\.zip$/m.test(ignore);
+	const namesException = /^!assets\/save-disk\/userdisk\.hdm\.zip$/m.test(ignore);
+	if (keepsGeneralRule && keepsZipRule && namesException)
+		ok('the *.hdm and *.zip rules still apply generally, with one named exception', '!assets/save-disk/userdisk.hdm.zip');
+	else
+		fail(
+			'the *.hdm and *.zip rules still apply generally, with one named exception',
+			(keepsGeneralRule ? '' : 'the *.hdm rule is gone ') +
+				(keepsZipRule ? '' : 'the *.zip rule is gone ') +
+				(namesException ? '' : 'no named exception')
+		);
+}
+
 console.log(failures ? 'portcheck: ' + failures + ' failed' : 'portcheck: ' + checks + ' checks pass');
 process.exit(failures ? 1 : 0);
