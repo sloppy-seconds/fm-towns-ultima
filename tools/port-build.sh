@@ -139,7 +139,13 @@ PY
 	TB_SEEDS=""
 	if [[ -f "$TB_CAPTURE" ]]; then
 		TB_SEEDS=$(python3 "$ROOT/tools/tbios-seeds.py" "$TB_CAPTURE")
-		echo "tbios     $(python3 "$ROOT/tools/tbios-seeds.py" --count "$TB_CAPTURE") distinct 0110 offsets as seeds"
+		echo "tbios     $(python3 "$ROOT/tools/tbios-seeds.py" --count "$TB_CAPTURE") distinct 0110 offsets as seeds, from the live capture"
+	elif [[ -f "$ROOT/tools/tbios-seeds.txt" ]]; then
+		#    The capture is 3.2 MB of emulator trace and is gitignored, so a clean clone would otherwise build a
+		#    TBIOS module of 307 functions and fault at 0110:6d73 on frame 80. tools/tbios-seeds.txt is that same
+		#    derivation checked in, and `tbios-seeds.py --check` asserts the two still agree wherever the trace exists.
+		TB_SEEDS=$(grep -v '^#' "$ROOT/tools/tbios-seeds.txt" | tr -d ' \t\n')
+		echo "tbios     $(tr ',' '\n' <<< "$TB_SEEDS" | grep -c . ) seeds from tools/tbios-seeds.txt (the capture is not present)"
 	fi
 	TB_SPEC="tbios=$OUT/tbios.bin@110:20-100"
 	if [[ -n "$TB_SEEDS" ]]; then

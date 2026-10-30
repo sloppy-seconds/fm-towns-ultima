@@ -680,6 +680,22 @@ console.log(bad.length ? bad.join('; ') : 'agree');
 	const tb = runNode('tbios.js', ['--check']);
 	record('TBIOS dispatch chain', tb.ok ? [] : tb.out.split('\n').filter((l) => l.trim() && !/^ok /.test(l)));
 
+	// H2. The checked-in TBIOS seed derivation. The live capture is gitignored, so a clean clone would build a
+	// TBIOS module of 307 functions rather than the 5,573 the port was measured against, and fault at
+	// 0110:6d73 on frame 80. tools/tbios-seeds.txt is that derivation in git, and this asserts it still equals
+	// the trace wherever the trace exists. The script prints SKIP and exits 0 when it does not, which is the
+	// honest shape for a clone, and a missing python3 is treated the same way rather than as a failure.
+	{
+		let bad = [];
+		try {
+			execFileSync('python3', [path.join(__dirname, 'tbios-seeds.py'), '--check'], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
+		} catch (e) {
+			if (e.code === 'ENOENT') console.log('  note  tbios seeds check skipped: no python3 on PATH');
+			else bad = String((e.stdout || '') + (e.stderr || '')).split('\n').filter((l) => l.trim());
+		}
+		record('tbios seeds match the checked-in derivation', bad);
+	}
+
 	// I. The display context and the rectangle cluster. docs/display-context.md claims seven
 	// specific TBIOS calls in 0xe5d90 reach seven specific handlers, and docs/rectangle-cluster.md
 	// claims the direct AH set of four routines, that AH 0x48 and 0x49 share a handler, and that

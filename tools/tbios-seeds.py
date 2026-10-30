@@ -13,12 +13,19 @@ the game really called. This prints them as a comma-separated seed list for the 
 USAGE
     tools/tbios-seeds.py saves/analysis/entry-boot-tool.txt
     tools/tbios-seeds.py --count saves/analysis/entry-boot-tool.txt
+    tools/tbios-seeds.py --check [capture]   assert tools/tbios-seeds.txt equals this derivation
 
 Exit status 1 if the file holds no 0110 steps, because an empty seed list would emit a module with no
-functions and look like a TBIOS that is not used.
+functions and look like a TBIOS that is not used. `--check` prints a SKIP and exits 0 when the capture is
+not present, because a clean clone has the checked-in derivation and no trace to compare it against.
 """
 
+import os
 import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CAPTURE = os.path.join(HERE, "..", "saves", "analysis", "entry-boot-tool.txt")
+CHECKED_IN = os.path.join(HERE, "tbios-seeds.txt")
 
 
 def seeds(path):
@@ -41,6 +48,29 @@ def seeds(path):
 def main(argv):
     args = [a for a in argv if not a.startswith("--")]
     count = "--count" in argv
+    if "--check" in argv:
+        capture = args[0] if args else DEFAULT_CAPTURE
+        if not os.path.exists(capture):
+            print("SKIP  tbios seeds: %s is a gitignored emulator capture and is not present" % capture)
+            return 0
+        want = set(seeds(capture))
+        have = set()
+        with open(CHECKED_IN) as fh:
+            for line in fh:
+                if line.startswith("#"):
+                    continue
+                for tok in line.split(","):
+                    tok = tok.strip()
+                    if tok:
+                        have.add(int(tok, 16))
+        if want == have:
+            print("ok    tbios-seeds.txt equals the capture derivation (%d seeds)" % len(want))
+            return 0
+        print(
+            "FAIL  tbios-seeds.txt is not the capture derivation: %d committed, %d derived, "
+            "%d only in the file, %d missing from it" % (len(have), len(want), len(have - want), len(want - have))
+        )
+        return 1
     if len(args) != 1:
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
         return 2
