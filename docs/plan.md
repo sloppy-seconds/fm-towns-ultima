@@ -109,7 +109,7 @@ from the items below rather than maintained separately.
 | 9e CI that proves the tree builds | AUTONOMOUS | **yes**, measured: the port links against a synthetic module |
 | 9f A release, and what may be in it | NEEDS A DECISION | no, three shapes and Paul picks one |
 | 9g Cross-compiling for Windows and macOS | NEEDS A DECISION | no, and 9f may retire it |
-| 9h The README's claims and links, checked | AUTONOMOUS | **yes** |
+| 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
@@ -2270,7 +2270,7 @@ at all.
 
 ### 9h. The README's claims and links, checked
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2282,6 +2282,16 @@ The README is about to grow the two most-copied links in the project, and it alr
 that `AGENTS.md` names: the archive link, the editor and docs URLs, and the scope paragraph appear in several places.
 A rewrite is the moment a link goes stale in one of them, and the check is a page of work against finding out from a
 reader.
+
+**What landed.** Two checks in `tools/checkall.js`. `shared URLs have one form each` enumerates every occurrence of
+the two hosts across `README.md`, `tools/README.md`, `web/README.md`, `mkdocs.yml` and every docs page, and rejects any
+`sloppy-seconds.github.io` path that is not the root, `/docs/` or `/docs/quickstart/`, and any `archive.org/details/`
+item that is not `fmtownscdcollection`. That is the shape the item warned about: grepping for one string cannot see a
+fourth spelling appear, so this one allows exactly three and fails everything else. `README relative links resolve`
+covers the gap mkdocs cannot, because the README is deliberately not built by mkdocs.
+
+Both were seen to fail, on a temporary line in the README carrying an invented docs path and a link to a file that does
+not exist, and the line was removed after the failure was read.
 
 ---
 

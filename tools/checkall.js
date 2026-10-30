@@ -109,6 +109,49 @@ const pages = () => fs.readdirSync(DOCS).filter((f) => f.endsWith('.md'));
 	record('summary table matches sections', stale);
 }
 
+// G. The three links that are copied around the project. AGENTS.md names the archive link, the docs site URL and
+// the editor URL as the known duplication, and the failure it warns about is one copy going stale. Grepping for one
+// string cannot see a fourth spelling appear, so this enumerates every occurrence of the two hosts in every source
+// page and rejects any path that is not one of the canonical forms.
+{
+	const carriers = [
+		['README.md', path.join(ROOT, 'README.md')],
+		['tools/README.md', path.join(ROOT, 'tools', 'README.md')],
+		['web/README.md', path.join(ROOT, 'web', 'README.md')],
+		['mkdocs.yml', path.join(ROOT, 'mkdocs.yml')],
+	].concat(pages().map((f) => ['docs/' + f, path.join(DOCS, f)]));
+	const allowed = new Set(['', 'docs/', 'docs/quickstart/']);
+	const bad = [];
+	for (const [label, file] of carriers) {
+		if (!fs.existsSync(file)) continue;
+		const text = fs.readFileSync(file, 'utf8');
+		for (const m of text.matchAll(/https:\/\/sloppy-seconds\.github\.io\/fm-towns-ultima\/([^\s)\]"'<]*)/g)) {
+			const tail = m[1].replace(/[*_.,;:]+$/, '');
+			if (!allowed.has(tail)) bad.push(`${label}: "${m[0]}" is not one of the canonical forms (root, /docs/, /docs/quickstart/)`);
+		}
+		for (const m of text.matchAll(/https:\/\/archive\.org\/details\/([^\s)\]"'<]*)/g)) {
+			const tail = m[1].replace(/[*_.,;:]+$/, '');
+			if (tail !== 'fmtownscdcollection') bad.push(`${label}: "${m[0]}" is not the canonical archive.org item`);
+		}
+	}
+	record('shared URLs have one form each', bad);
+}
+
+// G2. The README's relative links must resolve to something. mkdocs --strict checks the pages it builds, and the
+// README is deliberately not one of them, so a link there that points at nothing has never failed anything. The
+// renumbering in plan item 9a is exactly when that happens.
+{
+	const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+	const bad = [];
+	for (const m of readme.matchAll(/]\(([^)\s]+)\)/g)) {
+		const target = m[1];
+		if (/^(https?:|mailto:|#)/.test(target)) continue;
+		const p = path.join(ROOT, target.split('#')[0]);
+		if (!fs.existsSync(p)) bad.push(`README.md link "${target}" resolves to nothing`);
+	}
+	record('README relative links resolve', bad);
+}
+
 // D. Plan metadata. plancheck.js owns this, so it is invoked rather than reimplemented.
 const runNode = (script, args = []) => {
 	try {
