@@ -69,10 +69,16 @@ session: once missing the implicit `scale=1` so four globals were invisible, onc
 counting an address stored as an immediate. With Capstone those two cases differ in
 **operand type** (`X86_OP_MEM` against `X86_OP_IMM`), so neither bug can be expressed.
 
-## The eleven call sites
+## The eleven call sites, all migrated
 
-`ndisasm` is invoked from thirteen places in eleven files, with four different
-conventions mixed together:
+`ndisasm` **was** invoked from thirteen places in eleven files, with four different
+conventions mixed together. That is the state this page measured, and it is history:
+plan item 4h migrated all eleven and `tools/checkall.js` now pins the invoking-file
+count at 2, both of them deliberate. See `docs/tooling-policy.md` for what the
+migration changed and how each difference was characterised.
+
+The table below is the measurement that justified the change, kept because it is why
+`tools/decode.js` exists.
 
 | file | shape |
 |---|---|

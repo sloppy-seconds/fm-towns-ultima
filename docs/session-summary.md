@@ -140,9 +140,10 @@ alone: the target hoists `c` into `esi` with no frame, our builds spill. That is
 class as `0xe140c`, and it is the one open question about whether large `non-leaf` routines
 are tractable at all.
 
-**Cheap and unblocked: plan item 4h**, migrating the remaining eleven `ndisasm` sites.
+**Plan item 4h is done**, the eleven `ndisasm` sites migrated to the shared decoder:
 Python two first, then the low-risk JS, then the four census-critical ones one at a time
-with a `corpus.json` diff after each.
+with a `corpus.json` diff after each. Nine census rows moved, none changed kind, and the
+record is in `docs/tooling-policy.md`.
 
 **Blocked on a person: the palette and the `0xe6a58` trace**, both of which want the
 Geartowns debugger, which is pinned. See `docs/geartowns.md`.

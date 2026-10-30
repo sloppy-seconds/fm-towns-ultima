@@ -22,8 +22,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 const { Disc, defaultDisc } = require('./cd');
+const { decode, format } = require('./decode');
 
 const args = process.argv.slice(2);
 function arg(flag, dflt) {
@@ -87,37 +87,37 @@ if (!rawHits) say('  none');
 
 say('');
 say('== A2. aligned disassembly scan for in/out against any port ==');
-// Disassemble from PAYLOAD, then reject matches whose instruction bytes do not
-// re-encode to the same length (a cheap sanity filter against data regions).
+// Decode from PAYLOAD with the shared decoder (plan item 4h). The in/out and
+// `mov dx,imm` questions are answered from operand objects, not from text,
+// which is what the old regexes kept getting subtly wrong.
 const tmp = path.join(require('os').tmpdir(), 'findpal_code.bin');
-fs.writeFileSync(tmp, buf.subarray(PAYLOAD));
-let dis = '';
+fs.writeFileSync(tmp, buf);
+let insns = [], skips = [];
 try {
-	dis = execSync('ndisasm -b32 -w -o0x' + PAYLOAD.toString(16) + ' "' + tmp + '" 2>/dev/null', {
-		encoding: 'utf8',
-		maxBuffer: 1 << 29,
-	});
+	({ insns, skips } = decode(PAYLOAD, buf.length, { image: tmp }));
 } catch (e) {
-	say('  ndisasm failed: ' + e.message);
+	say('  decode failed: ' + e.message);
 }
-const lines = dis.split('\n').filter(Boolean);
+say('  decoded ' + insns.length + ' instructions, ' + skips.length + ' undecodable bytes');
+const isDx = (op) => op.type === 'reg' && /^(dx|edx)$/.test(op.name);
 const ioLines = [];
-for (let i = 0; i < lines.length; i++) {
-	const l = lines[i];
-	if (/\bout\s+dx\b|\bin\s+(al|ax|eax),\s*dx|\boutsb\b|\binsb\b/.test(l)) ioLines.push(i);
+for (let i = 0; i < insns.length; i++) {
+	const m = insns[i].mnemonic;
+	if (/^(outsb|insb)$/i.test(m)) { ioLines.push(i); continue; }
+	if (/^(in|out)$/i.test(m) && insns[i].operands.some(isDx)) ioLines.push(i);
 }
 say('  total in/out via dx: ' + ioLines.length);
 
 // classify by the nearest preceding `mov dx,imm` within 12 instructions
+const movDxImm = (ins) =>
+	ins.mnemonic === 'mov' && isDx(ins.operands[0]) && ins.operands[1] && ins.operands[1].type === 'imm'
+		? ins.operands[1].value : null;
 const byPort = new Map();
 for (const i of ioLines) {
 	let port = null;
 	for (let j = i - 1; j >= Math.max(0, i - 12); j--) {
-		const m = lines[j].match(/mov\s+dx,0x([0-9a-f]+)/);
-		if (m) {
-			port = parseInt(m[1], 16);
-			break;
-		}
+		const v = movDxImm(insns[j]);
+		if (v !== null) { port = v; break; }
 	}
 	const key = port === null ? 'indirect' : '0x' + port.toString(16);
 	byPort.set(key, (byPort.get(key) || 0) + 1);
@@ -130,20 +130,20 @@ for (const i of ioLines) {
 const crtcIdx = [];
 for (const i of ioLines) {
 	for (let j = i - 1; j >= Math.max(0, i - 12); j--) {
-		const m = lines[j].match(/mov\s+dx,0x([0-9a-f]+)/);
-		if (m) {
-			const p = parseInt(m[1], 16);
-			if (p >= 0x1a0 && p <= 0x1ae) crtcIdx.push(i);
+		const v = movDxImm(insns[j]);
+		if (v !== null) {
+			if (v >= 0x1a0 && v <= 0x1ae) crtcIdx.push(i);
 			break;
 		}
 	}
 }
+const fmtInsn = format;
 say('');
 if (crtcIdx.length) {
 	say('  !! CRTC hits: ' + crtcIdx.length);
 	for (const i of crtcIdx.slice(0, 10)) {
 		say('  ---');
-		lines.slice(Math.max(0, i - 10), i + 3).forEach((l) => say('    ' + l.replace(/\s+/g, ' ')));
+		insns.slice(Math.max(0, i - 10), i + 3).forEach((ins) => say('    ' + fmtInsn(ins)));
 	}
 } else {
 	say('  no in/out against 0x1A0-0x1AE found in aligned disassembly either');

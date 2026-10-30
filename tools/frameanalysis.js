@@ -31,12 +31,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { Disc, defaultDisc } = require('./cd.js');
+const { decode, format } = require('./decode.js');
 
 const ROOT = path.join(__dirname, '..');
 const HEADER = 0x20;
-const LINE = /^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f ]+?)\s{2,}(.*)$/;
 
 const args = process.argv.slice(2);
 
@@ -48,23 +47,20 @@ function loadImage() {
 	return buf.slice(HEADER);
 }
 
-// Decode a window with ndisasm. Same approach as cfgwalk: one call per run rather than per instruction.
+// Decode a window with the shared decoder (plan item 4h). One call per run
+// rather than per instruction, and the window is written to a pid-scoped temp
+// file so the decoder reads exactly these bytes at exactly this address.
 function decodeWindow(img, addr, len) {
 	const end = Math.min(addr + len, img.length);
 	const slice = img.subarray(addr, end);
 	const tmp = path.join('/var/tmp', 'fa-' + process.pid + '.bin');
 	fs.writeFileSync(tmp, slice);
-	let out = '';
+	let ins = [];
 	try {
-		out = execFileSync('ndisasm', ['-b32', '-w', '-o' + addr.toString(), tmp], { encoding: 'utf8' });
+		({ insns: ins } = decode(0, slice.length, { image: tmp }));
+		ins = ins.map((i) => ({ ...i, addr: i.addr + addr }));
 	} finally {
 		fs.unlinkSync(tmp);
-	}
-	const ins = [];
-	for (const line of out.split('\n')) {
-		const m = LINE.exec(line);
-		if (!m) continue;
-		ins.push({ addr: parseInt(m[1], 16), bytes: m[2].trim(), text: m[3].trim() });
 	}
 	return ins;
 }
@@ -88,25 +84,32 @@ function routineBody(img, entry, maxLen = 4096) {
 	const body = [];
 	for (const i of ins) {
 		body.push(i);
-		if (/^ret/.test(i.text)) break;
-		if (/^jmp\b/.test(i.text) && /^jmp\s+(0x)?[0-9a-f]+$/i.test(i.text)) break;
+		if (/^ret/.test(i.mnemonic)) break;
+		if (i.mnemonic === 'jmp' && i.operands.some((o) => o.type === 'imm')) break;
 		if (body.length > 400) break;
 	}
 	return body;
 }
 
+const isReg = (op, name) => op && op.type === 'reg' && op.name === name;
+// index===null keeps the old regex semantics: `[ebp+8]` is an argument slot,
+// `[ebp+ecx*4+8]` is an array through a base pointer and was never counted.
+const ebpDisp = (routine, test) => routine.some((i) => i.operands.some(
+	(o) => o.type === 'mem' && o.base === 'ebp' && o.index === null && o.disp !== null && test(o.disp)));
+
 function classify(routine) {
-	const text = routine.map((i) => i.text);
-	const joined = text.join('\n');
+	const t0 = routine[0], t1 = routine[1];
 	return {
-		framed: routine.length > 1 && /^push ebp$/i.test(text[0] || '') && /^mov ebp,esp$/i.test(text[1] || ''),
+		framed: routine.length > 1 && t0.mnemonic === 'push' && isReg(t0.operands[0], 'ebp') &&
+			t1.mnemonic === 'mov' && isReg(t1.operands[0], 'ebp') && isReg(t1.operands[1], 'esp'),
 		// A local is a negative-displacement read or write off ebp. Arguments are positive.
-		locals: /\[ebp-0x[0-9a-f]+\]|\[ebp-[0-9]+\]/i.test(joined),
-		args: /\[ebp\+0x[0-9a-f]+\]|\[ebp\+[0-9]+\]/i.test(joined),
-		espArgs: /\[esp\+0x[0-9a-f]+\]|\[esp\+[0-9]+\]/i.test(joined),
-		calls: /(^|\n)call\b/i.test(joined),
+		locals: ebpDisp(routine, (d) => d < 0),
+		args: ebpDisp(routine, (d) => d > 0),
+		espArgs: routine.some((i) => i.operands.some(
+			(o) => o.type === 'mem' && o.base === 'esp' && o.disp !== null && o.disp > 0)),
+		calls: routine.some((i) => i.mnemonic === 'call'),
 		size: routine.length,
-		prologueBytes: routine.slice(0, 3).reduce((n, i) => n + i.bytes.split(' ').length, 0),
+		prologueBytes: routine.slice(0, 3).reduce((n, i) => n + i.size, 0),
 	};
 }
 
@@ -126,7 +129,7 @@ function main() {
 		const want = Number(args[args.indexOf('--at') + 1]);
 		const body = routineBody(img, want);
 		console.log('routine at 0x' + want.toString(16) + ': ' + body.length + ' instructions');
-		for (const i of body) console.log('  0x' + i.addr.toString(16).padStart(8, '0') + '  ' + i.bytes.padEnd(20) + i.text);
+		for (const i of body) console.log('  ' + format(i));
 		return;
 	}
 

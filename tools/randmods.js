@@ -23,11 +23,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { decode, decodeMany, format } = require('./decode');
 
 const ROOT = path.join(__dirname, '..');
 const TARGET = 0xe1c5c;
-const img = fs.readFileSync(path.join(ROOT, 'ENCHANT.EXP')).slice(0x20);
+// img is the file sliced by 0x20, so a frame address in this file is a raw
+// file offset minus 0x20. decode() speaks raw file offsets; SLICE converts
+// at the boundary and nowhere else.
+const SLICE = 0x20;
+const img = fs.readFileSync(path.join(ROOT, 'ENCHANT.EXP')).slice(SLICE);
 
 // Instruction-boundary filtering.
 //
@@ -47,9 +51,6 @@ const img = fs.readFileSync(path.join(ROOT, 'ENCHANT.EXP')).slice(0x20);
 // boundary set is built function by function from the CALL-target list, which is what
 // tools/sweep.js --funcs does.
 function boundarySet() {
-	const { execFileSync } = require('child_process');
-	const LINE = /^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f ]+?)\s{2,}(.*)$/;
-
 	const calls = new Map();
 	for (let i = 0; i < img.length - 5; i++) {
 		if (img[i] !== 0xe8) continue;
@@ -63,17 +64,11 @@ function boundarySet() {
 	const entries = [...calls.keys()];
 
 	const set = new Set();
-	const tmp = '/var/tmp/bnd.bin';
-	for (const entry of entries) {
-		fs.writeFileSync(tmp, img.subarray(entry, entry + 0x200));
-		const out = execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, tmp], {
-			encoding: 'utf8',
-			maxBuffer: 8 * 1024 * 1024,
-		});
-		for (const line of out.split('\n')) {
-			const m = LINE.exec(line);
-			if (m) set.add(parseInt(m[1], 16));
-		}
+	// One worker process for every entry (plan item 4h): the retired path paid an
+	// ndisasm spawn per entry and parsed its columns.
+	const results = decodeMany(entries.map((e) => [e + SLICE, e + SLICE + 0x200]));
+	for (const r of results) {
+		for (const ins of r.insns) set.add(ins.addr - SLICE);
 	}
 	return set;
 }
@@ -123,11 +118,12 @@ function main() {
 	const args = process.argv.slice(2);
 	if (args[0] === '--at') {
 		const entry = Number(args[1]);
-		const buf = '/var/tmp/randmod.bin';
-		fs.writeFileSync(buf, img.subarray(entry - 0x20, entry - 0x20 + 0xc0));
-		process.stdout.write(
-			execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, buf], { encoding: 'utf8' })
-		);
+		// Same byte window as the retired ndisasm call (raw [entry, entry+0xc0),
+		// which is this frame's [entry-0x20, entry+0xa0): 0x20 of context before
+		// the site). The old `-o` labeled those bytes 0x20 too high; these labels
+		// are true in this file's frame.
+		const { insns } = decode(entry, entry + 0xc0);
+		process.stdout.write(insns.map((i) => format({ ...i, addr: i.addr - SLICE })).join('\n') + '\n');
 		return;
 	}
 

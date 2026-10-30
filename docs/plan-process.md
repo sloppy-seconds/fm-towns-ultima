@@ -224,7 +224,7 @@ One command, and it returns a real exit code:
 node tools/checkall.js
 ```
 
-Ten checks. **Each was tested by breaking something it should catch and confirming it fails**, because a
+**It reports 29 checks** (`node tools/checkall.js | grep -c '^ok '` is the measurement, and it was 10 when this page named ten of them). The table below covers the ones that guard documents and planning, not all 29. **Each was tested by breaking something it should catch and confirming it fails**, because a
 check that has never been seen to fail is a comment.
 
 | check | what it catches |
@@ -238,6 +238,7 @@ check that has never been seen to fail is a comment.
 | verify | an established fact that stopped being true |
 | quoted bytes are real | a byte sequence quoted into `docs/` that is not in any binary, and not marked as a paraphrase or as compiler output |
 | image tooling audit | the address and byte-derivation tools, against routines whose answer is known |
+| decoder session agrees with one-shot | the persistent decode worker drifting from the one-shot path, which is a transport failure that no count would catch |
 | site build | `mkdocs --strict` warnings |
 
 ### Why `image tooling audit` exists, and why it is a different kind of check

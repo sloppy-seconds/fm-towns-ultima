@@ -187,8 +187,15 @@ const runNode = (script, args = []) => {
 			["fmtownskit's function starts in zero fill", j.functions.theirs_only.zero_run, 0],
 			['our starts in zero fill', j.functions.ours_only.zero_run, 7],
 			['emitted instructions', j.instructions.theirs, 43016],
-			['our instructions, seeded', j.instructions.ours, 39820],
-			['instruction starts in both', j.instructions.both, 38443],
+			// Re-measured 2026-10-30 on the plan-item-4h decoder migration (ndisasm text
+			// parser -> Capstone via tools/decode.js). Ours fell 39820 -> 39795 because
+			// ndisasm counted its `db` lines for undecodable bytes as instructions and
+			// Capstone reports them as skips. Both rose 38443 -> 38515 because Capstone
+			// resyncs the way fmtownskit's i386.py does (docs/fmtownskit-and-seeds.md
+			// records that decoder as agreeing with Capstone on every routine checked),
+			// so agreement with the other walk improved, not degraded.
+			['our instructions, seeded', j.instructions.ours, 39795],
+			['instruction starts in both', j.instructions.both, 38515],
 		];
 		for (const [what, got, exp] of want) {
 			if (got !== exp) problems.push(`FAIL ${what}: ${got}, expected ${exp}. Re-measure before changing this number.`);
@@ -407,6 +414,7 @@ const runNode = (script, args = []) => {
 	record('global tooling regression', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
 }
 
+
 // D5. Every ndisasm invocation must pass -w.
 //
 // WHY THIS IS A CHECK AND NOT A COMMENT. `ndisasm` wraps a long instruction onto a
@@ -444,6 +452,47 @@ const runNode = (script, args = []) => {
 	record('ndisasm uses -w', offenders);
 }
 
+// D7. The decoder SESSION must agree with the one-shot decoder, byte for byte.
+//
+// WHY THIS IS A CHECK. Plan item 4h replaced per-window decoding with one
+// persistent worker (`decodeSession()` in tools/decode.js), because cfgwalk refills
+// about 1,028 windows and preflight asks about 738 routine bodies and a spawn each
+// measured 117ms. The session is a second code path over the same worker, so it can
+// drift: the first version read a false EOF during the child's startup and the second
+// passed the interpreter's `-u` to `exec` instead of to python. Both were silent
+// failures of a transport, not of a decoder, and neither would have shown up in a
+// count that merely looked plausible.
+//
+// The three ranges cover the cases the migration measured: ordinary code
+// (0xe9090), a routine whose body contains undecodable bytes (0xea08d), and a
+// region the decoder resyncs through (0xf236a).
+{
+	const problems = [];
+	try {
+		const r = execFileSync(process.execPath, ['-e', `
+const path = require('path');
+const { decode, decodeSession } = require(path.join(${JSON.stringify(__dirname)}, 'decode.js'));
+const s = decodeSession();
+const pairs = [[0xe9090, 0xe9210], [0xea08d, 0xea200], [0xf236a, 0xf2380]];
+const bad = [];
+for (const [lo, hi] of pairs) {
+	const a = s.decode(lo, hi);
+	const b = decode(lo, hi);
+	if (JSON.stringify(a.insns) !== JSON.stringify(b.insns)) bad.push(lo.toString(16) + ': instructions differ');
+	if (JSON.stringify(a.skips) !== JSON.stringify(b.skips)) bad.push(lo.toString(16) + ': skips differ');
+}
+s.close();
+console.log(bad.length ? bad.join('; ') : 'agree');
+`], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
+		if (r.trim() !== 'agree') {
+			problems.push(`decodeSession disagrees with decode() over the three test ranges: ${r.trim().slice(0, 160)}`);
+		}
+	} catch (e) {
+		problems.push('session check failed to run: ' + ((e.stdout ?? '') + (e.stderr ?? '')).split('\n')[0]);
+	}
+	record('decoder session agrees with one-shot', problems);
+}
+
 // D6. THE TOOLING POLICY: no new tool parses disassembler text for operands.
 //
 // `tools/decode.js` returns instruction objects with operand TYPES, so `X86_OP_MEM` and
@@ -468,10 +517,6 @@ const runNode = (script, args = []) => {
 	const ALLOWED = new Set([
 		'checkall.js', 'checkglobals.js', 'imgaudit.js',
 		'decode_agree.py', 'decode_worker.py', 'decode.js', 'decode-setup.sh',
-		'funcs.js', 'cfgwalk.js', 'sweep.js', 'preflight.js',
-		'frameanalysis.js', 'randmods.js', 'decompile-run.js',
-		'findpal.js', 'pharlap.js', 'checkquoted.js',
-		'dumpqueue.py', 'trycands.py',
 	]);
 	const invokes = (text) =>
 		/ndisasm['"]\s*,?\s*\[/.test(text) || /ndisasm -b/.test(text) ||
@@ -487,7 +532,7 @@ const runNode = (script, args = []) => {
 		}
 	}
 	// Pinned so migrating a tool is an intentional edit rather than a silent drift.
-	const PENDING = 13;
+	const PENDING = 2;
 	const still = files.filter((f) => ALLOWED.has(f)
 		&& invokes(fs.readFileSync(path.join(__dirname, f), 'utf8')));
 	if (still.length !== PENDING) {

@@ -1311,7 +1311,7 @@ verifying them by byte-matching C, because there is no C to write.
 | `0x103f0d` | 7 | `fld`/`ret 8` |
 | `0x103ef3` | 7 | `fld`/`ret 4` |
 | `0x103e64` | 20 | `fnstsw ax`, x87 status inspection |
-| `0x103f6f` | 57 | `rep movsb` and x87, `ret 0xc` |
+| `0x103f6f` | 10 | `fbstp`/`wait`/`ret 4`, one stub |
 | `0xfe95d` | 31 | no prologue, returns in `ax`/`dx`, `mul bx` |
 
 ### Why they were in the pool

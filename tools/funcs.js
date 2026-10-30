@@ -24,8 +24,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { Disc, defaultDisc } = require('./cd.js');
+const { decode, format } = require('./decode.js');
 
 const ROOT = path.join(__dirname, '..');
 // ENCHANT.EXP is a Phar Lap MP image whose header is 0x20 bytes. Code offsets in
@@ -90,27 +90,18 @@ function main() {
 		// sits at stripped 0xe1c5c and raw 0xe1c7c.
 		const entry = Number(args[1]);
 		const len = args[2] ? Number(args[2]) : 0x200;
-		// Bytes go to ndisasm on STDIN, not through a file. A fixed path here is the
-		// exact hazard that produced a fabricated disassembly in tools/trycands.py:
-		// when the write did not happen, ndisasm disassembled a stale file and the
-		// output looked completely normal. tools/imgaudit.js asserts that no tool
-		// disassembles a fixed /var/tmp path.
-		// Label the origin as the STRIPPED address, which is the address space the whole
-		// project uses (base 0 over the header-stripped image).
-		//
-		// This was wrong before: no -o was passed, so labels started at 0 while the
-		// rest of the project used absolute stripped addresses. An earlier attempt
-		// passed the FILE address instead, which labelled everything 0x20 high and made
-		// `call 0xe1c5c` print as `call 0xe1c7c`. Both mistakes cost real time on a
-		// function that does not exist.
-		//
-		// Measured, not assumed: the randMod prologue is at stripped 0xe1c5c and raw
-		// 0xe1c7c.
-		const text = execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, '-'], {
-			input: buf.subarray(entry, entry + len),
-			encoding: 'utf8',
-		});
-		process.stdout.write(text);
+		// The shared decoder, fed a pid-scoped temp file (plan item 4h). Not a
+		// FIXED path: a fixed path is the hazard that produced a fabricated
+		// disassembly in tools/trycands.py, and tools/imgaudit.js asserts that
+		// no tool disassembles a fixed /var/tmp path.
+		const tmp = path.join(require('os').tmpdir(), 'funcs-' + process.pid + '.bin');
+		fs.writeFileSync(tmp, buf);
+		try {
+			const { insns } = decode(entry, entry + len, { image: tmp });
+			process.stdout.write(insns.map(format).join('\n') + '\n');
+		} finally {
+			fs.unlinkSync(tmp);
+		}
 		return;
 	}
 

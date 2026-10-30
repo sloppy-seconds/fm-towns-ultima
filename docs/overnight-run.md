@@ -139,8 +139,9 @@ Cheap and independent. Run them when the queue has nothing startable, not before
 segment at a chosen absolute address in flat model, the base-fold set becomes `matched` rather
 than `identical except disp32`. Either answer is a result.
 
-**5b. Plan item 4h**, migrating the remaining eleven `ndisasm` sites. Mechanical, unblocks
-nothing but removes the last text parsing from the toolchain. Do it in a lull.
+**5b. Plan item 4h is done**, the eleven `ndisasm` sites migrated to the shared
+decoder. It removed the last text parsing from the toolchain. Recorded in
+`docs/tooling-policy.md`; nothing here to pick up.
 
 ## What "done" looks like
 

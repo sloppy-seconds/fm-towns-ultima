@@ -29,6 +29,35 @@ IMAGE = os.path.join(ROOT, 'ENCHANT.EXP')
 HEADER = 0x20
 
 
+def _ensure_capstone():
+    """Import Capstone directly, re-execing into the repo venv if needed.
+
+    Plan item 4h retires the ndisasm text-parsing path here (see
+    tools/trycands.py for the reasoning and docs/tooling-policy.md).
+    """
+    try:
+        import capstone  # noqa: F401
+        return
+    except ImportError:
+        pass
+    venv = os.environ.get('CS_PYTHON') or os.path.join(ROOT, 'tools', '.venv', 'bin', 'python3')
+    # Compare unresolved paths: the venv python is a symlink to the same system
+    # binary, so realpath() makes the two look identical and the re-exec never
+    # happens.
+    if os.path.exists(venv) and os.path.abspath(venv) != os.path.abspath(sys.executable):
+        # sys.orig_argv carries the full command line including `-c script`;
+        # sys.argv drops the -c argument itself, which broke the first version
+        # of this bootstrap when invoked as `python3 -c ...`.
+        os.execv(venv, [venv] + sys.orig_argv[1:])
+    raise SystemExit('capstone is not importable and no venv at %s; run ./tools/decode-setup.sh' % venv)
+
+
+_ensure_capstone()
+from capstone import Cs, CS_ARCH_X86, CS_MODE_32  # noqa: E402
+
+_MD = Cs(CS_ARCH_X86, CS_MODE_32)
+
+
 def pool():
     out = subprocess.run(['node', os.path.join(ROOT, 'tools', 'preflight.js'), '--scan', '60'],
                          capture_output=True, text=True, cwd=ROOT).stdout
@@ -41,25 +70,24 @@ def pool():
 
 
 def routine(image, addr, cap=512):
-    """Bytes and disassembly from addr to the first ret, inclusive."""
+    """Bytes and disassembly from addr to the first ret, inclusive.
+
+    Decoded in-process by Capstone (plan item 4h). The `bytes` field is the
+    machine contract and is byte-identical to the retired ndisasm path on
+    every queue address; `lines` is display text and now carries the
+    Capstone rendering.
+    """
     blob = image[addr:addr + cap]
     if not blob:
         return None
-    out = subprocess.run(['ndisasm', '-b32', '-w', '-o', hex(addr), '-'],
-                         input=blob, capture_output=True)
-    text = out.stdout.decode('latin1')
     bytes_ = []
     lines = []
-    for line in text.split('\n'):
-        if not line.strip():
-            continue
-        parts = line.split(None, 2)
-        if len(parts) < 2:
-            continue
-        lines.append(line)
-        for i in range(0, len(parts[1]), 2):
-            bytes_.append(int(parts[1][i:i + 2], 16))
-        if len(parts) > 2 and parts[2].strip().startswith('ret'):
+    for ins in _MD.disasm(blob, addr):
+        hexpart = ins.bytes.hex().upper()
+        text = '%08X  %s  %s %s' % (ins.address, hexpart, ins.mnemonic, ins.op_str)
+        lines.append(text)
+        bytes_.extend(ins.bytes)
+        if ins.mnemonic.startswith('ret'):
             break
         if len(bytes_) > cap:
             break

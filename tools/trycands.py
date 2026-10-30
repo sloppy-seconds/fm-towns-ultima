@@ -36,58 +36,59 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGE = os.path.join(ROOT, 'ENCHANT.EXP')
 
 
+def _ensure_capstone():
+    """Import Capstone directly, re-execing into the repo venv if needed.
+
+    Plan item 4h retires the ndisasm text-parsing path here: operand questions
+    must be answered by a decoder that returns instruction objects, and four
+    hand-rolled column parsers (including the continuation-line trap this file
+    used to carry) are how that went wrong before. The venv is the one
+    tools/decode-setup.sh creates; CS_PYTHON overrides.
+    """
+    try:
+        import capstone  # noqa: F401
+        return
+    except ImportError:
+        pass
+    venv = os.environ.get('CS_PYTHON') or os.path.join(ROOT, 'tools', '.venv', 'bin', 'python3')
+    # Compare unresolved paths: the venv python is a symlink to the same system
+    # binary, so realpath() makes the two look identical and the re-exec never
+    # happens.
+    if os.path.exists(venv) and os.path.abspath(venv) != os.path.abspath(sys.executable):
+        # sys.orig_argv carries the full command line including `-c script`;
+        # sys.argv drops the -c argument itself, which broke the first version
+        # of this bootstrap when invoked as `python3 -c ...`.
+        os.execv(venv, [venv] + sys.orig_argv[1:])
+    raise SystemExit('capstone is not importable and no venv at %s; run ./tools/decode-setup.sh' % venv)
+
+
+_ensure_capstone()
+from capstone import Cs, CS_ARCH_X86, CS_MODE_32  # noqa: E402
+
+_MD = Cs(CS_ARCH_X86, CS_MODE_32)
+
+
 def target_bytes(addr):
     """The target routine's bytes, from addr to the first ret inclusive.
 
-    The bytes are read in-process and handed to ndisasm on stdin. An earlier
-    version shelled out to dd into /var/tmp/r.bin and disassembled that path,
-    which silently reused a stale file when the dd failed, producing a
-    disassembly of the wrong routine with no error. Never route this through a
-    shared temp file.
+    The bytes are read in-process and decoded in-process by Capstone. An
+    earlier version shelled out to dd into /var/tmp/r.bin and disassembled
+    that path, which silently reused a stale file when the dd failed,
+    producing a disassembly of the wrong routine with no error. Never route
+    this through a shared temp file. The ndisasm text parser that replaced dd
+    is itself retired (plan item 4h): a decoder returns instruction objects,
+    so there is no column layout to mis-parse and no `-w` continuation line to
+    drop (docs/ndisasm-continuation.md).
     """
     with open(IMAGE, 'rb') as fh:
         fh.seek(addr)
         blob = fh.read(4096)
     if not blob:
         raise SystemExit('no bytes at %s' % hex(addr))
-    # ndisasm reads the bytes from stdin. Deliberately NOT a temp file: an earlier
-    # version wrote /var/tmp/r.bin and disassembled that path, so when the write
-    # did not happen ndisasm disassembled the PREVIOUS routine and reported it as
-    # the target with no error. Nothing in this file may route bytes through a
-    # shared path. tools/imgaudit.js asserts this.
-    out = subprocess.run(['ndisasm', '-b32', '-w', '-o', hex(addr), '-'],
-                         input=blob, capture_output=True)
-    text = out.stdout.decode('latin1')
     bytes_ = []
-    for line in text.split('\n'):
-        if not line.strip():
-            continue
-        # ndisasm WRAPS a long instruction onto a continuation line that starts with
-        # '-' and carries hex but no mnemonic:
-        #     000EF548  C705606E0D003000  mov dword [0xd6e60],0x30
-        #              -0000
-        # The old version required parts[2] (the mnemonic) and silently dropped the
-        # continuation, so 0xef548 was reported as 9 bytes when it is 11. The two
-        # lost bytes were part of the immediate 30 00 00 00, one of which is 0xc3.
-        # That made the routine look like it used a 2-byte immediate, and comparing
-        # the truncated target against a correct build produced a false mismatch.
-        # Never drop a line because it does not look like the shape you expect.
-        if not line[0].isspace():
-            parts = line.split(None, 2)
-            if len(parts) < 2:
-                continue
-            hexpart = parts[1]
-            mnemonic = parts[2].strip() if len(parts) > 2 else ''
-        else:
-            # Continuation line: '  -0000' continues the previous instruction.
-            m = re.match(r'\s+-([0-9a-f]+)\s*$', line)
-            if not m:
-                continue
-            hexpart = m.group(1)
-            mnemonic = ''
-        for i in range(0, len(hexpart), 2):
-            bytes_.append(int(hexpart[i:i + 2], 16))
-        if mnemonic.startswith('ret'):
+    for ins in _MD.disasm(blob, addr):
+        bytes_.extend(ins.bytes)
+        if ins.mnemonic.startswith('ret'):
             break
         if len(bytes_) > 1024:
             break

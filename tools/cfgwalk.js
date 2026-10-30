@@ -44,6 +44,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { decodeSession, formatOp } = require('./decode.js');
 const { Disc, defaultDisc } = require('./cd.js');
 const { zeroRuns, DEFAULT_MIN } = require('./codelimits.js');
 
@@ -116,27 +117,40 @@ const WINDOW_BIG = 512;
 let pathCache = new Map();
 const stats = { windows: 0 };
 
+// One decoder session per run (plan item 4h): a full walk refills about a
+// thousand windows, and a fresh interpreter per window would cost 117ms each.
+// The session decodes from a pid-scoped temp copy of THIS tool's buffer, so
+// addresses are in this tool's frame (file minus 0x20) with no conversion.
+// Created lazily from the buffer handed to refillPath, because preflight.js
+// requires cfgwalk and calls walk() directly without going through main().
+let SESSION = null;
+function cfgSession(img) {
+	if (SESSION) return SESSION;
+	const tmp = path.join(require('os').tmpdir(), 'cfgwalk-' + process.pid + '.bin');
+	fs.writeFileSync(tmp, img);
+	SESSION = decodeSession({ image: tmp });
+	process.on('exit', () => {
+		try { SESSION.close(); } catch (e) { /* already closed */ }
+		try { fs.unlinkSync(tmp); } catch (e) { /* already gone */ }
+	});
+	return SESSION;
+}
+
 function refillPath(img, base) {
 	pathCache = new Map();
-	const tmp = '/var/tmp/cfgwin.bin';
 	const end = Math.min(base + WINDOW_BIG, img.length);
-	fs.writeFileSync(tmp, img.subarray(base, end));
-	let out;
+	let res;
 	try {
-		out = execFileSync('ndisasm', ['-b32', '-w', '-o' + base, tmp], {
-			encoding: 'utf8',
-			maxBuffer: 8 * 1024 * 1024,
-		});
+		res = cfgSession(img).decode(base, end);
 	} catch {
 		return;
 	}
 	stats.windows++;
-	for (const line of out.split('\n')) {
-		const m = LINE.exec(line);
-		if (!m) continue;
-		const a = parseInt(m[1], 16);
-		const bytes = m[2].replace(/\s/g, '');
-		pathCache.set(a, { size: bytes.length / 2, text: m[3].trim() });
+	for (const ins of res.insns) {
+		// text carries no address prefix: classify() anchors its patterns at the
+		// mnemonic, exactly as it did against ndisasm's mnemonic column.
+		const text = ins.mnemonic + (ins.operands.length ? ' ' + ins.operands.map(formatOp).join(', ') : '');
+		pathCache.set(ins.addr, { size: ins.size, text });
 	}
 }
 

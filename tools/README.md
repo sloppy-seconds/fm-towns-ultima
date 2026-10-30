@@ -13,10 +13,13 @@ its only binding with operand detail is Python:
 ./tools/decode-setup.sh --check  # confirm it is present
 ```
 
-`ndisasm` and GNU `objdump` are still used for raw bytes and byte offsets, and
-`objdump` as an independent cross-check on operand classification. The rule that
-came out of that work is in `docs/tooling-policy.md`: **never parse disassembler text
-to answer a question about an operand.**
+`ndisasm` is no longer invoked by any tool that decodes an instruction. Plan item 4h moved
+the last eleven call sites onto `tools/decode.js` or onto Capstone directly, and
+`tools/checkall.js` pins the count of files that still invoke it at two: the comparison
+harness `decode_agree.py` and the policy grep itself. GNU `objdump` remains as an
+independent cross-check on operand classification. The rule that came out of that work is
+in `docs/tooling-policy.md`: **never parse disassembler text to answer a question about an
+operand.**
 
 All of them locate the disc `.img` automatically by looking beside the tools
 directory, so run them from the repo root.

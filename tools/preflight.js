@@ -36,6 +36,29 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { decodeSession, format } = require('./decode.js');
+
+// One session for the whole run (plan item 4h): the census asks scanRoutine
+// about 738 entries, and a fresh interpreter per entry measured 116s against
+// about 6s with a session. Addresses here are raw file offsets and the
+// session's default image is the raw ENCHANT.EXP, so no frame conversion.
+let PF_SESSION = null;
+let PF_TMP = null;
+function pfSession(buf) {
+	if (!PF_SESSION) {
+		// Decode from a pid-scoped copy of exactly the buffer this tool loaded,
+		// whether it came from the local file or the disc. A fixed path is the
+		// stale-file hazard tools/imgaudit.js exists to catch.
+		PF_TMP = path.join(require('os').tmpdir(), 'pf-' + process.pid + '.bin');
+		fs.writeFileSync(PF_TMP, buf);
+		PF_SESSION = decodeSession({ image: PF_TMP });
+		process.on('exit', () => {
+			try { PF_SESSION.close(); } catch (e) { /* gone */ }
+			try { fs.unlinkSync(PF_TMP); } catch (e) { /* gone */ }
+		});
+	}
+	return PF_SESSION;
+}
 
 const ROOT = path.join(__dirname, '..');
 const IMAGE = path.join(ROOT, 'ENCHANT.EXP');
@@ -63,7 +86,7 @@ function load() {
 // it does not reconstruct control flow. cfgwalk.js is the authority on
 // boundaries and this tool defers to it for that question.
 //
-// THIS USES NDISASM, NOT A BYTE-WISE SCAN. A byte-wise scan that stops at the
+// THE SHARED DECODER, NOT A BYTE-WISE SCAN. A byte-wise scan that stops at the
 // first 0xc3 is wrong twice over, and both were measured:
 //
 //   - it counts any 0xe8 byte as a call, including bytes inside operands. It
@@ -71,30 +94,25 @@ function load() {
 //     which disqualified the one routine that had already matched byte for byte.
 //   - 0xe30a0's tenth byte is 0xc3 but it is the middle of `83 c3 04`.
 //
-// ndisasm is correct from a known entry because the entry supplies alignment.
-// decompile-run.js was fixed the same way for the same reasons.
+// Decoding from a known entry is correct because the entry supplies alignment.
+// Plan item 4h moved this off the ndisasm text parser onto tools/decode.js.
 function scanRoutine(buf, entry) {
-	const chunk = buf.slice(entry, Math.min(entry + 4096, buf.length));
-	// Bytes go to ndisasm on STDIN. No temp file: a fixed path is the hazard that
-	// produced a fabricated disassembly in tools/trycands.py, and tools/imgaudit.js
-	// asserts that no tool hands a disassembler a shared path.
-	const text = execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + entry.toString(16), '-'], {
-		input: chunk, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
-	});
-	const bytes = [];
+	const { insns } = pfSession(buf).decode(entry, Math.min(entry + 4096, buf.length));
 	const mnemonics = [];
 	let calls = 0, indirectCall = 0, rets = 0;
-	for (const line of text.split('\n')) {
-		if (!line.trim()) continue;
-		const m = line.match(/^[0-9A-F]+\s+([0-9A-F]+)\s+(.*)$/);
-		if (!m) continue;
-		for (let i = 0; i < m[1].length; i += 2) bytes.push(parseInt(m[1].slice(i, i + 2), 16));
-		const asm = m[2].trim();
-		mnemonics.push(asm);
-		if (/^call\b/.test(asm)) calls++;
-		if (/^ret/.test(asm)) { rets++; break; }
-		if (bytes.length > 4096) break;
+	let end = entry;
+	for (const ins of insns) {
+		end = ins.addr + ins.size;
+		mnemonics.push(format(ins));
+		if (ins.mnemonic === 'call') calls++;
+		if (/^ret/.test(ins.mnemonic)) { rets++; break; }
+		if (end - entry > 4096) break;
 	}
+	// The routine occupies the CONTIGUOUS span entry..end. Summing instruction
+	// sizes instead would drop any byte the decoder skipped (Capstone resyncs
+	// past undecodable bytes; the retired ndisasm path counted its `db` lines),
+	// which under-reported sizes for routines with data embedded in the body.
+	const bytes = Array.from(buf.subarray(entry, Math.min(end, buf.length)));
 	return { bytes, calls, indirectCall, rets, length: bytes.length, mnemonics: mnemonics.join('\n') };
 }
 
@@ -211,8 +229,11 @@ function codeKind(buf, addr, insnText) {
 	if (addr >= LIBRARY_FLOOR) reasons.push(`above 0x${LIBRARY_FLOOR.toString(16)} (library layer)`);
 
 	// Anything High C cannot emit from source.
+	// pushal/popal are the same instructions as pusha/popa under Capstone's
+	// mnemonic names; the list carries both spellings so the classification
+	// does not depend on which decoder produced the text.
 	const noSource = [
-		[/\b(pusha|popa|pushad|popad)\b/, 'pusha/popa'],
+		[/\b(pusha|popa|pushad|popad|pushal|popal)\b/, 'pusha/popa'],
 		[/\bloop\b/, 'loop'],
 		[/\b(fld|fst|fstp|fild|fist|fistp|fnstsw|fnstcw|fldcw|fxch|fadd|fsub|fmul|fdiv|fcom)\w*/, 'x87'],
 		[/\bret\s+0x[0-9a-f]+/, 'ret n (callee pops)'],

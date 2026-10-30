@@ -40,6 +40,7 @@ const path = require('path');
 const http = require('http');
 const { execFileSync } = require('child_process');
 const { classifyMismatch, CLASSES } = require('./cordclass.js');
+const { decode, format } = require('./decode.js');
 
 const ROOT = path.join(__dirname, '..');
 const IMAGE = path.join(ROOT, 'ENCHANT.EXP');
@@ -73,7 +74,7 @@ function cleanEntry(buf, addr, width = 8) {
 
 // Decode from the entry to the end of the routine.
 //
-// THIS USES NDISASM, NOT A HAND-WRITTEN LENGTH TABLE. Two attempts at a private
+// THE SHARED DECODER, NOT A HAND-WRITTEN LENGTH TABLE. Two attempts at a private
 // decoder both lost sync and both produced wrong routine lengths:
 //
 //   - `66 89 8c 50 90 7e 07 00` is 8 bytes; recursing on the `89` after the
@@ -82,36 +83,24 @@ function cleanEntry(buf, addr, width = 8) {
 //     byte-wise scan truncated the routine at 10 bytes and reported a target
 //     ending `83 c3` that no C could produce.
 //
-// ndisasm is correct from a known entry because the entry supplies alignment,
-// and it is already a dependency of this project. Shelling out is slower than a
-// table and worth it: a wrong routine length silently invalidates the whole run.
+// Decoding from a known entry is correct because the entry supplies alignment.
+// Plan item 4h moved this off the ndisasm text parser onto tools/decode.js, so
+// instruction bytes and call detection come from objects, not columns.
 function scanRoutine(buf, entry) {
-	const chunk = buf.slice(entry, Math.min(entry + 4096, buf.length));
-	const tmp = '/var/tmp/dcr-scan-' + process.pid + '.bin';
-	fs.writeFileSync(tmp, chunk);
-	let text;
-	try {
-		text = execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + entry.toString(16), tmp], {
-			encoding: 'utf8', stdio: 'pipe',
-		});
-	} finally {
-		fs.unlinkSync(tmp);
-	}
-
+	const { insns } = decode(entry, Math.min(entry + 4096, buf.length));
 	const bytes = [];
 	let calls = 0, indirect = 0;
-	for (const line of text.split('\n')) {
-		if (!line.trim()) continue;
-		// ndisasm: "000E9E2C  8B4C2404          mov ecx,[esp+0x4]"
-		const m = line.match(/^[0-9A-F]+\s+([0-9A-F]+)\s+(.*)$/);
-		if (!m) continue;
-		const raw = m[1];
-		const asm = m[2].trim();
-		for (let i = 0; i < raw.length; i += 2) bytes.push(parseInt(raw.slice(i, i + 2), 16));
-		if (/^call\b/.test(asm)) calls++;
-		if (/^ret[\s]*(0x|$)/.test(asm) || /^ret$/.test(asm)) break;
-		if (bytes.length > 4096) break;
+	let end = entry;
+	for (const ins of insns) {
+		end = ins.addr + ins.size;
+		if (ins.mnemonic === 'call') calls++;
+		if (/^ret/.test(ins.mnemonic)) break;
+		if (end - entry > 4096) break;
 	}
+	// Contiguous span, not a sum of instruction sizes: a decoder that resyncs
+	// past undecodable bytes would otherwise drop them from the target, and the
+	// retired ndisasm path counted them.
+	for (let i = entry; i < Math.min(end, buf.length); i++) bytes.push(buf[i]);
 	return { bytes, calls, indirect };
 }
 
@@ -145,15 +134,8 @@ function callCounts() {
 }
 
 function disasm(buf, addr, len) {
-	const tmp = '/var/tmp/dcr-' + process.pid + '.bin';
-	fs.writeFileSync(tmp, buf.slice(addr, addr + len));
-	try {
-		return execFileSync('ndisasm', ['-b32', '-w', '-o', '0x' + addr.toString(16), tmp], {
-			encoding: 'utf8', stdio: 'pipe',
-		}).trimEnd();
-	} finally {
-		fs.unlinkSync(tmp);
-	}
+	const { insns } = decode(addr, addr + len);
+	return insns.map(format).join('\n');
 }
 
 // POST with no body, for control endpoints.

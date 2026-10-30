@@ -29,8 +29,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
 const { Disc, defaultDisc } = require('./cd.js');
+const { decodeSession, format } = require('./decode.js');
 
 const ROOT = path.join(__dirname, '..');
 const HEADER = 0x20;
@@ -53,52 +53,30 @@ function loadImage() {
 // The layout is fixed: 8 hex digits, two spaces, the byte column padded, then the mnemonic.
 const LINE = /^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f ]+?)\s{2,}(.*)$/;
 
+// One session per run (plan item 4h): the interpreter start and the Capstone
+// import are paid once, not once per sweep.
+let SESSION = null;
+
 function sweep(img, entry, len) {
-	const slice = img.subarray(entry, entry + len);
-	const tmp = '/var/tmp/sweep.bin';
-	fs.writeFileSync(tmp, slice);
+	if (!SESSION) throw new Error('sweep: no decode session');
+	const end = Math.min(entry + len, img.length);
+	const { insns: raw, skips } = SESSION.decode(entry, end);
 
-	// -o sets the origin label, so addresses come back in the project's address space.
-	let out = execFileSync('ndisasm', ['-b32', '-w', '-o' + entry, tmp], {
-		encoding: 'utf8',
-		maxBuffer: 64 * 1024 * 1024,
-	});
-
-	// Repair a known ndisasm mis-decode before parsing.
-	//
-	// `ff 34 bd <disp32>` is `push dword [index*4 + disp32]`, a 7-byte instruction with
-	// a SIB byte and a 32-bit displacement. ndisasm splits it into a 1-byte `ff` and a
-	// misread remainder, which desynchronises everything after it in the function.
-	//
-	// Measured at 0xf234a: raw bytes ff 34 bd 5c 8d 0d 00, reported as db 0xff / xor /
-	// pop esp / db. This form appears throughout the binary for array indexing, so a
-	// sweep that hits it drifts from that point on.
-	//
-	// The repair is textual: find `db 0xff` lines and, if the following bytes spell
-	// 34 bd + 4 more, replace the whole span with the correct 7-byte instruction.
-	out = repairPushSib(out, entry, img);
-
-	const insns = [];
-	let dbBytes = 0;
+	// No `ff 34 bd` repair step: that hack existed because ndisasm splits
+	// `push dword [edi*4+disp32]` into a db line and desynchronises. Capstone
+	// decodes the form as one 7-byte instruction, measured at 0xf234a.
+	const insns = raw.map((i) => ({ addr: i.addr, size: i.size, text: format(i) }));
+	let dbBytes = skips.length;
 	let insnBytes = 0;
-	for (const line of out.split('\n')) {
-		const m = LINE.exec(line);
-		if (!m) continue;
-		const addr = parseInt(m[1], 16);
-		const bytes = m[2].replace(/\s/g, '');
-		const text = m[3].trim();
-		const size = bytes.length / 2;
-		insns.push({ addr, size, text });
-		if (/^(db|dw|dd)\b/.test(text)) dbBytes += size;
-		else insnBytes += size;
-	}
+	for (const i of insns) insnBytes += i.size;
 
 	const boundaries = new Set(insns.map((i) => i.addr));
-	// The end of the last instruction is also a boundary in the sense of "not inside one".
-	if (insns.length) {
-		const last = insns[insns.length - 1];
-		boundaries.add(last.addr + last.size);
-	}
+	for (const s of skips) boundaries.add(s);
+	// The end of the last record is also a boundary in the sense of "not inside one".
+	let lastEnd = 0;
+	if (insns.length) lastEnd = Math.max(lastEnd, insns[insns.length - 1].addr + insns[insns.length - 1].size);
+	if (skips.length) lastEnd = Math.max(lastEnd, skips[skips.length - 1] + 1);
+	if (lastEnd) boundaries.add(lastEnd);
 
 	const total = dbBytes + insnBytes;
 	return {
@@ -110,60 +88,11 @@ function sweep(img, entry, len) {
 		insnBytes,
 		dbRatio: total ? dbBytes / total : 1,
 		// A trustworthy sweep has a low db ratio and ends near the slice end.
-		endGap: insns.length ? entry + len - (insns[insns.length - 1].addr + insns[insns.length - 1].size) : len,
+		endGap: lastEnd ? entry + len - lastEnd : len,
 	};
 }
 
 // A sweep is trustworthy when most bytes decode as instructions.
-// Rewrite ndisasm output for the `ff 34 bd <disp32>` form.
-//
-// ndisasm emits:
-//   000F234A  FF                db 0xff
-//   000F234B  34 BD             xor al,0xbd
-//   ...
-// The correct decoding is a single 7-byte `push dword [edi*4+disp32]`. Rather than
-// re-implement a decoder, this scans for the byte pattern in the raw image and emits a
-// corrected line for each, then removes the lines ndisasm produced for that span.
-function repairPushSib(text, base, img) {
-	const lines = text.split('\n');
-	const LINE = /^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f ]+?)\s{2,}(.*)$/;
-
-	// Addresses that begin a `ff 34 bd` sequence, and the end of each such span.
-	const spans = [];
-	for (let a = base; a + 7 <= img.length; a++) {
-		if (img[a] === 0xff && img[a + 1] === 0x34 && img[a + 2] === 0xbd) {
-			// Only treat it as this form if ndisasm did NOT already decode it correctly.
-			const disp = img.readUInt32LE(a + 3);
-			spans.push({ at: a, end: a + 7, disp });
-		}
-	}
-	if (!spans.length) return text;
-
-	const out = [];
-	for (const line of lines) {
-		const m = LINE.exec(line);
-		if (!m) {
-			out.push(line);
-			continue;
-		}
-		const addr = parseInt(m[1], 16);
-		const span = spans.find((s) => addr >= s.at && addr < s.end);
-		if (!span) {
-			out.push(line);
-			continue;
-		}
-		// Emit the corrected instruction only once, at the span start.
-		if (addr === span.at) {
-			const pad = '0'.repeat(8);
-			out.push(
-				`${span.at.toString(16).toUpperCase().padStart(8, '0')}  ` +
-					`${img.subarray(span.at, span.end).toString('hex').toUpperCase().padEnd(16)}  ` +
-					`push dword [edi*4+0x${span.disp.toString(16)}]`
-			);
-		}
-	}
-	return out.join('\n');
-}
 
 function trustworthy(r) {
 	return r.dbRatio < 0.15;
@@ -182,7 +111,21 @@ function functionList(img) {
 
 function main() {
 	const img = loadImage();
-	const args = process.argv.slice(2);
+	// The session decodes from the stripped image, so sweep addresses (which are
+	// stripped-frame) go to the decoder unchanged. Pid-scoped path: a FIXED
+	// temp path is the stale-file hazard tools/imgaudit.js exists to catch.
+	const tmp = path.join(require('os').tmpdir(), 'sweep-' + process.pid + '.bin');
+	fs.writeFileSync(tmp, img);
+	SESSION = decodeSession({ image: tmp });
+	try {
+		runMain(img, img.length ? process.argv.slice(2) : []);
+	} finally {
+		SESSION.close();
+		fs.unlinkSync(tmp);
+	}
+}
+
+function runMain(img, args) {
 	const get = (flag, dflt) => {
 		const i = args.indexOf(flag);
 		return i >= 0 ? Number(args[i + 1]) : dflt;

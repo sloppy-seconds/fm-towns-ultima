@@ -80,6 +80,7 @@ from the items below rather than maintained separately.
 | 4d `.SND` playback rate | BLOCKED ON HUMAN | no, needs the running game |
 | 4e Confirm the U2 palette in-game | AUTONOMOUS | **done**, the running game's table recorded, a human confirmed the screen |
 | 4f Measure the byte-match rate | AUTONOMOUS | **yes**, the decompilation loop
+| 4h Migrate the eleven `ndisasm` sites | AUTONOMOUS | **done**, all eleven moved and the pin is 2 |
 | 4j Work the routine queue to empty | AUTONOMOUS | **yes**, the main grind |
 | 4k The unlock ledger | AUTONOMOUS | **yes**, needed before 4j can be measured |
 | 4m Compare our walk with fmtownskit's | AUTONOMOUS | **done**, 697 of 818 starts shared and seven bad seeds named |
@@ -530,7 +531,7 @@ rather than a table of addresses. Read `node tools/cordclass.js <run.json>` afte
 
 ### 4h. Migrate the remaining eleven `ndisasm` call sites to the shared decoder
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -538,41 +539,63 @@ rather than a table of addresses. Read `node tools/cordclass.js <run.json>` afte
 | done when | every remaining site calls `tools/decode.js` (or Capstone directly, in Python), `PENDING` in `tools/checkall.js` is lowered to match, and `docs/corpus.json` is byte-identical after each census-critical tool is migrated |
 | blocked by | nothing |
 
-**What is done and what is not.** `tools/decode.js` exists, `docs/capstone-gate.md` proves it decodes
-the code region identically to `ndisasm`, `tools/globals.js` is migrated as the worked example, and
-`docs/tooling-policy.md` is enforced so no new violation can appear. **One of thirteen sites is
-migrated.** The other eleven are this item.
+**Done, and the pin is 2.** All eleven sites are migrated. `trycands.py` and `dumpqueue.py` import
+Capstone directly, and `findpal.js`, `pharlap.js`, `randmods.js`, `decompile-run.js`, `frameanalysis.js`,
+`funcs.js`, `cfgwalk.js`, `sweep.js` and `preflight.js` go through `tools/decode.js`. `PENDING` in
+`tools/checkall.js` went 13 to 11 to 5 to **2**, and the two that remain are the ones this item said
+would stay: `decode_agree.py`, the comparison harness, and `checkall.js`, the policy grep.
 
-**The eleven, and they are not equal in difficulty.**
+**`docs/corpus.json` was not byte-identical, and the difference is a finding rather than a defect.**
+Nine census rows changed, **no row changed kind**, so no routine moved between the queue's pass
+sets. Counted from the two files:
 
-| file | sites | risk |
-|---|---|---|
-| `trycands.py` | 1 | low. Python, so import Capstone directly |
-| `dumpqueue.py` | 1 | low. Same |
-| `findpal.js` | 1 | low, but the only shell-string invocation with `2>/dev/null` |
-| `pharlap.js` | 2 | low. Uses `-e` to skip a header |
-| `randmods.js` | 2 | low |
-| `decompile-run.js` | 2 | low |
-| `frameanalysis.js` | 1 | medium. Passes `-o` in decimal |
-| `funcs.js` | 1 | **high. underpins the census** |
-| `cfgwalk.js` | 1 | **high. underpins the census** |
-| `sweep.js` | 1 | **high. underpins the census** |
-| `preflight.js` | 1 | **high. underpins the census** |
+| change | rows |
+|---|---|
+| gained `ret n (callee pops)` | 7 |
+| call count changed | 1 (`0xf6c98`, 4 to 3) |
+| decoded extent changed | 2 (`0x103f5c` 76 to 19, `0x103f6f` 57 to 10) |
 
-**Order, and why it is this order.** Do the two Python sites first, because Python tools importing
-Capstone directly is the intended end state and it establishes that pattern rather than the
-Node-over-Python subprocess workaround. Then the five low-risk JS sites. Then the four census-critical
-ones **one at a time, diffing `docs/corpus.json` after each**, because a change there is either a real
-finding or a migration defect and those must be told apart before committing.
+Two separate causes sit behind those numbers, and one of them is a correction to a
+published fact. `0x103f6f` is `mov eax,[esp+4]`, `fbstp [eax]`, `wait`, `ret 4`: **10 bytes,
+not 57.** `xxd -s 0x103f6f -l 16 ENCHANT.EXP` gives `8b44 2404 df30 9bc2 0400 8b44 2404 df20`,
+so the tenth byte is the last of the `ret 4` and the next stub begins immediately. The old
+loop stopped on a mnemonic beginning `ret`, and ndisasm prints `wait ret word 0x4` as ONE
+merged line whose mnemonic is `wait`, so it never stopped there and walked on into the next
+stub. `docs/decompilation-experiment.md` claimed 57 bytes and a `rep movsb` body, and both
+were the walk, not the routine. That table row is corrected.
+`0x103f5c` is a different, pre-existing limitation rather than a migration defect: it ends
+in an unconditional `jmp` and `scanRoutine` stops only at a `ret`, so both the old and new
+extents include the following stub. It is noted here rather than fixed, because changing
+the stop rule would move census rows beyond this item's mandate.
+
+The `ret n` reason had never fired, in any census row, because ndisasm prints `ret word 0x8` and the
+regex wanted `ret 0x`. It was a dead check until this migration, which is worth knowing whatever
+the corpus says. The two size changes are in the `db` class: the routine bodies covered more bytes
+under ndisasm because it walked through undecodable bytes instead of stopping. The file is
+regenerated and the assertion in `checkall.js` passes on it.
+
+**Everything else was verified by differential measurement against the old path, run from
+`git show HEAD:`.** `sweep --funcs` and `funcs --list` are byte-identical, `dumpqueue` is 14 of 14
+target byte strings identical, `trycands` is 99 of 101, `decompile-run` 96 of 101, `frameanalysis`
+flags identical on all but four routines, and every difference sits on an unattempted or `not-c`
+row. The four classes of difference, and the two latent bugs the move fixed, are recorded in
+[tooling-policy.md](tooling-policy.md).
+
+**One thing this item did not anticipate, and it mattered.** A decoder per window is too slow to
+migrate a walker: `cfgwalk` refills about 1,028 windows per full walk and `decode()` cost 117 ms each,
+which would have turned a 1.3 s walk into a two-minute one, and the census went from 116 s to 14 s
+only once the same fix was applied. `tools/decode.js` therefore gained `decodeSession()`, one persistent
+worker over two FIFOs at about 2.7 ms per request. That is an addition to the shared decoder, not a
+per-tool workaround.
+
+**The walk-comparison pins moved and the movement is a gain.** Our seeded instruction count is 39795
+(was 39820, and the delta is ndisasm's `db` lines, which were counted as instructions) and instruction
+starts shared with fmtownskit are 38515 (was 38443). Agreement rose because fmtownskit's decoder is
+the one that agrees with Capstone, so this migration moved our boundaries toward the independent walk.
 
 **`decode_agree.py` and `checkall.js` keep their `ndisasm` invocation deliberately.** The first is the
 comparison harness and needs both decoders; the second greps for invocations to enforce the policy.
 Deleting either would remove the ability to check the others.
-
-**Failure case, stated.** If a census-critical migration changes `docs/corpus.json`, do not accept the
-new file. Characterise the difference first: if it is a size or classification correction then the old
-`ndisasm` path was wrong and the difference is a finding worth documenting; if it is a boundary shift
-then the migration is at fault. The census is under an assertion precisely so this cannot be glossed.
 
 See [tooling-policy.md](tooling-policy.md) and [capstone-gate.md](capstone-gate.md).
 

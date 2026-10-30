@@ -28,8 +28,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 const { Disc, defaultDisc } = require('./cd');
+const { decode, format } = require('./decode');
 
 const ROOT = path.join(__dirname, '..');
 const args = process.argv.slice(2);
@@ -264,17 +264,18 @@ if (disName) {
 	}
 	const start = s.value;
 	const len = Number(arg('--len', 192));
+	// The whole image goes to the temp file and the decoder is told where to
+	// start. The retired ndisasm call passed `-e<start>` against an already
+	// sliced file, which skipped past the end and printed nothing at all, in
+	// silence. Plan item 4h.
 	const tmp = path.join(require('os').tmpdir(), 'pharlap-slice.bin');
-	fs.writeFileSync(tmp, buf.subarray(start, start + len));
+	fs.writeFileSync(tmp, buf);
 	console.log('\n== disassembly at ' + disName + ' (0x' + start.toString(16) + '), ' + len + ' bytes ==');
 	try {
-		const out = execSync(
-			'ndisasm -b32 -w -e' + start + ' -o0x' + start.toString(16) + ' "' + tmp + '" 2>/dev/null',
-			{ encoding: 'utf8', maxBuffer: 1 << 24 }
-		);
-		console.log(out.split('\n').slice(0, 40).join('\n'));
+		const { insns } = decode(start, start + len, { image: tmp });
+		console.log(insns.slice(0, 40).map(format).join('\n'));
 	} catch (e) {
-		console.error('ndisasm failed: ' + e.message);
+		console.error('decode failed: ' + e.message);
 	}
 }
 
@@ -283,5 +284,5 @@ if (dumpPath) {
 	const img = buf.subarray(h.loadStart, h.loadEnd || buf.length);
 	fs.writeFileSync(dumpPath, img);
 	console.log('\nwrote flat load image ' + img.length + ' bytes to ' + dumpPath);
-	console.log('  disassemble with: ndisasm -b32 -w -e0x' + h.loadStart.toString(16) + ' -o0x' + h.loadStart.toString(16) + ' ' + dumpPath);
+	console.log('  disassemble with: node -e \'const d=require("./tools/decode");console.log(d.decode(0x' + h.loadStart.toString(16) + ', 0x' + (h.loadStart + 192).toString(16) + ', {image: process.argv[1]}).insns.map(d.format).join("\\n"))\' ' + dumpPath);
 }
