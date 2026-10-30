@@ -4,12 +4,19 @@ The port draws the copyright notice's chrome and, still, none of its text. This 
 what has been ruled out by measurement, and the one instrument that should finish it. It exists so the next attempt
 starts from here rather than from the beginning.
 
-**Status after the kanji font fix. The game menu is solved and its VRAM now matches the machine's capture byte for
-byte. The notice's box is not, and the page below is the record of that hunt rather than a description of the current
-build.** The notice screen was last observed before the fix and has not been re-observed since, so the opening
-sentence is an earlier reading and not a claim about this build. The last section is the finding that closed the
-menu: two-byte characters are fetched through a far pointer at `TBIOS:0x1E8` which pointed at a blank part of the
-character ROM, and the font is `\UTFONT.FNT` on the disc rather than any ROM.
+**Status: solved, on every screen this page was about. The page below is the record of the hunt, not a description
+of the current build.** The notice's box holds all ten of its lines now, the game menu's labels hold theirs, and the
+menu screen's VRAM matches the machine's capture byte for byte. What was wrong is in the closing section: two-byte
+characters are fetched through a far pointer at `TBIOS:0x1E8` that pointed at a blank part of the character ROM, and
+the font is `\UTFONT.FNT` on the disc rather than any ROM. The game stores even its ASCII-looking text as `0xEB`
+escapes, so one defect emptied every box on every screen and one fix filled them all.
+
+The command that shows it, at the notice: `U2_FONT=vendor/roms/FMT_FNT.ROM U2_SHOT=/var/tmp/n.png ./build/port/b/u2port
+--graphics=none --frames=120 ENCHANT.EXP build/port/tbios.bin build/port/disc.cue saves/userdisk.hdm`, read back
+with the vision model, which transcribes the ten lines including `データを読み込んでいます！`.
+
+The ruled-out tables below keep their measurements. Sentences in them that conclude "the box is empty" or "nothing
+rasterises the text" were true of the build they were written on and are marked where they are load-bearing.
 
 ## What the two screens are
 
@@ -19,6 +26,7 @@ Captured at 1 Hz on both sides, with the port restarted at the same moment so it
   ten lines (`Copyright (C) Origin Systems, Inc.`, the Lord British trademark lines, `Presented by FUJITSU`, the
   `TRAVERSE DEEP DARK DUNGEONS` tagline and `データを読み込んでいます！`), and a red bar at the bottom.
 - **The port's notice** shows the same yellow bar, the same white-bordered box and the same red bar. The box is empty.
+  *Superseded: the box holds its ten lines. See the status note at the top.*
 
 The chrome is layer artwork and works. The text does not.
 
@@ -103,7 +111,8 @@ a blue interior appears at the bottom with nothing written in it. Measured there
 the notice's `0c`, so both graphics layers are enabled and both are composited, and the interior is palette index 13,
 `0022EE`, not black. Rendering layer 1 alone puts 2,348 white pixels inside the box region and they are picture data,
 not glyphs: no character shapes and no text rows. So this box is empty for the same reason as the notice's, on a
-second screen, which is the second breakpoint site this was looking for.
+second screen, which is the second breakpoint site this was looking for. *Superseded: this box holds its labels now,
+and the reason given here was wrong. See the status note at the top.*
 
 ## What the watch showed about the menu
 

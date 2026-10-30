@@ -8,6 +8,12 @@ This closes the question the font work was blocked on: the game does not draw te
 any font-index table that needs recovering. It **draws Shift-JIS directly**, one character
 at a time, from the bytes in memory.
 
+**And the glyphs come from `\UTFONT.FNT` on the disc, by way of TBIOS.** There is no font table in
+the game, which is what this page establishes, and there is still an index into a font, which is
+what TBIOS supplies: its renderer at `0110:0000F190` converts each Shift-JIS pair and indexes that
+file. The two halves are consistent, and the combination is what the port had to fix before it drew
+any two-byte text at all. See `port-missing-text.md` and plan item 7h.
+
 ## Signature
 
 ```asm

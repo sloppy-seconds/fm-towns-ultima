@@ -107,6 +107,18 @@ select from. Neither is reachable by the probes tried so far, because the addres
 is indirect, which is the same wall the asset paths and the debug mode strings are
 behind.
 
+**Answered, by reading the renderer rather than by searching for a table.** The
+glyphs are not in the executable. TBIOS's text renderer at `0110:0000F190` treats a
+byte in `0xA1` to `0xEB` as the lead of a two-byte character, converts the pair with
+`0110:000101B4` (a Shift-JIS to JIS ku/ten conversion, fed `ah` and `al`), and
+indexes a bitmap array by `(code - 0x7521) * 32` and `(code - 0x75C3) * 32`. That
+array is `\UTFONT.FNT` on the disc, two banks of 94 glyphs of 32 bytes each, which
+the game's own strings select by being ordinary Shift-JIS: the menu's first label
+contains `81 40`, the Shift-JIS ideographic space. So the mapping this page was
+looking for is a TBIOS convention plus a disc file, and the "font index table in the
+executable" it predicted does not exist. Measured in `port-missing-text.md` and plan
+item 7h.
+
 ## Practical guidance
 
 The **display text extracts cleanly** and this page does not change that. `savetext.py`

@@ -408,6 +408,13 @@ the commit history rather than repeated here:
 single 168 by 249 picture, which is a title graphic. `GAIJI2.COM` is a driver, 6,849 bytes, whose
 dense data region is 193 bytes of code and whose system calls are `int 21h AH=09` and `AH=3e`/`3f`.
 
+**The glyph table was found, and it is in neither of those files.** It is `\UTFONT.FNT` on the disc,
+and the index to it is computed by TBIOS rather than stored in the game: the renderer at
+`0110:0000F190` treats a byte in `0xA1` to `0xEB` as a two-byte lead, converts the pair with
+`0110:000101B4`, and indexes the file's glyphs 32 bytes at a time. Every search above was looking
+inside the two files that do not contain it. The mechanism, the offsets and the port fix that
+confirmed it are in `port-missing-text.md` and plan item 7h.
+
 ## Why this page was rewritten
 
 It had grown four `## Status` sections and three successive answers to the same question, each

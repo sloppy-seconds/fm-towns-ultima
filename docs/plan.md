@@ -1691,6 +1691,11 @@ in rows 764 to 949, 8,765 bytes, a region the port left zero. It was not this it
 it: it is a TBIOS dithered fill into VRAM page 1, off screen while the game displays page 0, and its half-tone level
 depends on the moment the capture was taken. The port reaches the machine's exact state of it at frame 300.
 
+The copyright notice is fixed by the same change, which is worth stating because the page that found this was about
+that screen and not the menu. At frame 120 the notice's box holds all ten of its lines, transcribed back from a
+screenshot including `データを読み込んでいます！`. The game stores even its ASCII-looking text as two-byte characters,
+so one blank font emptied every box on every screen and one fix filled them all.
+
 ## Phase 8: the toolkit, and what this work owes it
 
 Everything in this phase was found by building the port, and every item removes either a bug or a workaround we

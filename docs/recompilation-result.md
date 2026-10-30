@@ -1,14 +1,14 @@
 # Does the tooling actually recompile this game, and how far short of playable is it
 
-**Yes it recompiles, the output compiles and runs, and 98.7 percent of the C-shaped corpus is
-in it. It is not a playable port, and the reason is not the recompiler.**
+**Superseded, and the correction is the interesting part: the port plays.** The sentence that stood here said it was
+not a playable port. It was a measurement of the recompiler's coverage taken before a runtime existed. The runtime now
+exists, in `port/` on the kit's FM Towns machine, and it boots this game through its title, its menu and into the
+overworld, with a character panel, on the recompiled code. The distance to a *reimplementation* is a different and
+larger question, and `reimplementation-gap.md` owns it. What this page still says correctly is where the corpus is
+thin, and that is worth keeping because it is what a reimplementation will trip over.
 
-**Superseded, and the correction is the interesting part: the port plays.** Everything below is a measurement of the
-recompiler's coverage taken before a runtime existed. The runtime now exists, in `port/` on the kit's FM Towns
-machine, and it boots this game through its title, its menu and into the overworld, with a character panel, on the
-recompiled code. The distance to a *reimplementation* is a different and larger question, and
-`reimplementation-gap.md` owns it. What this page still says correctly is where the corpus is thin, and that is
-worth keeping because it is what a reimplementation will trip over.
+**For the record, the original finding:** yes it recompiles, the output compiles and runs, and 98.7 percent of the
+C-shaped corpus is in it. The reason it was not then a playable port was not the recompiler.
 
 ## What was run
 
