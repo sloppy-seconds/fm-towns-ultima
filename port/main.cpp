@@ -742,7 +742,10 @@ int main(int argc, char** argv) {
 		uint32_t wait_linear = 0;
 		uint32_t wait_len = 1;
 		std::vector<uint8_t> wait_bytes;
-		bool busy() const { return frame_id >= 0 || wait_id >= 0; }
+		long shot_id = -1;       // the id of a `shot` parked until a frame
+		long shot_at = 0;        // the frame it renders on, so the picture is frame-exact and comparable
+		std::string shot_path;   // empty means inline the PNG as base64
+		bool busy() const { return frame_id >= 0 || wait_id >= 0 || shot_id >= 0; }
 	} ctlpend;
 
 	// A cheap stand-in for "did the picture change", computed the same way every time so two frames are comparable.
@@ -789,6 +792,41 @@ int main(int argc, char** argv) {
 		return false;
 	};
 
+	// Build a `shot` reply: render is already done, this writes the PNG and either names the file or inlines it as
+	// base64. Shared by the immediate command and the parked one so the two cannot drift apart.
+	auto shot_reply = [](const std::string& want_path, long id, const std::vector<uint32_t>& rgb, int w, int h,
+	                     long frame) {
+		std::string where = want_path;
+		bool temp = where.empty();
+		if (temp) {
+			const char* tmpdir = std::getenv("TMPDIR");
+			// glibc's mkstemps wants **six** X's before the suffix, not four, and returns EINVAL for anything less.
+			// The first version used XXXX and every inline shot failed with "Invalid argument", which the test caught
+			// and a manual run would have blamed on the renderer.
+			char tmpl[512];
+			std::snprintf(tmpl, sizeof tmpl, "%s/u2port-shot-XXXXXX.png", tmpdir && *tmpdir ? tmpdir : "/tmp");
+			int fd = ::mkstemps(tmpl, 4);
+			if (fd < 0) return u2ctl::error_reply(id, std::string("mkstemps: ") + std::strerror(errno));
+			::close(fd);
+			where = tmpl;
+		}
+		if (!towns::write_png(where, rgb, w, h)) return u2ctl::error_reply(id, "write_png failed for " + where);
+		const std::string fr = "\"frame\":" + std::to_string((long long)frame);
+		if (!temp) {
+			std::string wh;
+			u2ctl::escape(where, wh);
+			return u2ctl::ok_reply(id, "\"path\":\"" + wh + "\",\"width\":" + std::to_string(w) + "," + fr);
+		}
+		std::vector<uint8_t> png;
+		if (!u2ctl::read_file(where, png)) {
+			::unlink(where.c_str());
+			return u2ctl::error_reply(id, "the png vanished before it could be read back");
+		}
+		::unlink(where.c_str());
+		return u2ctl::ok_reply(id, "\"width\":" + std::to_string(w) + ",\"height\":" + std::to_string(h) +
+		                              ",\"png\":\"" + u2ctl::b64(png) + "\"," + fr);
+	};
+
 	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty() || ctl) {
 		// The callback is installed when ANY of these needs it. It used to be installed only under a frame limit,
 		// which would have left `--sdl` with no limit showing a frozen window, because the hook that draws it is
@@ -826,6 +864,17 @@ int main(int argc, char** argv) {
 					                                    ",\"from\":" + std::to_string((long long)ctlpend.frame_from) +
 					                                    ",\"stepped\":true"));
 					ctlpend.frame_id = -1;
+				}
+				if (ctlpend.shot_id >= 0 && (long)mm.frame >= ctlpend.shot_at) {
+					// A parked shot renders on exactly the frame it asked for, which is what makes it comparable with
+					// U2_SHOT: the splash animates, so "about frame 600" is a different picture from frame 600.
+					const long sid = ctlpend.shot_id;
+					ctlpend.shot_id = -1;
+					std::vector<uint32_t> rgb;
+					int w = 0, h = 0;
+					m.render(rgb, w, h);
+					if (w > 0 && h > 0) ctl->send(shot_reply(ctlpend.shot_path, sid, rgb, w, h, (long)mm.frame));
+					else ctl->send(u2ctl::error_reply(sid, "the machine has no frame to render"));
 				}
 				if (ctlpend.wait_id >= 0) {
 					bool changed = false;
@@ -977,6 +1026,66 @@ int main(int argc, char** argv) {
 							ctlpend.wait_bytes.assign(len, 0);
 							m.read_block(linear, ctlpend.wait_bytes.data(), len);
 						}
+					} else if (cc.cmd == "mem") {
+						auto addr = cc.args.find("addr");
+						if (addr == cc.args.end()) {
+							ctl->send(u2ctl::error_reply(cc.id, "mem wants addr (seg:off or linear) and optional n"));
+							continue;
+						}
+						uint32_t linear = 0;
+						std::string merr;
+						if (!resolve_addr(addr->second, linear, merr)) {
+							ctl->send(u2ctl::error_reply(cc.id, merr));
+							continue;
+						}
+						uint32_t len = 16;
+						if (auto it2 = cc.args.find("n"); it2 != cc.args.end())
+							len = (uint32_t)std::strtoul(it2->second.c_str(), nullptr, 10);
+						if (len < 1 || len > 65536) {
+							ctl->send(u2ctl::error_reply(cc.id, "mem n must be between 1 and 65536"));
+							continue;
+						}
+						std::vector<uint8_t> bytes(len, 0);
+						m.read_block(linear, bytes.data(), len);
+						std::string hex;
+						hex.reserve(len * 2);
+						for (uint8_t b : bytes) {
+							char hx[3];
+							std::snprintf(hx, sizeof hx, "%02x", b);
+							hex += hx;
+						}
+						char lin[16];
+						std::snprintf(lin, sizeof lin, "0x%08x", linear);
+						ctl->send(u2ctl::ok_reply(cc.id,
+						                            std::string("\"linear\":\"") + lin + "\",\"n\":" + std::to_string(len) +
+						                                    ",\"hex\":\"" + hex + "\"," + fr));
+					} else if (cc.cmd == "shot") {
+						// The same renderer U2_SHOT uses, so "the socket's picture" and "the file's picture" are the
+						// same bytes and that is checkable rather than plausible. Inline as base64 by default; a `path`
+						// writes the file instead, and an `at` parks the shot until that exact frame, which is what makes
+						// it comparable with a run that ended on that frame.
+						std::string want_path;
+						if (auto it2 = cc.args.find("path"); it2 != cc.args.end() && !it2->second.empty()) want_path = it2->second;
+						long at = -1;
+						if (auto it2 = cc.args.find("at"); it2 != cc.args.end()) at = std::strtol(it2->second.c_str(), nullptr, 10);
+						if (at > (long)mm.frame) {
+							if (ctlpend.shot_id >= 0) {
+								ctl->send(u2ctl::error_reply(cc.id, "a parked shot is already pending"));
+								continue;
+							}
+							ctlpend.shot_id = cc.id;
+							ctlpend.shot_at = at;
+							ctlpend.shot_path = want_path;
+							continue;
+						}
+						std::vector<uint32_t> rgb;
+						int w = 0, h = 0;
+						m.render(rgb, w, h);
+						if (w <= 0 || h <= 0) {
+							ctl->send(u2ctl::error_reply(cc.id, "the machine has no frame to render"));
+							continue;
+						}
+						ctl->send(shot_reply(want_path, cc.id, rgb, w, h, (long)mm.frame));
 					} else if (cc.cmd == "quit") {
 						ctl->send(u2ctl::ok_reply(cc.id, fr));
 						throw towns::Stop{0};

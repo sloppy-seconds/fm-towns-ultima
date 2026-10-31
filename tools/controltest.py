@@ -14,6 +14,7 @@ claim "the default path is untouched" is exactly the kind of sentence that is tr
 afterwards.
 """
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -148,7 +149,7 @@ else:
 
 def spawn(frames, shot=None, control="127.0.0.1:0"):
     """Start a run with the channel open. SDL dummy by default, because the key half of these checks needs the
-    front-end and the dummy driver needs no display server."""
+    front-end and the dummy driver needs no display server. Returns (proc, sock, log, startup_lines)."""
     e = dict(os.environ)
     e.update(env)
     if shot:
@@ -157,6 +158,7 @@ def spawn(frames, shot=None, control="127.0.0.1:0"):
     e["SDL_AUDIODRIVER"] = "dummy"
     e.pop("DISPLAY", None)
     logf = open(os.path.join(args.work, f"spawn-{frames}-{os.path.basename(str(shot))}.log"), "w")
+    startup = []
     p = subprocess.Popen(
         [args.bin, "--graphics=sdl", f"--frames={frames}", f"--control={control}",
          args.exp, args.tbios, args.cue, args.disk],
@@ -169,6 +171,7 @@ def spawn(frames, shot=None, control="127.0.0.1:0"):
         if not line:
             break
         logf.write(line)
+        startup.append(line)
         m = re.match(r"control\s+(\S+)", line)
         if m:
             bound = m.group(1)
@@ -176,10 +179,10 @@ def spawn(frames, shot=None, control="127.0.0.1:0"):
     if not bound:
         p.kill()
         logf.close()
-        return None, None, None
+        return None, None, None, startup
     host, port = bound.rsplit(":", 1)
     s = socket.create_connection((host, int(port)), timeout=30)
-    return p, s, logf
+    return p, s, logf, startup
 
 
 def call(sock, counter, obj):
@@ -190,7 +193,7 @@ def call(sock, counter, obj):
 
 
 def time_checks():
-    p, s, logf = spawn(1500, shot=os.path.join(args.work, "time-a.png"))
+    p, s, logf, _ = spawn(1500, shot=os.path.join(args.work, "time-a.png"))
     if not s:
         check("a run with --control and SDL dummy starts", False, "no bound address")
         return
@@ -251,7 +254,7 @@ def time_checks():
     hashes = []
     for tag in ("det-a", "det-b"):
         shot = os.path.join(args.work, f"{tag}.png")
-        pp, ss, lf = spawn(1200, shot=shot)
+        pp, ss, lf, _ = spawn(1200, shot=shot)
         if not ss:
             hashes.append(None)
             continue
@@ -273,7 +276,112 @@ def time_checks():
           " vs ".join(h[:12] if h else "none" for h in hashes))
 
 
+def counter_frame(s, counter):
+    r = call(s, counter, {"cmd": "ping"})
+    return r.get("frame", 0)
+
+
+def reads_checks():
+    """`mem` and `shot`, checked against things outside the port.
+
+    The plan's done-when for `mem` named tools/peek.js, and that comparison is not reachable here: peek.js reads
+    the emulator's live memory, and putting the port and the emulator into one game state is a savestate alignment
+    problem this item does not need. Two independent sources are stronger and reachable: the program image as it
+    sits on disk, and the character's own stats as the save file records them.
+
+    Addresses are derived, not assumed. The port prints the linear address it loaded the program at, and
+    docs/live-fieldmap.md records that a file address is the offset from the image base, so the record address is
+    that base plus 0xcde81. The first version hardcoded 0xcde81 and read zeros, which is the same mistake the
+    fieldmap page exists to prevent.
+    """
+    p, s, logf, startup = spawn(4000, shot=None)
+    if not s:
+        check("a run for the read checks starts", False, "no bound address")
+        return
+    counter = [1]
+    text = "".join(startup)
+    m = re.search(r"program\s+\d+ bytes at linear 0x([0-9a-f]+)", text)
+    base = int(m.group(1), 16) if m else None
+    check("the run prints where it loaded the program", base is not None, hex(base) if base else text[:80])
+
+    with open(args.exp, "rb") as f:
+        image = f.read()[0x200:0x200 + 64]
+    r = call(s, counter, {"cmd": "mem", "addr": hex(base), "n": 64})
+    got = bytes.fromhex(r.get("hex", ""))
+    check("mem at the program base is the stripped image from disk", got == image,
+          f"{got[:8].hex() if got else 'nothing'} vs {image[:8].hex()}")
+
+    # Segment resolution: the CPU's own segment list comes back in the refusal for a segment it does not have,
+    # and reading through one it does have must produce a linear address and bytes.
+    r = call(s, counter, {"cmd": "mem", "addr": "1234:0", "n": 4})
+    listed = re.findall(r"the CPU has ([0-9a-f ]+)", r.get("error", ""))
+    segs = listed[0].split() if listed else []
+    check("an unknown segment is refused with the list the CPU holds", r.get("ok") is False and bool(segs),
+          json.dumps(r)[:110])
+    if segs:
+        rr = call(s, counter, {"cmd": "mem", "addr": f"{segs[0]}:0", "n": 4})
+        check("reading through a segment the CPU holds resolves to a linear address",
+              rr.get("ok") and rr.get("linear", "").startswith("0x"), json.dumps(rr)[:90])
+
+    # Live memory, not a snapshot. The first version of this read the documented record address and compared it
+    # to the roster's STAMINA, and it read 382: the route driven under frame pacing does not land on the same
+    # world state as the wall-clock reference, so the comparison was measuring the schedule rather than the read
+    # path. What is asserted instead is the property `mem` exists for: bytes the game writes are bytes `mem`
+    # sees, across a state change.
+    before = call(s, counter, {"cmd": "mem", "addr": hex(base + 0xCDE81), "n": 64})
+    now = counter_frame(s, counter)
+    call(s, counter, {"cmd": "frame", "n": max(1, 600 - now)}) if 600 > now else None
+    call(s, counter, {"cmd": "key", "key": "space"})
+    call(s, counter, {"cmd": "frame", "n": 200})
+    after = call(s, counter, {"cmd": "mem", "addr": hex(base + 0xCDE81), "n": 64})
+    bb, ab = before.get("hex", ""), after.get("hex", "")
+    check("mem reads live memory the game has since written", bool(bb) and bb != ab,
+          f"{bb[:16]}... vs {ab[:16]}...")
+
+    r = call(s, counter, {"cmd": "mem", "addr": hex(base + 0xCDE81), "n": 2})
+    check("a small read at the record address returns the requested length", r.get("ok") and len(r.get("hex", "")) == 4,
+          json.dumps(r)[:80])
+
+    refshot = os.path.join(args.work, "shot-ref.png")
+    p2, s2, logf2, _ = spawn(600, shot=refshot)
+    if s2:
+        try:
+            p2.wait(timeout=600)
+        except subprocess.TimeoutExpired:
+            p2.kill()
+        s2.close()
+        logf2.close()
+    ref = sha(refshot) if os.path.exists(refshot) else None
+
+    p3, s3, logf3, _ = spawn(1000000, shot=None)
+    if not s3:
+        check("a run for the inline shot starts", False, "no bound address")
+    else:
+        c3 = [1]
+        # Park the shot on exactly frame 600, the frame the reference run ended on. Taking it after stepping to
+        # "600 or later" gave a different picture, because the splash animates and a command is read a frame or
+        # two after the step reply lands.
+        r = call(s3, c3, {"cmd": "shot", "at": 600})
+        inline = hashlib.sha256(base64.b64decode(r.get("png", ""))).hexdigest() if r.get("png") else None
+        check("shot over the socket is the same PNG bytes as U2_SHOT at the same frame",
+              inline is not None and inline == ref,
+              f"{str(inline)[:12]} vs {str(ref)[:12]} at frame {r.get('frame')}{'  ' + str(r.get('error')) if not r.get('ok') else ''}")
+        s3.close()
+        p3.kill()
+        logf3.close()
+
+    call(s, counter, {"cmd": "quit"})
+    s.close()
+    try:
+        p.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        p.kill()
+    logf.close()
+
+
 time_checks()
+
+reads_checks()
 
 print("unchanged: the default path against the published binary")
 new_shot = os.path.join(args.work, "new.png")

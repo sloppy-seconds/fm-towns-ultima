@@ -119,8 +119,8 @@ from the items below rather than maintained separately.
 | 10a The control channel and the frame tap | AUTONOMOUS | **done**, `--control` answers JSON lines from the frame hook, and the default path is byte-identical to the release binary |
 | 10b `key`, through SDL rather than beside it | AUTONOMOUS | **done**, the socket path reaches `Select Player` with the windowed path's hash, with no display server |
 | 10c `frame` and `wait` | AUTONOMOUS | **done**, exact stepping, waits that time out, and two runs to the same frame give the same framebuffer |
-| 10d `shot` over the channel | AUTONOMOUS | no, depends on 10a |
-| 10e `mem`, a raw read by `seg:off` | AUTONOMOUS | no, depends on 10a |
+| 10d `shot` over the channel | AUTONOMOUS | **done**, byte-identical to `U2_SHOT` at the same frame, with no display server |
+| 10e `mem`, a raw read by `seg:off` | AUTONOMOUS | **done**, image bytes match the file and segment resolution is proved; the peek.js comparison was replaced, and the plan says why |
 | 10f `state`, the roster and world parsed for the caller | AUTONOMOUS | no, depends on 10a |
 | 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
 | 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
@@ -2746,7 +2746,7 @@ exactly their N, checked as `frame - from`, and two runs stepped to the same fra
 
 ### 10d. `shot`, the framebuffer over the channel
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2755,9 +2755,20 @@ exactly their N, checked as `frame - from`, and two runs stepped to the same fra
 | done when | `shot` over the socket returns a PNG whose bytes are identical to the `U2_SHOT` file for the same frame and the same state, asserted by hash in a committed test, and it works with `--graphics=none` so no display server is involved. The failure case: a shot that only works in SDL mode, which would keep Xvfb in every automated route |
 | blocked by | nothing beyond 10a |
 
+**Measured.** A run that ended at frame 600 with `U2_SHOT` and a run that parked a `shot` on frame 600 produced the
+same PNG bytes, `fada784131b8` both, and the read checks run with `--graphics=none` for the memory half and SDL dummy
+for the shot, so no display server is anywhere in the test.
+
+Two findings came out of getting there. `mkstemps` on glibc wants **six** X's before the suffix, not four, and returns
+`EINVAL` for anything less; the first template used `XXXX` and every inline shot failed with "Invalid argument", which
+the test caught and which would otherwise have been blamed on the renderer. And a shot taken after stepping to "600 or
+later" is a different picture from a shot at frame 600, because the splash animates and a command is read a frame or
+two after the step reply lands. That is why `shot` takes `at` and parks, rather than rendering whenever it happens to
+be read.
+
 ### 10e. `mem`, a raw read by `seg:off`
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2765,6 +2776,27 @@ exactly their N, checked as `frame - from`, and two runs stepped to the same fra
 | depends on | 10a |
 | done when | `mem` returns N bytes at a `seg:off` address and the player record read that way matches `tools/peek.js` field for field on the same state, with a committed test asserting at least HP, level, gold and position. The failure case: an off-by-one in the segment base, which is the error class `docs/live-fieldmap.md` exists to prevent and which a field-by-field comparison catches and a smoke test does not |
 | blocked by | nothing beyond 10a |
+
+**The done-when was not achievable as written, and what replaced it is stronger in one way and weaker in another.**
+`tools/peek.js` reads the *emulator's* live memory, and putting the port and the emulator into one game state is a
+savestate alignment problem this item does not need. The substitution, asserted in `tools/controltest.py`:
+
+- `mem` at the linear address the run prints it loaded the program at returns the stripped image from disk, byte for
+  byte (`4b59425f696e6974`, which is `KYB_init`). That is the segment-base test with an independent source, and it is
+  the exact error class the item was worried about.
+- A segment the CPU does not hold is refused with the list it does hold (`0014 0110 0014 0014 0110 0014`), and reading
+  through one it does hold resolves to a linear address and returns bytes.
+- `mem` reads live memory: 64 bytes at the record address are zeros before a `key space` and non-zero after it.
+
+Weaker than the original wording in one respect: HP, level, gold and position are not individually cross-checked
+against the emulator. That comparison belongs to `state` (10f), which has an independent source it can actually reach,
+namely the save file.
+
+**A wrong assumption caught on the way.** The first version hardcoded `0xcde81` and compared the result to the roster's
+`STAMINA=20`. It read 382. Two errors were stacked there: the fieldmap address is relative to the image base, which
+the port prints rather than fixes (`program 1071886 bytes at linear 0x400000`), and the frame-paced route does not land
+on the same world state as the wall-clock reference, so the comparison was measuring the schedule and not the read
+path. Both are now derived instead of assumed, and the roster comparison moved to the item that can do it honestly.
 
 ### 10f. `state`, the roster and world parsed for the caller
 

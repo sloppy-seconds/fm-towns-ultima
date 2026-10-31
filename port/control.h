@@ -174,6 +174,38 @@ inline bool parse_line(const std::string& line, Command& out, std::string& err) 
 	return true;
 }
 
+// Base64, because `shot` returns a PNG over a text protocol and the alternative is a second transport for one
+// command. Standard alphabet, no line breaks: a reply is one line, and a folded base64 field is a parsing bug
+// waiting for a caller that forgot to unfold.
+inline std::string b64(const std::vector<uint8_t>& in) {
+	static const char* tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	std::string out;
+	out.reserve(((in.size() + 2) / 3) * 4);
+	for (size_t i = 0; i < in.size(); i += 3) {
+		uint32_t v = (uint32_t)in[i] << 16;
+		if (i + 1 < in.size()) v |= (uint32_t)in[i + 1] << 8;
+		if (i + 2 < in.size()) v |= in[i + 2];
+		out.push_back(tbl[(v >> 18) & 63]);
+		out.push_back(tbl[(v >> 12) & 63]);
+		out.push_back(i + 1 < in.size() ? tbl[(v >> 6) & 63] : '=');
+		out.push_back(i + 2 < in.size() ? tbl[v & 63] : '=');
+	}
+	return out;
+}
+
+// Read a whole file, or return false. Used by `shot` to hand back the PNG the kit just wrote.
+inline bool read_file(const std::string& path, std::vector<uint8_t>& out) {
+	FILE* f = std::fopen(path.c_str(), "rb");
+	if (!f) return false;
+	std::fseek(f, 0, SEEK_END);
+	long n = std::ftell(f);
+	std::fseek(f, 0, SEEK_SET);
+	out.resize(n > 0 ? (size_t)n : 0);
+	size_t got = n > 0 ? std::fread(out.data(), 1, out.size(), f) : 0;
+	std::fclose(f);
+	return got == out.size();
+}
+
 class Channel {
 public:
 	~Channel() { close_all(); }
