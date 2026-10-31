@@ -6,6 +6,7 @@ Three routes. Pick the one that matches where you are.
 
 | situation | route |
 |---|---|
+| I own the game and want the recompiled port on this machine | [The port, native](#the-port-natively) |
 | I have a Linux or macOS desktop | [Native](#route-1-native-emulator) |
 | I have Windows | [Container](#route-2-container-browser-play), or native with a bash shell. Both untested. |
 | The machine is headless or remote, or I want to play in a browser | [Container](#route-2-container-browser-play) |
@@ -15,7 +16,8 @@ Three routes. Pick the one that matches where you are.
 
 **The game.** https://archive.org/details/fmtownscdcollection, file
 `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`. Unpack it
-into the repository directory.
+into the repository directory, or into a `game/` directory if you are only after the
+port, which looks there first.
 
 **The toolkit, if you want to build the C++ port.** `git submodule update --init fmtownskit`. A plain clone leaves
 `fmtownskit/` empty, and nothing in the emulator routes needs it, so this is the one step that is optional unless
@@ -140,40 +142,51 @@ podman, and builds a container locally (911 MB) the first time.
 
 It prints the URLs. Open `http://<host>:6080/vnc.html`.
 
+### The port, natively
+
+The recompiled port is the game's own 386 code running on the toolkit's FM Towns machine,
+and its module is committed in `module/`, so there is nothing to recompile:
+
+```bash
+./play.sh                        # your own copy of the game in ./game/
+./play.sh --headless 120         # no window, writes build/play/shot.png
+```
+
+It needs a C++20 compiler and SDL3, extracts what it needs from your disc into
+`build/play/`, fetches the font ROM, and unpacks a save disk with three characters on it
+if you have none. A published release ships the same binary already built, with no compiler
+needed at all.
+
+**The port is early and buggy, and the route matters.** Character creation does not
+work, so `Generate Character` is a dead end even though the menu offers it. The route
+that has actually been played:
+
+1. Press space through the splash to the game menu.
+2. `Journey Onward`.
+3. Pick a character that already exists. In-game slot 1 is `E`.
+
+`Esc` and `Q` end the run abnormally. Every known defect, with the observation that
+found it, is in [what is broken in the port](port-defects.md). To recompile the module from
+your own disc rather than use the committed one, see
+[building the port from the download](port-from-source.md).
+
+### The port, in the browser
+
 **The same browser window can show the recompiled port instead of the emulator.**
-That is the C++ reimplementation, the game's own 386 code recompiled and running on
-the toolkit's FM Towns machine, and it plays with a character that already exists. It
-has its own container so the two can run side by side.
+It has its own container so the two can run side by side, and the container is also the
+route for regenerating the module from the disc.
 
 ```bash
 ./tools/x-run.sh start     # builds if needed, prints the URLs
 ./tools/x-run.sh stop
 ```
 Open `http://<host>:6081/vnc.html` for the port, or `ai:5901` for raw VNC. The
-project is mounted read only and the compile goes to a named volume. `NOBUILD=1`
-skips the build, `ARGS` passes arguments to the port binary.
+project is mounted read only and everything the container writes goes to a named
+volume. `ARGS` passes arguments to the port binary.
 
-If nothing has recompiled the module yet, the container does that too, into its volume,
-so the host needs the game files and a container runtime and nothing else. If a release
-has been published, `IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest
-./tools/x-run.sh start` uses that image instead of building one locally. The image is a
-toolchain and contains no game code, and it cannot: the module that plays is the game
-translated, and it is built from your own copy at run time.
-
-**The port is early and buggy, and the route matters.** Character creation does not
-work, so `Generate Character` is a dead end even though the menu offers it. The route
-that has actually been played:
-
-1. Put a disk with characters on it where the container looks, before starting it.
-   The repository ships one: `unzip -o assets/save-disk/userdisk.hdm.zip -d saves/`.
-2. Press space through the splash to the game menu.
-3. `Journey Onward`.
-4. Pick a character that already exists. In-game slot 1 is `E`.
-
-`Esc` and `Q` end the run abnormally. Every known defect, with the observation that
-found it, is in [what is broken in the port](port-defects.md). To build the port from
-the download rather than run the container, including the recompile and the cmake
-step, see [building the port from the download](port-from-source.md).
+If a release has been published, `IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest
+./tools/x-run.sh start` uses that image instead of building one locally. It is a toolchain
+and a display, and it holds no original media, same as the repository.
 
 | port | what |
 |---|---|

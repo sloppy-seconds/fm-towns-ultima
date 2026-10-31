@@ -8,14 +8,29 @@ Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 **[source](web/)**
 
 **You supply the game.** It is commercial software still in copyright, so it is
-not in this repository and never will be, and nothing extracted from it is
-committed either. Download
+not in this repository and never will be. Download
 
 > **https://archive.org/details/fmtownscdcollection**
 > file: `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`
 
-and unpack it into this directory. Both routes below need it. The FM Towns ROMs
-are fetched by `tools/vendor.sh`, and the free clean-room set is fine.
+and put your copy in `./game/` for the port, or unpack it into this directory for the
+emulator. The FM Towns ROMs are fetched by `tools/vendor.sh`, and the free clean-room set
+is fine. What this project does distribute, and what it never will, is spelled out in
+**[licensing and preservation](docs/licensing.md)**.
+
+## Play the recompiled port
+
+```bash
+# your own copy of the game goes in ./game/
+./play.sh
+```
+
+One command. It builds the port from the recompiled module that is committed in `module/`,
+so there is no recompile, no container and no toolkit needed, and it fetches the font ROM
+if you have not. At the game menu pick *Journey Onward* and a character that already
+exists: character creation does not work yet, and `Esc` or `Q` ends the run,
+so read **[what is broken](docs/port-defects.md)** first. From the zip to a built binary
+by hand: **[build the port from source](docs/port-from-source.md)**.
 
 ## Play the original, in a browser
 
@@ -26,19 +41,6 @@ are fetched by `tools/vendor.sh`, and the free clean-room set is fine.
 
 Open `http://<host>:6080/vnc.html`. For a native window, Windows, macOS, or the
 editor with nothing installed: **[docs/quickstart.md](docs/quickstart.md)**.
-
-## Play the recompiled port, in a browser
-
-```bash
-git submodule update --init fmtownskit
-unzip -o assets/save-disk/userdisk.hdm.zip -d saves/
-./tools/x-run.sh start           # builds the port first time, prints the URLs
-```
-
-Open `http://<host>:6081/vnc.html`, and at the game menu pick *Journey Onward* and
-a character that already exists. Character creation does not work yet, and the port
-is early and buggy: **[what is broken](docs/port-defects.md)**. From the zip to a
-built binary, step by step: **[build the port from source](docs/port-from-source.md)**.
 
 ## The goal, and what the port is
 
@@ -58,10 +60,26 @@ the comparison this project already runs. A decompile with no oracle is a claim,
 what exists now is the oracle, plus a playable game in the meantime. The measured
 distance to the reimplementation is **[the gap](docs/reimplementation-gap.md)**.
 
+## Licensing, and why the recompiled code is in git
+
+Ultima II is still in copyright and cannot be bought. This is a non-commercial preservation
+project for people who already own it, and it draws a hard line: **the recompiled C++ is in
+git and in the releases, the original media never is.** No disc image, no `ENCHANT.EXP`, no
+ROM, no extracted asset, here or in any release.
+
+The reason for the split is that the legible thing worth keeping is the translation of the
+machine code into C++, and a binary preserves nothing. The module is measured rather than
+assumed to be code and not media, and the measurement is a gate. Full policy, the terms, and
+the takedown route: **[docs/licensing.md](docs/licensing.md)**.
+
+**If you hold rights to this game and want it taken down, open an issue or use the contact on
+<https://github.com/sloppy-seconds> and it comes down.** No argument will be raised.
+
 ## What this repository contains
 
-Nothing copyrighted. Scripts, tests and documentation only. Everything the game
-needs is supplied by you, and everything derived from the disc stays gitignored.
+Nothing that is the game itself. Scripts, tests, documentation, and the recompiled module.
+Everything the game needs is supplied by you, and everything extracted from the disc stays
+gitignored.
 
 Documentation: **https://sloppy-seconds.github.io/fm-towns-ultima/docs/**
 
@@ -219,6 +237,20 @@ the game menu and into the overworld on its own.
 the run. The tested route, and every known defect with the observation that found it,
 is [what is broken in the port](docs/port-defects.md).
 
+The simplest route is native, and it needs no container. The recompiled module is committed
+in `module/`, so there is nothing to recompile:
+
+```bash
+./play.sh                       # your own copy of the game in ./game/
+./play.sh --headless 120        # no window, writes build/play/shot.png
+```
+
+`play.sh` builds the port with cmake, which needs a C++20 compiler and SDL3, extracts
+`ENCHANT.EXP` and `TBIOS.BIN` from your disc into `build/play/`, and fetches the font ROM.
+
+For a headless or remote machine the container serves the same port over noVNC, and it is
+also the route for regenerating the module from the disc:
+
 ```bash
 ./tools/x-run.sh start          # build if needed, start, print the URLs
 ./tools/x-run.sh stop           # tear down, the build volume is kept
@@ -232,18 +264,17 @@ is [what is broken in the port](docs/port-defects.md).
 | 5901 | raw VNC |
 
 The ports are 6081 and 5901 so they do not collide with the emulator's 6080 and
-5900, and both can run at once. `NOBUILD=1` skips the compile, `ARGS` passes
-arguments to the port binary, `RESOLUTION` sets the virtual screen. The project is
-mounted read only and the build goes to a named volume, so nothing the container
-writes lands in the working tree.
+5900, and both can run at once. `ARGS` passes arguments to the port binary and
+`RESOLUTION` sets the virtual screen. The project is mounted read only and everything the
+container writes goes to a named volume, so nothing lands in the working tree as
+root-owned files.
 
 Same platform caveat as the emulator container: it has only been run on Linux.
 
 If a release has been published, `IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest
-./tools/x-run.sh start` uses the published toolchain image instead of building one. That
-image contains no game code and cannot: the module that plays is the game translated, and
-it is built from your own copy at run time. What a release carries, and why it cannot
-carry more: [building the port from the download](docs/port-from-source.md).
+./tools/x-run.sh start` uses the published toolchain image instead of building one, and the
+release archive ships a built `u2port` that needs no compiler at all. What a release carries,
+and what it never will: [licensing and preservation](docs/licensing.md).
 
 ### Does this work on macOS or Windows?
 

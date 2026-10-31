@@ -4,6 +4,12 @@ The route from the archive.org zip to a running `u2port`, with nothing on the au
 have. Every command on this page was run on 2026-10-30 in a clean clone with `build/` and `fmtownskit/` removed, and
 the outputs below are what it printed.
 
+**This is the from-source route, and since 2026-10-30 it is not the only one.** The recompiled module is committed
+under `module/`, so a person who owns the game does not need any of steps 4 to 7 to play: put the files in `game/`
+and run `./play.sh`. What follows is for regenerating the module itself, which needs the toolkit, the venv and the
+disc, and for anyone who wants to check that the committed module is what the disc produces. The policy behind that
+split is [licensing and preservation](licensing.md).
+
 The short route, the one that is played and demoed, is `./tools/x-run.sh start` after step 2 and step 3. This page is
 for the person who wants the build itself: to change the port, to measure it, or to not run a container.
 
@@ -92,7 +98,11 @@ the game is closed and the quickstart would be "play the original first".
 
 It extracts TBIOS from the disc, strips the `MP` header from `ENCHANT.EXP`, derives the seeds and the no-code ranges,
 recompiles the game and TBIOS as two modules, writes the one-track cue the kit's disc reader accepts, configures
-cmake, builds, and then runs 60 frames headless. `--reuse` skips the recompile, which is the slow half.
+cmake, builds, and then runs 60 frames headless. `--reuse` skips the recompile, which is the slow half, and
+`--no-run` stops after the link.
+
+If you only want the binary and not a new recompilation, `cmake -S port -B build && cmake --build build -j` builds
+from the committed `module/` and needs none of steps 4 to 7.
 
 **The trap this step exists to avoid.** The module is keyed by runtime address, and the runtime address of file offset
 `0x200` is `0`. So the recompile runs on the image with its 512 header bytes removed, and every seed and every
@@ -143,10 +153,11 @@ and `Esc` or `Q` will end the run. The list of what is broken, each with the obs
 ## What a release contains, and what it cannot
 
 `.github/workflows/release.yml` publishes two things from a `v*` tag. The image above goes to ghcr.io, and a host
-tarball built by `tools/release-package.sh` goes on the release. Neither can contain a playing port, because a
-playing `u2port` embeds the recompiled game and the recompiled game is the game. So the tarball holds the binary
-built against a synthetic module, the kit's MIT licence text, and a `README.txt` that says all of that in plain
-words. The route that plays is this page, or the container with your own disc mounted.
+tarball built by `tools/release-package.sh` goes on the release. The tarball **plays**, because the module it is
+linked from is committed and CI can therefore build it with no disc in the pipeline. What it may never contain is the
+original media: no `ENCHANT.EXP`, no disc image, no ROM, no extracted asset, and `release-package.sh` refuses
+anything game-shaped rather than trusting whoever edited it last. The full policy, including why the code is allowed
+and the media is not, is [licensing and preservation](licensing.md).
 
 ## What CI proves, and what it cannot
 

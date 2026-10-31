@@ -21,18 +21,14 @@
 #   XVNC        raw VNC port              (default 5901)
 #   RESOLUTION  Xvfb geometry             (default 1024x768x24)
 #   ARGS        arguments for the port    (default: none)
-#   NOBUILD=1   skip the compile and run whatever is already in the build volume
+#   NOBUILD=1   accepted and ignored. play.sh already rebuilds only when the binary is missing, and --rebuild is
+#               the way to force it. The flag stays so old invocations do not break.
 #   IMAGE       the image to use      (default u2-x, built locally from container/Containerfile.x). Point it at
 #               the published image and nothing is built locally at all.
 #
-# What runs inside, in order: Xvfb on :99, x11vnc on it, websockify serving noVNC on 6080, then:
-#
-#   1. the recompile, but only if no module exists yet. If the host already ran tools/port-build.sh the module in
-#      /src/build/port/recomp is used as it is. If a previous container run left one in the volume, that is used.
-#      Otherwise the container does the whole recompile itself into the volume, which is what makes a published
-#      image enough on its own: the host needs the game files and nothing but a container runtime.
-#   2. cmake configure and build of the port into /build/b.
-#   3. the port itself, with --graphics=sdl on the display.
+# What runs inside, in order: Xvfb on :99, x11vnc on it, websockify serving noVNC on 6080, then ./play.sh with its
+# working directory on the volume. play.sh is the same script a person runs on the host, which is the reason it is
+# worth having: the container is a display and a toolchain, not a second copy of the logic.
 #
 # The project is mounted READ ONLY at /src. The build goes to a named volume, /build, so it survives a restart
 # and so that nothing the container writes lands in the working tree as root-owned files.
@@ -67,31 +63,12 @@ do_build() {
 	podman_ build -f "$ROOT/container/Containerfile.x" -t "$IMAGE" "$ROOT/container"
 }
 
-# The command the container runs. Written out rather than inlined so that a failure names the step it failed in,
-# and as one shell script because the branch about which module to use has to be evaluated inside the container,
-# where the volume is, not here on the host.
+# One runner for the host and the container, which is the point. play.sh finds the game, extracts what it needs from
+# the disc, builds from the committed module if there is no binary yet, and runs it with a window on the display this
+# container just started. U2_WORK points its working files at the writable volume, because /src is mounted read-only
+# on purpose and nothing here should land in the working tree as root-owned.
 session_cmd() {
-	if [ "${NOBUILD:-0}" = "1" ]; then
-		printf 'exec /build/b/u2port --graphics=sdl %s /src/ENCHANT.EXP /build/tbios.bin /build/disc.cue /src/saves/userdisk.hdm' "$ARGS"
-		return
-	fi
-	cat <<SH
-set -e
-if [ -f /src/build/port/recomp/modules.cpp ]; then
-	echo "module    recompiled on the host, using /src/build/port/recomp"
-	RECOMP=/src/build/port/recomp; TB=/src/build/port/tbios.bin; CUE=/src/build/port/disc.cue
-elif [ -f /build/recomp/modules.cpp ]; then
-	echo "module    recompiled in this volume already, using /build/recomp"
-	RECOMP=/build/recomp; TB=/build/tbios.bin; CUE=/build/disc.cue
-else
-	echo "module    none found, recompiling the game and TBIOS inside the container"
-	cd /src && ./tools/port-build.sh --out /build --no-run --no-coverage
-	RECOMP=/build/recomp; TB=/build/tbios.bin; CUE=/build/disc.cue
-fi
-cmake -S /src/port -B /build/b -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR=\$RECOMP -DFMT_RUNTIME=/src/fmtownskit/runtime
-cmake --build /build/b -j\$(nproc)
-exec /build/b/u2port --graphics=sdl ${ARGS} /src/ENCHANT.EXP \$TB \$CUE /src/saves/userdisk.hdm
-SH
+	printf 'set -e\nU2_WORK=/build U2_ARGS="%s" /src/play.sh\n' "$ARGS"
 }
 
 do_start() {

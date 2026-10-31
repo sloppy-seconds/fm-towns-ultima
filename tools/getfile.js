@@ -15,6 +15,8 @@
 // USAGE
 //   node tools/getfile.js ENCHANT.EXP                 writes ./ENCHANT.EXP
 //   node tools/getfile.js ENCHANT.EXP --out build/x   writes build/x/ENCHANT.EXP
+//   node tools/getfile.js ENCHANT.EXP --disc IMG      read that image rather than the .img beside the tools,
+//                                                     which is how play.sh reaches a game directory
 //   node tools/getfile.js --list 'ENCHANT'            lists matching names and writes nothing
 //
 // Matching is case-insensitive on the basename, and more than one match is an error rather than a guess.
@@ -26,9 +28,12 @@ const { Disc, defaultDisc } = require('./cd.js');
 const ROOT = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const outFlag = args.indexOf('--out');
+const discFlag = args.indexOf('--disc');
 const listFlag = args.indexOf('--list');
 if (outFlag >= 0) args.splice(outFlag, 1);
 const outDir = outFlag >= 0 ? args.splice(outFlag, 1)[0] : null;
+if (discFlag >= 0) args.splice(discFlag, 1);
+const discPath = discFlag >= 0 ? args.splice(discFlag, 1)[0] : null;
 let pattern = null;
 if (listFlag >= 0) {
 	args.splice(listFlag, 1);
@@ -40,7 +45,7 @@ if (!pattern && !want) {
 	process.exit(2);
 }
 
-const disc = new Disc(defaultDisc(ROOT));
+const disc = new Disc(discPath || defaultDisc(ROOT));
 const cat = disc.catalogue();
 const up = (s) => s.toUpperCase();
 const matches = [...cat.keys()].filter((k) => up(path.basename(k)).includes(up(want || pattern)));
