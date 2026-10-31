@@ -113,7 +113,7 @@ from the items below rather than maintained separately.
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
 | 9l Choose a licence for this repository's own code | AUTONOMOUS | **done**, MIT at the root, shipped in the release archive, with the scope stated in words |
 | 9m A release binary that needs nothing installed | AUTONOMOUS | **done**, SDL is built from the pinned source and linked static, and the tarball played on a machine with no SDL at all |
-| 9k Mirror the repository and its releases | AUTONOMOUS | **yes**, and it matters more now that the module is the preservation artefact |
+| 9k Mirror the repository and its releases | AUTONOMOUS | **unblocked**, the release exists, and the item now names the exact commit, asset, digest and image manifest to mirror |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
@@ -2357,6 +2357,18 @@ The published asset was then played rather than trusted: downloaded, unpacked in
 SDL installed at all, run 120 frames headless against a disc supplied by its owner, and the resulting frame reads as
 the Ultima II copyright screen. That is the same test the local build passed, run against the bytes the world gets.
 
+**The tarball is not byte-reproducible, and the reason is measured.** The build run locally the day before hashed
+`7181c5675419eb21ca03b366a41f07349170b0374764239eb30b0a9a54e0018f` at 12,895,767 bytes, and the published one is
+`44f8cdfb…` at 12,894,884. The difference is the container, not the contents: extracted and compared member by
+member, all ten files including `u2port` are byte-identical, so CI and the local build produced the same binary from
+the same inputs. What differs is each tar header's `mtime` (1793427911 published against 1793424102 local, the
+63 minutes of wall clock between the two builds) and the member order, which `find` does not guarantee. Different
+header bytes and a different compression window are the whole 883 bytes. The gzip mtime field is zero in both, so it
+is not a factor. **The published hash is the hash of record**, and the one above is kept here as the fact that a
+second build agrees with it, which is worth more than a reproducibility claim nobody tested. Making the archive
+itself deterministic is a one-line change (`tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner`) and is
+not done, because nothing yet depends on comparing tarballs across builds rather than comparing their contents.
+
 ### 9n. The published image is private, and the release tells people to pull it
 
 **State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
@@ -2446,9 +2458,20 @@ not exist, and the line was removed after the failure was read.
 
 | field | value |
 |---|---|
-| autonomy | autonomous once the release exists. Mirroring is mechanical, and the second host is a choice with no technical constraint |
+| autonomy | autonomous now. The artefacts exist and are fetchable, and the second host is a choice with no technical constraint |
 | done when | the repository and at least one release exist on a second host and on archive.org, each with the commit or tag they were taken from recorded, and `docs/licensing.md` names the mirrors so a reader can find them. The failure case: a preservation artefact with exactly one point of removal, and no record that anyone thought about it |
-| blocked by | the first release tag, since there is nothing to mirror until the artefact exists |
+| blocked by | nothing since 2026-10-31. The inputs are named below. One of them, the image, is gated on 9n |
+
+**What to mirror, with the exact inputs.** The repository at tag `v0.1.0`, which peels to `72f97c3`, and the release
+asset `u2port-linux-x86_64.tar.gz` at 12,894,884 bytes, sha256
+`44f8cdfb8c7d004e50d6799483ef449bf504648e85a41cb8ba8f41f9ae14a752`, from
+<https://github.com/sloppy-seconds/fm-towns-ultima/releases/tag/v0.1.0>. Those two are enough to rebuild everything,
+because the module is in git and the SDL source is pinned by hash, and archive.org accepts both as a single item with
+the tag and the digest in its metadata. The image is the awkward one: `ghcr.io/sloppy-seconds/fm-towns-ultima:port-v0.1.0`
+resolves to manifest `sha256:4650410f0096`, 343.3 MB compressed across four layers, but it is private (9n), so
+mirroring it means either making it public first or exporting it from an authenticated pull with `podman pull` and
+`podman save`. The second git host has no constraint attached to it, which is the one part of this that is a preference
+rather than a measurement.
 
 The decision of 2026-10-30 makes the committed module the thing worth preserving, and a single account on a single
 host is one takedown, one outage or one acquisition away from being the only copy. Mirroring is the difference between
