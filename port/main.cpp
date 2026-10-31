@@ -152,7 +152,8 @@ void x86_trace(X86Cpu& c, uint32_t at) {
 
 #include "floppy.h"
 
-// The A: drive, as a real FAT12 reader over the image the machine mounts. Read only, and opened by main.
+// The A: drive, as a real FAT12 reader and writer over the image the machine mounts. Opened by main, and read-only
+// unless the run allows save writes.
 static u2floppy::Image g_floppy;
 
 // Hooks the vendored runtime calls (declared in towns_dos.cpp, which is where the DOS layer decides where a
@@ -168,6 +169,15 @@ bool fm_floppy_attrs(const std::string& path, uint32_t& attrib, uint32_t& size) 
 }
 
 bool fm_floppy_read(const std::string& path, std::vector<uint8_t>& out) { return g_floppy.read(path, out); }
+
+// The write policy, in one place. The save disk is the only writable image there is, and it is writable unless the
+// run asked not to be. The game disc is not reachable from here at all: it is a separate file served by the CD
+// path, so "never mutate the original media" needs no rule in this function because there is nothing to guard.
+bool fm_floppy_writable(const std::string& /*path*/) { return g_floppy.writable(); }
+
+bool fm_floppy_write(const std::string& path, const std::vector<uint8_t>& data) {
+	return g_floppy.write_file(path, data);
+}
 }  // namespace towns
 
 static std::vector<uint8_t> read_file(const char* path) {
@@ -201,6 +211,9 @@ int main(int argc, char** argv) {
 	int scale = 0;
 	long frames_flag = -1;
 	std::string control_spec;
+	// The save disk takes writes by default, because a created character that cannot be saved does not exist. The
+	// flag is the escape hatch for a run that must not touch an image, and it is what the older guardrail was.
+	bool read_only_disk = false;
 	std::vector<const char*> pos;
 	for (int i = 1; i < argc; ++i) {
 		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
@@ -208,6 +221,7 @@ int main(int argc, char** argv) {
 		else if (!std::strncmp(argv[i], "--scale=", 8)) scale = std::atoi(argv[i] + 8);
 		else if (!std::strncmp(argv[i], "--frames=", 9)) frames_flag = std::atol(argv[i] + 9);
 		else if (!std::strncmp(argv[i], "--control=", 10)) control_spec = argv[i] + 10;
+		else if (!std::strcmp(argv[i], "--read-only-disk")) read_only_disk = true;
 		else pos.push_back(argv[i]);
 	}
 	if (graphics != "sdl" && graphics != "none") {
@@ -347,8 +361,8 @@ int main(int argc, char** argv) {
 
 	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is
 	// reported and survived rather than treated as fatal, so the port still runs when only the CD is present.
-	if (g_floppy.open(floppy_path)) {
-		std::printf("machine   floppy opened from %s\n", floppy_path);
+	if (g_floppy.open(floppy_path, !read_only_disk)) {
+		std::printf("machine   floppy opened from %s (%s)\n", floppy_path, read_only_disk ? "read-only" : "writable");
 		if (std::getenv("U2_FLOPPY_LS")) {
 			// Listing is not serving. The failure this option exists to rule out is a shim that answers the
 			// attribute query and returns nothing when the program reads, which moves the failure one call later
@@ -1097,11 +1111,14 @@ int main(int argc, char** argv) {
 						// field for field so neither parser can drift alone.
 						long slot = 0;
 						if (auto it2 = cc.args.find("slot"); it2 != cc.args.end()) slot = std::strtol(it2->second.c_str(), nullptr, 10);
-						u2floppy::Image disk;
-						if (!disk.open(floppy_path)) {
+						// Read the live image, not the file. The guest's writes land in memory and reach the file only
+						// at exit, so a reader that re-opened the path would report the disk as it was found and a
+						// caller could not tell a failed save from a save that has not been flushed yet.
+						if (!g_floppy.loaded()) {
 							ctl->send(u2ctl::error_reply(cc.id, std::string("cannot open the floppy image ") + floppy_path));
 							continue;
 						}
+						u2floppy::Image& disk = g_floppy;
 						std::vector<uint8_t> raw;
 						if (!disk.read("ROSTER1.UT2", raw) || raw.empty()) {
 							ctl->send(u2ctl::error_reply(cc.id, "no ROSTER1.UT2 on the floppy, so there is no party to report"));
@@ -1173,6 +1190,9 @@ int main(int argc, char** argv) {
 		code = s.code;
 		std::printf("stopped\n");
 	}
+	// The disk is written once, here, and not per save. A run that dies part way leaves the image exactly as it was
+	// found, which is the property that matters when the image is the only copy of somebody's characters.
+	if (g_floppy.loaded() && !g_floppy.flush()) code = code ? code : 1;
 	std::printf("after     eax 0x%08x ecx 0x%08x edx 0x%08x ebx 0x%08x\n", c.r[0], c.r[1], c.r[2], c.r[3]);	std::printf("          esp 0x%08x ebp 0x%08x esi 0x%08x edi 0x%08x eip 0x%08x\n", c.r[4], c.r[5],
 	            c.r[6], c.r[7], c.eip);
 	std::printf("          machine frames %llu  guest clocks %llu\n", (unsigned long long)m.frame,

@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-"""tools/controlcreate.py - defect 3: create a character through the control socket, from a clean save disk.
+"""tools/controlcreate.py - defect 3: create a character through the control socket, from a clean save disk, and
+prove it survives.
 
 Ultima II's Generate Character -> Create asks for the save slot as a digit ("Create Entry (1-4) # 0"). The port
 once dropped every digit before it reached the guest, so the prompt could not be answered and creation was a dead
 end. See docs/port-defects.md entry 3 for the diagnosis and docs/fmtownskit-patches.md for the kit change that
 fixes it, pinned at 4028a76. Against an older kit this test fails, and it says so by name.
+
+Two phases, because the character has to exist after the process that made him is gone:
+
+  phase 1, twice on separate copies of the disk: drive the whole create route through the socket and assert the
+           frame at five checkpoints, and that the two runs agree
+  phase 2: on a disk a create run just wrote, assert the image changed on disk, then start a fresh process and
+           assert `state` reads the new character and that he can be selected and played
+
+Exit 0 only if all of it holds. Exit 1 with a named cause otherwise.
 
 This drives the whole route with nothing but the socket: no display, no xdotool, no vision model. The port runs
 under SDL's dummy video driver and every key arrives as a pushed SDL event.
@@ -21,7 +31,7 @@ What is asserted, and why each one is needed:
 Exit 0 only if all four hold. Exit 1 with a named cause otherwise.
 
 Usage: controlcreate.py <port> <clean-save-disk.hdm> <font-rom> <font20-rom> <ENCHANT.EXP> <TBIOS.BIN> <disc.cue>
-The disk is copied to a scratch file first and the file it was given is never touched.
+The disk given on the command line is never opened for writing. Every run works on a copy under a temp dir.
 """
 import base64
 import hashlib
@@ -162,17 +172,91 @@ def tail(path, n=4):
         return ""
 
 
+def md5(path):
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+# Phase two. The schedule that reaches Select Player is controlsmoke.py's, then three arrows down to the fourth
+# entry, Return to pick, y to answer "O. K. ? (Y/N)", space to dismiss the selection notice, and the world.
+#
+# What is asserted there, and what is not. The title menu and the overworld are animated, and the frame counter
+# drifts one to three frames between two runs of the same script, so a pinned framebuffer hash on those screens
+# fails for the wrong reason. Measured: two runs of this route differed at exactly the animated steps and matched
+# at every static one. So the assertions are content assertions.
+SELECT_THREE = "7c7acc2ba471b2f4"   # controlsmoke.py's Select Player with the three shipped characters
+PERSIST_SLOTS = 4                   # the created character goes into slot 4, which is index 3
+PERSIST_NAME = "JAMES"
+PERSIST_STATS = {"HP": 400, "STRENGTH": 20, "AGILITY": 20, "INTELLIGENCE": 15}
+
+
+def run_persist(disk, errlog):
+    """Start fresh on a disk a previous run wrote, and play the created character."""
+    proc = start(disk, errlog)
+    out, died = {}, None
+    try:
+        ctl = Control(proc)
+        out["state"] = ctl.cmd(cmd="state", slot=PERSIST_SLOTS - 1)
+
+        def goto(t):
+            while True:
+                f = ctl.cmd(cmd="ping").get("frame", 0)
+                if f >= t:
+                    return
+                ctl.cmd(cmd="frame", n=min(200, t - f))
+
+        goto(600); ctl.cmd(cmd="key", key="space")
+        goto(720); ctl.cmd(cmd="key", key="Down")
+        goto(840); ctl.cmd(cmd="key", key="Down")
+        goto(960); ctl.cmd(cmd="key", key="Return")
+        goto(1050); out["select"] = sha(ctl.cmd(cmd="shot"))
+        for f in (1100, 1160, 1220):
+            goto(f); ctl.cmd(cmd="key", key="Down")
+        goto(1300); out["highlight"] = sha(ctl.cmd(cmd="shot"))
+        goto(1360); ctl.cmd(cmd="key", key="Return")
+        goto(1460); out["confirm"] = sha(ctl.cmd(cmd="shot"))
+        goto(1520); ctl.cmd(cmd="key", key="y")
+        goto(1600); ctl.cmd(cmd="key", key="space")
+        goto(2200); out["world"] = sha(ctl.cmd(cmd="shot"))
+        ctl.cmd(cmd="quit")
+    except (BrokenPipeError, ConnectionResetError, OSError):
+        died = len(out)
+    finally:
+        try:
+            proc.wait(timeout=180)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    return out, died
+
+
+def sha(reply):
+    return hashlib.sha256(b64(reply.get("png", ""))).hexdigest()[:16]
+
+
 def main():
     if not os.path.exists(DISK_SRC):
         sys.exit(f"controlcreate: no save disk at {DISK_SRC}")
     scratch = tempfile.mkdtemp(prefix="controlcreate-")
-    disk = os.path.join(scratch, "scratch.hdm")
-    shutil.copyfile(DISK_SRC, disk)
-
+    clean_md5 = md5(DISK_SRC)
     failures = []
-    first, died = run_once(disk, 200, os.path.join(scratch, "port.err"))
-    if died is not None:
-        failures.append(f"the port died during step {died} of {len(ROUTE)}: {tail(os.path.join(scratch, 'port.err'))[-300:]}")
+
+    # Each create run gets its own copy. Sharing one would make the second run start with the first run's
+    # character already in the slot, which is a different screen and would be reported as a mismatch for the
+    # wrong reason.
+    runs = []
+    for i, tag in enumerate(("a", "b")):
+        disk = os.path.join(scratch, f"create-{tag}.hdm")
+        shutil.copyfile(DISK_SRC, disk)
+        hashes, died = run_once(disk, 200, os.path.join(scratch, f"port{i}.err"))
+        runs.append((disk, hashes))
+        if died is not None:
+            failures.append(f"the port died during step {died} of create run {tag}: "
+                            f"{tail(os.path.join(scratch, f'port{i}.err'))[-300:]}")
+
+    first, second = runs[0][1], runs[1][1]
     for idx, (label, want) in CHECKPOINTS.items():
         got = first[idx] if idx < len(first) else None
         if got != want:
@@ -180,12 +264,43 @@ def main():
             if idx == 6 and got == CREATE_PROMPT:
                 failures.append("the digit never reached the game: the entry field is still at its idle frame. "
                                 "This is the kPcToTowns defect, fixed in kit commit 4028a76")
-    second, died2 = run_once(disk, 200, os.path.join(scratch, "port2.err"))
-    if died2 is not None:
-        failures.append(f"the port died during step {died2} of the second run")
     if first != second:
-        diff = [i for i in range(max(len(first), len(second))) if first[i:i + 1] != second[i:i + 1]]
-        failures.append(f"not reproducible: runs differ at steps {diff[:6]}")
+        # Only the static screens are compared. The title menu changes between adjacent frames and the frame counter
+        # drifts a little between runs, so comparing the whole list reports a difference that is animation phase.
+        # The checkpoints below are the screens the route has to reach, and they are text.
+        diff = [i for i in CHECKPOINTS if first[i:i + 1] != second[i:i + 1]]
+        if diff:
+            failures.append(f"not reproducible on the static screens: steps {diff} "
+                            f"{[first[i] for i in diff]} vs {[second[i] for i in diff]}")
+
+    # Persistence. The disk the first run played on must have changed on disk, and a second process opening that
+    # same file must find the character and be able to play him.
+    persist_disk = os.path.join(scratch, "persist.hdm")
+    shutil.copyfile(DISK_SRC, persist_disk)
+    _, hashes = run_once(persist_disk, 200, os.path.join(scratch, "portc.err"))
+    if md5(persist_disk) == clean_md5:
+        failures.append("the save disk is unchanged after a completed creation, so nothing was written back. "
+                        "Either the run was started with --read-only-disk or the flush is broken")
+    else:
+        out, died = run_persist(persist_disk, os.path.join(scratch, "portd.err"))
+        if died is not None:
+            failures.append(f"the persistence run died after {len(out)} reads: {tail(os.path.join(scratch, 'portd.err'))[-300:]}")
+        else:
+            st = out.get("state") or {}
+            got_name = st.get("NAME", "").rstrip("\x00 ")
+            if got_name != PERSIST_NAME:
+                failures.append(f"state slot {PERSIST_SLOTS} reads {got_name!r}, expected {PERSIST_NAME!r}")
+            for field, want in PERSIST_STATS.items():
+                # `state` answers every field as a JSON string, because the roster is text and the reader does not
+                # guess which fields are numbers. Compare on the printed form rather than pretending otherwise.
+                if str(st.get(field)) != str(want):
+                    failures.append(f"state slot {PERSIST_SLOTS} {field} reads {st.get(field)}, expected {want}")
+            if out.get("select") == SELECT_THREE:
+                failures.append("Select Player is still the three-character list, so the new character is not on the disk the game reads")
+            if out.get("select") == out.get("highlight"):
+                failures.append("the arrows did not move the selection on Select Player")
+            if out.get("world") == out.get("confirm") or out.get("world") == out.get("select"):
+                failures.append("the run never left the selection screens, so the character is not playable")
 
     shutil.rmtree(scratch, ignore_errors=True)
     if failures:
@@ -193,7 +308,8 @@ def main():
         for f in failures:
             print("  " + f)
         return 1
-    print(f"controlcreate: ok, {len(ROUTE)} keys drove creation and the register matches across two runs")
+    print(f"controlcreate: ok, {len(ROUTE)} keys drove creation twice over, the disk changed on disk, and "
+          f"{PERSIST_NAME} was read back and played in a second process")
     return 0
 
 

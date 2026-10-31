@@ -13,7 +13,7 @@ quickstarts have to give the tested route rather than the one the game menu sugg
 |---|---|---|---|
 | 1 | It crashes easily | **Diagnosed 2026-10-31.** Paul played the port and it died during ordinary use. Reproduced on the current release binary with a scripted key sequence under Xvfb: three runs, all three died at machine frame 4026 with `fault at 000c:000ffeba: no recompiled function at 000c:000ffeba (eip 000fed47, frame 4026)` and exit code 3 | **open, cause identified as a module coverage hole, fix not attempted** |
 | 2 | `Esc` and `Q` crash it | **Not reproduced, and half of it is refuted.** `Esc` ends the run with exit code 0, measured in two different screen states, because the front-end treats it as the window's quit key (`towns_sdl.cpp:179`, `throw Stop{0}`) and `main.cpp` prints that at startup: "Escape closes it and ends the run". Injected into the guest instead, `Esc` makes the game quit itself cleanly (DOS terminate, `eax 0x4c00`, frame 915). `Q` produced no screen change and no exit at the menu, on Select Player, or on the post-select prompt | **open as a report, refuted as measured behaviour. What is left is that a vanishing window reads as a crash** |
-| 3 | Character creation does not work | **Diagnosed 2026-11-01, two causes.** The report itself was wrong: `Generate Character` is not a dead end, it is a sub-menu (Examine the Register / Create a Character / Terminate a Character / Main Menu / Look at a Character) and the headless route reaches it. What was dead was the digit. `Create a Character` asks `Create Entry (1-4) # 0` and wants a number, and the port cannot deliver one. See the section below for the measurement, the cause and how far creation now gets | **open. Cause one is fixed and pinned at kit `4028a76`, cause two (the save disk is read-only) is not fixed** |
+| 3 | Character creation does not work | **Diagnosed 2026-11-01, two causes, both now closed.** The report itself was wrong: `Generate Character` is not a dead end, it is a sub-menu (Examine the Register / Create a Character / Terminate a Character / Main Menu / Look at a Character) and the headless route reaches it. What was dead was the digit. `Create a Character` asks `Create Entry (1-4) # 0` and wants a number, and the port could not deliver one. The second cause was that even a completed creation could not be saved | **fixed. Cause one pinned at kit `4028a76`, cause two by the FAT12 write path, and `tools/controlcreate.py` proves creation, persistence and play across two processes** |
 | 5 | The keyboard could not type a digit | **Found and fixed 2026-11-01, on the yell line.** Every digit key was dropped before it reached the guest, and the whole a-z 0-9 grid is now measured glyph by glyph. Recorded under defect 3 because that is where it was found | **fixed, pinned at kit `4028a76`, and gated by `tools/controlkeymap.py`** |
 | 4 | No sound library means no window | On a Debian trixie container with no SDL and no `libasound`, the port printed `graphics  sdl unavailable (Failed loading libasound.so.2: ... cannot open shared object file), falling back to none` and ran with no window at all. Installing `libasound2` gave a 640x480 window showing the title screen, on the same machine with still no SDL | open, cause known, not fixed |
 
@@ -117,13 +117,34 @@ typing `4` produced `Create (1-4 Only!)` and typing `3` produced entry 4. With t
 and the create route needs no workaround. The original game was never the question, so the comparison under Tsugaru
 that this note used to call for is not needed for this.
 
-**Cause two: the save disk is read-only, so a created character is never persisted.** `port/floppy.h` says so on
-purpose at line 16, "saves/ holds irreplaceable state and none of it is in git, so nothing here writes", and the
-kit's DOS layer only ever calls `fm_floppy_read`. File creation (`int 21h AH=3C`) on `A:` reports "not on the
-floppy". The measurement: after a completed creation the image's md5 is `70ea85d4e7f006663b57a5a4d669787b`,
-identical to before, `state` still reads slot 3 as empty, and `Journey Onward` shows only `1: E`, `2: D`, `3: B`.
-So the character exists in the game's memory and the register, and cannot survive the run. Closing this needs FAT12
-write support and a decision about mutating save images, which the read-only rule was written to prevent.
+**Cause two was: the save disk is read-only, so a created character is never persisted.** `port/floppy.h` said so
+on purpose, "saves/ holds irreplaceable state and none of it is in git, so nothing here writes", and the kit's DOS
+layer only ever called `fm_floppy_read`. File creation (`int 21h AH=3C`) on `A:` reported "not on the floppy". The
+measurement at the time: after a completed creation the image's md5 was `70ea85d4e7f006663b57a5a4d669787b`,
+identical to before, `state` still read slot 3 as empty, and `Journey Onward` showed only `1: E`, `2: D`, `3: B`.
+
+**That cause is closed as of 2026-11-01, and the decision to close it was Paul's, not this repository's.** He
+accepted that the port may mutate save images, on the boundary below. The rule it replaced existed because `saves/`
+is disc-derived and has no backup, and a write path is exactly the thing that rule was guarding against, so the
+boundary is the part worth keeping written down:
+
+| volume | writable? | why |
+|---|---|---|
+| the user/save disk, the image passed as the fourth argument | yes, by default | a character that cannot be written to `ROSTER1.UT2` is a character that does not exist |
+| the same disk with `--read-only-disk` | no | the old behaviour is one flag away, and a run that is measuring something should not be able to leave a mark |
+| the game disc (`.ccd`/`.cue`) | never, and not from this code at all | it is a separate file served by the CD path, so "never mutate the original media" needs no policy here because there is nothing to guard |
+
+Writes go through a FAT12 writer in `port/floppy.h` and reach the file **once, at exit**, so a run that dies part
+way leaves the image exactly as it was found. The kit side is four hooks rather than two, and a handle only flushes
+if something was actually written to it, so opening a file read-only and closing it cannot touch the image.
+
+The end-to-end measurement, from `tools/controlcreate.py`: a socket-only run creates JAMES in slot 4, the image
+md5 moves from `70ea85d4e7f006663b57a5a4d669787b` to `f4911c56b51b7eb274f7bcf3db583c07`, `node tools/savedisk.js
+slots` on the written image reports `slot 3: "JAMES"`, and a **second process** opening that file reads him back
+through `state` (HP 400, STRENGTH 20, AGILITY 20, INTELLIGENCE 15, which are the stats the creation screen ended
+on) and plays him: the overworld status panel reads `JAMES / H: 400 / STRENGTH: 20 / AGILITY: 20 / INTELLI: 15`.
+Forcing `--read-only-disk` makes the test fail with "the save disk is unchanged", which is the check having teeth
+rather than a hypothesis.
 
 One interaction worth recording: with the unfixed kit the creation route does not stall quietly, it dies at frame
 4925 on the defect 1 fault at `000c:000ffeba`. The route is a second reproduction of defect 1 and it is reachable
