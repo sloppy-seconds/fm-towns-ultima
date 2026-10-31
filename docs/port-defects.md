@@ -14,6 +14,7 @@ quickstarts have to give the tested route rather than the one the game menu sugg
 | 1 | It crashes easily | Paul played the port and it died during ordinary use. No single action was identified as the trigger, which is the observation rather than a failure to narrow it down | open, no diagnosis |
 | 2 | `Esc` and `Q` crash it | Pressing `Esc` or `Q` on the keyboard during a session ends the run abnormally. Reported in the same breath as defect 1, and the two may be one fault | open, no diagnosis |
 | 3 | Character creation does not work | `Generate Character` on the game menu was tried and is a dead end. `Journey Onward` with a character already on the disk works, and it is the only route anybody has played | open |
+| 4 | No sound library means no window | On a Debian trixie container with no SDL and no `libasound`, the port printed `graphics  sdl unavailable (Failed loading libasound.so.2: ... cannot open shared object file), falling back to none` and ran with no window at all. Installing `libasound2` gave a 640x480 window showing the title screen, on the same machine with still no SDL | open, cause known, not fixed |
 
 Defects 1 and 2 are play observations reported on 2026-10-30, when the tree was at `51ca6e5`. They are not traces.
 No backtrace has been captured for either, and neither has been re-tested since the report.
@@ -21,6 +22,14 @@ No backtrace has been captured for either, and neither has been re-tested since 
 Defect 3 is older than the other two and is the reason `assets/save-disk/` carries a disk with three characters on
 it. Without that disk the honest quickstart would be "play the original first and make a character", which is a
 poor first five minutes.
+
+Defect 4 was found while proving the static-SDL release binary on a bare container, on 2026-10-31, and it is a
+different kind of entry: the cause is visible in the message. `fmtownskit/runtime/towns_sdl.cpp` calls `SDL_Init` once
+with video, audio and gamepad together, and SDL fails the whole call when no audio backend can be loaded, so the port
+loses the window as well as the sound. Every stock desktop has at least one of `libasound`, `libpulse` or
+`libpipewire`, which is why this has not bitten anybody playing it. The fix is to init video first and treat audio as
+optional, and it belongs to the toolkit's front-end rather than to this repository, so it is a patch against the
+submodule rather than an edit here.
 
 What the port does do, so the list is not read as "nothing works": it boots through the splash, the game menu and
 into the overworld with a character panel, on the recompiled code. That claim is `docs/recompilation-result.md`,

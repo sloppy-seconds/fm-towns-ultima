@@ -111,6 +111,7 @@ from the items below rather than maintained separately.
 | 9g Cross-compiling for Windows and macOS | PARTLY AUTONOMOUS | **scheduled followup**, decided 2026-10-30, and it needs machines to run the result on |
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
 | 9l Choose a licence for this repository's own code | AUTONOMOUS | **done**, MIT at the root, shipped in the release archive, with the scope stated in words |
+| 9m A release binary that needs nothing installed | AUTONOMOUS | **done**, SDL is built from the pinned source and linked static, and the tarball played on a machine with no SDL at all |
 | 9k Mirror the repository and its releases | AUTONOMOUS | **yes**, and it matters more now that the module is the preservation artefact |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
@@ -2437,6 +2438,63 @@ reader actually meets them: the README's first screen, `docs/licensing.md` as a 
 disc files, *Ultima* is Origin Systems now Electronic Arts and *FM Towns* is Fujitsu with no affiliation or endorsement
 claimed, all original content and ROMs belong to their owners and are not included, takedown through GitHub issues,
 and no warranty because MIT already says so.
+
+### 9m. A release binary that needs nothing installed
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. It is a build change with a machine to check it on, and no product decision in it |
+| done when | the release tarball's `u2port` has no `libSDL3` in its `ldd` output, and the unpacked archive plays on a machine that has no SDL of any kind installed, with a captured frame read back as the title screen. The failure case: a release described as portable that still needs a distro SDL package, which is what made the artefact Debian trixie-shaped and would have made `v0.1.0` unplayable on the majority of the machines it can reach |
+| blocked by | nothing. 9g reuses the same mechanism with a cross toolchain file |
+
+**What landed.** `tools/sdl-from-source.sh` builds SDL3 as a static archive from the upstream
+release tarball, and `tools/sdl-pin.txt` pins version, sha256 and byte size, with the hash
+checked before extraction so a swapped artefact is a hard failure rather than a different SDL
+in a published binary. `container/Containerfile.x` gained the header packages SDL needs at
+build time (X11, Wayland, ALSA, Pulse, PipeWire, udev, and `libxtst-dev`, which the configure
+step asks for by name). `port/CMakeLists.txt` says out loud which SDL the kit found and puts
+`$ORIGIN:$ORIGIN/SDL3` on the rpath, so anything a future build ships beside the binary is
+found by relative path. `tools/release-package.sh` builds against the static archive, refuses
+a binary whose `ldd` still lists `libSDL3`, ships SDL's zlib text as `LICENSE.SDL3`, and
+bundles `$PREFIX/lib/SDL3/*.so` if a build ever produces them. `play.sh` falls back to the
+same source build when the distro has no SDL3 config, so a clone on a plain machine builds.
+
+**Measured, not assumed.** The static archive is 6,446,422 bytes and a static SDL3 build ships
+no loadable backends, so the module-bundling branch copies nothing today and says so. The
+release binary's whole `ldd` list is `linux-vdso`, `libstdc++`, `libm`, `libgcc_s`, `libc`,
+`ld-linux`: no SDL, and no X11 or audio library either, because SDL dlopens those and they are
+the desktop's own. The verification container was a bare `debian:trixie-slim` with `nodejs`,
+`unzip`, `xvfb` and `imagemagick` and nothing else, where `ldconfig -p | grep -ci sdl3` and
+`dpkg -l | grep -ci sdl` both returned 0. In it the unpacked archive ran 120 frames headless
+and wrote a 1,109,473-byte shot, and then ran with `SDL_VIDEODRIVER=x11` and mapped a window
+named `Ultima II - FM Towns, recompiled` at 640x480, whose 24,503-byte capture the vision
+model read as the title screen with the Fujitsu credit.
+
+**The defect it found, which is not this item's to fix.** On that bare container the first X11
+attempt produced no window at all, with the port printing `graphics  sdl unavailable (Failed
+loading libasound.so.2: ... cannot open shared object file), falling back to none`. The cause
+is visible: `fmtownskit/runtime/towns_sdl.cpp` calls `SDL_Init` once with video, audio and
+gamepad together, so no audio backend loses the window too. Every stock desktop has at least
+one of `libasound`, `libpulse` or `libpipewire`, which is why nobody hit it while playing, and
+the fix belongs to the toolkit's front-end. It is entry 4 of `docs/port-defects.md` with its
+observation, and the release README says the same in plain words rather than hiding it.
+
+**The gates, and seeing them fail.** `tools/portcheck.js` gained four checks: the pin is one
+well-formed row, the source build asks for static and verifies the hash, the release script
+calls the source build and asserts on `ldd` and ships the licence, and the port's CMake names
+the static target and `$ORIGIN`. The pin check was seen to fail by shortening the hash by one
+character and reading `1 data rows, 0 well formed`. The `ldd` refusal was seen to fire by
+linking a toy binary against the system shared SDL with `-Wl,--no-as-needed`, where the same
+pipeline reported `libSDL3.so.0` and refused, and reported clean on the real release binary.
+The first attempt at that demonstration was silently useless, because the linker dropped an
+unreferenced `libSDL3` under `--as-needed` and the gate had nothing to see.
+
+**What 9g inherits.** The pin, the download, the hash check and the option list are the whole
+SDL problem; a Windows cross build changes the toolchain file and the target triple and reuses
+the rest, which is the reason this was done as a separate script rather than inlined into the
+packaging.
 
 ---
 

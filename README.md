@@ -269,8 +269,10 @@ in `module/`, so there is nothing to recompile:
 ./play.sh --headless 120        # no window, writes build/play/shot.png
 ```
 
-`play.sh` builds the port with cmake, which needs a C++20 compiler and SDL3, extracts
-`ENCHANT.EXP` and `TBIOS.BIN` from your disc into `build/play/`, and fetches the font ROM.
+`play.sh` builds the port with cmake, which needs a C++20 compiler and SDL3. If the distro
+has an SDL3 it uses that, and if it does not it builds the pinned SDL3 as a static archive
+first, so a plain clone on a plain machine still gets a binary. It extracts `ENCHANT.EXP`
+and `TBIOS.BIN` from your disc into `build/play/`, and fetches the font ROM.
 
 For a headless or remote machine the container serves the same port over noVNC, and it is
 also the route for regenerating the module from the disc:

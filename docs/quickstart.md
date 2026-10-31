@@ -152,10 +152,11 @@ and its module is committed in `module/`, so there is nothing to recompile:
 ./play.sh --headless 120         # no window, writes build/play/shot.png
 ```
 
-It needs a C++20 compiler and SDL3, extracts what it needs from your disc into
+It needs a C++20 compiler, and SDL3 from the distro or built from the pinned source if the
+distro has none. It extracts what it needs from your disc into
 `build/play/`, fetches the font ROM, and unpacks a save disk with three characters on it
-if you have none. A published release ships the same binary already built, with no compiler
-needed at all.
+if you have none. A published release ships the same binary already built, with SDL linked
+in and no compiler needed at all.
 
 **The port is early and buggy, and the route matters.** Character creation does not
 work, so `Generate Character` is a dead end even though the menu offers it. The route
