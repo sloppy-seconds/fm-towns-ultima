@@ -7,16 +7,32 @@ Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 **[Save game editor](https://sloppy-seconds.github.io/fm-towns-ultima/)** and its
 **[source](web/)**
 
-**You supply the game.** It is commercial software still in copyright, so it is
-not in this repository and never will be. Download
+**This is a non-commercial game preservation project.**
+
+- You are expected to **own your own copy** of the original Ultima / FM Towns game. Nothing
+  here hosts or distributes the original media: no disc images, no executables, no ROMs, no
+  extracted assets. You supply your own files.
+- *Ultima* is a trademark and copyright of its respective owners (Origin Systems, now
+  Electronic Arts). *FM Towns* is Fujitsu. This project is not affiliated with, endorsed by,
+  or approved by any of them.
+- All original game content, disc images, ROMs and assets are the property of their
+  respective owners and are **not included** here or in any release.
+- What is here is a translation of the game's machine code into readable C++, plus the
+  scripts, tests and documentation around it, for preservation and study. It is MIT licensed,
+  it comes with no warranty, and it is provided as-is.
+- **Rights holder?** Open an [issue](https://github.com/sloppy-seconds/fm-towns-ultima/issues)
+  and this comes down. No argument, no runaround.
+
+Full terms: **[licensing and preservation](docs/licensing.md)**.
+
+**You supply the game.** Download
 
 > **https://archive.org/details/fmtownscdcollection**
 > file: `FM-Towns CD/Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[+UserDisk].zip`
 
 and put your copy in `./game/` for the port, or unpack it into this directory for the
 emulator. The FM Towns ROMs are fetched by `tools/vendor.sh`, and the free clean-room set
-is fine. What this project does distribute, and what it never will, is spelled out in
-**[licensing and preservation](docs/licensing.md)**.
+is fine.
 
 ## Play the recompiled port
 
@@ -69,11 +85,19 @@ ROM, no extracted asset, here or in any release.
 
 The reason for the split is that the legible thing worth keeping is the translation of the
 machine code into C++, and a binary preserves nothing. The module is measured rather than
-assumed to be code and not media, and the measurement is a gate. Full policy, the terms, and
-the takedown route: **[docs/licensing.md](docs/licensing.md)**.
+assumed to be code and not media, and the measurement is a gate. This repository's own work
+is under the **MIT licence** in `LICENSE`, which covers the scripts, the docs, the port
+front-end and the translation, and covers nothing else.
+
+**Trademarks.** *Ultima* is a trademark and copyright of its respective owners (Origin
+Systems, now Electronic Arts). *FM Towns* is Fujitsu. Naming them here is description, not a
+claim: this project is not affiliated with, endorsed by, or approved by any of them, and all
+original game content, disc images, ROMs and assets remain the property of their owners and
+are not included.
 
 **If you hold rights to this game and want it taken down, open an issue or use the contact on
-<https://github.com/sloppy-seconds> and it comes down.** No argument will be raised.
+<https://github.com/sloppy-seconds> and it comes down.** No argument will be raised. Full
+policy and reasoning: **[docs/licensing.md](docs/licensing.md)**.
 
 ## What this repository contains
 

@@ -5,6 +5,13 @@ deliberately and written down rather than drifted into, and the previous rule is
 position rather than deleted, because the reasoning that produced it is still partly valid and the rest of the project
 depends on knowing which rule is current.
 
+**The notice, in one place.** This is a non-commercial game preservation project. You are expected to own your own
+copy of the original Ultima / FM Towns game and to supply your own disc files. Nothing here hosts or distributes the
+original media. *Ultima* is a trademark and copyright of its respective owners (Origin Systems, now Electronic Arts)
+and *FM Towns* is Fujitsu, and this project is not affiliated with, endorsed by, or approved by them. All original
+game content, disc images, ROMs and assets belong to their owners and are not included. This repository's own code is
+MIT and comes with no warranty. If you hold rights and want something removed, open an issue and it happens.
+
 ## The rule
 
 **The recompiled C++ may live in git.** `module/` holds the recompiler's output, which is the game's own machine code
@@ -41,6 +48,14 @@ rather than a legal argument:
 - **For people who own the game.** Nothing here works without the reader's own copy, and the copy is expected to be a
   real one. The port reads the disc at run time for its artwork and its font.
 - **Non-commercial.** Nothing is sold, nothing is monetised, no service is run for profit off it.
+- **Not affiliated.** *Ultima* is a trademark and copyright of its respective owners (Origin
+  Systems, now Electronic Arts). *FM Towns* is Fujitsu. Naming them is description, not an
+  endorsement, and this project is not affiliated with, endorsed by, or approved by any of
+  them. All original game content, disc images, ROMs and assets are their property and are
+  not included here.
+- **No warranty.** This repository's own work is MIT licensed and provided as-is, with the
+  usual disclaimer of merchantability and fitness. The port is early and its defects are
+  [listed](port-defects.md) rather than hidden.
 - **A published takedown route.** A rights holder who wants this down opens an issue at
   <https://github.com/sloppy-seconds/fm-towns-ultima/issues> or uses the contact on
   <https://github.com/sloppy-seconds>, and it comes down. No licence argument is raised in response, because the

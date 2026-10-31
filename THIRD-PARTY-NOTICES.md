@@ -1,8 +1,23 @@
 # Third-party notices
 
-This project's own code is its own. The material below is other people's, and is
-recorded here because attribution is a condition of reuse and a note in a docs page is
-not enough on its own.
+This project's own code is its own, and it is MIT: see `LICENSE` at the root. What follows
+is other people's material, recorded here because attribution is a condition of reuse and a
+note in a docs page is not enough on its own.
+
+## What this project's MIT covers, and what it cannot
+
+`LICENSE` covers this repository's own work: the scripts in `tools/`, the browser editor in
+`web/`, the documentation in `docs/`, the port front-end in `port/`, and the recompiled
+translation in `module/` as a translation produced here.
+
+It does not, and cannot, cover the original game. Ultima II, its disc, its artwork, its
+audio, its maps and its machine code belong to their owners, and no licence written by
+somebody who does not hold those rights can grant anything over them. The recompiled C++ is
+a derivative of that machine code, and the standing position of this project is that it
+exists for preservation, non-commercially, for people who already own the game. See
+[`docs/licensing.md`](docs/licensing.md) for the full terms and the takedown route.
+
+Anyone reusing this repository should read that paragraph before reading the licence.
 
 Nothing from the reference clones below is copied into this project's source or committed
 here. The two entries after them are different in kind: `fmtownskit` is a git submodule

@@ -110,8 +110,8 @@ from the items below rather than maintained separately.
 | 9f A release, and what may be in it | BLOCKED ON HUMAN | no, the workflow is written and locally verified, and cutting the release needs a tag pushed |
 | 9g Cross-compiling for Windows and macOS | PARTLY AUTONOMOUS | **scheduled followup**, decided 2026-10-30, and it needs machines to run the result on |
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
+| 9l Choose a licence for this repository's own code | AUTONOMOUS | **done**, MIT at the root, shipped in the release archive, with the scope stated in words |
 | 9k Mirror the repository and its releases | AUTONOMOUS | **yes**, and it matters more now that the module is the preservation artefact |
-| 9l Choose a licence for this repository's own code | NEEDS A DECISION | no, and it should be settled before the release is public |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
@@ -2413,7 +2413,7 @@ knowledge.
 
 ### 9l. Choose a licence for this repository's own code
 
-**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2425,6 +2425,18 @@ There is no `LICENSE` at the root today, which was harmless while the repository
 nobody was expected to reuse them. That changed with a committed module and a shipped binary. The toolkit's MIT terms
 are already carried in `THIRD-PARTY-NOTICES.md` and in the release archive, and they are not a substitute: they cover
 fmtownskit, not this work.
+
+**What landed.** `LICENSE` at the root, standard MIT text, Copyright (c) 2026 Paul Czarkowski, matching fmtownskit's
+own so the stack is one licence rather than three. `release-package.sh` ships it in the archive beside
+`LICENSE.fmtownskit`, and `THIRD-PARTY-NOTICES.md` gained the section the licence needs: what MIT covers here, and the
+thing a licence from a non-owner cannot cover, which is the original game.
+
+**The preservation disclaimers, added with it.** The usual set, in plain tone rather than defensive, in three places a
+reader actually meets them: the README's first screen, `docs/licensing.md` as a notice block at the top, and
+`tools/release-readme.txt` inside the archive. Non-commercial preservation, own your own copy and supply your own
+disc files, *Ultima* is Origin Systems now Electronic Arts and *FM Towns* is Fujitsu with no affiliation or endorsement
+claimed, all original content and ROMs belong to their owners and are not included, takedown through GitHub issues,
+and no warranty because MIT already says so.
 
 ---
 

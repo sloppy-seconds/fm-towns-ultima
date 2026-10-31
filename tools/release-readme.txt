@@ -13,16 +13,24 @@ Licence, preservation, and how to reach us
 =========================================
 
 Ultima II: Revenge of the Enchantress (FM Towns, 1990) is commercial software still in
-copyright and has no legal way to be bought. This project exists to preserve a version of
-the game that would otherwise become unreadable, and it is non-commercial in every sense:
-nothing here is sold, nothing is monetised, and nothing is hosted that the rights holder
-has not chosen to leave alone.
+copyright and has no legal way to be bought. This is a non-commercial game PRESERVATION
+project: nothing here is sold, nothing is monetised, and the aim is that a version of the
+game stays readable rather than that anybody gets a free copy.
+
+You are expected to own your own copy of the original game and to supply your own disc
+files. Nothing here hosts or distributes the original media: not the disc images, not the
+floppy, not ENCHANT.EXP, not the ROMs, not any artwork, audio, font or map extracted from
+them. Those belong to their owners.
+
+Trademarks. Ultima is a trademark and copyright of its respective owners (Origin Systems,
+now Electronic Arts). FM Towns is Fujitsu. This project is not affiliated with, endorsed by,
+or approved by any of them, and all original game content remains their property.
 
 What is distributed here is a translation of machine code into source code, plus the
-scripts and documentation that make it run. What is never distributed, in this archive,
-in the git repository, or in any release, is the original media: the disc images, the
-floppy, ENCHANT.EXP, the ROMs, and any artwork, audio, font or map extracted from them.
-Those belong to their owner and you are expected to already have them.
+scripts and documentation that make it run. That part is MIT licensed (see LICENSE in this
+archive) and comes with no warranty of any kind, as the licence says. The port is early:
+character creation does not work and Esc or Q ends the run, and the full list is linked
+below rather than buried.
 
 If you hold rights to this game and would like this repository or a release taken down,
 say so and it happens: open an issue at
@@ -72,6 +80,7 @@ What is in this archive
   tools/cd.js                the ISO reader getfile.js uses
   tools/vendor.sh            fetches the emulator, the FreeTOWNS ROMs, pinned and checksummed
   assets/save-disk/          a save disk with three characters, so the tested route works
+  LICENSE                    MIT, this project's own code and the recompiled translation
   LICENSE.fmtownskit         the MIT licence of the toolkit this binary statically links
   README.txt                 this file
 
