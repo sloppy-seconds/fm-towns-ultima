@@ -2,9 +2,9 @@
 """tools/controlcreate.py - defect 3: create a character through the control socket, from a clean save disk.
 
 Ultima II's Generate Character -> Create asks for the save slot as a digit ("Create Entry (1-4) # 0"). The port
-dropped every digit before it reached the guest, so the prompt could not be answered and creation was a dead end.
-See docs/port-defects.md entry 3 for the diagnosis and patches/fmtownskit-pending-digit-keys.patch for the kit
-change that fixes it. Until that patch is applied this test fails, and it says so by name.
+once dropped every digit before it reached the guest, so the prompt could not be answered and creation was a dead
+end. See docs/port-defects.md entry 3 for the diagnosis and docs/fmtownskit-patches.md for the kit change that
+fixes it, pinned at 4028a76. Against an older kit this test fails, and it says so by name.
 
 This drives the whole route with nothing but the socket: no display, no xdotool, no vision model. The port runs
 under SDL's dummy video driver and every key arrives as a pushed SDL event.
@@ -21,7 +21,7 @@ What is asserted, and why each one is needed:
 Exit 0 only if all four hold. Exit 1 with a named cause otherwise.
 
 Usage: controlcreate.py <port> <clean-save-disk.hdm> <font-rom> <font20-rom> <ENCHANT.EXP> <TBIOS.BIN> <disc.cue>
-The disk is copied to a scratch file first and never written back; the port's floppy layer is read-only.
+The disk is copied to a scratch file first and the file it was given is never touched.
 """
 import base64
 import hashlib
@@ -179,7 +179,7 @@ def main():
             failures.append(f"step {idx} ({label}): expected {want}, got {got}")
             if idx == 6 and got == CREATE_PROMPT:
                 failures.append("the digit never reached the game: the entry field is still at its idle frame. "
-                                "This is the kPcToTowns defect; apply patches/fmtownskit-pending-digit-keys.patch")
+                                "This is the kPcToTowns defect, fixed in kit commit 4028a76")
     second, died2 = run_once(disk, 200, os.path.join(scratch, "port2.err"))
     if died2 is not None:
         failures.append(f"the port died during step {died2} of the second run")

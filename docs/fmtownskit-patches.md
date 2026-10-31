@@ -81,21 +81,21 @@ Each entry names the file, what it changes, and the measurement that motivated i
 | `runtime/towns_io.cpp` | an unimplemented output port reports its value and the instruction that wrote it | patch twelve. `out 0e51` alone says a port nobody implemented was written and nothing about which device was being programmed. First use named `0x0FF73A` probing four devices at `0x0E51`/`59`/`61`/`69`. |
 | `runtime/towns.h` | `press_key(scan, ascii)`, `keys`, `keys_served` | patch eleven, the keyboard. See the `towns_dos.cpp` row for the contract. |
 | `runtime/towns_sdl.h` | `std::function<void(uint8_t, uint8_t)> on_key` and `<functional>` | patch fourteen. The front-end maps host keys to the Towns **pad**, and ENCHANT reads the **keyboard**, so without this a window shows the picture and refuses every keypress. |
-| `runtime/towns_sdl.cpp` | `towns_key()` maps SDL's scancode to PC/AT set 1 and SDL's layout-aware keycode to the character, and `vsync` calls `on_key` after the front-end's own keys | patch fourteen, same measurement: PC/AT set 1 because `a` is `0x1E` on the machine and ENCHANT indexes a 114-entry table with it. Unmapped keys report nothing rather than a guess, and Escape still quits so a window keeps a way out. |
+| `runtime/towns_sdl.cpp` | `towns_key()` maps SDL's scancode to PC/AT set 1 and SDL's layout-aware keycode to the character, and `vsync` calls `on_key` after the front-end's own keys | patch fourteen, same measurement: PC/AT set 1 because `a` is `0x1E` on the machine and ENCHANT indexes a 114-entry table with it. Unmapped keys report nothing rather than a guess, and Escape still quits so a window keeps a way out. || `runtime/towns_sdl.cpp` | `kPcToTowns` indices `0x02` to `0x0B` are `0x02` to `0x0B` rather than zero, which is the digit row `1` to `0`, with `0x01` escape still dropped | defect 3 of `docs/port-defects.md`. The zeros meant `towns_key()` returned false for every digit, so no number could reach the game and Ultima II's create-entry prompt could not be answered. The values were settled on the game's own YELL echo, glyph by glyph, not off a reference enum: the same page has the queue measurement and the a-z 0-9 grid, and `tools/controlkeymap.py` re-measures it. |
 
-## Pending, written and tested, not on the pin
+## Landing a kit change
 
 The table above is what the branch carries, and `tools/patchcheck.js` proves it by comparing the mirror patch with
-`git diff` against the base. A change that exists only on this machine would break that proof, so it is recorded
-here as a file rather than slipped into the table.
+`git diff` against the base. So a change lands in one motion, and nothing else:
 
-| file | change | why, and where the measurement is |
-|---|---|---|
-| `runtime/towns_sdl.cpp` | `kPcToTowns` indices `0x02` to `0x0B` become `0x02` to `0x0B` instead of zero, which is the digit row `1` to `0`, with `0x01` escape still dropped | `patches/fmtownskit-pending-digit-keys.patch`. The zeros meant `towns_key()` returned false for every digit, so no number could reach the game and Ultima II's create-entry prompt could not be answered. The values were settled on the game's own YELL echo, glyph by glyph, not off a reference enum: `docs/port-defects.md` defect 3 has the queue measurement and the grid, and `tools/controlkeymap.py` re-measures it. |
+```
+git -C fmtownskit commit ...        # on mp-support, then push mp-support
+git -C fmtownskit checkout mp-support
+git add fmtownskit                  # the pin moves to the pushed commit
+git -C fmtownskit diff $(cat patches/fmtownskit-base.txt) > patches/fmtownskit-mp-support.patch
+node tools/patchcheck.js
+```
 
-To land it: `git -C fmtownskit am patches/fmtownskit-pending-digit-keys.patch`, push `mp-support`, point the pin at
-the new commit, regenerate the mirror with `git -C fmtownskit diff $(cat patches/fmtownskit-base.txt) >
-patches/fmtownskit-mp-support.patch`, move the row above into the table, and delete the pending patch. The commit
-already exists locally as `4028a76` on `mp-support` on this machine, so a push may be all that is needed. Until
-then `tools/controlcreate.py` and `tools/controlkeymap.py` fail by name, which is the intended behaviour and not a
-broken test.
+A change that is committed but not pushed cannot be pinned, because the pin has to be fetchable by a stranger. That
+is a fact about the gate rather than a suggestion, and it is why the digit-keys fix sat in this repository as a
+pending patch file for a day before `4028a76` was pushed.
