@@ -118,6 +118,16 @@ echo "save disk $DISK"
 # 6. The binary. A release tarball ships u2port next to this script, and then there is nothing to build: that is
 #    the whole point of the release. A clone has no u2port at the root, so it builds one from module/ with cmake,
 #    which needs a compiler and SDL3 but no recompiler and no toolkit beyond its runtime headers.
+sdl3_from_system() {
+	local d
+	for d in /usr/lib/cmake/SDL3 /usr/lib/x86_64-linux-gnu/cmake/SDL3 /usr/lib64/cmake/SDL3 \
+		/usr/local/lib/cmake/SDL3 /usr/local/lib64/cmake/SDL3 /opt/homebrew/lib/cmake/SDL3
+	do
+		[[ -f "$d/SDL3Config.cmake" ]] && return 0
+	done
+	return 1
+}
+
 if [[ -x "$ROOT/u2port" ]]; then
 	PORT_BIN="$ROOT/u2port"
 	echo "binary    $PORT_BIN (shipped with this archive, nothing built)"
@@ -129,7 +139,27 @@ else
 		echo "no u2port beside this script and no port/ directory to build one from." >&2
 		exit 2
 	}
-	cmake -S "$ROOT/port" -B "$WORK" -DCMAKE_BUILD_TYPE=Release >"$WORK/cmake.log" 2>&1
+	# SDL3 from the distro if it has one, and from the pinned source if it does not. Ubuntu 24.04 has no
+	# libsdl3-dev at all and a plain desktop may have no SDL whatsoever, and neither is a reason a clone cannot
+	# build. The source build is the same one the release uses, so the binary a stranger gets is the binary we ship.
+	SDL_ARGS=()
+	if sdl3_from_system
+	then
+		echo "sdl3      from the system"
+	elif [[ -x "$ROOT/tools/sdl-from-source.sh" ]]
+	then
+		echo "sdl3      none found, building the pinned static SDL3 (once, a few minutes)"
+		SDL_PREFIX="$(SDL3_CACHE="$WORK/sdl3" "$ROOT/tools/sdl-from-source.sh")" || {
+			echo "the SDL3 source build failed. Install libsdl3-dev, or run tools/sdl-from-source.sh to see why." >&2
+			exit 1
+		}
+		SDL_ARGS=(-DCMAKE_PREFIX_PATH="$SDL_PREFIX")
+	else
+		echo "no SDL3 found and no tools/sdl-from-source.sh beside this script to build one." >&2
+		echo "install libsdl3-dev (or SDL3-devel), or use the release archive, which needs neither." >&2
+		exit 2
+	fi
+	cmake -S "$ROOT/port" -B "$WORK" -DCMAKE_BUILD_TYPE=Release "${SDL_ARGS[@]}" >"$WORK/cmake.log" 2>&1
 	cmake --build "$WORK" -j"$(nproc)" >"$WORK/build.log" 2>&1 || {
 		echo "the port failed to build. Last lines of $WORK/build.log:" >&2
 		tail -20 "$WORK/build.log" >&2

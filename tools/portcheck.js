@@ -344,5 +344,47 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	}
 }
 
+// The release binary's portability rests on SDL being linked static, and the real proof is `ldd` on a built
+// binary, which release-package.sh does and refuses on. What lives here is the silent-failure version: a pin that
+// lost its hash, a script that stopped asserting, a CMake that stopped preferring the static target. Each of these
+// was seen to fail by breaking the thing it watches, per the rule that a check nobody has seen fail is a comment.
+{
+	const pin = read('tools/sdl-pin.txt');
+	if (pin === null) fail('the SDL pin is a real pin', 'tools/sdl-pin.txt missing');
+	else {
+		const rows = pin.trim().split('\n').slice(1).filter((l) => l.trim());
+		const good = rows.filter((l) => {
+			const [v, sha, bytes] = l.split('\t');
+			return /^\d+\.\d+\.\d+$/.test(v) && /^[0-9a-f]{64}$/.test(sha) && /^\d+$/.test(bytes);
+		});
+		if (rows.length === 1 && good.length === 1) ok('the SDL pin is one well-formed row', rows[0].split('\t')[0]);
+		else fail('the SDL pin is one well-formed row', rows.length + ' data rows, ' + good.length + ' well formed');
+	}
+
+	const sdl = read('tools/sdl-from-source.sh');
+	if (sdl === null) fail('SDL is built static from the pinned release', 'tools/sdl-from-source.sh missing');
+	else {
+		const wants = ['-DSDL_SHARED=OFF', '-DSDL_STATIC=ON', 'sha256sum', 'LICENSE.SDL3'];
+		const gone = wants.filter((w) => !sdl.includes(w));
+		if (gone.length) fail('SDL is built static from the pinned release', 'missing ' + gone.join(' '));
+		else ok('SDL is built static from the pinned release', wants.join(', '));
+	}
+
+	const pkg = read('tools/release-package.sh');
+	if (pkg === null) fail('the release refuses a binary that needs libSDL3', 'tools/release-package.sh missing');
+	else {
+		const wants = ['sdl-from-source.sh', 'libsdl3', 'LICENSE.SDL3'];
+		const gone = wants.filter((w) => !pkg.includes(w));
+		if (gone.length) fail('the release refuses a binary that needs libSDL3', 'missing ' + gone.join(' '));
+		else ok('the release refuses a binary that needs libSDL3', 'calls the source build, asserts on ldd, ships the licence');
+	}
+
+	const cmake = read('port/CMakeLists.txt');
+	if (cmake === null) fail('the port asks for a relative rpath', 'port/CMakeLists.txt missing');
+	else if (cmake.includes('SDL3::SDL3-static') && cmake.includes('$ORIGIN'))
+		ok('the port asks for a relative rpath', 'static target named, $ORIGIN on the rpath');
+	else fail('the port asks for a relative rpath', 'no SDL3::SDL3-static status or no $ORIGIN');
+}
+
 console.log(failures ? 'portcheck: ' + failures + ' failed' : 'portcheck: ' + checks + ' checks pass');
 process.exit(failures ? 1 : 0);

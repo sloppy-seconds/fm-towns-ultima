@@ -86,6 +86,25 @@ which the MIT licence permits, and the release tarball carries this licence text
 fork's branch and are mirrored in `patches/fmtownskit-mp-support.patch`, which
 `tools/patchcheck.js` asserts is exact.
 
+## SDL3
+
+<https://www.libsdl.org/>, built from the pinned upstream release tarball by
+`tools/sdl-from-source.sh` and linked into `u2port` as a static archive.
+
+```
+zlib License
+
+Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+```
+
+(The copyright line is quoted from the release's own `LICENSE.txt`, which the build copies
+next to the prefix and the release archive ships as `LICENSE.SDL3`.)
+
+The version and the sha256 of the tarball are pinned in `tools/sdl-pin.txt`, and the hash is
+checked before extraction, so the SDL inside a published binary is a named, hashed artefact
+rather than whatever the build machine had. The zlib licence permits the static link and asks
+that the notice not be removed or misrepresented, which shipping the text satisfies.
+
 ## FreeTOWNS
 
 <https://ysflight.in.coocan.jp/FM/towns/FreeTOWNS/e.html>, fetched by `tools/vendor.sh`

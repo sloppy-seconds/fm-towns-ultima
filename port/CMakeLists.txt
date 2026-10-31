@@ -42,3 +42,20 @@ target_link_libraries(u2port game_recomp fmt_towns)
 if(TARGET fmt_towns_sdl)
   target_link_libraries(u2port fmt_towns_sdl)
 endif()
+
+# Which SDL the kit found, said out loud because the release artefact's portability depends on the answer. The kit
+# prefers SDL3::SDL3-static when the config package provides it, which is what tools/sdl-from-source.sh builds.
+if(TARGET SDL3::SDL3-static)
+  message(STATUS "u2port: SDL3 static archive, no libSDL3 runtime dependency")
+elseif(TARGET SDL3::SDL3)
+  message(STATUS "u2port: SDL3 shared library, the binary needs libSDL3 installed")
+else()
+  message(STATUS "u2port: no SDL3 found, built without the window front-end")
+endif()
+
+# A release binary is unpacked wherever the reader puts it, so anything it loads from beside its own file has to be
+# found by relative path rather than by an absolute build directory. $ORIGIN is the binary's own directory, and
+# SDL3/ beside it is where a build that ships loadable backends would put them.
+set_target_properties(u2port PROPERTIES
+  BUILD_RPATH "$ORIGIN:$ORIGIN/SDL3"
+  INSTALL_RPATH "$ORIGIN:$ORIGIN/SDL3")

@@ -18,10 +18,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 # nodejs is here because the container does the recompile as well as the C++ build, and the seed derivation runs
 # through tools/seeds.js, tools/codelimits.js and the disc reader in tools/cd.js. It arrived as somebody else's
 # dependency before, which is not a thing to build an image on.
+#
+# The -dev packages below are for tools/sdl-from-source.sh, which builds SDL3 static so the release binary carries
+# no libSDL3 dependency. SDL dlopens these libraries at runtime, so the headers are a build-time need and the
+# runtime libraries come from whatever desktop the binary lands on. libdecor is deliberately absent and switched
+# off in the script rather than pulled in for a server-side-decoration nicety.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         xvfb x11vnc novnc websockify xauth xdotool imagemagick \
         cmake g++ make pkg-config libsdl3-dev \
-        python3 python3-venv nodejs ca-certificates \
+        libx11-dev libxext-dev libxi-dev libxrandr-dev libxss-dev libxcursor-dev libxfixes-dev libxtst-dev \
+        libwayland-dev libxkbcommon-dev wayland-protocols \
+        libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev \
+        python3 python3-venv nodejs ca-certificates curl xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY x-entry.sh /usr/local/bin/x-entry.sh

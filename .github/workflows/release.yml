@@ -75,9 +75,10 @@ jobs:
         with:
           submodules: recursive
 
-      # The build happens in the image it ships from, because the port links SDL3 and the runner's Ubuntu has no
-      # libsdl3-dev. release-package.sh builds from the committed module, so no game file is anywhere in this job,
-      # and it refuses outright if anything game-shaped reaches the staging directory.
+      # The build happens in the image it ships from, for a glibc and libstdc++ baseline older than any current
+      # desktop rather than the runner's own. SDL is no longer the reason: release-package.sh builds it static from
+      # the pinned source, so the runner's missing libsdl3-dev stops mattering. No game file is anywhere in this job,
+      # because the module is committed, and it refuses outright if anything game-shaped reaches staging.
       - name: Build and package
         run: |
           docker build -f container/Containerfile.x -t u2port-ci container/
@@ -126,15 +127,18 @@ jobs:
             `u2port-linux-x86_64.tar.gz`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** Unpack it,
             put your own copy of the game in `game/` beside it, run `./tools/vendor.sh` for the font ROM, then
             `./play.sh`. At the game menu pick *Journey Onward* and a character that already exists; a disk with
-            three of them ships in the archive. Built on Debian trixie, links SDL3 dynamically, and has not been run
-            on Windows or macOS.
+            three of them ships in the archive. SDL is linked statically from the pinned upstream release, so there is
+            no `libSDL3` to install and nothing to apt first: the binary's whole dynamic list is libc, libstdc++, libm
+            and libgcc. What SDL loads at run time is the desktop's own (X11 or Wayland, GL, and one of ALSA, Pulse or
+            PipeWire), and the archive was checked on a bare Debian trixie container with no SDL installed at all,
+            where it mapped a 640x480 window and drew the title screen. It has not been run on Windows or macOS.
 
             ## The image
 
             `ghcr.io/${{ github.repository }}:port-latest` (also tagged `port-${{ github.ref_name }}`). A toolchain
-            and a display rather than a game: Debian trixie with a C++20 compiler, SDL3, python, node and a virtual
-            display, serving the port's window over noVNC. It is also the from-source route, for regenerating the
-            recompiled module:
+            and a display rather than a game: Debian trixie with a C++20 compiler, the header packages SDL needs to
+            build from source, python, node and a virtual display, serving the port's window over noVNC. It is also
+            the from-source route, for regenerating the recompiled module:
 
             ```bash
             git clone https://github.com/${{ github.repository }}

@@ -66,9 +66,14 @@ Options: --game DIR to point somewhere else, --disk FILE for a different floppy,
 --headless [N] to run N frames with no window and write a PNG, --rebuild to force a
 build. On a machine with no display, the same script runs inside the published container.
 
-Runtime libraries: this binary was compiled on Debian trixie and links SDL3 dynamically,
-so it needs libSDL3 and SDL3's own audio and window set (X11, wayland, libasound,
-libpulse, libpipewire, libsndio). It has not been run on Windows or macOS.
+Runtime libraries: none to install for SDL. The binary carries SDL inside it, compiled from
+the pinned upstream release, so there is no libSDL3 to install and no distro package that
+has to exist first. What SDL loads at run time is the desktop's own set, which any stock
+Linux desktop already has: libX11 or libwayland-client for the window, libGL for the
+renderer, and libasound, libpulse or libpipewire for sound. If none of those three audio
+libraries is present there is no window either, because the port initialises video and audio
+in one call, and that is a listed defect rather than a requirement. It has not been run on
+Windows or macOS.
 
 
 What is in this archive
@@ -82,6 +87,7 @@ What is in this archive
   assets/save-disk/          a save disk with three characters, so the tested route works
   LICENSE                    MIT, this project's own code and the recompiled translation
   LICENSE.fmtownskit         the MIT licence of the toolkit this binary statically links
+  LICENSE.SDL3               the zlib licence of the SDL that this binary statically links
   README.txt                 this file
 
 Not in this archive, by policy: ENCHANT.EXP, any disc image, any ROM, any extracted
