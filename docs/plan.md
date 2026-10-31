@@ -117,7 +117,7 @@ from the items below rather than maintained separately.
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 10a The control channel and the frame tap | AUTONOMOUS | **done**, `--control` answers JSON lines from the frame hook, and the default path is byte-identical to the release binary |
-| 10b `key`, through SDL rather than beside it | AUTONOMOUS | no, depends on 10a |
+| 10b `key`, through SDL rather than beside it | AUTONOMOUS | **done**, the socket path reaches `Select Player` with the windowed path's hash, with no display server |
 | 10c `frame` and `wait` | AUTONOMOUS | no, depends on 10a |
 | 10d `shot` over the channel | AUTONOMOUS | no, depends on 10a |
 | 10e `mem`, a raw read by `seg:off` | AUTONOMOUS | no, depends on 10a |
@@ -2654,7 +2654,7 @@ what found it.
 
 ### 10b. `key`, through SDL rather than beside it
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2668,6 +2668,43 @@ as a physical one: `towns_key()` mapping, the front-end's own Esc handling, the 
 The measured gap this closes is in `docs/port-defects.md`: `U2_KEYS` moves the menu highlight and then cannot select,
 across both ASCII encodings of `Return`, repeated presses, spacings from 200 to 2500 frames, and the pad buttons.
 Whatever that difference turns out to be, pushing through SDL sidesteps it by construction rather than by guesswork.
+
+**What landed, and what it proved.** `key` resolves its argument with `SDL_GetKeyFromName` and pushes a
+`SDL_EVENT_KEY_DOWN`, so `"key":"Return"` enters through the same handler a physical Return does. The port runs that
+way with `SDL_VIDEODRIVER=dummy`, which was measured to open the front-end with no display at all: `graphics  sdl,
+window open`, 200 frames, a shot written. That is the part that turned out better than planned. The window was never
+a requirement for the SDL path, only for the `xdotool` path, so the socket removes the display server as well as the
+X client.
+
+`tools/controlsmoke.py` is the artefact. Four stages, each a fresh process, keys paced by the machine's own frame
+counter through `ping` rather than by sleep, and each stage's framebuffer compared against a hash recorded from the
+windowed reference (real Xvfb, real `xdotool`, captured with `U2_SHOT`):
+
+| stage | hash, both paths |
+|---|---|
+| splash | `fada784131b8d553` |
+| menu | `46761bb40bc41607` |
+| highlight | `831c0ff77c488417` |
+| `Select Player` | `7c7acc2ba471b2f4` |
+| confirm | `d283d1f02323d8e6` |
+
+`Select Player` is the one that matters: it is the screen the `U2_KEYS` path could not reach in any of the six ways
+tried, and the socket path reaches it with a hash identical to the windowed path's. The test also asserts the stage
+hashes are distinct, because several matches against one repeated value would prove nothing.
+
+**The overworld is asserted differently, and the reason is a real property of the screen.** The first attempt compared
+the world frame against the windowed reference and failed, `45ef7efc21c6254f` against `3e74b4bf2c08f0d2`. The
+overworld is animated, so the framebuffer at frame 1500 depends on which frame each key landed on, and the windowed
+reference drove its keys by wall clock. Byte equality there is not achievable, so the world stage asserts two things
+that are: two socket runs of the same schedule produce the identical frame, and that frame differs from the confirm
+frame, so the route made progress. The recorded hash is the socket path's own, and the screen was checked once with
+the vision model to confirm it is the overworld rather than some other animated panel; it reads `STAMINA : 20`,
+`WEA:Dagger`, `ARM:Cloth`.
+
+**The test was broken when it was first written, and the demonstration found it.** Running it against the release
+binary, which has no `--control`, printed four `FAIL` lines and exited 0, because only the distinctness check
+appended to the failure list. Fixed, and re-run both ways: release binary exits 1 with four failures, the build under
+test exits 0 with four matches.
 
 ### 10c. `frame` and `wait`, so time is an argument and not a sleep
 

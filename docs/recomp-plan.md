@@ -927,6 +927,7 @@ loses its socket over a typo is a driver that sleeps. The protocol version is `1
 |---|---|---|
 | `hello` | `version`, `frame` | the version is the protocol's, not the port's |
 | `ping` | `frame` | the machine's own counter, so two commands answered in one frame are visible as that |
+| `key` | `key`, `frame` | pushes a `SDL_EVENT_KEY_DOWN` through SDL, resolved by `SDL_GetKeyFromName`, so `"key":"Return"` travels the same road as a physical Return. Needs SDL, and `SDL_VIDEODRIVER=dummy` means that needs no display |
 | `echo` | the caller's own fields back | exercises the parser and the escaper without touching the machine |
 | `quit` | `frame` | acknowledged, then the run ends through the same `Stop` the frame limit uses, exit 0 |
 

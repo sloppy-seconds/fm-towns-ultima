@@ -30,6 +30,10 @@
 #include "x86.h"
 #include "control.h"
 #include "towns_sdl.h"
+// Needed for the control channel's `key`, which pushes through SDL rather than beside it. The measured reason is
+// in docs/port-defects.md: the U2_KEYS path reaches the guest and still cannot activate the game menu, while a key
+// that arrives as an SDL event does it first try. Same names, same door the physical keyboard uses.
+#include <SDL3/SDL.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -776,6 +780,42 @@ int main(int argc, char** argv) {
 							fields += "\"" + k + "\":\"" + v + "\"";
 						}
 						ctl->send(u2ctl::ok_reply(cc.id, fields));
+					} else if (cc.cmd == "key") {
+						// The name is SDL's own ("Return", "space", "Down", "a"), resolved by SDL_GetKeyFromName so the
+						// port is not maintaining a second table of what a key is called. An unknown name is refused
+						// with the name in the error, because a typo in a script otherwise reads as a game that ignored
+						// the key.
+						auto k = cc.args.find("key");
+						if (k == cc.args.end()) {
+							ctl->send(u2ctl::error_reply(cc.id, "key wants a key field, for example \"key\":\"Return\""));
+							continue;
+						}
+						if (!use_sdl) {
+							ctl->send(u2ctl::error_reply(cc.id, "key needs SDL; run with --graphics=sdl, and "
+							                                       "SDL_VIDEODRIVER=dummy needs no display"));
+							continue;
+						}
+						SDL_Keycode sym = SDL_GetKeyFromName(k->second.c_str());
+						if (sym == SDLK_UNKNOWN) {
+							ctl->send(u2ctl::error_reply(cc.id, "not a key name SDL knows: " + k->second));
+							continue;
+						}
+						SDL_Event ev {};
+						ev.type = SDL_EVENT_KEY_DOWN;
+						ev.common.timestamp = 0;
+						// windowID left zero on purpose: SdlHost does not expose the window, and the front-end's handler
+						// dispatches on event type and scancode, so a zero id still travels the same road as a physical key.
+						ev.key.scancode = SDL_GetScancodeFromKey(sym, nullptr);
+						ev.key.key = sym;
+						ev.key.mod = 0;
+						ev.key.repeat = false;
+						if (!SDL_PushEvent(&ev)) {
+							ctl->send(u2ctl::error_reply(cc.id, std::string("SDL_PushEvent: ") + SDL_GetError()));
+							continue;
+						}
+						std::string kn;
+						u2ctl::escape(k->second, kn);
+						ctl->send(u2ctl::ok_reply(cc.id, "\"key\":\"" + kn + "\"," + fr));
 					} else if (cc.cmd == "quit") {
 						ctl->send(u2ctl::ok_reply(cc.id, fr));
 						throw towns::Stop{0};
