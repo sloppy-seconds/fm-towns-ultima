@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # tools/precommit-guard.sh - refuse commits containing copyrighted material.
 #
+# WHAT COUNTS AS COPYRIGHTED HERE, since 2026-10-30. The original media: the disc images, the floppy, the
+# executables, the ROMs, and anything extracted from them. Those must never be staged. The recompiled C++ in
+# module/ is a translation of machine code into a readable language and is committed on purpose, which is a
+# deliberate policy decision rather than a hole: see docs/licensing.md and plan item 9f. Everything this script
+# denies is still denied, and the extension list below is what enforces it.
+#
 # Install once:
 #   ln -sf ../../tools/precommit-guard.sh .git/hooks/pre-commit
 #
@@ -31,6 +37,12 @@ DENY_RE='\.(img|sub|cue|ccd|iso|mds|mdf|bin|nrg|hdm|d77|d88|hdf|vhd|fdi|2hd|zip|
 # something else without failing the gate. Decision and reasoning: assets/save-disk/README.md and plan item 9j.
 ALLOW_RE='^assets/save-disk/userdisk\.hdm\.zip$'
 
+# The size ceiling gets its own exception, and it is only a size exception. module/ holds the recompiled C++ that
+# policy now allows in git (decision 2026-10-30, docs/licensing.md and plan item 9f), and one of its files is
+# 2.7 MB of generated code. A .img, .rom or .EXP placed under module/ is still denied by extension above, because
+# this list is consulted only by the byte-count check.
+SIZE_ALLOW_RE='^module/.*\.(cpp|h|txt)$'
+
 # Files above this size are suspicious for a docs-and-scripts repository.
 MAX_BYTES=1048576
 
@@ -54,6 +66,9 @@ done <<< "$staged"
 # Size check on the staged blob, not the working tree copy.
 while IFS= read -r f; do
 	[ -z "$f" ] && continue
+	if printf '%s' "$f" | grep -qE "$SIZE_ALLOW_RE"; then
+		continue
+	fi
 	sz=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
 	if [ "$sz" -gt "$MAX_BYTES" ]; then
 		printf 'BLOCKED: staged file is %s bytes, over the %s ceiling: %s\n' \

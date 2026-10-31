@@ -209,3 +209,11 @@ __pycache__/
 # Python venv for the Capstone decoder (tools/decode.js). Machine-local, not
 # reproducible content: tools/decode-requirements.txt is the source of truth.
 tools/.venv/
+
+# The directory play.sh expects the reader's own game files in. Ignored by name, so a
+# careless `git add game/` cannot stage a disc image into a repository that promises not to host one.
+/game/
+
+# Release staging. tools/release-package.sh assembles and tars from here, and the
+# tarball it leaves is an artefact of a build, not a source.
+/dist/

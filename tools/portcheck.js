@@ -290,7 +290,7 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	};
 	for (const [file, anchor] of [
 		['README.md', '### Play the recompiled port instead'],
-		['docs/quickstart.md', '**The same browser window can show the recompiled port instead of the emulator.**'],
+		['docs/quickstart.md', '### The port, natively'],
 	]) {
 		const seg = portSection(read(file) || '', anchor);
 		if (seg === null) fail(file + ' has a port section', 'anchor not found');
@@ -302,6 +302,45 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 			if (bad.length) fail(file + ' gives the tested port route', bad.join(', '));
 			else ok(file + ' gives the tested port route', 'Journey Onward, the defect page, creation named a dead end');
 		}
+	}
+}
+
+// ---- the committed module ----
+// module/ is the recompiled C++, in git by decision rather than by accident (docs/licensing.md, plan item 9f).
+// Two claims are worth a gate. The first is that it is whole: an empty or half module builds and then faults far
+// away from its cause, which is this project's usual way of losing an afternoon. The second is the claim that makes
+// the policy defensible at all, which is that this is translated code and not the game's media smuggled in. That
+// is measured by counting string literals long enough to be text: the recompiler emits exactly three, and if a
+// future recompile starts embedding the game's strings the count moves and the gate fails.
+{
+	let names = null;
+	try {
+		names = fs.readdirSync(path.join(ROOT, 'module'));
+	} catch (e) {
+		fail('the committed module is present', 'module/ missing');
+	}
+	if (names) {
+		const game = names.filter((f) => /^p_game_(\d+|table)\.cpp$/.test(f));
+		const tbios = names.filter((f) => /^p_tbios_(\d+|table)\.cpp$/.test(f));
+		const mods = read('module/modules.cpp') || '';
+		const registered = /g_mod_p_game/.test(mods) && /g_mod_p_tbios/.test(mods);
+		if (game.length === 28 && tbios.length === 303 && registered)
+			ok('the committed module holds both modules', game.length + ' game and ' + tbios.length + ' tbios sources, both registered in modules.cpp');
+		else
+			fail('the committed module holds both modules', game.length + ' game, ' + tbios.length + ' tbios, both registered: ' + registered + ' (a deliberate recompile changes these counts, and module/README.md with them)');
+
+		const allowed = new Set(['p_game_funcs.h', 'p_tbios_funcs.h', 'ran off the end of a function']);
+		const found = new Set();
+		const extra = [];
+		for (const f of game.concat(tbios)) {
+			const src = read('module/' + f) || '';
+			for (const m of src.matchAll(/"([^"\\]{6,})"/g)) {
+				if (allowed.has(m[1])) found.add(m[1]);
+				else if (extra.length < 5) extra.push(f + ': ' + JSON.stringify(m[1]));
+			}
+		}
+		if (extra.length) fail('the module holds translated code and no game text', extra.join(' | '));
+		else ok('the module holds translated code and no game text', found.size + ' literals, all the recompiler\'s own');
 	}
 }
 

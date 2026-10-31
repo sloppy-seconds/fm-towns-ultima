@@ -10,13 +10,15 @@ endif()
 # checkout under references/ and can be overridden with -DFMT_RUNTIME=...
 set(FMT_RUNTIME ${CMAKE_CURRENT_SOURCE_DIR}/../fmtownskit/runtime CACHE PATH "fmtownskit's runtime/")
 # The recompiler's output: python -m fmtownskit.recomp --out <dir> --exp game=stripped@0x0 ...
-set(RECOMP_DIR "" CACHE PATH "the recompiler's output")
+# It defaults to this repository's committed module, which is what makes a plain `cmake -S port -B build` a complete
+# build with no recompile and no game file. Point it elsewhere to build against a fresh recompilation.
+set(RECOMP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../module CACHE PATH "the recompiler's output")
 
 if(NOT EXISTS ${FMT_RUNTIME}/towns.cmake)
-  message(FATAL_ERROR "no fmtownskit runtime at ${FMT_RUNTIME}. Run git submodule update --init fmtownskit and apply patches/fmtownskit-mp-support.patch, or pass -DFMT_RUNTIME=.")
+  message(FATAL_ERROR "no fmtownskit runtime at ${FMT_RUNTIME}. Run git submodule update --init fmtownskit, or pass -DFMT_RUNTIME=.")
 endif()
 if(NOT EXISTS ${RECOMP_DIR}/modules.cpp)
-  message(FATAL_ERROR "no recompiler output at ${RECOMP_DIR}. Pass -DRECOMP_DIR=<dir> holding p_game_*.cpp and modules.cpp.")
+  message(FATAL_ERROR "no recompiler output at ${RECOMP_DIR}. The committed module lives in module/ next to this directory; pass -DRECOMP_DIR=<dir> holding p_game_*.cpp and modules.cpp.")
 endif()
 
 include(${FMT_RUNTIME}/towns.cmake)

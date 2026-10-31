@@ -110,6 +110,8 @@ from the items below rather than maintained separately.
 | 9f A release, and what may be in it | BLOCKED ON HUMAN | no, the workflow is written and locally verified, and cutting the release needs a tag pushed |
 | 9g Cross-compiling for Windows and macOS | PARTLY AUTONOMOUS | **scheduled followup**, decided 2026-10-30, and it needs machines to run the result on |
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
+| 9k Mirror the repository and its releases | AUTONOMOUS | **yes**, and it matters more now that the module is the preservation artefact |
+| 9l Choose a licence for this repository's own code | NEEDS A DECISION | no, and it should be settled before the release is public |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
@@ -1981,17 +1983,19 @@ with where the game comes from and what the repository contains, which is the wr
 actually arrive: somebody who wants to play, and somebody who wants to know whether a faithful decompile to C is
 possible. Everything here is presentation and packaging, except one constraint that shapes all of it.
 
-**The constraint, measured, and it decides what CI can do.** The port cannot be built without the game. Its module
-is the output of the recompiler over `ENCHANT.EXP`, so `RECOMP_DIR` is empty on a fresh clone and there is nothing to
-link against. What CI *can* do was measured this session: a 4 KB synthetic image through `python3 -m
-fmtownskit.recomp --raw game=/tmp/syn.bin@0xc+0x0` produces `modules.cpp` and `p_game_000.cpp`, and `port/main.cpp`
-links against it into a **434,104-byte** `u2port`. So "the port builds" is checkable on every push without a
-copyrighted file anywhere in the pipeline, and "the port plays the game" is not checkable in CI at all and never
-will be. Re-measured on 2026-10-30 in the trixie container on a clean clone, the linked `u2port` is 3,874,992 bytes.
-The 434,104 figure above came from an earlier session and was not reproduced, so 9e quotes the new one.
+**The constraint, and it was superseded on 2026-10-30.** As written, this phase began from the claim that the port
+cannot be built without the game: its module is the recompiler's output over `ENCHANT.EXP`, so `RECOMP_DIR` is empty
+on a fresh clone and there is nothing to link, and the conclusion drawn was that "the useful release is not a
+binary". That was true and it is no longer. The module is committed under `module/` by Paul's decision of that date,
+recorded in [licensing and preservation](licensing.md), so CI can build a playable binary with no disc in the
+pipeline and a release can ship one. What did not change is the other half: the original media is never hosted, in
+git or in a release.
 
-That distinction is the whole phase. A release cannot contain the module either, for the same reason, so the useful
-release is not a binary.
+The measurements from the old constraint stay, because they are still what `tools/ci-port-build.sh` runs on every
+push. A 4 KB synthetic image through `python3 -m fmtownskit.recomp --raw game=<syn>.bin@0xc+0x0` produces
+`modules.cpp` and `p_game_000.cpp`, and `port/main.cpp` links against it into a `u2port`. Measured on 2026-10-30 in
+the trixie container on a clean clone: 3,874,992 bytes. An earlier session's figure of 434,104 was not reproduced and
+is not used. That check proves the three move together, which is worth having independent of what ships.
 
 ### 9a. The README's first screen: two quickstarts
 
@@ -2279,7 +2283,7 @@ the demonstration that the skips are load-bearing.
 |---|---|
 | autonomy | blocked on a person to push the tag. The workflow, the packaging and the verification are done |
 | done when | one release has been cut through a written workflow, and its contents are enumerated with the reason each item is or is not copyrighted. The failure case: a release artefact containing the game, the disc image, the recompiled module, or any extracted asset |
-| blocked by | `git tag v1.0.0 && git push --tags`, which is Paul's to do. Everything the tag triggers is written and locally verified |
+| blocked by | `git tag v0.1.0 && git push --tags`, which is Paul's to do. Everything the tag triggers is written and locally verified |
 
 The constraint from the phase header decides this. A release cannot ship `u2port` in a form that plays, because a
 playing `u2port` needs a module built from the reader's own disc. Three shapes:
@@ -2294,36 +2298,44 @@ B is the recommendation, and it is the one that retires 9g: `podman run -v /path
 command on every platform, the image contains nothing copyrighted because the module is built from the mount, and
 it is the route this session already used.
 
-**Decided on 2026-10-30, both shapes.** B and C, and 9g scheduled after rather than blocking.
+**Decided on 2026-10-30, twice, and the second decision replaced part of the first.** First: both shapes, B and C, with
+9g scheduled after rather than blocking. Then, in the same day and after seeing what C had become: **the recompiled C++
+is committed and the release ships a playable binary**, version `v0.1.0` rather than `v1.0.0` because the port reaches
+a title screen and a known defect list, not a finished game. The policy and its reasoning are on
+[licensing.md](licensing.md) and in `AGENTS.md`, and the original media is still never hosted.
 
 **What landed.** `.github/workflows/release.yml`, three jobs. `image` builds `container/Containerfile.x` and pushes
-`ghcr.io/<repo>:port-<tag>` and `:port-latest`. `host` builds the port against a synthetic module inside that same
-image and packages `u2port-linux-x86_64.tar.gz`. `release` cuts the GitHub Release with the tarball and a body that
-enumerates every artefact and why it is or is not copyrighted. `workflow_dispatch` runs the same path with a
-`dev-<sha>` image tag and no release, so the plumbing can be exercised without publishing.
+`ghcr.io/<repo>:port-<tag>` and `:port-latest`. `host` builds the port from the committed module inside that same
+image, with no disc anywhere in the job, and packages `u2port-linux-x86_64.tar.gz` through
+`tools/release-package.sh`. `release` cuts the GitHub Release with the tarball and a body that enumerates every
+artefact, says the port is early, states the ownership and takedown terms, and names what is in git that was not
+before. `workflow_dispatch` runs the same path with a `dev-<sha>` image tag and no release, so the plumbing can be
+exercised without publishing.
 
-**The constraint decided the shape of C, and it is worth stating because it is counterintuitive.** A `u2port` that
-plays embeds the recompiled module, and the module is the game translated, so no published binary can be a playable
-one. The host artefact is therefore the port built against the synthetic module: it links, it starts, it has nothing
-to run, and its `README.txt` says so in plain words along with the runtime libraries it needs (SDL3 and its audio
-and X set, measured with `ldd`: alsa, pipewire, pulse, sndio, X11, wayland). `tools/release-package.sh` refuses when
-`ENCHANT.EXP` is present and refuses when the staging directory holds anything game-shaped, and the refusal was
-demonstrated by copying a module source into the stage and reading it fail.
+**What the tarball holds, and the reason for each item.** `u2port` (the port, with the recompiled code linked in, and
+nothing that is the game), `play.sh` (the same runner the repository uses), `tools/getfile.js` and `tools/cd.js` (to
+read `ENCHANT.EXP` and `TBIOS.BIN` out of the reader's own disc), `tools/vendor.sh` (to fetch the clean-room font ROM,
+because the ROMs are never shipped), `assets/save-disk/userdisk.hdm.zip` (so the tested route has a character to
+pick), `LICENSE.fmtownskit` (the MIT licence the static link obliges), and `README.txt` with the terms, the takedown
+route and the runtime libraries. Not in it: `ENCHANT.EXP`, any disc image, any ROM, any extracted asset.
 
-**Verified locally rather than claimed.** In a clean clone with no game file, `release-package.sh` produced a
-tarball of three files, sha256 `5243584404f05a548949bca9efc9f56dd9b010822129c841bdfdef01adef61c5`. And the promise
-B makes was tested end to end: with `IMAGE=` pointing at the built image, a clean clone with `build/port` removed
-recompiled the game and TBIOS inside the container (865 and 5,573 functions), linked, ran on the virtual display,
-and the shot at that point read the Ultima II title screen. That is what makes `IMAGE=` worth having: the host
-needed the game files and a container runtime and nothing else.
+**The guard, and its demonstration.** `release-package.sh` refuses anything game-shaped in the staging directory by
+extension, with the save disk allowed by exact name. It was seen to refuse, first by planting a module source when the
+rule was the old one and later by the same method against the current list, and the refusal was read rather than
+assumed. `tools/portcheck.js` separately asserts the module is whole (28 game and 302+1 tbios sources, both registered)
+and that it contains no game text, which is the claim the whole policy rests on.
 
-**What B needed to be true.** The container had to be able to do the recompile, which it could not: `x-run.sh` only
-ever ran cmake, and the module was assumed to exist on the host. `port-build.sh` gained `--no-run` and
-`--no-coverage`, its one-track cue now resolves the disc relative to itself instead of a hardcoded `../..` (an
-absolute path is joined onto the cue's directory by the kit's reader and comes out doubled, which is how it was
-found), `Containerfile.x` installs `nodejs` explicitly rather than inheriting it, and `x-run.sh` recompiles into
-the volume when no module exists. `THIRD-PARTY-NOTICES.md` gained the kit's MIT terms, which the static link
-obliges, and the FreeTOWNS terms.
+**Verified locally rather than claimed.** `play.sh` in this repository, with only the disc image in `game/`: it
+extracted `ENCHANT.EXP` and `TBIOS.BIN`, built from `module/` with no recompile, ran 120 frames headless, and the
+shot reads the copyright notice with its text. `U2_WORK` was then pointed at a scratch directory to prove the same
+script works against a read-only project mount, which is what the container does.
+
+**What the container needed to be true, and what got simpler.** Before the module was committed, `x-run.sh` had to be
+taught to recompile into its volume, and `port-build.sh` gained `--no-run` and `--no-coverage` for it. Now the
+container runs `play.sh` like everything else, with `U2_WORK=/build`, so there is one runner instead of two copies of
+the logic. The cue bug found on the way is recorded in `tools/port-build.sh`: the kit's reader joins the cue's `FILE`
+path onto the cue's directory, so an absolute path comes out doubled, which is how a port with no disc and no kanji
+font looked like a rendering defect.
 
 ### 9g. Cross-compiling for Windows and macOS
 
@@ -2382,6 +2394,37 @@ covers the gap mkdocs cannot, because the README is deliberately not built by mk
 
 Both were seen to fail, on a temporary line in the README carrying an invented docs path and a link to a file that does
 not exist, and the line was removed after the failure was read.
+
+### 9k. Mirror the repository and its releases
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous once the release exists. Mirroring is mechanical, and the second host is a choice with no technical constraint |
+| done when | the repository and at least one release exist on a second host and on archive.org, each with the commit or tag they were taken from recorded, and `docs/licensing.md` names the mirrors so a reader can find them. The failure case: a preservation artefact with exactly one point of removal, and no record that anyone thought about it |
+| blocked by | the first release tag, since there is nothing to mirror until the artefact exists |
+
+The decision of 2026-10-30 makes the committed module the thing worth preserving, and a single account on a single
+host is one takedown, one outage or one acquisition away from being the only copy. Mirroring is the difference between
+a preservation project and a temporary one. The shape: a second git host for the repository, an archive.org upload for
+the release tarball and the image's build inputs, and the mirrors named in `docs/licensing.md` rather than left as folk
+knowledge.
+
+### 9l. Choose a licence for this repository's own code
+
+**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+
+| field | value |
+|---|---|
+| autonomy | needs Paul. It is a choice about the project's future, not a packaging detail |
+| done when | a `LICENSE` file at the root states the terms for this project's own scripts, docs and recompiled module, `README.md` and `docs/licensing.md` point at it, and `tools/release-package.sh` ships it in the archive. The failure case: a public preservation repository that grants nothing, so every downstream use is technically unlicensed, or a licence chosen that claims rights nobody here holds |
+| blocked by | a decision. The obvious care: whatever is chosen covers this project's code and the recompiled translation, and says so, because the original game's code is not this project's to license |
+
+There is no `LICENSE` at the root today, which was harmless while the repository held only scripts and documentation and
+nobody was expected to reuse them. That changed with a committed module and a shipped binary. The toolkit's MIT terms
+are already carried in `THIRD-PARTY-NOTICES.md` and in the release archive, and they are not a substitute: they cover
+fmtownskit, not this work.
 
 ---
 

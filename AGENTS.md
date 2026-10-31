@@ -568,46 +568,57 @@ New investigation, new section. Format per entry:
 Corrections go in as corrections. Superseded claims get marked as superseded
 rather than quietly deleted, because the history of being wrong is useful.
 
-## Copyrighted material never enters git
+## What may be distributed, and what may never be hosted
 
-This is a standing rule with no exceptions and no judgement call.
+**The rule, changed deliberately on 2026-10-30 by Paul rather than drifted into by an agent.** It has two halves and
+they are not the same.
 
-**What is copyrighted here:** the disc images, the floppy image, the executables,
-all artwork, all audio, the ROM sets, and anything extracted from them. The game
-is commercial software still in copyright. This repository distributes
-**scripts, tests and documentation only**.
+**The recompiled C++ may live in git.** `module/` holds the recompiler's output, the game's own machine code
+translated into C++, and it is committed on purpose. So does a release ship a playable binary. The reason is
+preservation: Ultima II on FM Towns is abandonware with no legal way to buy it, and a translation of its machine code
+into a language a person can read, diff and check is the artefact most worth keeping legible. A binary is not legible.
+The originals are not readable. So what gets preserved is the C++.
 
-**Why it is absolute:** committing a copyrighted file is not recoverable. Git
-history is permanent, a force-push does not un-distribute what has already been
-cloned, and the mistake cannot be undone by the person who made it. The cost of
-an over-broad ignore rule is that someone un-ignores one line. The cost of
-committing a retail game is a distributed copyright violation. Bias hard toward
-ignoring.
+**The original media is never hosted, in git or in a release, ever.** Not the disc images, not the floppy, not
+`ENCHANT.EXP` or any other executable, not the ROMs, not one extracted asset, audio, font, map or artwork. The game
+is commercial software still in copyright and the reader supplies it, from a copy they own. This repository is
+non-commercial preservation and it does not distribute the thing it preserves.
 
-Rules that follow:
+**The good-faith terms, which belong in the README and are not decoration:** derived from the original executable,
+intended for people who own the game, non-commercial, and a takedown contact is published. If a rights holder asks,
+the repository or the release comes down. That is the whole position and it is stated in
+[docs/licensing.md](docs/licensing.md), in `README.md`, and in `tools/release-readme.txt` for the archive.
 
-- Everything copyrighted is in `.gitignore`. If you find something copyrighted
-  that is not covered, add the rule **before** doing anything else.
-- Never `git add -f`. The force flag exists to defeat the only protection there
-  is. If a file is ignored and you think it should be tracked, that is a
-  conversation, not an override.
-- Extracted output is copyrighted too. `extracted/`, `analysis/` and anything
-  derivable from the disc stays out. The extraction **code** is committed, the
-  extraction **product** is not.
-- Do not paste game text, dialogue tables, or long strings from the binaries
-  into documentation. Schema strings and format names (`SHAPE=%d`, `EGB_palette`)
-  are protocol and are fine. Dialogue and story text are not.
-- Extension matching is a safety net, not a guarantee. Gitignore patterns are
-  case-sensitive, so mixed-case extensions slip through naive rules. The file
-  has a case-insensitive block for this reason. Test any new rule against
+**Why the split is defensible rather than convenient.** The module is code, and the claim is measured: across all 331
+generated sources there are three string literals of six characters or more, all of them the recompiler's own, because
+the recompiler translates instructions and the game's text and art live in its data segment and on its disc. That is
+not an assumption anyone has to keep remembering, it is an assertion in `tools/portcheck.js`, so a recompile that
+started embedding game content fails a gate instead of quietly shipping the game.
+
+Rules that follow, unchanged in substance:
+
+- Everything in the never-hosted list is in `.gitignore`. If you find something there that is not covered, add the
+  rule **before** doing anything else.
+- Never `git add -f`. The force flag exists to defeat the only protection there is. If a file is ignored and you
+  think it should be tracked, that is a conversation, not an override.
+- Extracted output is the original media in another folder. `extracted/`, `analysis/` and anything derivable from the
+  disc stay out. The extraction **code** is committed, the extraction **product** is not. The recompiled module is
+  not extraction product and that distinction is the decision above, not an oversight of this rule.
+- Do not paste game text, dialogue tables, or long strings from the binaries into documentation. Schema strings and
+  format names (`SHAPE=%d`, `EGB_palette`) are protocol and are fine. Dialogue and story text are not.
+- Extension matching is a safety net, not a guarantee. Gitignore patterns are case-sensitive, so mixed-case extensions
+  slip through naive rules. The file has a case-insensitive block for this reason. Test any new rule against
   capitalised and mixed-case variants before trusting it.
-- Before committing, run `git status --ignored` and confirm the expected files
-  are among the ignored set rather than the tracked set.
-- A verification harness asserting the presence of copyrighted files is fine.
-  The harness must read them from disk and must not bundle them.
+- Before committing, run `git status --ignored` and confirm the expected files are among the ignored set rather than
+  the tracked set.
+- A verification harness asserting the presence of copyrighted files is fine. The harness must read them from disk
+  and must not bundle them.
 
-The test is not "is this file small enough to sneak in". The test is "would a
-stranger cloning this repository receive a copy of the game".
+The test is no longer "would a stranger cloning this repository receive a copy of the game", because after the
+decision they receive a translation of it. The test is now two questions: **is this the original media, or a
+mechanical translation of code?** and **could a rights holder object to the first and not the second?** If something is
+the disc, an executable, a ROM or an asset, it never goes in. If it is generated C++ with no media in it, it may, and
+`module/README.md` records its provenance so the claim is checkable.
 
 ### Reproducibility is the hard requirement
 
