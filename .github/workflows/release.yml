@@ -1,17 +1,13 @@
-# Cut a release: the toolchain image on ghcr.io, and the host binary that contains no game.
+# Cut a release: a playable host binary, and the toolchain image on ghcr.io.
 #
-# WHAT MAY BE PUBLISHED, and this is the whole design of the thing. A u2port that plays embeds the recompiled game,
-# because the module is statically linked and the module is the game translated into another form. So neither the
-# image nor the tarball may contain it, and neither does: the image is a toolchain (base Debian plus apt packages
-# plus this repo's scripts, pulled in by the user's own clone), and the host binary is built by
-# `tools/ci-port-build.sh` against a 4 KB synthetic image, so it has no game byte by construction. The route that
-# plays builds the module from the reader's own disc, on the reader's own machine, which is what `IMAGE=... ./tools/
-# x-run.sh start` does.
+# WHAT MAY BE PUBLISHED, and what changed on 2026-10-30. The recompiled C++ is committed under module/, which means
+# a playable u2port can be built by CI with no disc anywhere in the pipeline, and that is what the release ships.
+# The half of the policy that did not move: the original media is never hosted, in git or in a release. Not
+# ENCHANT.EXP, not the disc images, not the floppy, not a ROM, not one extracted asset. `tools/release-package.sh`
+# enforces that by extension and by name, and the refusal was demonstrated rather than assumed.
 #
-# WHY BOTH SHAPES. The container is the one command that works on every platform, and the host binary is for the
-# person who has a desktop Linux with SDL3 and does not want a container. Neither is a way of shipping the game,
-# and both say so in their own text: the tarball carries a README.txt that states it, and the image cannot run
-# anything until a project is mounted into it.
+# WHY THE IMAGE IS STILL PUBLISHED. It is the toolchain and the display, which is what makes the same commands work
+# on a machine with no compiler of its own. It is also the from-source route, for whoever regenerates the module.
 #
 # TRIGGERS. A tag `v*` cuts a real release. `workflow_dispatch` runs the same build and pushes the image with a
 # `dev-<sha>` tag, so the plumbing can be exercised without publishing a release.
@@ -72,7 +68,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
 
   host:
-    name: Build the host binary, with no game in it
+    name: Build the playable host binary
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,7 +76,8 @@ jobs:
           submodules: recursive
 
       # The build happens in the image it ships from, because the port links SDL3 and the runner's Ubuntu has no
-      # libsdl3-dev. release-package.sh refuses to run when ENCHANT.EXP is present, and a CI checkout never has it.
+      # libsdl3-dev. release-package.sh builds from the committed module, so no game file is anywhere in this job,
+      # and it refuses outright if anything game-shaped reaches the staging directory.
       - name: Build and package
         run: |
           docker build -f container/Containerfile.x -t u2port-ci container/
@@ -113,39 +110,47 @@ jobs:
         with:
           files: u2port-linux-x86_64.tar.gz
           body: |
+            Early, and honest about it. The port reaches the title screen, the game menu and the overworld. Character
+            creation does not work, `Esc` or `Q` ends the run, and what is broken is listed with the observation that
+            found each one: [`docs/port-defects.md`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/port-defects.md).
+
+            ## You still need the game
+
+            Nothing here is the game and nothing here ever will be: no disc image, no `ENCHANT.EXP`, no ROM, no
+            extracted asset. Ultima II on FM Towns is still in copyright with no legal way to buy it, so this is a
+            non-commercial preservation effort aimed at people who already own it. If you hold rights to it and want
+            this taken down, open an issue and it happens.
+
+            ## The host binary
+
+            `u2port-linux-x86_64.tar.gz`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** Unpack it,
+            put your own copy of the game in `game/` beside it, run `./tools/vendor.sh` for the font ROM, then
+            `./play.sh`. At the game menu pick *Journey Onward* and a character that already exists; a disk with
+            three of them ships in the archive. Built on Debian trixie, links SDL3 dynamically, and has not been run
+            on Windows or macOS.
+
             ## The image
 
-            `ghcr.io/${{ github.repository }}:port-latest` (also tagged `port-${{ github.ref_name }}`).
-
-            It is a toolchain, not a game: Debian trixie with a C++20 compiler, SDL3, python, node and a virtual
-            display. Nothing copyrighted is in it, and it cannot run anything until you mount this repository and
-            your own copy of the game into it:
+            `ghcr.io/${{ github.repository }}:port-latest` (also tagged `port-${{ github.ref_name }}`). A toolchain
+            and a display rather than a game: Debian trixie with a C++20 compiler, SDL3, python, node and a virtual
+            display, serving the port's window over noVNC. It is also the from-source route, for regenerating the
+            recompiled module:
 
             ```bash
             git clone https://github.com/${{ github.repository }}
             cd $(basename ${{ github.repository }})
             git submodule update --init fmtownskit
-            # unpack the archive.org game zip into this directory, then:
-            ./tools/vendor.sh
-            unzip -o assets/save-disk/userdisk.hdm.zip -d saves/
+            # unpack your copy of the game into ./game/, then:
             IMAGE=ghcr.io/${{ github.repository }}:port-latest ./tools/x-run.sh start
             ```
 
-            Open `http://<host>:6081/vnc.html`, pick *Journey Onward*, and choose a character that already exists.
-            Character creation does not work yet, and `Esc` or `Q` ends the run. What is broken, each entry with
-            the observation that found it: `docs/port-defects.md`.
+            Open `http://<host>:6081/vnc.html`.
 
-            ## The host binary
+            ## What is in git that was not before
 
-            `u2port-linux-x86_64.tar.gz`, sha256 `${{ needs.host.outputs.sha256 }}`.
-
-            **It contains no game.** The module that makes the port play is the game translated, so it is not
-            distributed here; this is the port built against a synthetic module. It starts, and it has nothing to
-            run. `README.txt` inside the archive says all of this and names the runtime libraries. If you want a
-            port that plays, use the image above, or build it from your own disc with
-            `docs/port-from-source.md`.
-
-            ## What is not here, and never will be
-
-            The disc images, the floppy, the executables, the artwork, the audio, the ROMs, and anything extracted
-            or recompiled from them. You supply the game.
+            `module/`: the recompiled C++, 331 generated sources, the game and its TBIOS layer translated from machine
+            code into something a person can read and diff. That is the artefact this project exists to preserve. Its
+            provenance, its regeneration command, and the measurement showing it holds code rather than media are in
+            [`module/README.md`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/module/README.md).
+            The originals are still excluded by `.gitignore`, by `tools/precommit-guard.sh`, and by the checks in
+            `tools/verify.js` and `tools/portcheck.js`.
