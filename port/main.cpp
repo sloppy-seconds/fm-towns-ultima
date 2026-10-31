@@ -727,6 +727,68 @@ int main(int argc, char** argv) {
 	// The running cpu, always, not only for the watch: an unknown I/O port is reported with the instruction that
 	// wrote it, and a port number with no caller is a lead that has to be found again by watching.
 	g_x86_cur = &c;
+	// Control-channel state that outlives the frame it was asked in. `frame` and `wait` cannot be answered in the
+	// frame they arrive, because their whole point is to answer when something has happened, so they park here and
+	// the hook services them. One pending frame step and one pending wait at a time: a driver that sends two is
+	// told so rather than silently having one dropped.
+	struct CtlPending {
+		long frame_id = -1;      // the id of a waiting `frame` command
+		long frame_target = 0;   // the machine frame it is answered at
+		long frame_from = 0;     // the machine frame it was received on
+		long wait_id = -1;       // the id of a waiting `wait` command
+		long wait_deadline = 0;
+		bool wait_screen = false;
+		uint32_t wait_hash = 0;  // for screen waits, the sampled checksum at issue
+		uint32_t wait_linear = 0;
+		uint32_t wait_len = 1;
+		std::vector<uint8_t> wait_bytes;
+		bool busy() const { return frame_id >= 0 || wait_id >= 0; }
+	} ctlpend;
+
+	// A cheap stand-in for "did the picture change", computed the same way every time so two frames are comparable.
+	// Hashing the whole frame each frame would be the honest checksum and far too slow to poll; sampling every
+	// 997th pixel catches a screen that changed and ignores one that did not, which is what a wait needs.
+	auto screen_sample = [&m]() {
+		std::vector<uint32_t> rgb;
+		int w = 0, h = 0;
+		m.render(rgb, w, h);
+		uint32_t hsh = 2166136261u;
+		for (size_t i = 0; i < rgb.size(); i += 997) {
+			hsh = (hsh ^ rgb[i]) * 16777619u;
+		}
+		return hsh;
+	};
+
+	// `seg:off` in hex, either half optional, or a bare linear hex. The segment is matched against the CPU's own
+	// segment registers and resolved through its base, which is what the emulator console's `MD 14:cdf6b` means and
+	// what docs/live-fieldmap.md records: DS's base is the image base, so a file address is the offset. A segment
+	// value the CPU is not using is refused with the list rather than guessed at, because a wrong base reads as a
+	// wrong game state and not as an error.
+	auto resolve_addr = [&c](const std::string& spec, uint32_t& linear, std::string& err) {
+		size_t colon = spec.find(':');
+		if (colon == std::string::npos) {
+			linear = (uint32_t)std::strtoul(spec.c_str(), nullptr, 16);
+			return true;
+		}
+		std::string segs = spec.substr(0, colon);
+		std::string offs = spec.substr(colon + 1);
+		uint32_t seg = (uint32_t)std::strtoul(segs.c_str(), nullptr, 16);
+		uint32_t off = (uint32_t)std::strtoul(offs.c_str(), nullptr, 16);
+		for (int i = 0; i < 6; ++i) {
+			if (c.sreg[i] == seg) {
+				linear = c.sbase[i] + off;
+				return true;
+			}
+		}
+		err = "no segment register holds " + segs + ": the CPU has ";
+		for (int i = 0; i < 6; ++i) {
+			char hex[8];
+			std::snprintf(hex, sizeof hex, "%s%04x", i ? " " : "", (unsigned)c.sreg[i]);
+			err += hex;
+		}
+		return false;
+	};
+
 	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty() || ctl) {
 		// The callback is installed when ANY of these needs it. It used to be installed only under a frame limit,
 		// which would have left `--sdl` with no limit showing a frozen window, because the hook that draws it is
@@ -754,6 +816,44 @@ int main(int argc, char** argv) {
 			// Control commands, answered between frames. `frame` in every reply is the machine's own counter, so a
 			// caller can tell that two commands were served in the same frame rather than assuming it.
 			if (ctl) {
+				// Parked commands first, so a `frame` that became due this frame is answered before new commands are read.
+				if (ctlpend.frame_id >= 0 && (long)mm.frame >= ctlpend.frame_target) {
+					// `from` is the frame the command was received on, not the frame the earlier reply was sent on, so
+					// "exactly N" is checkable without knowing that commands are read once per frame. Without it a caller
+					// measuring reply to reply sees N+1 and has to guess whether that is a bug or the transport.
+					ctl->send(u2ctl::ok_reply(ctlpend.frame_id,
+					                            "\"frame\":" + std::to_string((unsigned long long)mm.frame) +
+					                                    ",\"from\":" + std::to_string((long long)ctlpend.frame_from) +
+					                                    ",\"stepped\":true"));
+					ctlpend.frame_id = -1;
+				}
+				if (ctlpend.wait_id >= 0) {
+					bool changed = false;
+					std::string value;
+					if (ctlpend.wait_screen) {
+						changed = screen_sample() != ctlpend.wait_hash;
+					} else {
+						std::vector<uint8_t> now(ctlpend.wait_len, 0);
+						m.read_block(ctlpend.wait_linear, now.data(), ctlpend.wait_len);
+						if (now != ctlpend.wait_bytes) {
+							changed = true;
+							for (uint8_t b : now) {
+								char hex[3];
+								std::snprintf(hex, sizeof hex, "%02x", b);
+								value += hex;
+							}
+						}
+					}
+					if (changed) {
+						std::string fields = "\"frame\":" + std::to_string((unsigned long long)mm.frame) + ",\"changed\":true";
+						if (!value.empty()) fields += ",\"value\":\"" + value + "\"";
+						ctl->send(u2ctl::ok_reply(ctlpend.wait_id, fields));
+						ctlpend.wait_id = -1;
+					} else if ((long)mm.frame >= ctlpend.wait_deadline) {
+						ctl->send(u2ctl::error_reply(ctlpend.wait_id, "no change within the frame budget"));
+						ctlpend.wait_id = -1;
+					}
+				}
 				ctl->poll();
 				u2ctl::Command cc;
 				std::string perr;
@@ -816,6 +916,67 @@ int main(int argc, char** argv) {
 						std::string kn;
 						u2ctl::escape(k->second, kn);
 						ctl->send(u2ctl::ok_reply(cc.id, "\"key\":\"" + kn + "\"," + fr));
+					} else if (cc.cmd == "frame") {
+						// Step exactly N machine frames and answer when the Nth has been reached. The reply carries the
+						// frame it was sent on, so "exactly" is checkable by the caller rather than assumed.
+						if (ctlpend.frame_id >= 0) {
+							ctl->send(u2ctl::error_reply(cc.id, "a frame step is already pending"));
+							continue;
+						}
+						long n = 1;
+						if (auto it = cc.args.find("n"); it != cc.args.end()) n = std::strtol(it->second.c_str(), nullptr, 10);
+						if (n < 1 || n > 1000000) {
+							ctl->send(u2ctl::error_reply(cc.id, "frame n must be between 1 and 1000000"));
+							continue;
+						}
+						ctlpend.frame_id = cc.id;
+						ctlpend.frame_from = (long)mm.frame;
+						ctlpend.frame_target = (long)mm.frame + n;
+					} else if (cc.cmd == "wait") {
+						if (ctlpend.wait_id >= 0) {
+							ctl->send(u2ctl::error_reply(cc.id, "a wait is already pending"));
+							continue;
+						}
+						long timeout = 600;
+						if (auto it = cc.args.find("timeout"); it != cc.args.end())
+							timeout = std::strtol(it->second.c_str(), nullptr, 10);
+						if (timeout < 1 || timeout > 100000) {
+							ctl->send(u2ctl::error_reply(cc.id, "wait timeout must be between 1 and 100000 frames"));
+							continue;
+						}
+						ctlpend.wait_id = cc.id;
+						ctlpend.wait_deadline = (long)mm.frame + timeout;
+						if (auto it = cc.args.find("screen"); it != cc.args.end() && it->second != "0") {
+							ctlpend.wait_screen = true;
+							ctlpend.wait_hash = screen_sample();
+						} else {
+							auto addr = cc.args.find("addr");
+							if (addr == cc.args.end()) {
+								ctl->send(u2ctl::error_reply(cc.id, "wait wants addr (seg:off or linear) or screen"));
+								ctlpend.wait_id = -1;
+								continue;
+							}
+							uint32_t linear = 0;
+							std::string werr;
+							if (!resolve_addr(addr->second, linear, werr)) {
+								ctl->send(u2ctl::error_reply(cc.id, werr));
+								ctlpend.wait_id = -1;
+								continue;
+							}
+							uint32_t len = 1;
+							if (auto it2 = cc.args.find("n"); it2 != cc.args.end())
+								len = (uint32_t)std::strtoul(it2->second.c_str(), nullptr, 10);
+							if (len < 1 || len > 4096) {
+								ctl->send(u2ctl::error_reply(cc.id, "wait n must be between 1 and 4096 bytes"));
+								ctlpend.wait_id = -1;
+								continue;
+							}
+							ctlpend.wait_screen = false;
+							ctlpend.wait_linear = linear;
+							ctlpend.wait_len = len;
+							ctlpend.wait_bytes.assign(len, 0);
+							m.read_block(linear, ctlpend.wait_bytes.data(), len);
+						}
 					} else if (cc.cmd == "quit") {
 						ctl->send(u2ctl::ok_reply(cc.id, fr));
 						throw towns::Stop{0};

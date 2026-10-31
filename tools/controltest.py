@@ -146,6 +146,135 @@ if bound:
 else:
     proc.kill()
 
+def spawn(frames, shot=None, control="127.0.0.1:0"):
+    """Start a run with the channel open. SDL dummy by default, because the key half of these checks needs the
+    front-end and the dummy driver needs no display server."""
+    e = dict(os.environ)
+    e.update(env)
+    if shot:
+        e["U2_SHOT"] = shot
+    e["SDL_VIDEODRIVER"] = "dummy"
+    e["SDL_AUDIODRIVER"] = "dummy"
+    e.pop("DISPLAY", None)
+    logf = open(os.path.join(args.work, f"spawn-{frames}-{os.path.basename(str(shot))}.log"), "w")
+    p = subprocess.Popen(
+        [args.bin, "--graphics=sdl", f"--frames={frames}", f"--control={control}",
+         args.exp, args.tbios, args.cue, args.disk],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=e,
+    )
+    bound = None
+    deadline = time.time() + 180
+    while time.time() < deadline:
+        line = p.stdout.readline()
+        if not line:
+            break
+        logf.write(line)
+        m = re.match(r"control\s+(\S+)", line)
+        if m:
+            bound = m.group(1)
+            break
+    if not bound:
+        p.kill()
+        logf.close()
+        return None, None, None
+    host, port = bound.rsplit(":", 1)
+    s = socket.create_connection((host, int(port)), timeout=30)
+    return p, s, logf
+
+
+def call(sock, counter, obj):
+    obj["id"] = counter[0]
+    counter[0] += 1
+    sock.sendall((json.dumps(obj) + "\n").encode())
+    return recv_line(sock, timeout=900)
+
+
+def time_checks():
+    p, s, logf = spawn(1500, shot=os.path.join(args.work, "time-a.png"))
+    if not s:
+        check("a run with --control and SDL dummy starts", False, "no bound address")
+        return
+    check("a run with --control and SDL dummy starts", True)
+    counter = [1]
+
+    r0 = call(s, counter, {"cmd": "ping"})
+    r1 = call(s, counter, {"cmd": "frame", "n": 100})
+    stepped = r1.get("frame", 0) - r1.get("from", -1)
+    check("frame 100 advances exactly 100 machine frames", stepped == 100, f"{stepped} from {r1.get('from')} to {r1.get('frame')}")
+
+    r2 = call(s, counter, {"cmd": "ping"})
+    r3 = call(s, counter, {"cmd": "frame", "n": 37})
+    stepped2 = r3.get("frame", 0) - r3.get("from", -1)
+    check("frame 37 advances exactly 37", stepped2 == 37, f"{stepped2}")
+
+    # wait on the screen. The first version of this asserted the wait was woken *by the key*, and that was an
+    # overclaim: the splash animates on its own, so the wait could fire before the key landed and still be
+    # correct. What is asserted here is that a screen wait reports a change within its budget, and separately
+    # that a wait on a byte nothing writes reports a timeout. Attribution to a cause is what `mem` waits do,
+    # and that is 10e's business.
+    waiter = {"id": counter[0], "cmd": "wait", "screen": 1, "timeout": 1200}
+    counter[0] += 1
+    s.sendall((json.dumps(waiter) + "\n").encode())
+    time.sleep(0.5)
+    keyrep = {"id": counter[0], "cmd": "key", "key": "space"}
+    counter[0] += 1
+    s.sendall((json.dumps(keyrep) + "\n").encode())
+    first = recv_line(s, timeout=900)
+    second = recv_line(s, timeout=900)
+    woken = first if first.get("changed") else second
+    check("wait screen reports a change within its budget", woken.get("ok") and woken.get("changed"),
+          json.dumps(woken))
+
+    r = call(s, counter, {"cmd": "wait", "addr": "000c:1000", "n": 4, "timeout": 30})
+    check("a wait with nothing to change returns an error rather than hanging", r.get("ok") is False, json.dumps(r))
+
+    s.sendall(json.dumps({"id": counter[0], "cmd": "frame", "n": 500}).encode() + b"\n")
+    counter[0] += 1
+    s.sendall(json.dumps({"id": counter[0], "cmd": "frame", "n": 500}).encode() + b"\n")
+    counter[0] += 1
+    pair = sorted([json.dumps(recv_line(s, timeout=900)), json.dumps(recv_line(s, timeout=900))])
+    check("two pending frame steps are refused rather than silently dropped", "already pending" in pair[1],
+          pair[1][:90])
+
+    s.sendall(json.dumps({"id": counter[0], "cmd": "quit"}).encode() + b"\n")
+    try:
+        recv_line(s, timeout=60)
+    except Exception:
+        pass
+    s.close()
+    try:
+        p.wait(timeout=300)
+    except subprocess.TimeoutExpired:
+        p.kill()
+    logf.close()
+
+    hashes = []
+    for tag in ("det-a", "det-b"):
+        shot = os.path.join(args.work, f"{tag}.png")
+        pp, ss, lf = spawn(1200, shot=shot)
+        if not ss:
+            hashes.append(None)
+            continue
+        cc = [1]
+        # Eleven steps of 100 against a 1200-frame limit, so the last reply is not racing the run's own end. The
+        # first version stepped to exactly the limit and the final reply never arrived, because the run stopped
+        # in the same frame the step became due.
+        for _ in range(11):
+            call(ss, cc, {"cmd": "frame", "n": 100})
+        ss.close()
+        try:
+            pp.wait(timeout=300)
+        except subprocess.TimeoutExpired:
+            pp.kill()
+        lf.close()
+        hashes.append(sha(shot) if os.path.exists(shot) else None)
+    check("two runs stepped to the same frame give identical framebuffers",
+          len(set(hashes)) == 1 and hashes[0] is not None,
+          " vs ".join(h[:12] if h else "none" for h in hashes))
+
+
+time_checks()
+
 print("unchanged: the default path against the published binary")
 new_shot = os.path.join(args.work, "new.png")
 p = run(args.bin, new_shot, FRAMES)

@@ -118,7 +118,7 @@ from the items below rather than maintained separately.
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
 | 10a The control channel and the frame tap | AUTONOMOUS | **done**, `--control` answers JSON lines from the frame hook, and the default path is byte-identical to the release binary |
 | 10b `key`, through SDL rather than beside it | AUTONOMOUS | **done**, the socket path reaches `Select Player` with the windowed path's hash, with no display server |
-| 10c `frame` and `wait` | AUTONOMOUS | no, depends on 10a |
+| 10c `frame` and `wait` | AUTONOMOUS | **done**, exact stepping, waits that time out, and two runs to the same frame give the same framebuffer |
 | 10d `shot` over the channel | AUTONOMOUS | no, depends on 10a |
 | 10e `mem`, a raw read by `seg:off` | AUTONOMOUS | no, depends on 10a |
 | 10f `state`, the roster and world parsed for the caller | AUTONOMOUS | no, depends on 10a |
@@ -2708,7 +2708,7 @@ test exits 0 with four matches.
 
 ### 10c. `frame` and `wait`, so time is an argument and not a sleep
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2721,6 +2721,28 @@ This is the item that turns the defect-1 reproduction from a wall-clock script i
 died at frame 4026 in three runs whose key timing differed by seconds, which says the machine is deterministic and the
 *script* was not. With `frame` and `wait` the same sequence becomes "step to 4025, dump, step one, dump", and the
 address `0xffeba` can be approached under observation instead of near it.
+
+**What landed.** Both commands park in a small pending struct beside the hook and are answered from it, because
+neither can be answered in the frame it arrives in. `frame` replies with `frame`, `from` and `stepped`; `wait` takes
+`addr` with an optional byte count, or `screen`, plus a `timeout` in frames, and replies `changed:true` with the new
+bytes as hex for a memory wait, or `ok:false` with "no change within the frame budget". A second pending step or wait
+is refused with a reason rather than silently dropped. Screen comparison is a sampled checksum of the rendered frame
+(every 997th pixel, FNV-1a), which is cheap enough to poll and catches a screen that changed.
+
+**Measured, and three of the assertions were wrong before they were right.** `frame 100` and `frame 37` both advance
+exactly their N, checked as `frame - from`, and two runs stepped to the same frame produced identical framebuffers
+(`fada784131b8` both). Three findings came out of the first attempt:
+
+- The first version measured reply-to-reply and saw 101 for `frame 100`. That is not drift, it is the one frame it
+  takes to read a command, and the fix was to make the contract self-describing by returning `from` rather than to
+  teach every caller about the transport.
+- The first version claimed the screen wait was "woken by a change the caller caused". It was wrong: the splash
+  animates on its own, so the wait could fire before the key landed and still be correct. The assertion is now that a
+  screen wait reports a change within budget, and attribution to a cause is left to memory waits, which is 10e's
+  business.
+- The determinism runs stepped to exactly the frame limit, so the final reply never arrived and the test crashed on
+  an empty read. Stepping to eleven hundreds against a twelve-hundred limit is the fix, and it is the same class of
+  bug as a test that races the thing it measures.
 
 ### 10d. `shot`, the framebuffer over the channel
 
