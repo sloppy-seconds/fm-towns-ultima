@@ -82,3 +82,19 @@ Each entry names the file, what it changes, and the measurement that motivated i
 | `runtime/towns.h` | `press_key(scan, ascii)`, `keys`, `keys_served` | patch eleven, the keyboard. See the `towns_dos.cpp` row for the contract. |
 | `runtime/towns_sdl.h` | `std::function<void(uint8_t, uint8_t)> on_key` and `<functional>` | patch fourteen. The front-end maps host keys to the Towns **pad**, and ENCHANT reads the **keyboard**, so without this a window shows the picture and refuses every keypress. |
 | `runtime/towns_sdl.cpp` | `towns_key()` maps SDL's scancode to PC/AT set 1 and SDL's layout-aware keycode to the character, and `vsync` calls `on_key` after the front-end's own keys | patch fourteen, same measurement: PC/AT set 1 because `a` is `0x1E` on the machine and ENCHANT indexes a 114-entry table with it. Unmapped keys report nothing rather than a guess, and Escape still quits so a window keeps a way out. |
+
+## Pending, written and tested, not on the pin
+
+The table above is what the branch carries, and `tools/patchcheck.js` proves it by comparing the mirror patch with
+`git diff` against the base. A change that exists only on this machine would break that proof, so it is recorded
+here as a file rather than slipped into the table.
+
+| file | change | why, and where the measurement is |
+|---|---|---|
+| `runtime/towns_sdl.cpp` | `kPcToTowns` indices `0x02` to `0x0B` become `0x02` to `0x0B` instead of zero, which is the digit row `1` to `0` | `patches/fmtownskit-pending-digit-keys.patch`. The zeros meant `towns_key()` returned false for every digit, so no number could reach the game and Ultima II's create-entry prompt could not be answered. `docs/port-defects.md` defect 3 has the queue measurement and the TOWNSEMU enum that fixes the values. |
+
+To land it: `git -C fmtownskit am patches/fmtownskit-pending-digit-keys.patch`, push `mp-support`, point the pin at
+the new commit, regenerate the mirror with `git -C fmtownskit diff $(cat patches/fmtownskit-base.txt) >
+patches/fmtownskit-mp-support.patch`, move the row above into the table, and delete the pending patch. The commit
+already exists locally as `ca99916` on `mp-support` on this machine, so a push may be all that is needed. Until
+then `tools/controlcreate.py` fails by name, which is the intended behaviour and not a broken test.

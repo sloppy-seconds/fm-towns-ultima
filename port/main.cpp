@@ -918,7 +918,11 @@ int main(int argc, char** argv) {
 					if (cc.cmd == "hello") {
 						ctl->send(u2ctl::ok_reply(cc.id, "\"version\":\"" + std::string(u2ctl::version()) + "\"," + fr));
 					} else if (cc.cmd == "ping") {
-						ctl->send(u2ctl::ok_reply(cc.id, fr));
+						// `keys` is how many queued presses KYB_read has taken. It exists because "the game is
+						// ignoring this key" and "the game is not reading the keyboard" look identical from the
+						// screen, and only one of them is an input-path bug.
+						ctl->send(u2ctl::ok_reply(cc.id, fr + ",\"keys\":" + std::to_string((unsigned long long)m.keys_served) +
+						                                              ",\"queued\":" + std::to_string((unsigned long long)m.keys.size())));
 					} else if (cc.cmd == "echo") {
 						std::string fields;
 						for (const auto& kv : cc.args) {

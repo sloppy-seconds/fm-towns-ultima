@@ -13,7 +13,7 @@ quickstarts have to give the tested route rather than the one the game menu sugg
 |---|---|---|---|
 | 1 | It crashes easily | **Diagnosed 2026-10-31.** Paul played the port and it died during ordinary use. Reproduced on the current release binary with a scripted key sequence under Xvfb: three runs, all three died at machine frame 4026 with `fault at 000c:000ffeba: no recompiled function at 000c:000ffeba (eip 000fed47, frame 4026)` and exit code 3 | **open, cause identified as a module coverage hole, fix not attempted** |
 | 2 | `Esc` and `Q` crash it | **Not reproduced, and half of it is refuted.** `Esc` ends the run with exit code 0, measured in two different screen states, because the front-end treats it as the window's quit key (`towns_sdl.cpp:179`, `throw Stop{0}`) and `main.cpp` prints that at startup: "Escape closes it and ends the run". Injected into the guest instead, `Esc` makes the game quit itself cleanly (DOS terminate, `eax 0x4c00`, frame 915). `Q` produced no screen change and no exit at the menu, on Select Player, or on the post-select prompt | **open as a report, refuted as measured behaviour. What is left is that a vanishing window reads as a crash** |
-| 3 | Character creation does not work | `Generate Character` on the game menu was tried and is a dead end. `Journey Onward` with a character already on the disk works, and it is the only route anybody has played | open |
+| 3 | Character creation does not work | **Diagnosed 2026-11-01, two causes.** The report itself was wrong: `Generate Character` is not a dead end, it is a sub-menu (Examine the Register / Create a Character / Terminate a Character / Main Menu / Look at a Character) and the headless route reaches it. What was dead was the digit. `Create a Character` asks `Create Entry (1-4) # 0` and wants a number, and the port cannot deliver one. See the section below for the measurement, the cause and how far creation now gets | **open. Cause one is fixed by a kit patch awaiting a push, cause two (the save disk is read-only) is not fixed** |
 | 4 | No sound library means no window | On a Debian trixie container with no SDL and no `libasound`, the port printed `graphics  sdl unavailable (Failed loading libasound.so.2: ... cannot open shared object file), falling back to none` and ran with no window at all. Installing `libasound2` gave a 640x480 window showing the title screen, on the same machine with still no SDL | open, cause known, not fixed |
 
 Defects 1 and 2 are play observations reported on 2026-10-30, when the tree was at `51ca6e5`. They are not traces.
@@ -68,6 +68,62 @@ reached so far. What `Q` is *supposed* to do in the original is still unmeasured
 What is left of the report is a usability fact rather than a defect: a window that disappears with no message looks
 exactly like a crash, and the port currently has no quit affordance that says so. That is a thing to fix in the
 front-end or the documentation, and it is listed in the plan rather than here, because this page is for faults.
+
+## Defect 3, two causes, and how far creation gets now
+
+**Cause one: the port drops every digit key.** The create prompt wants a number and no number could reach the game.
+The measurement is the queue counter, read in the same breath as the push so that "rejected" and "never queued"
+cannot be confused. Before the fix:
+
+| pushed | `queued` immediately | `keys_served` after 40 frames |
+|---|---|---|
+| `4` | 0 | unchanged |
+| `Up` | 1 | +1 |
+| `4` | 0 | unchanged |
+| `Up` | 1 | +1 |
+
+An arrow enters the queue and is consumed. A digit is not in the queue at all, one frame after being accepted by
+the socket. The cause is in the kit: `kPcToTowns` in `runtime/towns_sdl.cpp` maps PC/AT set 1 to the Towns JIS
+codes, and indices `0x02` to `0x0B` (the digits `1` to `0`) were left at zero, and `towns_key()` returns false for
+a zero, so the key is discarded before it is queued. The correct values are the identity, because the two code
+sets agree on this row: `references/TOWNSEMU/src/towns/townsdef/townsdef.h` gives `TOWNS_JISKEY_1 = 0x02` through
+`TOWNS_JISKEY_0 = 0x0B`. The one-row fill is `patches/fmtownskit-pending-digit-keys.patch`, and it is pending
+because the kit's own gate refuses a pin that is not on `origin`, so it needs a push (see
+`docs/fmtownskit-patches.md`).
+
+With the fill applied the whole route runs through the socket alone, no display and no vision model, and the
+register comes back:
+
+```
+[Generate Character]
+Option: Examine Register
+1: E        Male    Elf    Fighter
+2: D        Male    Dwarf  Fighter
+3: B        Male    Bobbit Fighter
+4: JAMES    Male    Human  Fighter
+Press Space
+```
+
+That is the screen transcribed from the run, and `tools/controlcreate.py` drives the 26 keys that produce it and
+asserts the frame hashes in two consecutive runs. It was seen to fail before it was trusted: with the unfixed kit
+it stops at the create prompt and names the digit defect.
+
+**An off-by-one is still open.** The field lands on one more than the digit typed. Typing `4` produces
+`Create (1-4 Only!)` and `Press Space`, and typing `3` produces the allocation screen headed
+`Create Entry(1-4)# 4`. Whether the original behaves the same way, or whether the Towns digit codes are one away
+from what TOWNSEMU's enum says, needs the same key sequence driven under Tsugaru and has not been measured.
+
+**Cause two: the save disk is read-only, so a created character is never persisted.** `port/floppy.h` says so on
+purpose at line 16, "saves/ holds irreplaceable state and none of it is in git, so nothing here writes", and the
+kit's DOS layer only ever calls `fm_floppy_read`. File creation (`int 21h AH=3C`) on `A:` reports "not on the
+floppy". The measurement: after a completed creation the image's md5 is `70ea85d4e7f006663b57a5a4d669787b`,
+identical to before, `state` still reads slot 3 as empty, and `Journey Onward` shows only `1: E`, `2: D`, `3: B`.
+So the character exists in the game's memory and the register, and cannot survive the run. Closing this needs FAT12
+write support and a decision about mutating save images, which the read-only rule was written to prevent.
+
+One interaction worth recording: with the unfixed kit the creation route does not stall quietly, it dies at frame
+4925 on the defect 1 fault at `000c:000ffeba`. The route is a second reproduction of defect 1 and it is reachable
+without any unusual input.
 
 ## Why this evidence pass needed a window and could not be done headlessly
 
