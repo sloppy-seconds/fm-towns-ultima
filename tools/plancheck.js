@@ -42,8 +42,8 @@ function load() {
 	// Items are "### 1a. Title" level-three headings beginning with a digit.
 	const chunks = text.split(/^### (?=[0-9])/m).slice(1);
 	return chunks.map((c) => {
-		const id = /^([0-9][a-z])\./.exec(c)?.[1] ?? '?';
-		const title = /^[0-9][a-z]\.\s*(.+)$/m.exec(c)?.[1] ?? '(untitled)';
+		const id = /^([0-9]{1,2}[a-z])\./.exec(c)?.[1] ?? '?';
+		const title = /^[0-9]{1,2}[a-z]\.\s*(.+)$/m.exec(c)?.[1] ?? '(untitled)';
 		const state = /\*\*State:\*\*\s*([A-Z][A-Z ]*)/.exec(c)?.[1]?.trim();
 		const autonomy = /\*\*Autonomy:\*\*\s*([A-Z][A-Z ]*[A-Z])/.exec(c)?.[1]?.trim();
 		const doneWhen = /\|\s*done when\s*\|\s*(.+?)\s*\|/i.exec(c)?.[1];
@@ -55,11 +55,11 @@ function load() {
 		// An explicit "depends on" row is authoritative. Prose inference is a fallback only, because
 		// guessing from wording got item 2b wrong: its blocked-by cell begins "2a." and no pattern
 		// matched it, so the tool reported 2b as startable while its own text said it was not.
-		const dependsRow = /\|\s*depends on\s*\|\s*([0-9][a-z](?:\s*,\s*[0-9][a-z])*)/i.exec(c)?.[1];
+		const dependsRow = /\|\s*depends on\s*\|\s*([0-9]{1,2}[a-z](?:\s*,\s*[0-9]{1,2}[a-z])*)/i.exec(c)?.[1];
 		const waitsOnItem =
 			Boolean(dependsRow) ||
 			/\*\*Autonomy:\*\*[^\n]*\bonce\b/i.test(c) ||
-			/\|\s*autonomy\s*\|[^\n]*\bdepends on\s+[0-9][a-z]/i.test(c);
+			/\|\s*autonomy\s*\|[^\n]*\bdepends on\s+[0-9]{1,2}[a-z]/i.test(c);
 		return { id, title, state, autonomy, doneWhen, blockedBy, waitsOnItem };
 	});
 }
@@ -147,7 +147,7 @@ function main() {
 	// the text under it is worse than no table, since a reader trusts the summary.
 	{
 		const text = fs.readFileSync(PLAN, 'utf8');
-		const rows = [...text.matchAll(/^\|\s*([0-9][a-z])\s+([^|]+)\|([^|]+)\|/gm)].map((m) => ({
+		const rows = [...text.matchAll(/^\|\s*([0-9]{1,2}[a-z])\s+([^|]+)\|([^|]+)\|/gm)].map((m) => ({
 			id: m[1],
 			autonomy: m[3].trim(),
 		}));

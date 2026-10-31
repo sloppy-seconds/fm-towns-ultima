@@ -116,6 +116,14 @@ from the items below rather than maintained separately.
 | 9k Mirror the repository and its releases | AUTONOMOUS | **unblocked**, the release exists, and the item now names the exact commit, asset, digest and image manifest to mirror |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
+| 10a The control channel and the frame tap | AUTONOMOUS | **yes**, and everything else in the phase waits on it |
+| 10b `key`, through SDL rather than beside it | AUTONOMOUS | no, depends on 10a |
+| 10c `frame` and `wait` | AUTONOMOUS | no, depends on 10a |
+| 10d `shot` over the channel | AUTONOMOUS | no, depends on 10a |
+| 10e `mem`, a raw read by `seg:off` | AUTONOMOUS | no, depends on 10a |
+| 10f `state`, the roster and world parsed for the caller | AUTONOMOUS | no, depends on 10a |
+| 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
+| 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
 | 8b The `MP` header's `EIP` is an address | AUTONOMOUS | **done**, and the image is at file 0x200 |
 | 8c `Disc::handle` with no disc opened | AUTONOMOUS | **done**, the null was `Disc::data_`, not `handle` |
@@ -2585,6 +2593,137 @@ packaging.
 cold cache and no game file present, which is the path nobody had walked before the tag, and it
 produced the shipped binary. The local cold-cache simulation of that job was abandoned part way
 once CI itself was the evidence, which is the better witness anyway.
+
+## Phase 10: a control API for the port, so it can be driven without a window
+
+This phase exists because of a sentence in `docs/port-defects.md`: headless key injection cannot activate the game
+menu, while real SDL keys do it on the first try. Everything downstream of that costs a window. The defect-1 hunt
+needed Xvfb, `xdotool`, `import`, and a vision model to say what the screen showed, and it still took three passes to
+get a deterministic reproduction. The mechanics items in phase 5 have the same shape: each one needs the game driven
+into a state and then observed, and today that means a display server and a screenshot reader.
+
+**The design, agreed with Paul on 2026-10-31.** A thin tap inside the port's own frame loop, speaking JSON lines over
+a socket, gated behind a flag so the default path and the release binary are untouched. Not a parallel front-end, and
+not a reimplementation of input: the `key` command pushes through SDL, because SDL is the path that works. Tier 1 is
+the socket and its commands. Tier 2 is a small MCP wrapper so an agent session can use it as tools rather than as a
+protocol to hand-roll. Tier 3 is what becomes possible afterwards, listed so it is visible and deliberately not
+scheduled.
+
+**What Tier 1 upgrades immediately, and this is not speculative.** `tools/x-run.sh shot` currently captures the Xvfb
+screen with `import`, which needs a display server, an X client, and a window that exists; `shot` over the channel
+returns the framebuffer the machine is presenting, which works with `--graphics=none`. Defect diagnosis gets `mem`,
+`frame` and `wait`, which is what the `0xffeba` hunt wanted: it could have stepped to frame 4026 and dumped the stack
+instead of pressing keys and hoping. The phase-5 mechanics items get a state reader that does not need a screenshot
+read by a model, and the vision model stays for the questions only it can answer, which `AGENTS.md` already says.
+
+### 10a. The control channel and the frame tap
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. It is a flag, a listener and a place in the loop, and the loop already has the hook |
+| depends on | none |
+| done when | `--control=<host:port|path.sock>` makes the port accept one JSON object per line and answer one JSON object per line, handled from inside the existing `on_vsync` hook so commands run between frames and nowhere else, and a run **without** the flag is unchanged, proved by a byte-identical `U2_SHOT` and an identical frame count against the same inputs on the release binary. The failure case: a tap that perturbs the default path, or a listener that only exists when SDL opened, which would put the window back into the loop |
+| blocked by | nothing |
+
+The protocol is line-delimited JSON with `id` echoed back, and the transport is a TCP socket bound to loopback by
+default, because a Unix socket path inside a container volume is a mount argument waiting to be wrong. The port prints
+the bound address on stdout at startup, which is what makes an ephemeral port (`:0`) usable and is also the smoke test
+that the listener exists. Commands are answered when the machine next reaches a frame boundary, so a command can never
+observe a half-updated machine, and that is the whole reason the tap lives in the frame hook rather than on a thread.
+
+### 10b. `key`, through SDL rather than beside it
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous, and the acceptance test is already written down by the defect pass that failed without it |
+| depends on | 10a |
+| done when | a committed script reaches the title screen, the game menu, `Select Player` and the world **through the socket alone**, with no `xdotool`, no `import` and no vision model, asserting each transition against a framebuffer hash recorded from the windowed reference run. The failure case: `key` reaches the guest the way `U2_KEYS` does and still cannot activate the menu, which is the measured defect this item exists to remove |
+| blocked by | nothing beyond 10a |
+
+`key` must go in through `SDL_PushEvent`, which is the front-end's own door, so the injected key travels the same road
+as a physical one: `towns_key()` mapping, the front-end's own Esc handling, the same ordering against the vsync hook.
+The measured gap this closes is in `docs/port-defects.md`: `U2_KEYS` moves the menu highlight and then cannot select,
+across both ASCII encodings of `Return`, repeated presses, spacings from 200 to 2500 frames, and the pad buttons.
+Whatever that difference turns out to be, pushing through SDL sidesteps it by construction rather than by guesswork.
+
+### 10c. `frame` and `wait`, so time is an argument and not a sleep
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The frame counter and the vsync hook already exist |
+| depends on | 10a |
+| done when | `frame N` advances exactly N machine frames and two runs from the same start produce identical framebuffer hashes, and `wait` on a memory address or on the framebuffer returns within a stated frame budget of a change caused by a scripted `key`, and returns an error line rather than hanging when nothing changes. The failure case: a `wait` that busy-loops forever, or a `frame` that drifts because the SDL pacing path paces it as well |
+| blocked by | nothing beyond 10a |
+
+This is the item that turns the defect-1 reproduction from a wall-clock script into a measurement. The reproduction
+died at frame 4026 in three runs whose key timing differed by seconds, which says the machine is deterministic and the
+*script* was not. With `frame` and `wait` the same sequence becomes "step to 4025, dump, step one, dump", and the
+address `0xffeba` can be approached under observation instead of near it.
+
+### 10d. `shot`, the framebuffer over the channel
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The encoder already exists, since `U2_SHOT` writes the same PNG |
+| depends on | 10a |
+| done when | `shot` over the socket returns a PNG whose bytes are identical to the `U2_SHOT` file for the same frame and the same state, asserted by hash in a committed test, and it works with `--graphics=none` so no display server is involved. The failure case: a shot that only works in SDL mode, which would keep Xvfb in every automated route |
+| blocked by | nothing beyond 10a |
+
+### 10e. `mem`, a raw read by `seg:off`
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The CPU object has the segments and the memory, and `tools/peek.js` already proves the addressing from the other side |
+| depends on | 10a |
+| done when | `mem` returns N bytes at a `seg:off` address and the player record read that way matches `tools/peek.js` field for field on the same state, with a committed test asserting at least HP, level, gold and position. The failure case: an off-by-one in the segment base, which is the error class `docs/live-fieldmap.md` exists to prevent and which a field-by-field comparison catches and a smoke test does not |
+| blocked by | nothing beyond 10a |
+
+### 10f. `state`, the roster and world parsed for the caller
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The formats are already parsed by `tools/savedisk.js`, and the files are plain ASCII on the emulated floppy |
+| depends on | 10a |
+| done when | `state` returns party, position, gold and inventory for the save disk the repository ships, naming the three characters on it, and the numbers agree with `tools/savedisk.js` run over the same image. The failure case: a parser that duplicates `savedisk.js` and drifts from it, which is why the acceptance is an agreement test and not a printout |
+| blocked by | nothing beyond 10a |
+
+### 10g. Tier 2, the MCP wrapper
+
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | partly. The wrapper is code and can be written here; registering an MCP server into the harness is a change to a person's config and needs Paul |
+| depends on | 10b |
+| done when | an agent session drives the port to the title screen and reads back party state using only the MCP tools `play_key`, `game_state`, `screenshot` and `step_frames`, with the transcript or a committed script as the artefact, and the wrapper is a thin translation of the socket protocol with no logic of its own. The failure case: a wrapper that grows state or policy, at which point there are two drivers and only one of them is tested |
+| blocked by | 10b, and Paul for the harness registration |
+
+### 10h. Tier 3, listed and not scheduled
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous in principle, and it is listed rather than scheduled on purpose, because scheduling it now would be guessing which of the three is wanted |
+| depends on | 10b |
+| done when | not applicable while it is a list. Each of the three becomes its own item when it is picked up, with its own done-when. The failure case this note guards against: a tier that reads as committed work and quietly consumes the phase. The three are deterministic replay scripts, save and load-state over the socket, and a headless auto-play harness that grinds defects 1 to 3 and validates the phase-5 mechanics items |
+| blocked by | a decision about which of the three to promote, and nothing else |
+
+The auto-play harness is the one with the largest shadow. An agent that can step frames, read state and press keys
+without a window is an agent that can walk the overworld until something breaks, which is how defect 1 was found and
+is how the phase-5 mechanics items would be confirmed against the running game rather than inferred from the module.
 
 ---
 
