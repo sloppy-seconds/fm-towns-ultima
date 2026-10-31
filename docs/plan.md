@@ -108,7 +108,7 @@ from the items below rather than maintained separately.
 | 9d A port quickstart that starts from the download | AUTONOMOUS | **done**, `docs/port-from-source.md`, verified in a clean clone, and it found a step that only worked on the author's disk |
 | 9e CI that proves the tree builds | AUTONOMOUS | **done**, `.github/workflows/port-build.yml`, the port links against a synthetic module with no game file present |
 | 9f A release, and what may be in it | AUTONOMOUS | **done**, `v0.1.0` cut on 2026-10-31 through the workflow, all three jobs green first run |
-| 9n The published image is private | NEEDS A DECISION | no, the release body tells readers to pull it and anonymous pulls are refused |
+| 9n The published image is private | BLOCKED ON HUMAN | no, and it cannot be fixed from the API: GitHub has no endpoint for package visibility, so it is a web-UI click |
 | 9g Cross-compiling for Windows and macOS | PARTLY AUTONOMOUS | **scheduled followup**, decided 2026-10-30, and it needs machines to run the result on |
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
 | 9l Choose a licence for this repository's own code | AUTONOMOUS | **done**, MIT at the root, shipped in the release archive, with the scope stated in words |
@@ -2371,13 +2371,13 @@ not done, because nothing yet depends on comparing tarballs across builds rather
 
 ### 9n. The published image is private, and the release tells people to pull it
 
-**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
 
 | field | value |
 |---|---|
-| autonomy | needs Paul. It is a visibility setting on his account's package, not a build problem |
-| done when | either the package is public and an anonymous manifest fetch succeeds, or the release body and `docs/quickstart.md` stop telling readers to pull it and say what to build instead. The failure case: the first thing a visitor follows from the release notes fails with HTTP 401, and they conclude the project is vaporware rather than finding one setting |
-| blocked by | a decision. The command is one line, so the only question is whether the image should be world-readable |
+| autonomy | blocked on a person with a browser. The API cannot do it, which is the finding, and the setting is a click in the web UI |
+| done when | an unauthenticated manifest fetch succeeds for `port-v0.1.0` and `port-latest`, which is the same request a stranger's `podman pull` makes first. The failure case: the first thing a visitor follows from the release notes fails with HTTP 401, and they conclude the project is vaporware rather than finding one setting |
+| blocked by | the GitHub web UI. Approved by Paul on 2026-10-31 and attempted, and it turns out there is no API for it |
 
 Found while verifying the release, not while reading the docs. `ghcr.io/sloppy-seconds/fm-towns-ultima` exists and both
 tags resolve: `port-v0.1.0` and `port-latest` point at the same `linux/amd64` manifest, four layers, 343.3 MB
@@ -2386,13 +2386,31 @@ manifest, and the package API reports `visibility: private`, while the repositor
 by `GITHUB_TOKEN` do not inherit the repository's visibility, so the workflow pushing successfully and the image being
 pullable are two separate facts, and only the first was checked before the tag.
 
-If public is the answer, the setting is one call:
+**The API cannot change it, and that is worth recording because it looks like a permissions problem.** Attempted with
+a classic PAT holding `repo workflow write:packages`, whose owner is an admin of the `sloppy-seconds` org and of the
+repository:
 
-```bash
-gh api -X PATCH /users/sloppy-seconds/packages/container/fm-towns-ultima -F visibility=public
-```
+| attempt | result |
+|---|---|
+| `PATCH /orgs/sloppy-seconds/packages/container/fm-towns-ultima` with `-F visibility=public` | 404 |
+| same path, JSON body `{"visibility":"public"}` | 404 |
+| same path, JSON body also carrying `package_type` | 404 |
+| `PATCH /users/sloppy-seconds/...` | 404, and the account is an Organization anyway |
+| GraphQL, introspecting `Mutation` for anything matching `package` | only `deletePackageVersion` |
+| the whole Packages REST docs page, searched for `PATCH` | zero matches |
 
-and the check that proves it is an unauthenticated manifest fetch, which is what a stranger's `podman pull` does first.
+The 404 is not the token being short a scope. GitHub's Packages REST API has no endpoint that writes visibility, and
+GraphQL has no mutation for it either, so the answer to "why 404" is that the route does not exist. The GET endpoints
+work fine on the same token, which is what rules out authentication as the cause.
+
+**What would close it, in order of cost.** The web UI: <https://github.com/orgs/sloppy-seconds/packages>, select
+`fm-towns-ultima`, Package settings, change visibility to public. The proof is the unauthenticated fetch, which today
+returns 401 for both tags and returns the manifest the moment the setting flips.
+
+The alternative that needs no setting is to stop depending on ghcr for the image: `podman pull` it with an
+authenticated login, `podman save` and gzip it, and attach the archive to the release, where assets on a public repo
+are anonymously downloadable. That costs roughly 350 MB on the release and has the side benefit of being the mirror 9k
+wants for the image anyway. Not done, because it is a different decision than the one Paul approved.
 
 ### 9g. Cross-compiling for Windows and macOS
 
