@@ -107,7 +107,8 @@ from the items below rather than maintained separately.
 | 9c The page on why this is hard | AUTONOMOUS | **done**, `docs/why-this-is-hard.md`, nine obstacles each linked to the page that measured it |
 | 9d A port quickstart that starts from the download | AUTONOMOUS | **done**, `docs/port-from-source.md`, verified in a clean clone, and it found a step that only worked on the author's disk |
 | 9e CI that proves the tree builds | AUTONOMOUS | **done**, `.github/workflows/port-build.yml`, the port links against a synthetic module with no game file present |
-| 9f A release, and what may be in it | BLOCKED ON HUMAN | no, the workflow is written and locally verified, and cutting the release needs a tag pushed |
+| 9f A release, and what may be in it | AUTONOMOUS | **done**, `v0.1.0` cut on 2026-10-31 through the workflow, all three jobs green first run |
+| 9n The published image is private | NEEDS A DECISION | no, the release body tells readers to pull it and anonymous pulls are refused |
 | 9g Cross-compiling for Windows and macOS | PARTLY AUTONOMOUS | **scheduled followup**, decided 2026-10-30, and it needs machines to run the result on |
 | 9h The README's claims and links, checked | AUTONOMOUS | **done**, `checkall.js` rejects any fourth spelling of the three copied URLs and any dead relative link in the README |
 | 9l Choose a licence for this repository's own code | AUTONOMOUS | **done**, MIT at the root, shipped in the release archive, with the scope stated in words |
@@ -2278,16 +2279,20 @@ the demonstration that the skips are load-bearing.
 
 ### 9f. A release, and what may legally be in it
 
-**State:** OPEN · **Autonomy:** BLOCKED ON HUMAN
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
 | autonomy | blocked on a person to push the tag. The workflow, the packaging and the verification are done |
 | done when | one release has been cut through a written workflow, and its contents are enumerated with the reason each item is or is not copyrighted. The failure case: a release artefact containing the game, the disc image, the recompiled module, or any extracted asset |
-| blocked by | `git tag v0.1.0 && git push --tags`, which is Paul's to do. Everything the tag triggers is written and locally verified |
+| blocked by | nothing. The tag was pushed on 2026-10-31 and the release is public |
 
 The constraint from the phase header decides this. A release cannot ship `u2port` in a form that plays, because a
 playing `u2port` needs a module built from the reader's own disc. Three shapes:
+
+*(This paragraph is the analysis before the 2026-10-30 decision to commit the module, and it is kept because the
+reasoning was sound for the rule at the time. The release that shipped does ship a playable `u2port`, and the
+sentence above is no longer true.)*
 
 | shape | what ships | cost | who it helps |
 |---|---|---|---|
@@ -2337,6 +2342,45 @@ container runs `play.sh` like everything else, with `U2_WORK=/build`, so there i
 the logic. The cue bug found on the way is recorded in `tools/port-build.sh`: the kit's reader joins the cue's `FILE`
 path onto the cue's directory, so an absolute path comes out doubled, which is how a port with no disc and no kanji
 font looked like a rendering defect.
+
+**Cut on 2026-10-31, and what the run produced.** `main` fast-forwarded to `72f97c3` and annotated tag `v0.1.0` pushed.
+Run [41175749064](https://github.com/sloppy-seconds/fm-towns-ultima/actions/runs/41175749064) went green first run on
+all three jobs: the image push, the host tarball build, and the release publish. The release is
+<https://github.com/sloppy-seconds/fm-towns-ultima/releases/tag/v0.1.0> with one asset,
+`u2port-linux-x86_64.tar.gz`, 12,894,884 bytes, sha256
+`44f8cdfb8c7d004e50d6799483ef449bf504648e85a41cb8ba8f41f9ae14a752`. That hash is stated three ways and agrees in all
+three: the digest the workflow recorded, the digest GitHub computed for the stored asset, and a fresh `sha256sum` of
+the file downloaded from the release page. The ten files inside are the binary, `play.sh`, three tools, the save disk,
+three licence texts and `README.txt`, and no game file was anywhere in the job.
+
+The published asset was then played rather than trusted: downloaded, unpacked into a Debian trixie container with no
+SDL installed at all, run 120 frames headless against a disc supplied by its owner, and the resulting frame reads as
+the Ultima II copyright screen. That is the same test the local build passed, run against the bytes the world gets.
+
+### 9n. The published image is private, and the release tells people to pull it
+
+**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+
+| field | value |
+|---|---|
+| autonomy | needs Paul. It is a visibility setting on his account's package, not a build problem |
+| done when | either the package is public and an anonymous manifest fetch succeeds, or the release body and `docs/quickstart.md` stop telling readers to pull it and say what to build instead. The failure case: the first thing a visitor follows from the release notes fails with HTTP 401, and they conclude the project is vaporware rather than finding one setting |
+| blocked by | a decision. The command is one line, so the only question is whether the image should be world-readable |
+
+Found while verifying the release, not while reading the docs. `ghcr.io/sloppy-seconds/fm-towns-ultima` exists and both
+tags resolve: `port-v0.1.0` and `port-latest` point at the same `linux/amd64` manifest, four layers, 343.3 MB
+compressed, config digest `sha256:98f875410f8b`. An anonymous token request for `pull` scope returns 401 on the
+manifest, and the package API reports `visibility: private`, while the repository itself is public. Packages created
+by `GITHUB_TOKEN` do not inherit the repository's visibility, so the workflow pushing successfully and the image being
+pullable are two separate facts, and only the first was checked before the tag.
+
+If public is the answer, the setting is one call:
+
+```bash
+gh api -X PATCH /users/sloppy-seconds/packages/container/fm-towns-ultima -F visibility=public
+```
+
+and the check that proves it is an unauthenticated manifest fetch, which is what a stranger's `podman pull` does first.
 
 ### 9g. Cross-compiling for Windows and macOS
 
@@ -2495,6 +2539,11 @@ unreferenced `libSDL3` under `--as-needed` and the gate had nothing to see.
 SDL problem; a Windows cross build changes the toolchain file and the target triple and reuses
 the rest, which is the reason this was done as a separate script rather than inlined into the
 packaging.
+
+**Cut into the release on 2026-10-31.** The CI host job built from the pinned SDL source with a
+cold cache and no game file present, which is the path nobody had walked before the tag, and it
+produced the shipped binary. The local cold-cache simulation of that job was abandoned part way
+once CI itself was the evidence, which is the better witness anyway.
 
 ---
 
