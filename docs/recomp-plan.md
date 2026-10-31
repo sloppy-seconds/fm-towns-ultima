@@ -909,12 +909,34 @@ Set as environment variables. Each exists because something needed it and guessi
 | `--graphics=sdl\|none` | where the picture goes. **Default `sdl`**: a person running the port wants to see it, and the window paces the run from the sound like the kit's own ports do. `none` is pure headless and is what `tools/port-build.sh` and every measurement pass, so a run cannot change according to whether a display is reachable from the shell that started it. A backend is a name rather than a flag because more than one is plausible later: a frame dump, a remote viewer, a comparator against MAME. An unknown name is refused with the list, since a typo would otherwise look like a headless run that drew nothing. If `sdl` cannot open a display it says so and falls back to `none`, because a missing display should cost a picture and not a measurement. |
 | `--frames=N` | stop after N frames. Without it the run ends when the window closes, or when the program returns. |
 | `--scale=N`, `--fullscreen` | the window's integer scale (0 picks the largest that fits) and full screen. |
+| `--control=host:port` or `--control=/path.sock` | the JSON-lines control channel, [phase 10 tier 1](plan.md). Answers one command per line, from inside the frame hook, so a command is only ever handled at a frame boundary and can never see a half-updated machine. Port 0 is allowed and the bound address is printed at startup, which is what makes an ephemeral port usable. **Without the flag nothing in it runs**, and `tools/controltest.py` proves the default path is byte-identical to the published release binary. |
 
 Positional arguments are unchanged: `<ENCHANT.EXP> [frames] <tbios.bin> <disc.cue> [floppy]`. The frame count is
 treated as one only when it is all digits, so `ENCHANT.EXP 600 tbios cue` and `--frames=600 ENCHANT.EXP tbios cue`
 both mean what they look like. The first version of the flag parsing indexed the positionals blindly and, under
 `--frames`, read the TBIOS image as the cue sheet: the machine then reported `TBIOS 110 bytes` and the run was
 meaningless. Deciding by shape rather than by position is what fixed it.
+
+### The control protocol, `--control`
+
+One JSON object per line in, one JSON object per line out, `id` echoed back so a caller can pipeline. A malformed
+line and an unknown command both get `ok:false` with a reason and the connection stays open, because a driver that
+loses its socket over a typo is a driver that sleeps. The protocol version is `1` and `hello` returns it.
+
+| command | reply, beyond `id` and `ok` | |
+|---|---|---|
+| `hello` | `version`, `frame` | the version is the protocol's, not the port's |
+| `ping` | `frame` | the machine's own counter, so two commands answered in one frame are visible as that |
+| `echo` | the caller's own fields back | exercises the parser and the escaper without touching the machine |
+| `quit` | `frame` | acknowledged, then the run ends through the same `Stop` the frame limit uses, exit 0 |
+
+`tools/controltest.py` is the gate on this and it takes two binaries on purpose: it asserts the protocol above, and
+then it asserts that a run **without** `--control` produces the same frame count and a byte-identical framebuffer to
+the published release binary on the same inputs. Both halves of that second assertion were seen to fail on purpose,
+against a reference run one frame short and against a reference that never received the space key, because a
+comparison that has not been seen to fail is a comment. The framebuffer check needed the second of those: at frame 600
+the splash is identical for a build with a font ROM and one without, which made the first attempt at the check
+meaningless and it was widened to a text-bearing frame.
 
 **In the window:** arrows are the Towns pad's directions, X and Z are A and B, Enter is Run, Right Shift or
 Backspace is Select, F11 or Alt+Enter toggles full screen, Tab held runs unpaced, F5/F6/F7 set the CPU rate and

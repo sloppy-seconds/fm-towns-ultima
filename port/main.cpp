@@ -28,12 +28,14 @@
 
 #include "towns.h"
 #include "x86.h"
+#include "control.h"
 #include "towns_sdl.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <memory>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -194,16 +196,23 @@ int main(int argc, char** argv) {
 	bool fullscreen = false;
 	int scale = 0;
 	long frames_flag = -1;
+	std::string control_spec;
 	std::vector<const char*> pos;
 	for (int i = 1; i < argc; ++i) {
 		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
 		else if (!std::strcmp(argv[i], "--fullscreen")) fullscreen = true;
 		else if (!std::strncmp(argv[i], "--scale=", 8)) scale = std::atoi(argv[i] + 8);
 		else if (!std::strncmp(argv[i], "--frames=", 9)) frames_flag = std::atol(argv[i] + 9);
+		else if (!std::strncmp(argv[i], "--control=", 10)) control_spec = argv[i] + 10;
 		else pos.push_back(argv[i]);
 	}
 	if (graphics != "sdl" && graphics != "none") {
 		std::fprintf(stderr, "--graphics=%s: not a backend. This build has: sdl, none\n", graphics.c_str());
+		return 2;
+	}
+	if (!control_spec.empty() && control_spec.find(':') == std::string::npos && control_spec.find('/') == std::string::npos) {
+		std::fprintf(stderr, "--control=%s: want host:port (for example 127.0.0.1:8765) or /path/to.sock\n",
+		              control_spec.c_str());
 		return 2;
 	}
 	bool use_sdl = graphics == "sdl";
@@ -666,6 +675,19 @@ int main(int argc, char** argv) {
 	} else {
 		std::printf("graphics  none\n");
 	}
+	// The control channel, phase 10 tier 1. Opened here and serviced from the frame hook below, never from a thread,
+	// so a command is only ever handled at a frame boundary. Without --control nothing in this block runs.
+	std::unique_ptr<u2ctl::Channel> ctl;
+	if (!control_spec.empty()) {
+		ctl = std::make_unique<u2ctl::Channel>();
+		std::string cerr;
+		if (!ctl->open(control_spec, cerr)) {
+			std::fprintf(stderr, "--control=%s: %s\n", control_spec.c_str(), cerr.c_str());
+			return 2;
+		}
+		std::printf("control   %s\n", ctl->bound().c_str());
+		std::fflush(stdout);
+	}
 	// U2_WATCH=<linear>[:<length>] reports every write into one linear range, with the instruction that made
 	// it. This is the port's answer to a physical MEMW watch on the machine, and one thing it does better:
 	// the machine's page tables move a linear address between physical pages, so a watch armed on a physical
@@ -701,7 +723,7 @@ int main(int argc, char** argv) {
 	// The running cpu, always, not only for the watch: an unknown I/O port is reported with the instruction that
 	// wrote it, and a port number with no caller is a lead that has to be found again by watching.
 	g_x86_cur = &c;
-	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty()) {
+	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty() || ctl) {
 		// The callback is installed when ANY of these needs it. It used to be installed only under a frame limit,
 		// which would have left `--sdl` with no limit showing a frozen window, because the hook that draws it is
 		// this one.
@@ -724,6 +746,43 @@ int main(int argc, char** argv) {
 			for (const PadPress& p : padpresses) {
 				if (p.frame == (long)mm.frame) mm.set_pad(0, p.bits);
 				if (p.frame + p.hold == (long)mm.frame) mm.set_pad(0, 0);
+			}
+			// Control commands, answered between frames. `frame` in every reply is the machine's own counter, so a
+			// caller can tell that two commands were served in the same frame rather than assuming it.
+			if (ctl) {
+				ctl->poll();
+				u2ctl::Command cc;
+				std::string perr;
+				for (;;) {
+					perr.clear();
+					int st = ctl->next(cc, perr);
+					if (st == 0) break;
+					if (st < 0) {
+						ctl->send(u2ctl::error_reply(cc.id, perr));
+						continue;
+					}
+					const std::string fr = "\"frame\":" + std::to_string((unsigned long long)mm.frame);
+					if (cc.cmd == "hello") {
+						ctl->send(u2ctl::ok_reply(cc.id, "\"version\":\"" + std::string(u2ctl::version()) + "\"," + fr));
+					} else if (cc.cmd == "ping") {
+						ctl->send(u2ctl::ok_reply(cc.id, fr));
+					} else if (cc.cmd == "echo") {
+						std::string fields;
+						for (const auto& kv : cc.args) {
+							if (!fields.empty()) fields += ",";
+							std::string k, v;
+							u2ctl::escape(kv.first, k);
+							u2ctl::escape(kv.second, v);
+							fields += "\"" + k + "\":\"" + v + "\"";
+						}
+						ctl->send(u2ctl::ok_reply(cc.id, fields));
+					} else if (cc.cmd == "quit") {
+						ctl->send(u2ctl::ok_reply(cc.id, fr));
+						throw towns::Stop{0};
+					} else {
+						ctl->send(u2ctl::error_reply(cc.id, "unknown cmd '" + cc.cmd + "'"));
+					}
+				}
 			}
 		};
 	}

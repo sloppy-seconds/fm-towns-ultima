@@ -116,7 +116,7 @@ from the items below rather than maintained separately.
 | 9k Mirror the repository and its releases | AUTONOMOUS | **unblocked**, the release exists, and the item now names the exact commit, asset, digest and image manifest to mirror |
 | 9i The tested route, and a list of what is broken | PARTLY AUTONOMOUS | **done**, `docs/port-defects.md`, three observed entries, Paul's play report |
 | 9j A save disk with characters, and where it may live | AUTONOMOUS | **done**, committed as a 3,629-byte zip with the exception narrowed to one filename |
-| 10a The control channel and the frame tap | AUTONOMOUS | **yes**, and everything else in the phase waits on it |
+| 10a The control channel and the frame tap | AUTONOMOUS | **done**, `--control` answers JSON lines from the frame hook, and the default path is byte-identical to the release binary |
 | 10b `key`, through SDL rather than beside it | AUTONOMOUS | no, depends on 10a |
 | 10c `frame` and `wait` | AUTONOMOUS | no, depends on 10a |
 | 10d `shot` over the channel | AUTONOMOUS | no, depends on 10a |
@@ -2618,7 +2618,7 @@ read by a model, and the vision model stays for the questions only it can answer
 
 ### 10a. The control channel and the frame tap
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2632,6 +2632,25 @@ default, because a Unix socket path inside a container volume is a mount argumen
 the bound address on stdout at startup, which is what makes an ephemeral port (`:0`) usable and is also the smoke test
 that the listener exists. Commands are answered when the machine next reaches a frame boundary, so a command can never
 observe a half-updated machine, and that is the whole reason the tap lives in the frame hook rather than on a thread.
+
+**What landed.** `port/control.h` is the channel: a flat JSON parser that refuses anything it does not understand
+rather than half-accepting it, a non-blocking listener accepting one client at a time, and a command queue drained
+from the frame hook. `port/main.cpp` gained `--control=`, the startup line naming the bound address, and the dispatch.
+Commands in this item are `hello`, `ping`, `echo` and `quit`, and the protocol version is `1`. No thread, no new
+link dependency, and nothing at all happens when the flag is absent.
+
+**Measured, and both halves of the equivalence check were seen to fail.** `tools/controltest.py` ran against the
+release binary as the reference: 600 frames, then 1500 with a space at 400, and the frame count matched and the
+framebuffer hash matched (`b07da349b43a` both sides). Pointing the reference at a run one frame short failed the frame
+check (`1500 vs 599`), and pointing it at a run that never received the space key failed the framebuffer check
+(`b07da349b43a` against `c4aca5e1a2da`) while the frame count still matched. That second demonstration mattered:
+at frame 600 the splash is identical with and without a font ROM, so the first version of the comparison could not
+have failed and was widened to a text-bearing frame before it was trusted.
+
+**One bug the protocol test caught on its own.** A malformed line made the dispatch loop treat "bad" and "nothing
+queued" as the same answer, so the bad line was dropped silently and the client hung waiting for a reply that was
+never sent. `Channel::next` now returns three states, and the test's "a malformed line is refused, not fatal" case is
+what found it.
 
 ### 10b. `key`, through SDL rather than beside it
 
