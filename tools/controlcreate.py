@@ -50,12 +50,12 @@ CONFIRM = "7633b81aca2dde28"         # "Create JAMES --Create?  O. K. ? (Y/N)"
 CREATED = "ef14d52f52483d6b"         # final stats, "Press Space"
 REGISTER = "b12305077c9f201a"        # the register, with "4: JAMES   Male   Human   Fighter"
 
-# The route, one entry per key. The digit is 3 and the field lands on entry 4; that off-by-one is a separate open
-# question, recorded in docs/port-defects.md, and not what this test guards.
+# The route, one entry per key. The digit is 4 and it selects entry 4. It used to take 3 to get there, which was a
+# misaligned row in the kit's key table, not a property of the game; see docs/port-defects.md defect 3.
 ROUTE = [
     "space", "Down", "Return",          # splash -> menu -> Generate Character
     "Down", "Return",                   # sub-menu -> Create a Character
-    "3", "Return",                      # entry 4 -> allocation
+    "4", "Return",                      # entry 4 -> allocation
     "Return", "Return", "Return", "Return", "Return", "Return",  # six attributes at the default 10
     "H", "M", "F",                      # Race Human, Sex Male, Type Fighter
     "J", "A", "M", "E", "S",            # name, one key at a time

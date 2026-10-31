@@ -91,10 +91,11 @@ here as a file rather than slipped into the table.
 
 | file | change | why, and where the measurement is |
 |---|---|---|
-| `runtime/towns_sdl.cpp` | `kPcToTowns` indices `0x02` to `0x0B` become `0x02` to `0x0B` instead of zero, which is the digit row `1` to `0` | `patches/fmtownskit-pending-digit-keys.patch`. The zeros meant `towns_key()` returned false for every digit, so no number could reach the game and Ultima II's create-entry prompt could not be answered. `docs/port-defects.md` defect 3 has the queue measurement and the TOWNSEMU enum that fixes the values. |
+| `runtime/towns_sdl.cpp` | `kPcToTowns` indices `0x02` to `0x0B` become `0x02` to `0x0B` instead of zero, which is the digit row `1` to `0`, with `0x01` escape still dropped | `patches/fmtownskit-pending-digit-keys.patch`. The zeros meant `towns_key()` returned false for every digit, so no number could reach the game and Ultima II's create-entry prompt could not be answered. The values were settled on the game's own YELL echo, glyph by glyph, not off a reference enum: `docs/port-defects.md` defect 3 has the queue measurement and the grid, and `tools/controlkeymap.py` re-measures it. |
 
 To land it: `git -C fmtownskit am patches/fmtownskit-pending-digit-keys.patch`, push `mp-support`, point the pin at
 the new commit, regenerate the mirror with `git -C fmtownskit diff $(cat patches/fmtownskit-base.txt) >
 patches/fmtownskit-mp-support.patch`, move the row above into the table, and delete the pending patch. The commit
-already exists locally as `ca99916` on `mp-support` on this machine, so a push may be all that is needed. Until
-then `tools/controlcreate.py` fails by name, which is the intended behaviour and not a broken test.
+already exists locally as `4028a76` on `mp-support` on this machine, so a push may be all that is needed. Until
+then `tools/controlcreate.py` and `tools/controlkeymap.py` fail by name, which is the intended behaviour and not a
+broken test.
