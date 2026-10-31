@@ -1086,6 +1086,70 @@ int main(int argc, char** argv) {
 							continue;
 						}
 						ctl->send(shot_reply(want_path, cc.id, rgb, w, h, (long)mm.frame));
+					} else if (cc.cmd == "state") {
+						// The roster is plain ASCII on the emulated floppy, so `state` is a reader rather than a
+						// decoder, and it reads the same image the guest is writing through. Slot numbering follows
+						// tools/savedisk.js: in-game slot 1 is the roster's "(0)", and the test asserts the two agree
+						// field for field so neither parser can drift alone.
+						long slot = 0;
+						if (auto it2 = cc.args.find("slot"); it2 != cc.args.end()) slot = std::strtol(it2->second.c_str(), nullptr, 10);
+						u2floppy::Image disk;
+						if (!disk.open(floppy_path)) {
+							ctl->send(u2ctl::error_reply(cc.id, std::string("cannot open the floppy image ") + floppy_path));
+							continue;
+						}
+						std::vector<uint8_t> raw;
+						if (!disk.read("ROSTER1.UT2", raw) || raw.empty()) {
+							ctl->send(u2ctl::error_reply(cc.id, "no ROSTER1.UT2 on the floppy, so there is no party to report"));
+							continue;
+						}
+						if (slot < 0 || slot > 3) {
+							ctl->send(u2ctl::error_reply(cc.id, "slot must be 0 to 3"));
+							continue;
+						}
+						std::string text(raw.begin(), raw.end());
+						const std::string tag = "(" + std::to_string(slot) + ")NAME=";
+						size_t at = text.find(tag);
+						if (at == std::string::npos) {
+							ctl->send(u2ctl::error_reply(cc.id, "slot " + std::to_string(slot) + " is not in the roster"));
+							continue;
+						}
+						size_t end = text.find("(NAME=", at + 1);
+						for (size_t k = 0; k < 4; ++k) {
+							std::string nxt = "(" + std::to_string(k) + ")NAME=";
+							if (k == (size_t)slot) continue;
+							size_t p = text.find(nxt, at + 1);
+							if (p != std::string::npos && (end == std::string::npos || p < end)) end = p;
+						}
+						if (end == std::string::npos) end = text.size();
+						std::string body = text.substr(at, end - at);
+						// The slot's fields, split on CR or LF, kept in file order so a reader sees the roster's own
+						// arrangement rather than an alphabetical one.
+						std::string out;
+						size_t i = 0;
+						bool first = true;
+						while (i < body.size()) {
+							size_t nl = body.find_first_of("\r\n", i);
+							std::string line = body.substr(i, nl == std::string::npos ? std::string::npos : nl - i);
+							i = (nl == std::string::npos) ? body.size() : nl + 1;
+							size_t eq = line.find('=');
+							if (eq == std::string::npos) continue;
+							std::string key = line.substr(0, eq), val = line.substr(eq + 1);
+							if (!key.compare(0, 1, "(")) {
+								size_t close = key.find(')');
+								if (close != std::string::npos) key = key.substr(close + 1);
+							}
+							if (key.empty()) continue;
+							std::string ek, ev;
+							u2ctl::escape(key, ek);
+							u2ctl::escape(val, ev);
+							out += std::string(first ? "" : ",") + "\"" + ek + "\":\"" + ev + "\"";
+							first = false;
+						}
+						ctl->send(u2ctl::ok_reply(cc.id,
+						                            "\"slot\":" + std::to_string(slot) + ",\"disk\":"
+						                                    + std::to_string((unsigned long long)raw.size()) + "," + out + ","
+						                                    + fr));
 					} else if (cc.cmd == "quit") {
 						ctl->send(u2ctl::ok_reply(cc.id, fr));
 						throw towns::Stop{0};

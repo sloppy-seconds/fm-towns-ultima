@@ -121,7 +121,7 @@ from the items below rather than maintained separately.
 | 10c `frame` and `wait` | AUTONOMOUS | **done**, exact stepping, waits that time out, and two runs to the same frame give the same framebuffer |
 | 10d `shot` over the channel | AUTONOMOUS | **done**, byte-identical to `U2_SHOT` at the same frame, with no display server |
 | 10e `mem`, a raw read by `seg:off` | AUTONOMOUS | **done**, image bytes match the file and segment resolution is proved; the peek.js comparison was replaced, and the plan says why |
-| 10f `state`, the roster and world parsed for the caller | AUTONOMOUS | no, depends on 10a |
+| 10f `state`, the roster and world parsed for the caller | AUTONOMOUS | **done**, three characters named and every compared field agrees with `savedisk.js` |
 | 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
 | 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
 | 8a Per-module `--no-code` ranges | AUTONOMOUS | **done**, one pass and identical counts |
@@ -2792,6 +2792,12 @@ Weaker than the original wording in one respect: HP, level, gold and position ar
 against the emulator. That comparison belongs to `state` (10f), which has an independent source it can actually reach,
 namely the save file.
 
+**Corrected the same day.** The sentence above was written before `state` existed, and it was too pessimistic. Once the
+roster was being read, the HP comparison the item had asked for became available with the save file as the source
+instead of the emulator: `mem` at the image base plus `0xcde81` returns 382, and the roster's `HP` for the character on
+the disk is 382. The earlier 382-against-20 failure was the test comparing against `STAMINA` while the fieldmap names
+`HP`, and the fieldmap was right.
+
 **A wrong assumption caught on the way.** The first version hardcoded `0xcde81` and compared the result to the roster's
 `STAMINA=20`. It read 382. Two errors were stacked there: the fieldmap address is relative to the image base, which
 the port prints rather than fixes (`program 1071886 bytes at linear 0x400000`), and the frame-paced route does not land
@@ -2800,7 +2806,7 @@ path. Both are now derived instead of assumed, and the roster comparison moved t
 
 ### 10f. `state`, the roster and world parsed for the caller
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
@@ -2808,6 +2814,18 @@ path. Both are now derived instead of assumed, and the roster comparison moved t
 | depends on | 10a |
 | done when | `state` returns party, position, gold and inventory for the save disk the repository ships, naming the three characters on it, and the numbers agree with `tools/savedisk.js` run over the same image. The failure case: a parser that duplicates `savedisk.js` and drifts from it, which is why the acceptance is an agreement test and not a printout |
 | blocked by | nothing beyond 10a |
+
+**What landed.** `state` reads `ROSTER1.UT2` through the port's own `u2floppy::Image`, splits the slot at the
+`(N)NAME=` markers the roster uses, and returns every field the roster spells, in file order: `NAME`, `HP`, `MHP`,
+`GOLD`, `FOOD`, `EXPERIENCE`, the six attributes, `PLAYER_X`, `PLAYER_Y`, `MAP`, `WORLD`, `SURFACE`, the dungeon and
+gate coordinates, and the inventory flags (`ANKH`, `DAGGER`, `RED_GEM`, `TRI_LITHIUM` and the rest). Slot numbering
+follows `savedisk.js`, so in-game slot 1 is the roster's `(0)`.
+
+**Measured as an agreement, not a printout.** For each of the three characters on the shipped disk, the port's reader
+and `tools/savedisk.js` were run over the same image and compared field for field on `NAME`, `HP`, `MHP`, `GOLD`,
+`PLAYER_X`, `PLAYER_Y` and `STRENGTH`. All three agree, and the names come back as `E`, `D` and `B`. A slot outside the
+roster is refused with a reason. That is the failure case the item named: two parsers that drift would show up here and
+nowhere else, because everything else in the port reads bytes rather than the roster.
 
 ### 10g. Tier 2, the MCP wrapper
 

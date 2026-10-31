@@ -281,6 +281,35 @@ def counter_frame(s, counter):
     return r.get("frame", 0)
 
 
+def roster_fields(slot):
+    """The slot's fields as tools/savedisk.js reads them, which is a second parser over the same bytes and the
+    independent source `state` is checked against. The test is run from the repository root, so the relative path
+    is the one the other tools use."""
+    out = subprocess.run(["node", "tools/savedisk.js", "cat", args.disk, "ROSTER1.UT2"],
+                         capture_output=True, text=True, timeout=180)
+    text = out.stdout.replace("\r", "")
+    tag = f"({slot})NAME="
+    at = text.find(tag)
+    if at < 0:
+        return {}
+    nxt = len(text)
+    for k in range(4):
+        if k == slot:
+            continue
+        p = text.find(f"({k})NAME=")
+        if p >= 0 and p > at:
+            nxt = min(nxt, p)
+    fields = {}
+    for line in text[at:nxt].split("\n"):
+        if "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        if k.startswith("(") and ")" in k:
+            k = k.split(")", 1)[1]
+        fields[k] = v
+    return fields
+
+
 def reads_checks():
     """`mem` and `shot`, checked against things outside the port.
 
@@ -339,8 +368,31 @@ def reads_checks():
           f"{bb[:16]}... vs {ab[:16]}...")
 
     r = call(s, counter, {"cmd": "mem", "addr": hex(base + 0xCDE81), "n": 2})
+    hp_read = int.from_bytes(bytes.fromhex(r.get("hex", "0000"))[:2], "little") if r.get("ok") else -1
     check("a small read at the record address returns the requested length", r.get("ok") and len(r.get("hex", "")) == 4,
           json.dumps(r)[:80])
+
+    # The field-for-field check the plan asked for, with the save file as the independent source. docs/
+    # live-fieldmap.md puts HP at 0xcde81 relative to the image base, and the roster records HP for the character
+    # on the disk, so the two have to agree. The first attempt compared against STAMINA and read 382 against 20;
+    # 382 is HP, the fieldmap was right and the test was wrong.
+    roster = roster_fields(0)
+    check("mem at the documented HP address equals the roster's HP", hp_read == int(roster.get("HP", -1)),
+          f"mem {hp_read}, roster HP {roster.get('HP')}")
+
+    # `state`: the port's own roster reader against tools/savedisk.js's, over the same image.
+    for slot, want_name in ((0, "E"), (1, "D"), (2, "B")):
+        r = call(s, counter, {"cmd": "state", "slot": slot})
+        rf = roster_fields(slot)
+        check(f"state slot {slot} names the character the disk holds", r.get("ok") and r.get("NAME") == want_name,
+              f"{r.get('NAME')} vs {want_name}")
+        keys = ("NAME", "HP", "MHP", "GOLD", "PLAYER_X", "PLAYER_Y", "STRENGTH")
+        agree = all(str(r.get(k)) == str(rf.get(k)) for k in keys)
+        check(f"state slot {slot} agrees with savedisk.js field for field", agree,
+              "" if agree else f"port {[(k, r.get(k)) for k in keys]} vs disk {[(k, rf.get(k)) for k in keys]}")
+
+    r = call(s, counter, {"cmd": "state", "slot": 9})
+    check("a slot outside the roster is refused", r.get("ok") is False, json.dumps(r)[:80])
 
     refshot = os.path.join(args.work, "shot-ref.png")
     p2, s2, logf2, _ = spawn(600, shot=refshot)
