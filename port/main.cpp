@@ -214,6 +214,10 @@ int main(int argc, char** argv) {
 	// The save disk takes writes by default, because a created character that cannot be saved does not exist. The
 	// flag is the escape hatch for a run that must not touch an image, and it is what the older guardrail was.
 	bool read_only_disk = false;
+	// The turn-boundary key clear is on by default, because the machine this reproduces does not carry input
+	// across a turn (docs/port-defects.md). This flag turns it off, which keeps the old queueing behaviour
+	// available and is what a test uses to prove the clear is what changed.
+	bool key_queue_ok = false;
 	std::vector<const char*> pos;
 	for (int i = 1; i < argc; ++i) {
 		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
@@ -222,6 +226,7 @@ int main(int argc, char** argv) {
 		else if (!std::strncmp(argv[i], "--frames=", 9)) frames_flag = std::atol(argv[i] + 9);
 		else if (!std::strncmp(argv[i], "--control=", 10)) control_spec = argv[i] + 10;
 		else if (!std::strcmp(argv[i], "--read-only-disk")) read_only_disk = true;
+		else if (!std::strcmp(argv[i], "--allow-key-queue")) key_queue_ok = true;
 		else pos.push_back(argv[i]);
 	}
 	if (graphics != "sdl" && graphics != "none") {
@@ -842,6 +847,31 @@ int main(int argc, char** argv) {
 	};
 
 	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty() || ctl) {
+		// The last value of the turn clock at 0xcdf53, and whether it has been read yet.
+		uint32_t turn_clock_last = 0;
+		bool turn_clock_seen = false;
+		// THE TURN BOUNDARY. The machine this port reproduces does not carry input across a turn: a direction
+		// pressed twice quickly acts once, because the second press arrives while the first turn is running and
+		// the guest is not asking for a key. Measured against Tsugaru on 2026-11-01 and recorded in
+		// docs/port-defects.md.
+		//
+		// 0xcdf53 counts turns: it advances by exactly one per completed command, for moves, attacks, P)ass,
+		// L)ook and inventory alike, and does not advance for keys typed into a modal prompt such as the YELL
+		// line. When the guest asks for a key and that clock has moved since the last key it took, the turn that
+		// was running has ended, so anything still queued arrived during it and is dropped.
+		//
+		// This runs at the serve, not at vsync. A vsync check looks equivalent and is not: the guest consumes
+		// another key before the next vsync arrives, so eight queued presses cost two turns instead of one.
+		//
+		// A command that takes two keys is unaffected: "A" does not complete a turn on its own, so the clock has
+		// not moved when the direction arrives and both keys are used.
+		m.before_key_served = [&]() {
+			uint32_t turn_now = 0;
+			m.read_block(0x400000u + 0xCDF53u, reinterpret_cast<uint8_t*>(&turn_now), 4);
+			if (turn_clock_seen && turn_now != turn_clock_last && !key_queue_ok) m.clear_keys();
+			turn_clock_last = turn_now;
+			turn_clock_seen = true;
+		};
 		// The callback is installed when ANY of these needs it. It used to be installed only under a frame limit,
 		// which would have left `--sdl` with no limit showing a frozen window, because the hook that draws it is
 		// this one.
@@ -858,6 +888,8 @@ int main(int argc, char** argv) {
 			}
 			for (const KeyPress& k : keypresses)
 				if (k.frame == (long)mm.frame) mm.press_key(k.scan, k.ascii);
+			// THE TURN BOUNDARY is handled in the on_key_served hook below, at the moment the guest asks for a
+			// key, because a vsync-rate check is one frame late and lets a second command through.
 			// The pad is level-sensitive rather than a queue: it is set for the frames asked for and cleared after
 			// the hold, because a held direction is what the game polls and a press that never clears reads as a
 			// direction held down for ever.

@@ -407,7 +407,7 @@ index da2a0d6..2b76dcf 100644
      if a.functions:
          print(' '.join('%x' % f for f in sorted(p.functions)))
 diff --git a/runtime/towns.h b/runtime/towns.h
-index 08029b9..f3601ee 100644
+index 08029b9..e0d9e5d 100644
 --- a/runtime/towns.h
 +++ b/runtime/towns.h
 @@ -139,6 +139,7 @@ public:
@@ -431,7 +431,7 @@ index 08029b9..f3601ee 100644
      std::vector<Handle> handles = std::vector<Handle>(32);
      uint32_t dta = 0, dta_off = 0;      // the disk transfer area (1Ah), linear, and as DS:EDX gave it
      uint16_t dta_sel = 0;
-@@ -255,6 +260,13 @@ public:
+@@ -255,6 +260,23 @@ public:
      void int93(X86Cpu& c, uint32_t eax, uint32_t& ret_eax, uint32_t buf);
      bool cd_paused = false;
      void int90(X86Cpu& c);              // the keyboard BIOS (KYB_*), as FORRBIOS.NSD answers it
@@ -439,13 +439,23 @@ index 08029b9..f3601ee 100644
 +    // pressed, so KYB_read (AH=09h) answered "none" unconditionally and a program waiting for a key waited
 +    // for ever. The pair is (scan code, ASCII), and the measured contract is in towns_dos.cpp's int90.
 +    void press_key(uint8_t scan, uint8_t ascii);
++    // Drop everything still pending. The machine this emulates does not queue input across a turn: pressing
++    // a direction twice quickly acts once, because the second press arrives while the first turn is running
++    // and the guest is not asking for a key. Measured against Tsugaru 2026-11-01 and recorded in
++    // docs/port-defects.md. A caller that can see a turn boundary uses this to reproduce that.
++    void clear_keys() { keys.clear(); }
++    // Called BEFORE the guest is given a key, from inside the KYB_read handler. A caller that can see a turn
++    // boundary uses it to drop what is still pending, so a press that arrived during the turn just ended is
++    // never served. It has to be before the serve rather than after: after, the guest has already taken the
++    // next key and that key acts, which makes eight queued presses cost two turns instead of one.
++    std::function<void()> before_key_served;
 +    struct Key { uint8_t scan, ascii; };
 +    std::vector<Key> keys;              // pending presses, served in order by KYB_read
 +    unsigned long keys_served = 0;      // how many KYB_read calls took one, for reports
      void int8e(X86Cpu& c);              // KimG (the kanji input manager), as FORRBIOS.NSD answers it
      void intfd(X86Cpu& c);
      // the timer BIOS, int 97h (the ROM's, which FORRBIOS.NSD hands protected-mode calls to; read
-@@ -273,6 +285,7 @@ public:
+@@ -273,6 +295,7 @@ public:
      // tracing
      bool trace_io = false, trace_int = false;
      std::vector<uint8_t> font;          // FMT_FNT.ROM if given (not needed so far)
@@ -672,7 +682,7 @@ index 4d13162..a91e9f7 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..dfe62d9 100644
+index 629a87e..5d4fceb 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,6 +35,29 @@ static int new_handle(Machine& m) {
@@ -846,19 +856,22 @@ index 629a87e..dfe62d9 100644
          char why[64];
          std::snprintf(why, sizeof why, "int 93h AX=%04Xh: not the CD", eax & 0xFFFF);
          x86_fault(c, c.eip, why);
-@@ -522,6 +647,11 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -522,6 +647,14 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      x86_fault(c, c.eip, why);
  }
  
 +// The keyboard, as a port drives it. One queue, served in order, so a sequence of presses reads back in the order
 +// the program asked for them. Nothing else consumes it: this is not a keyboard driver, it is the minimum that lets
 +// a program waiting for a key proceed, and the measured contract is in int90's case 0x09.
++//
++// clear_keys lives in the header, next to the queue it empties. It exists because the machine does not carry
++// input across a turn, which a caller with a turn boundary can reproduce.
 +void Machine::press_key(uint8_t scan, uint8_t ascii) { keys.push_back(Key{scan, ascii}); }
 +
  // The keyboard BIOS, int 90h, as FORRBIOS.NSD answers it in protected mode (the program
  // pushes "DOSX" "BIOS" before each call): read on the oracle (tools/oracle.py --trace-calls at
  // each int and the instruction after it) with no key ever pressed -- AH 0 for every function,
-@@ -531,11 +661,33 @@ void Machine::int90(X86Cpu& c) {
+@@ -531,11 +664,35 @@ void Machine::int90(X86Cpu& c) {
      uint8_t ah = (c.r[0] >> 8) & 0xFF;
      if (trace_int) std::fprintf(stderr, "int 90h AX=%04X EBX=%08X ECX=%08X EDX=%08X\n", c.r[0] & 0xFFFF, c.r[3], c.r[1], c.r[2]);
      switch (ah) {
@@ -882,6 +895,8 @@ index 629a87e..dfe62d9 100644
 +        // and with no key, BX = 0xFF00 and DX = 0xFFFF, which is what the recordings showed. ENCHANT tests
 +        // `(BX & 0xFF00) == 0xFF00` for "none", then indexes a 114-entry table with `(BX >> 8) - 1`, so it reads
 +        // the SCAN CODE and DX is a convenience.
++        // Before anything is served, let a caller that can see a turn boundary drop what is left over.
++        if (before_key_served) before_key_served();
 +        if (!keys.empty()) {
 +            Key k = keys.front();
 +            keys.erase(keys.begin());

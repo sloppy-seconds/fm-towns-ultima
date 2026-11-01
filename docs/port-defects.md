@@ -275,7 +275,14 @@ tiles long and walked back between trials so a trial could not reach a wall:
 
 Eight presses 30 ms apart gave 8 of 8.
 
-**Verdict: refuted.** The machine buffers at least eight fast presses, so it does not limit input to one action per
+**SUPERSEDED, and the verdict below was wrong.** Everything in the table above and the verdict that follows rested on
+an assumption that was never checked: that the "gap" between keys was the gap asked for. It was not. Each key costs
+an `xdotool` invocation, and timing the injection shows **170 ms per key**. So every gap in that table, including the
+"10 ms" row, was really about 170 ms, and at 170 ms each press falls in its own turn. The table measured that turns
+are shorter than 170 ms, and nothing at all about buffering. See "The turn boundary" below for the corrected
+measurement and the fix. The wrong verdict is left in place because deleting it would hide how it was reached.
+
+**Verdict as originally recorded: refuted.** The machine buffers at least eight fast presses, so it does not limit input to one action per
 turn, and the port is faithful at every speed a person can type. Two caveats stated rather than smoothed. At 10 ms
 apart one press was lost, and that may be the game or may be `xdotool` coalescing at the X server, so it is not
 evidence either way. The depth above eight is unmeasured.
@@ -288,6 +295,49 @@ press are the same reading until the corridor is proven long enough to hold the 
 **A real bug found on the way, and not the cause.** `int 90h AH=06`, the keyboard clear, is a no-op stub in the kit
 (`case 0x00: case 0x01: case 0x02: case 0x05: case 0x06: break;`). Ultima II never calls it, so it cannot produce
 this report, but a program that does call it will not get a cleared buffer.
+
+## The turn boundary, measured properly
+
+**This is defect 4, and it was found by Paul playing the machine rather than by any tool here.** Pressing a direction
+repeatedly on the real machine acts once and then waits. On the port, the same presses all happened, because the
+port's keyboard queue holds every press and the guest serves one per turn.
+
+**The measurement that settles it.** Injecting 30 `P)ass` keys as fast as the supervisor can, timing the injection:
+
+```
+injected 30 P)ass in 5097 ms  (169.9 ms per key)
+t+1s  450 food dropped = 30.0 turns
+t+2s    0 dropped
+t+3s    0 dropped   ... and nothing after that
+```
+
+Thirty keys, thirty turns, and **nothing draining afterwards**. A queue would have kept ticking after the last key.
+So the machine carries no input across a turn: a press that arrives while a turn is running is not buffered, and
+the reason a human never notices is that a turn is shorter than the interval between two human keystrokes.
+
+Before that run, three controls had to pass, because the previous attempt measured a machine that was still
+consuming food with no input at all: peek could read the record, food was stable over ten seconds of no input, and
+one `P)ass` cost exactly 15. A measurement against an environment nobody checked is how the wrong verdict above
+happened.
+
+**The fix, and why it is not a divergence.** `0xcdf53` counts turns: it advances by exactly one per completed command
+(moves, attacks, `P)ass`, `L)ook` and inventory alike) and does not advance for keys typed into a modal prompt such as
+the YELL line. The port now drops what is still queued when that clock has moved and the guest asks for a key, which
+is the machine's own rule rather than a rule of ours. Measured, `tools/controlturn.py`:
+
+| case | turns | keys used |
+|---|---|---|
+| eight `P)ass` in one frame | **1** | 1 |
+| eight `P)ass` with `--allow-key-queue` | 8 | 8 |
+| `A` then a direction | **1** | **2** |
+
+The third row is why the check happens before the key is served rather than after. `A` does not complete a turn on
+its own, so the clock has not moved when the direction arrives and both keys are used. A one-key-per-turn rule would
+have broken attacking, which is the thing the whole change exists to improve.
+
+Two false starts are worth recording. Clearing at vsync, and checking after the serve, both gave **two** turns for
+eight presses: in each case the guest had already taken the next key before the port could react. Only checking
+before the serve gives one.
 
 ## What would settle what is left
 
