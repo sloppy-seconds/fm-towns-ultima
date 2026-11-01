@@ -44,9 +44,9 @@ is fine.
 One command. It builds the port from the recompiled module that is committed in `module/`,
 so there is no recompile, no container and no toolkit needed, and it fetches the font ROM
 if you have not. At the game menu pick *Journey Onward* and a character that already
-exists: character creation does not work yet, and `Esc` or `Q` ends the run,
-so read **[what is broken](docs/port-defects.md)** first. From the zip to a built binary
-by hand: **[build the port from source](docs/port-from-source.md)**.
+exists, or *Generate Character* to make one, which works and persists to the save disk.
+`Ctrl-Q` or closing the window ends the run. Read **[what is broken](docs/port-defects.md)**
+first. From the zip to a built binary by hand: **[build the port from source](docs/port-from-source.md)**.
 
 ## Play the original, in a browser
 
@@ -256,10 +256,11 @@ The C++ reimplementation plays this game. It is the recompiled 386 code running 
 the toolkit's FM Towns machine, not the emulator, and it boots through the splash,
 the game menu and into the overworld on its own.
 
-**It is early and buggy.** Character creation does not work, so at the game menu pick
-*Journey Onward* and a character that already exists, and expect `Esc` or `Q` to end
-the run. The tested route, and every known defect with the observation that found it,
-is [what is broken in the port](docs/port-defects.md).
+**It is early and buggy.** Character creation works and the save disk is writable, so a
+character you make persists. At the game menu pick *Journey Onward* for one that already
+exists, or *Generate Character* to make one. `Ctrl-Q` or closing the window ends the run.
+The tested route, and every known defect with the observation that found it, is
+[what is broken in the port](docs/port-defects.md).
 
 The simplest route is native, and it needs no container. The recompiled module is committed
 in `module/`, so there is nothing to recompile:

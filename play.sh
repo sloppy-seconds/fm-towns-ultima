@@ -26,10 +26,18 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The default game location, in the order a reader is likely to have it: the ./game/ directory this script names,
 # or the repository directory itself, which is where every other page in this project says to unpack the zip.
 if [[ -d "$ROOT/game" ]]; then GAME="$ROOT/game"; else GAME="$ROOT"; fi
-DISK="$ROOT/saves/userdisk.hdm"
 # U2_WORK lets a container point the build and the extracted files somewhere writable while the project itself is
 # mounted read-only. tools/x-run.sh uses it for exactly that.
 WORK="${U2_WORK:-$ROOT/build/play}"
+# The save disk has to live somewhere the tree can write, and in a container that is not beside the repository. The
+# port opens this image for writing by default, so putting it on a read-only mount makes a created character fail to
+# persist with no error that names the cause. The font ROM block further down has guarded against exactly this since
+# it was written. The disk default did not, which is why tools/x-run.sh needed a flag to work at all.
+if [[ -w "$ROOT/saves" ]]; then
+	DISK="$ROOT/saves/userdisk.hdm"
+else
+	DISK="$WORK/userdisk.hdm"
+fi
 HEADLESS=0
 REBUILD=0
 FRAMES=120
@@ -107,10 +115,20 @@ else
 fi
 [[ -f "$ROOT/vendor/roms/FMT_F20.ROM" ]] && export U2_FONT20="$ROOT/vendor/roms/FMT_F20.ROM"
 
-# 5. A floppy with a character on it, because character creation does not work yet (docs/port-defects.md).
+# 5. A floppy with characters on it. Character creation works now, and the disk is writable by default, so this is
+#    an image a run can actually save onto. It is unpacked from the repository's own copy rather than fetched, and it
+#    goes beside $DISK, which is under build/play when the tree is read-only. A missing image is not fatal: the A:
+#    probe fails and the program shows its insert-a-disk prompt instead of the title.
 if [[ ! -f "$DISK" ]]; then
-	mkdir -p "$ROOT/saves"
-	unzip -o -q "$ROOT/assets/save-disk/userdisk.hdm.zip" -d "$ROOT/saves"
+	DISK_DIR="$(dirname "$DISK")"
+	mkdir -p "$DISK_DIR"
+	# unzip is absent from the small container image, and one zip holding one file does not justify enlarging it.
+	if command -v unzip >/dev/null 2>&1; then
+		unzip -o -q "$ROOT/assets/save-disk/userdisk.hdm.zip" -d "$DISK_DIR"
+	else
+		python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
+			"$ROOT/assets/save-disk/userdisk.hdm.zip" "$DISK_DIR"
+	fi
 	echo "save disk unpacked to $DISK (in-game slot 1 is E)"
 fi
 echo "save disk $DISK"
@@ -176,7 +194,8 @@ if [[ $HEADLESS -eq 1 ]]; then
 	# shellcheck disable=SC2086
 	U2_SHOT="$SHOT" exec "$PORT_BIN" --graphics=none --frames="$FRAMES" ${U2_ARGS:-} "$PROG" "$TB" "$CUE" "$DISK"
 fi
-echo "playing   at the game menu pick Journey Onward and a character that already exists."
-echo "          Character creation does not work yet, and Esc or Q ends the run: docs/port-defects.md"
+echo "playing   at the game menu pick Journey Onward, or Generate Character to make one."
+echo "          The save disk at $DISK is writable, so a created character persists."
+echo "          Ctrl-Q or closing the window ends the run. Known bugs: docs/port-defects.md"
 # shellcheck disable=SC2086
 exec "$PORT_BIN" --graphics=sdl ${U2_ARGS:-} "$PROG" "$TB" "$CUE" "$DISK"

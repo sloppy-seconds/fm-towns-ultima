@@ -158,15 +158,17 @@ distro has none. It extracts what it needs from your disc into
 if you have none. A published release ships the same binary already built, with SDL linked
 in and no compiler needed at all.
 
-**The port is early and buggy, and the route matters.** Character creation does not
-work, so `Generate Character` is a dead end even though the menu offers it. The route
-that has actually been played:
+**The port is early and buggy, and the route matters.** Character creation works, and the
+save disk is writable, so a character you make persists. The route that has actually been
+played:
 
 1. Press space through the splash to the game menu.
-2. `Journey Onward`.
-3. Pick a character that already exists. In-game slot 1 is `E`.
+2. `Journey Onward` to play one that already exists. In-game slot 1 is `E`.
+3. Or `Generate Character` to make one. Pick an entry number `1` to `4`, then allocate the
+   attributes, then race, sex, type and name. It is written to the save disk when you quit.
 
-`Esc` and `Q` end the run abnormally. Every known defect, with the observation that
+`Ctrl-Q` or closing the window ends the run. `Esc` no longer quits, because it is too easy
+to press by accident. Every known defect, with the observation that
 found it, is in [what is broken in the port](port-defects.md). To recompile the module from
 your own disc rather than use the committed one, see
 [building the port from the download](port-from-source.md).

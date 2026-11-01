@@ -20,7 +20,10 @@
 #   XWEB        noVNC browser port        (default 6081, so it does not collide with the emulator's 6080)
 #   XVNC        raw VNC port              (default 5901)
 #   RESOLUTION  Xvfb geometry             (default 1024x768x24)
-#   ARGS        arguments for the port    (default: none)
+#   ARGS        arguments for the port binary, which is where U2_ARGS ends up (default: none)
+#   PLAY_ARGS   arguments for play.sh itself: --disk, --headless, --rebuild. These are play.sh's own flags and
+#               putting them in ARGS sends them to the port, which answers "cannot read the executable" and stops.
+#               They were unreachable from here before, so a container could not choose its save disk at all.
 #   NOBUILD=1   accepted and ignored. play.sh already rebuilds only when the binary is missing, and --rebuild is
 #               the way to force it. The flag stays so old invocations do not break.
 #   IMAGE       the image to use      (default u2-x, built locally from container/Containerfile.x). Point it at
@@ -41,6 +44,7 @@ XWEB="${XWEB:-6081}"
 XVNC="${XVNC:-5901}"
 RESOLUTION="${RESOLUTION:-1024x768x24}"
 ARGS="${ARGS:-}"
+PLAY_ARGS="${PLAY_ARGS:-}"
 VOLUME="${VOLUME:-u2-x-build}"
 
 die() { echo "$*" >&2; exit 1; }
@@ -68,7 +72,7 @@ do_build() {
 # container just started. U2_WORK points its working files at the writable volume, because /src is mounted read-only
 # on purpose and nothing here should land in the working tree as root-owned.
 session_cmd() {
-	printf 'set -e\nU2_WORK=/build U2_ARGS="%s" /src/play.sh\n' "$ARGS"
+	printf 'set -e\nU2_WORK=/build U2_ARGS="%s" /src/play.sh %s\n' "$ARGS" "$PLAY_ARGS"
 }
 
 do_start() {

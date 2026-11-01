@@ -682,7 +682,7 @@ int main(int argc, char** argv) {
 		std::string err;
 		if (host.open(o, err)) {
 			host.on_key = [&m](uint8_t scan, uint8_t ascii) { m.press_key(scan, ascii); };
-			std::printf("graphics  sdl, window open, Escape closes it and ends the run\n");
+			std::printf("graphics  sdl, window open, Ctrl-Q or closing the window ends the run\n");
 		} else {
 			// A display that is missing costs a picture and not a measurement, so this falls back rather than
 			// refusing. It says so, because "the window did not open" and "the window opened and showed nothing"
