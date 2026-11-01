@@ -89,6 +89,7 @@ nav:
       - What the 0xEB runs are: eb-corpus.md
       - Overnight queue: overnight.md
       - Overnight report: overnight-report.md
+      - Overnight campaign, attribution: overnight-findings.md
       - The 0xEB encoding: eb-encoding.md
       - What renders 0xEB: eb-renderer.md
       - The call graph: call-graph.md
