@@ -71,11 +71,35 @@ document split from hiding the coupling between the two build efforts.
 | `addr`, `size` | file offsets, size asserted not inferred | attribution |
 | `module` | `ENCHANT` or `TBIOS` | attribution |
 | `attribution` | the six states below | attribution |
+| `confidence` | `proven`, `probable`, `unknown` | attribution |
 | `cluster` | the feature-vector group id, or `none` | attribution |
 | `recomp` | `compiled`, `refused`, `not-attempted` | recomp |
 | `port-coverage` | `reached`, `never-reached`, `coverage-hole` | port |
 | `indirect` | `resolved`, `unresolved`, `n-a` | attribution |
 | `notes` | one line, with the command that produced it | anyone |
+
+### `confidence` exists because an attribution state is not a degree of belief
+
+The state column says what kind of claim is being made. It does not say how strong the evidence is, and one
+state can be reached two ways: `hand-asm-positive` from a quoted idiom that the atlas excluded across 40
+probes is a different claim from `hand-asm-positive` from a single census count that nothing has cross-checked.
+Flattening those into one word is how a probable finding gets read as a proven one.
+
+| value | means | what earns it |
+|---|---|---|
+| `proven` | the bytes are settled | a byte-identical match under the equivalence rule, or positive exclusion evidence whose provoking probe is named |
+| `probable` | the evidence points one way and has not been confirmed | positive evidence, named, that has not been reproduced or cross-checked. One signal only |
+| `unknown` | nobody knows | the default, and it must be written rather than left blank |
+
+**A non-`unknown` row must name its evidence in `notes`, with the command.** A `probable` row must say how many
+independent signals support it, because that number is the whole difference between the two values.
+
+**Worked example, because "probable" is easy to hand out.** Item 0c's census found 41 functions that zero a
+register with `xor reg,reg`, which the atlas never emits even for `a ^= a` (probes A33 and A40 both refused).
+That is one signal, from one instrument, against a probe corpus that was wrong about three other claims in the
+same session. So those 41 are `hand-asm-positive` at `probable`, not `proven`, and the note has to say "one
+signal, xor-zeroing, atlas probes A33 and A40, not cross-checked by a second method". A second independent
+signal would move them; a second run of the same census would not.
 
 ### The attribution states
 
@@ -222,7 +246,7 @@ neither may write a state it has not earned.
 |---|---|
 | autonomy | autonomous. It builds on 0c, which is done |
 | depends on | nothing. 0c is finished, so the dependency is discharged and this is startable |
-| done when | a generated ledger covering all 818 game functions with every column populated or explicitly `n-a`, a `verify.js` assertion that no row carries `hand-asm-positive` without a quoted excluding idiom, and a count of rows still `unattributed` reported in the open. The failure case: a ledger where every row has a state and none of them has evidence attached, which is the confident sentence with no command behind it |
+| done when | a generated ledger covering all 818 game functions with every column populated or explicitly `n-a`, including `confidence`; a `verify.js` assertion that no row carries `hand-asm-positive` without a quoted excluding idiom, and that no row carries `proven` or `probable` without an evidence line in `notes`; and a count of rows still `unattributed` reported in the open. The failure case: a ledger where every row has a state and none of them has evidence attached, which is the confident sentence with no command behind it |
 | blocked by | nothing |
 
 ## What this document deliberately does not decide

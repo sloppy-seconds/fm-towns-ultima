@@ -102,6 +102,11 @@ Two of these are live exclusion signals and one is not:
   likely to provoke it both refused: A33's `a ^= a` gives `sub eax, eax`, and A40's xor-toggle accumulator gives
   `not cl` plus `sub` for the zeroing. This is the strongest `hand-asm-positive` candidate the clustering
   produced, and it is the only one that survived being tested.
+
+  **It is `probable`, not `proven`.** One signal, from one instrument, against a probe corpus that was wrong
+  about three other claims in the same session. The ledger's `confidence` column exists for exactly this, and
+  the note has to say how many independent signals back it. A second independent method would move these to
+  `proven`. Re-running the same census would not.
 - **43 functions use `test`, and that means nothing.** An earlier draft of the atlas said `test` never appears,
   and A34 refuted it the same day. See the correction in [idiom-atlas.md](idiom-atlas.md).
 - **25 functions use a string op, and that also means nothing.** The draft claimed the compiler never emits one,
