@@ -295,9 +295,18 @@ def main():
     }
 
     if args.write:
+        # Store a short cluster id per function and the id-to-signature map once,
+        # rather than repeating a 120-character signature 875 times. The full
+        # signature is recoverable from `by_id`, and the file goes from 208 KB to
+        # something that can be read in a diff.
+        id_of = {c['signature']: c['id'] for c in clusters}
         ledger = {'generated_by': 'tools/cluster.py', 'population': len(rows),
-                  'axes': list(SIG_AXES), 'clusters': clusters,
-                  'functions': {'0x%x' % r['addr']: {'cluster': r['cluster'],
+                  'axes': list(SIG_AXES),
+                  'clusters': [{'id': c['id'], 'size': c['size'], 'signature': c['signature'],
+                                'span': c['dispersion']['span'], 'lo': c['dispersion']['lo'],
+                                'hi': c['dispersion']['hi']} for c in clusters],
+                  'by_id': {c['id']: c['signature'] for c in clusters},
+                  'functions': {'0x%x' % r['addr']: {'cluster': id_of[r['cluster']],
                                                      'in_enter': r['in_enter']} for r in rows}}
         with open(args.write, 'w') as fh:
             json.dump(ledger, fh, indent=1, sort_keys=True)

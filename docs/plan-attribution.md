@@ -173,7 +173,25 @@ This item also settles the seven-or-ten count: it produces the definitive list o
 
 ### 0c. Feature-vector clustering of the game module
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** NEEDS A DECISION · **Autonomy:** NEEDS A DECISION
+
+**What is now known.** The instrument and the ledger exist: `tools/cluster.py` vectors 875 recompiled game
+functions on 21 atlas-derived axes and writes `docs/ledger.json`, clustering by categorical signature so every
+group is explainable back to idioms. It yields 374 clusters, largest 113. The census is the useful output: 227
+functions zero with `sub reg,reg` as the atlas predicts, **41 zero with `xor reg,reg` which the atlas never
+emits even for `a ^= a`**, **25 use a string op which the atlas never emits**, and 220 use `and reg,reg` as a
+truthiness test, a shape covering a fifth of the module that the atlas has no probe for. The item's own
+acceptance check fails and is not tuned away: the enter band does not land in one cluster at any granularity,
+peaking at 37% in a sweep over every axis prefix, and the item's stated band is also self-inconsistent (41
+routines in 2,260 bytes ends at `0xfe46e`, not `0x105000`). Full findings and the sweep:
+[clustering-0c.md](clustering-0c.md).
+
+**The decision.** Either the criterion is wrong, in which case the item is finished by the measurement and the
+enter region is simply not one homogeneous thing with one provenance, or there is an axis the atlas has not
+identified that would make the band cohere, and finding it is different work from anything currently planned.
+A third reading is available too: the sweep argues against homogeneity and is consistent with all three
+hypotheses `docs/compiler-generation.md` left open, so it separates none of them and the criterion was asking
+the wrong question of it.
 
 Every function in `ENCHANT.EXP`, vectorised on prologue and epilogue census, frame style, register-allocation
 habits, `idiv` against shift, redundancy direction and alignment, clustered **against the atlas** so the
@@ -181,10 +199,10 @@ groups carry meaning. Compiles nothing. Scope is the game module only.
 
 | field | value |
 |---|---|
-| autonomy | autonomous |
+| autonomy | was autonomous and the build part finished itself; the acceptance criterion is what stopped it |
 | depends on | 0a |
 | done when | a committed ledger file with a `cluster` value for all 818 functions, the cluster sizes, and for each cluster the atlas idioms that put it there. The `enter` cluster's 41 routines must land in one cluster, because that is the one group with independent boundary evidence and it is the check that the vectors mean anything. The failure case: clusters that only re-derive the address boundary already known, which would mean the vectors carry no information beyond position |
-| blocked by | 0a |
+| blocked by | a decision on whether the enter-cohesion criterion survives its own measurement |
 
 ### 0d. The ledger schema and the tool that fills it
 

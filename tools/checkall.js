@@ -469,6 +469,42 @@ const runNode = (script, args = []) => {
 	}
 }
 
+// E7e. The clustering ledger, item 0c. The ledger is committed output of
+// tools/cluster.py, so the gate is that it is internally consistent and still
+// reproducible: every function names a cluster that exists, the cluster sizes sum
+// to the population, and re-running the derivation on the committed module gives
+// the same population and cluster count. A ledger that drifted from its generator
+// would silently misattribute functions.
+{
+	const ledgerPath = path.join(DOCS, 'ledger.json');
+	if (!fs.existsSync(ledgerPath)) {
+		skipped++;
+	} else {
+		const problems = [];
+		const L = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+		const ids = new Set(Object.keys(L.by_id || {}));
+		let missing = 0;
+		for (const [addr, rec] of Object.entries(L.functions || {})) {
+			if (!ids.has(rec.cluster)) missing++;
+		}
+		if (missing) problems.push(`${missing} functions name a cluster that is not in by_id`);
+		const sum = (L.clusters || []).reduce((a, c) => a + c.size, 0);
+		if (sum !== L.population) problems.push(`cluster sizes sum to ${sum}, population says ${L.population}`);
+		if ((L.population || 0) < 800) problems.push(`ledger covers ${L.population} functions, expected the whole game module`);
+		const py = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
+			? path.join(__dirname, '.venv', 'bin', 'python3') : 'python3';
+		const r = spawnSync(py, [path.join(__dirname, 'cluster.py'), '--json'], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
+		try {
+			const j = JSON.parse(r.stdout);
+			if (j.population !== L.population) problems.push(`cluster.py now yields ${j.population} functions, ledger says ${L.population}. Re-generate the ledger`);
+			if (j.clusters !== (L.clusters || []).length) problems.push(`cluster.py now yields ${j.clusters} clusters, ledger says ${(L.clusters || []).length}`);
+		} catch {
+			problems.push('cluster.py --json gave no JSON: ' + ((r.stdout || '') + (r.stderr || '')).slice(0, 120));
+		}
+		record('clustering ledger', problems);
+	}
+}
+
 // E8. The calls the port was skipping. The recompiler stops each function at its terminating `ret` and never resumes
 // after the alignment padding that follows, so a function with no caller never enters the module and the calls inside
 // it are absent from the port. tools/resumepoints.js derives those resume points and asserts that every one is seeded
