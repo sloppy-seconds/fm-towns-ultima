@@ -240,8 +240,18 @@ them only widens what can break.
 
 ### The CD: `saves/hc.img` + `saves/hc.ccd`
 
-The High C Compiler Multi Kit V17L13 SDK. Volume label
-`HIGH_C_COMPILER_MULTI_KIT_V22L13_FUJITSU_LIMITED_1995_02_21`.
+The High C Compiler Multi Kit SDK. **Two version numbers name this disc and they are not the same
+number**, which has caused confusion: the archive is called `High C Compiler Multimedia Kaihatsu Kit
+V1.7 L13`, while the ISO volume set identifier on the disc itself is
+`HIGH_C_COMPILER_MULTI_KIT_V22L13_FUJITSU_LIMITED_1995_02_21`. **V1.7 L13 is the High C component;
+V2.2 L13 is the Multi Kit it ships inside**, and the kit contains High C, Professional Pascal, Fortran,
+and the Fujitsu graphics and sound layers. The date is the disc's, 1995-02-21, and it is several years
+newer than the game.
+
+The compiler that runs is **High C 1.73**, which is what its banner reports and what its output
+confirms: `a / 7` becomes `cdq; mov ecx, 7; idiv ecx`, and v2.31 emits a bias-then-shift reciprocal for
+the same source instead. That discrimination is why v2.31 is ruled out in
+[highc-negative-result.md](highc-negative-result.md), and it is available from any build in this kit.
 
 `hc.img` is **raw 2352-byte sectors with a 16-byte sync/header pre-gap per
 sector**. The ISO payload starts 16 bytes into each sector, not 12 and not 0.

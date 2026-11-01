@@ -1042,6 +1042,32 @@ also restores the earlier conclusion that the protected-mode toolchain is
 required for the game's container, though for the **linker** as well as the
 compiler rather than the compiler alone.
 
+> **Correction, 2026-11-02: that last paragraph is not supported, and the direct measurement
+> points the other way.** Every candidate compiled through `Q:\HC386\BIN\HC386.EXE` during
+> item 4f came out `P3`, and that driver's config sets `LINKNAME=386linkp.exp`, the
+> **protected-mode** linker. So the protected-mode linker also does not produce `MP`, and
+> "the protected-mode toolchain is required for the game's container" describes a
+> requirement nothing satisfies.
+>
+> What is established: `386LINK.EXE` emits `P3` and has no switch that selects a container
+> (`-EXE`, `-RELEXE`, `-NOPACK`/`-PACK`, `-NOOUTPUT`, measured above). What is **not**
+> established: which linker binary actually ran in those 4f builds. Nothing records it, and
+> a silent fallback to `386LINK.EXE` would look identical from outside, so `386LINKP.EXP`
+> emitting `P3` is a strong inference rather than a measurement.
+>
+> The honest state, then: **no invocation available in this kit produces `MP`**, by either
+> linker, and the container's actual producer is unidentified. The game's own runtime string
+> gives the likely shape of the answer: it embeds `High C Run-time Library Copyright (C)
+> 1983-1988 MetaWare Incorporated.` while this kit's driver carries `1983-1989`, so the game
+> was built with an **earlier** High C release than the one on offer, and its linker came with
+> it. That is a hypothesis, not a measurement, and finding an earlier kit would test it.
+>
+> **None of this touches the compiler claim.** The corpus's evidence is about compiler output,
+> and the container is linker output. `docs/byte-identity-rule.md` exempts `disp32` and
+> `rel32` precisely because those bytes are the linker's, and the linker is demonstrably not
+> the one we have. That is why `MP` versus `P3` has never blocked a routine match, and why a
+> 78.6 percent byte-identical rate coexists with a container nothing in the kit can make.
+
 ### The consequence for byte matching
 
 **`P3` versus `MP` gates 100 percent byte matching and it is not reachable with
