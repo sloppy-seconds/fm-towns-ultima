@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// tools/plancheck.js - verify every item in docs/plan.md is workable.
+// tools/plancheck.js - verify every item in the plan documents is workable.
 //
-// WHY. plan.md carries nine items and each needs three things to be actionable: a state, an autonomy
+// WHY. The plan is four documents since 2026-11-01 and each item needs three things to be actionable: a state, an autonomy
 // value saying whether an agent can do it alone, and acceptance criteria. All three were added by hand,
 // and hand-maintained structure rots: this project's named-routine count drifted three times in one
 // session. A check is the difference between a convention and a fact.
@@ -21,7 +21,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const PLAN = path.join(__dirname, '..', 'docs', 'plan.md');
+// The plan is four documents since 2026-11-01, one per track plus this index. Item ids are unique across
+// all of them, and cross-track dependencies are written as "depends on" with a bare id, so the tool has to
+// see every file at once or it would report an item as startable while its dependency sits unbuilt in
+// another document.
+const PLANS = ['plan.md', 'plan-port.md', 'plan-recomp.md', 'plan-attribution.md'].map((f) =>
+	path.join(__dirname, '..', 'docs', f)
+);
 
 // Closed vocabulary. Adding to this list is a deliberate act.
 const STATES = ['OPEN', 'DONE', 'CUT', 'NEEDS A DECISION'];
@@ -34,34 +40,46 @@ const AUTONOMY = [
 ];
 
 function load() {
-	if (!fs.existsSync(PLAN)) {
-		console.error('no docs/plan.md');
+	const missing = PLANS.filter((p) => !fs.existsSync(p));
+	if (missing.length) {
+		console.error(`no ${missing.map((p) => path.basename(p)).join(', ')}`);
 		process.exit(1);
 	}
-	const text = fs.readFileSync(PLAN, 'utf8');
-	// Items are "### 1a. Title" level-three headings beginning with a digit.
-	const chunks = text.split(/^### (?=[0-9])/m).slice(1);
-	return chunks.map((c) => {
-		const id = /^([0-9]{1,2}[a-z])\./.exec(c)?.[1] ?? '?';
-		const title = /^[0-9]{1,2}[a-z]\.\s*(.+)$/m.exec(c)?.[1] ?? '(untitled)';
-		const state = /\*\*State:\*\*\s*([A-Z][A-Z ]*)/.exec(c)?.[1]?.trim();
-		const autonomy = /\*\*Autonomy:\*\*\s*([A-Z][A-Z ]*[A-Z])/.exec(c)?.[1]?.trim();
-		const doneWhen = /\|\s*done when\s*\|\s*(.+?)\s*\|/i.exec(c)?.[1];
-		const blockedBy = /\|\s*blocked by\s*\|\s*(.+?)\s*\|/i.exec(c)?.[1];
-		// An item can be AUTONOMOUS and still not startable now if it waits on another item.
-		// Detect this from the metadata rather than by reading prose: a dependency shows up as
-		// either "once Phase N lands" in the State line, or a done-when/autonomy cell naming a
-		// sibling item id such as "depends on 1a".
-		// An explicit "depends on" row is authoritative. Prose inference is a fallback only, because
-		// guessing from wording got item 2b wrong: its blocked-by cell begins "2a." and no pattern
-		// matched it, so the tool reported 2b as startable while its own text said it was not.
-		const dependsRow = /\|\s*depends on\s*\|\s*([0-9]{1,2}[a-z](?:\s*,\s*[0-9]{1,2}[a-z])*)/i.exec(c)?.[1];
-		const waitsOnItem =
-			Boolean(dependsRow) ||
-			/\*\*Autonomy:\*\*[^\n]*\bonce\b/i.test(c) ||
-			/\|\s*autonomy\s*\|[^\n]*\bdepends on\s+[0-9]{1,2}[a-z]/i.test(c);
-		return { id, title, state, autonomy, doneWhen, blockedBy, waitsOnItem };
-	});
+	const items = [];
+	for (const p of PLANS) {
+		const text = fs.readFileSync(p, 'utf8');
+		// Items are "### 1a. Title" level-three headings beginning with a digit.
+		const chunks = text.split(/^### (?=[0-9])/m).slice(1);
+		for (const c of chunks) {
+			const id = /^([0-9]{1,2}[a-z])\./.exec(c)?.[1] ?? '?';
+			const title = /^[0-9]{1,2}[a-z]\.\s*(.+)$/m.exec(c)?.[1] ?? '(untitled)';
+			const state = /\*\*State:\*\*\s*([A-Z][A-Z ]*)/.exec(c)?.[1]?.trim();
+			const autonomy = /\*\*Autonomy:\*\*\s*([A-Z][A-Z ]*[A-Z])/.exec(c)?.[1]?.trim();
+			const doneWhen = /\|\s*done when\s*\|\s*(.+?)\s*\|/i.exec(c)?.[1];
+			const blockedBy = /\|\s*blocked by\s*\|\s*(.+?)\s*\|/i.exec(c)?.[1];
+			// An item can be AUTONOMOUS and still not startable now if it waits on another item.
+			// Detect this from the metadata rather than by reading prose: a dependency shows up as
+			// either "once Phase N lands" in the State line, or a done-when/autonomy cell naming a
+			// sibling item id such as "depends on 1a".
+			// An explicit "depends on" row is authoritative. Prose inference is a fallback only, because
+			// guessing from wording got item 2b wrong: its blocked-by cell begins "2a." and no pattern
+			// matched it, so the tool reported 2b as startable while its own text said it was not.
+			const dependsRow = /\|\s*depends on\s*\|\s*([0-9]{1,2}[a-z](?:\s*,\s*[0-9]{1,2}[a-z])*)/i.exec(c)?.[1];
+			const waitsOnItem =
+				Boolean(dependsRow) ||
+				/\*\*Autonomy:\*\*[^\n]*\bonce\b/i.test(c) ||
+				/\|\s*autonomy\s*\|[^\n]*\bdepends on\s+[0-9]{1,2}[a-z]/i.test(c);
+			items.push({ id, title, state, autonomy, doneWhen, blockedBy, waitsOnItem, file: path.basename(p), text: c });
+		}
+	}
+	// An id in two documents is a silent failure: the summary table in one would be cross-checked against
+	// the section in the other, and "depends on 4j" would mean two different things.
+	const seen = new Map();
+	for (const i of items) {
+		if (seen.has(i.id)) i.duplicateOf = seen.get(i.id).file;
+		else seen.set(i.id, i);
+	}
+	return items;
 }
 
 function main() {
@@ -84,14 +102,17 @@ function main() {
 						!i.waitsOnItem
 			  )
 			: items;
-		console.log('id   autonomy            state       title');
-		console.log('-'.repeat(78));
+		// The document column exists because the plan is four files now. An id with no file next to it
+		// sends a reader to plan.md looking for an item that lives in plan-port.md.
+		console.log('id    doc                 autonomy            state       title');
+		console.log('-'.repeat(96));
 		for (const i of rows) {
 			console.log(
-				i.id.padEnd(5) +
-					(i.autonomy ?? 'MISSING').padEnd(20) +
-					(i.state ?? 'MISSING').padEnd(12) +
-					i.title.slice(0, 34)
+				i.id.padEnd(6) +
+					(i.file ?? '?').replace('plan-', '').replace('.md', '').padEnd(20) +
+				(i.autonomy ?? 'MISSING').padEnd(20) +
+				(i.state ?? 'MISSING').padEnd(12) +
+				i.title.slice(0, 34)
 			);
 		}
 		if (args.includes('--todo')) {
@@ -119,6 +140,7 @@ function main() {
 		else if (i.doneWhen.length < 20) errs.push(`done-when too vague: "${i.doneWhen}"`);
 
 		if (!i.blockedBy) errs.push('no blocked-by row');
+		if (i.duplicateOf) errs.push(`id also used in ${i.duplicateOf}`);
 
 		// "nothing" is only legitimate when the item is autonomous.
 		if (i.blockedBy && /^nothing$/i.test(i.blockedBy) && i.autonomy && !/^AUTONOMOUS/.test(i.autonomy)) {
@@ -146,7 +168,7 @@ function main() {
 	// worked, because the section got updated and the table did not. A table that contradicts
 	// the text under it is worse than no table, since a reader trusts the summary.
 	{
-		const text = fs.readFileSync(PLAN, 'utf8');
+		const text = PLANS.map((p) => fs.readFileSync(p, 'utf8')).join('\n');
 		const rows = [...text.matchAll(/^\|\s*([0-9]{1,2}[a-z])\s+([^|]+)\|([^|]+)\|/gm)].map((m) => ({
 			id: m[1],
 			autonomy: m[3].trim(),
@@ -174,7 +196,7 @@ function main() {
 	if (fs.existsSync(oqPath)) {
 		const oq = fs.readFileSync(oqPath, 'utf8');
 		const questions = [...oq.matchAll(/^## ([0-9]+)\. (.+)$/gm)].map((m) => m[2]);
-		const planText = fs.readFileSync(PLAN, 'utf8');
+		const planText = PLANS.map((p) => fs.readFileSync(p, 'utf8')).join('\n');
 		// Match on distinctive tokens rather than the whole title, because the two documents
 		// phrase the same subject differently. A question is covered if any of its identifiers
 		// appears in the plan, or if the question declares itself a pointer at a plan item.
@@ -190,7 +212,7 @@ function main() {
 		if (missing.length) {
 			console.log(`\nopen-questions.md has ${missing.length} question(s) the plan does not name:`);
 			for (const m of missing) console.log('  ' + m);
-			console.log('  Either add them to plan.md or make them explicit pointers.');
+			console.log('  Either add them to the right track document or make them explicit pointers.');
 			bad++;
 		}
 	}

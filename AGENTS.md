@@ -69,13 +69,21 @@ Working order from here, revised for the real goal:
 4. **Format documentation.** Every format gets a record in `docs/`.
 5. **Runtime confirmation**, where reading cannot settle a question.
 
-**Read first. Compile is a diagnostic, not the production method.** A routine's
-deliverable is a behavioural spec: inputs, the arithmetic as arithmetic, outputs,
-callers. Byte equality is welcome evidence and is recorded when it happens, but it is
-never the gate, and a candidate C is only worth writing when a specific question about
-arithmetic or encoding needs settling. The measurement behind this rule: compile-and-diff
-over the base-fold set produced 21 recoveries, while compile-and-diff on the `enter`
-question produced four refutations and no recoveries.
+**Read first. Compile is a diagnostic, not the production method, and that rule binds the behavioural
+track.** A routine's deliverable in the port is a behavioural spec: inputs, the arithmetic as arithmetic,
+outputs, callers. Byte equality is welcome evidence there and is recorded when it happens, but it is never
+the gate, and a candidate C is only worth writing when a specific question about arithmetic or encoding
+needs settling. The measurement behind this rule: compile-and-diff over the base-fold set produced 21
+recoveries, while compile-and-diff on the `enter` question produced four refutations and no recoveries.
+
+**The one exception, decided by Paul on 2026-11-01.** The preservation track
+(`docs/plan-recomp.md`) exists to produce a High C build whose functions match the original byte for byte,
+and there byte identity **is** the deliverable, not a diagnostic. The exception is scoped to that track and
+changes nothing above. What it does not buy is an inference: a compile-and-diff mismatch cannot distinguish
+"not this compiler" from "my C is not the original C", so a mismatch is never positive evidence of
+anything. Attribution needs positive evidence, and `docs/plan-attribution.md` says what counts and gates
+the bulk compile-and-diff behind a forward atlas of what the compiler never emits. Padding a byte-identity
+fraction with sites that were never compiler output is the same error pointing the other way.
 
 **An unknown cause does not licence tolerance.** `identical except disp32` is sound
 because those bytes are provably linker-supplied. A prologue mismatch with an unexplained
@@ -110,16 +118,22 @@ When something changes, ask which of these carry it:
 | a link to the site, editor or repo | all three of those |
 | a format finding | `docs/` only, plus `tools/verify.js` if assertable |
 | a platform limitation | `README.md`, `docs/quickstart.md` |
-| an item's state, or the order of work | `docs/plan.md`, then whichever of `docs/open-questions.md` / `docs/overnight.md` listed it |
+| an item's state, or the order of work | the track document that owns it (`docs/plan.md`, `plan-port.md`, `plan-recomp.md` or `plan-attribution.md`), then whichever of `docs/open-questions.md` / `docs/overnight.md` listed it |
 | any count | the one page that owns it, then grep for the old number |
 | a finding that closes a question | the closed list in `docs/plan.md`, and the question's own page |
+| which track a change belongs to | behavioural port = `plan-port.md`, byte identity = `plan-recomp.md`, anything that claims what built the binary = `plan-attribution.md` |
 
 ### How to plan, and how to work the plan
 
 Full process, with the measurements behind each rule: **`docs/plan-process.md`**. The short version:
 
-**Three documents with defined jobs.** `docs/plan.md` is the plan of record. `docs/open-questions.md` and
-`docs/overnight.md` are views of it. If they disagree, `plan.md` wins and the other is the bug.
+**Four plan documents with defined jobs, since 2026-11-01.** `docs/plan.md` is the index, the goal, the
+method rules, the corpus track and the pointer to the shared ledger. `docs/plan-port.md` is the C++
+behavioural port, `docs/plan-recomp.md` is the High C byte-identity reproduction, and
+`docs/plan-attribution.md` is the shared groundwork both build tracks depend on and neither owns. An item
+lives in exactly one of them, ids are unique across all four, and `tools/plancheck.js` reads all four.
+`docs/open-questions.md` and `docs/overnight.md` are views of the lot. If they disagree with a track
+document, the track document wins and the view is the bug.
 
 **Every item carries three fields.** No exceptions, and `node tools/plancheck.js` enforces it.
 
@@ -787,11 +801,13 @@ the search is different, so resolve this before hunting.
 
 ## Open problems
 
-**`docs/plan.md` is the only tracker. Do not list work here.** Every item there
-carries a State and an Autonomy, `node tools/plancheck.js --todo` reports what
-is startable now, and `node tools/checkall.js` fails if an item loses its
-metadata. A second list in this file was 80 percent duplicate and 20 percent the
-only record of a live question, which is the worst of both.
+**The plan is four documents and they are the only tracker. Do not list work here.** `docs/plan.md` is the
+index and the corpus track, and [docs/plan-port.md](docs/plan-port.md),
+[docs/plan-recomp.md](docs/plan-recomp.md) and [docs/plan-attribution.md](docs/plan-attribution.md) hold
+the rest. Every item there carries a State and an Autonomy, `node tools/plancheck.js --todo` reports what
+is startable now and names the document each item lives in, and `node tools/checkall.js` fails if an item
+loses its metadata or if an id is used twice. A second list in this file was 80 percent duplicate and 20
+percent the only record of a live question, which is the worst of both.
 
 What this file should tell you that the plan does not: **the cheapest things are
 already tried.** Read `docs/` before proposing an investigation. Five palette

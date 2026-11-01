@@ -163,7 +163,9 @@ const seeds = read('tools/runtime-seeds.txt');
 // Every U2_* the docs offer has to exist in the port, and every one in the port has to be documented. A switch
 // documented but absent is a promise the tool cannot keep, and one present but undocumented is a knob nobody
 // can find. Both have failed here before.
-const doc = read('docs/recomp-plan.md') || '';
+// The switches were documented in docs/recomp-plan.md until the plan split of 2026-11-01 moved that record
+// into docs/plan-recomp.md. Both are read so the check survives the move and survives someone reverting it.
+const doc = [read('docs/plan-recomp.md'), read('docs/recomp-plan.md')].filter(Boolean).join('\n');
 const documented = new Set((doc.match(/`(U2_[A-Z_]+)/g) || []).map((s) => s.slice(1)));
 const inCode = new Set((main || '').match(/U2_[A-Z_]+/g) || []);
 const missing = [...documented].filter((n) => !inCode.has(n)).sort();
@@ -195,7 +197,7 @@ const undocumented = [...inCode].filter((n) => !documented.has(n)).sort();
 	}
 }
 
-if (!documented.size) fail('debug switches are documented', 'none found in docs/recomp-plan.md');
+if (!documented.size) fail('debug switches are documented', 'none found in docs/plan-recomp.md or docs/recomp-plan.md');
 else if (!missing.length) ok('every documented switch exists in the port', documented.size + ' switches');
 else fail('every documented switch exists in the port', 'documented but absent: ' + missing.join(', '));
 if (undocumented.length) fail('every switch in the port is documented', undocumented.join(', '));
