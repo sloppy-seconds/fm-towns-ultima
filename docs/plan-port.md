@@ -114,6 +114,40 @@ with the same `cs`, which needs no kit change because first hit wins.
 the protocol rather than a guess about behaviour. Its **guest** address is `0xe120c`, because the machine
 dispatches in the guest frame while the documents quote file offsets.
 
+### The first shadow is written and the differential is blocked, 2026-11-02
+
+`native_000e120c` is in `port/native_shadows.cpp`, wired as one table entry, the gate passes with 1 shadow, and
+the port builds and runs. Two switches make the differential possible: `U2_SHADOW_OFF=1` delegates to the
+recompiled twin so one binary can produce both behaviours, and `U2_SHADOW_TRACE=1` reports entry so a passing
+comparison cannot be the vacuous kind where neither run reached the code.
+
+**A constraint the strangler had to learn, and it is not obvious: the tick accounting is part of the contract.**
+`X86_TICK(c,n)` is `c.budget -= n; c.clocks += n`, so it feeds both the guest clock the game can read and the
+budget that decides when `x86_poll()` delivers an interrupt. A shadow that reproduced the arithmetic and not the
+ticks would drift the game's sense of time and its interrupt timing. The native function therefore carries the
+twin's own counts (23 entry, 9 for the `n==0` arm, 12 loop head, 9 match, 9 advance, 20 epilogue) and keeps the
+loop state in guest registers with the prologue reproduced, because a poll runs inline and the interrupt it
+services can read the machine's registers and stack.
+
+**The differential is blocked on the entry point, and this is the concrete finding.** Driven over the control
+socket with the documented create route plus 80 movement presses, the port reaches none of this code: the shadow
+was entered **0 times** in 20,000 frames. The caller chain explains why.
+
+| address | who calls it |
+|---|---|
+| `0xe120c` | `0xe14fa` and `0xe150f`, both inside `0xe1438` |
+| `0xe1438` | `0xe1987`, inside `0xe1970` |
+| `0xe1970` | **nothing found** |
+
+None of those three is a call target in `docs/corpus.json`, and none appears anywhere in the image as a stored
+32-bit pointer, so the chain is entered through a transfer the census never resolved. `tools/findcallers.py`
+searches only inside asserted function extents, so it cannot see a call from a region the census does not hold.
+
+That is the same shape as item 11a's defect 1, which was solved by finding the dispatching instruction and its
+index register. **The next step is that method on `0xe1970`**, and the differential cannot be written until the
+route is known. Recorded rather than guessed at, because a scripted route invented to make a gate pass is exactly
+the failure case this item names.
+
 **The scaffold is in place, 2026-11-02, before the first replacement so the gate exists before there is
 anything to protect.**
 

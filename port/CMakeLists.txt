@@ -42,6 +42,10 @@ target_include_directories(game_recomp PUBLIC ${FMT_RUNTIME})
 target_compile_options(game_recomp PRIVATE -Wno-unused-label -Wno-unused-variable)
 
 add_executable(u2port main.cpp modules.cpp native_shadows.cpp)
+# RECOMP_DIR is on the include path for p_game_funcs.h, which native_shadows.cpp needs to name the recompiled
+# twin when U2_SHADOW_OFF gives the baseline. It is a generated header, but the module is always linked, so the
+# symbol always exists; tools/portcheck.js asserts the address is still declared there.
+target_include_directories(u2port PRIVATE ${RECOMP_DIR})
 target_link_libraries(u2port game_recomp fmt_towns)
 if(TARGET fmt_towns_sdl)
   target_link_libraries(u2port fmt_towns_sdl)
