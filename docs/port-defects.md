@@ -41,6 +41,61 @@ on exact starts. `tools/cfgwalk.js --check 0xffeba` says it is not an instructio
 its function, while a decode seeded at `0xffe80` lands on `mov reg,reg` exactly there. The two walks disagree, and
 that is recorded as a lead rather than resolved.
 
+### Defect 1 resolved 2026-11-02: the transfer is a table dispatch and 0xffeba is now a start
+
+The lead above was right that this is control flow, and the two walks disagreed because the address is reached
+through a **computed call through a table**, which no walk seeded on call targets can see.
+
+**The instruction is `0x10005e`, `call dword ptr cs:[ebx]`.** The target register is `ebx`, and it is computed four
+instructions earlier:
+
+```
+0x10003b  movzx ebx, byte ptr [0xdfa00]   ; a byte the program keeps
+0x100042  cmp   ebx, 0x80
+0x100048  jb    0x100061                  ; below 0x80 the call is skipped
+0x10004e  sub   ebx, 0x80
+0x100054  shr   ebx, 4                    ; (v - 0x80) >> 4, giving 0..7
+0x100057  lea   ebx, [ebx*4 + 0xffe73]    ; index the table
+0x10005e  call  dword ptr cs:[ebx]        ; ***the computed transfer***
+0x100061  popal
+0x100062  ret
+```
+
+**The table is eight code pointers at guest `0xffe73`, which is file `0x100073`**, and it is inline in the code
+segment immediately after a `popal; ret`:
+
+```
+index 0 -> 0xffe93
+index 1 -> 0xffeba        <<< the fault address
+index 2 -> 0xffeeb
+index 3 -> 0xfff08
+index 4 -> 0xfff4d
+index 5 -> 0xfff5f
+index 6 -> 0xfff6c
+index 7 -> 0xfff93
+```
+
+**The fault address is index 1.** That is the whole explanation: the program left-padded `[0xdfa00]` by `0x80`, shifted
+it down by 4 and called through the table, and index 1 landed on `0xffeba`. The handler there is an interrupt-style
+entry, which is why it looks odd in isolation: `cli`, save `ebp`/`ss` to `0xdf0e9`/`0xdf0ed`, switch the stack to
+`0xdf7f5`, `sti`, then `call 0xfeb5e`.
+
+**The fix landed before this diagnosis, from the other direction.** The jump-table seed work of 2026-11-01 added
+**all eight** table targets as function starts, taking the module from 865 to 875 functions. Verified now: every one
+of the eight addresses is a start in `module/p_game_funcs.h` with exactly one definition, and the built binary
+contains `f_000ffeba` while the 2026-10-30 binary does not.
+
+**So the fault cannot recur at `0xffeba`.** The kit fails only on a non-start, and `0xffeba` is a start. That is an
+argument by construction rather than by replay, and it is the strongest available because the script that produced
+the original crash was never committed (see the paragraph below). What can be replayed is a long route with real
+input: `tools/controlcreate.py`'s 26-key socket route now completes end to end, creation twice, disk changed, read
+back and played in a second process, and it runs well past frame 4026.
+
+**What this does not prove, stated plainly.** The original crash was not reproduced and then eliminated, because the
+key script that triggered it is not in the repository. Had it been committed, this would be a differential instead
+of a construction. That is the same lesson [plan-port.md](plan-port.md) item 11c encodes: a protocol without a
+committed script is a story about a run.
+
 **What the registers hint at, labelled as a hint.** At the fault, `esp` is `000df7ad` against `ebp 0011ea94`, which is
 not a plausible frame, and `ebx` holds `000ffe77`, a code address a few instructions before the target. A computed
 transfer rather than a normal `call` would look like that, and `module/report.txt` counts 30 indirect transfers it

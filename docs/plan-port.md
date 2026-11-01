@@ -48,7 +48,25 @@ Derived from the items below, not maintained separately. `node tools/plancheck.j
 
 ### 11a. Close the coverage hole that is defect 1
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**What is now known.** The transfer is a **table dispatch**, and that is why no walk seeded on call targets could
+see it: `0x10005e  call dword ptr cs:[ebx]`, where `ebx` is computed at `0x100057` as
+`0xffe73 + (((byte[0xdfa00] - 0x80) >> 4) * 4)`, guarded by `cmp ebx,0x80; jb`. The table is **eight code
+pointers at guest `0xffe73`**, inline in the code segment after a `popal; ret`, and **the fault address `0xffeba`
+is index 1**. The handler there is an interrupt-style entry: `cli`, save `ebp`/`ss`, switch the stack to `0xdf7f5`,
+`sti`, `call 0xfeb5e`.
+
+**The repair landed before the diagnosis**, from the other direction: the jump-table seed work of 2026-11-01 added
+all eight targets, taking the module from 865 to 875 functions. Verified now: all eight are starts in
+`module/p_game_funcs.h` with exactly one definition each, and the current binary contains `f_000ffeba` while the
+2026-10-30 binary does not. Since the kit fails only on a non-start and `0xffeba` is now a start, **the fault cannot
+recur there** - an argument by construction, plus a long route with real input that completes:
+`tools/controlcreate.py`'s 26-key socket route runs well past frame 4026.
+
+**The one caveat, recorded rather than glossed.** The original crash was not reproduced and then eliminated,
+because the key script that triggered it was never committed. Full write-up in
+[port-defects.md](port-defects.md) defect 1.
 
 `no recompiled function at 000c:000ffeba` at frame 4026, reproduced five times from ordinary input, is the
 port reaching an address the recompiled module does not contain. `0xffeba` sits inside `f_000ffe24` and is
@@ -58,7 +76,7 @@ lands there, and why did `cfgwalk` and the seeded decode disagree about it.
 | field | value |
 |---|---|
 | autonomy | autonomous. The fault is deterministic and `tools/cfgwalk.js` and `tools/funcs.js` already exist |
-| done when | the transfer that reaches `0xffeba` is named with the instruction address and the register that carried the target, the function containing it is either added to the module or recorded as not-a-function with the evidence, and the scripted route that currently dies at frame 4026 runs past it. The failure case: a recorded negative saying the transfer could not be resolved statically, which is a legitimate end and must be written down rather than left as a crash |
+| done when | the transfer that reaches `0xffeba` is named with the instruction address and the register that carried the target, the function containing it is either added to the module or recorded as not-a-function with the evidence, and the scripted route that currently dies at frame 4026 runs past it. The failure case: a recorded negative saying the transfer could not be resolved statically, which is a legitimate end and must be written down rather than left as a crash. **Met 2026-11-02:** instruction `0x10005e` in register `ebx`, all eight table targets are module starts, and the crash cannot recur at that address. The original script was never committed, so this is construction plus a passing long route rather than a replay |
 | blocked by | nothing |
 
 ### 11b. Read the ledger, and make the port's coverage a column of it
