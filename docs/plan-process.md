@@ -223,7 +223,7 @@ Two ways to run it, because one of them was not enough:
 ```
 ./tools/checkall-parallel.sh      # ~7 s    fan the slow checks across processes
 node tools/checkall.js            # ~29 s   serial, the reference run
-node tools/checkall.js --fast     # ~1.7 s  everything except the eleven slow checks
+node tools/checkall.js --fast     # ~2 s    everything except the twelve slow checks
 ```
 
 **It reports 37 result lines** (`node tools/checkall.js | grep -cE '^(ok|FAIL) '` is the measurement, and it

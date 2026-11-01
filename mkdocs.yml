@@ -135,6 +135,7 @@ nav:
       - The forward idiom atlas: idiom-atlas.md
       - The byte-identity equivalence rule: byte-identity-rule.md
       - Feature-vector clustering: clustering-0c.md
+      - The attribution ledger: attribution-ledger.md
       - Same-compiler labelled material: attribution-samples.md
       - High C calibration spike: highc-spike.md
       - High C 3.04 installer: highc-v304-installer.md

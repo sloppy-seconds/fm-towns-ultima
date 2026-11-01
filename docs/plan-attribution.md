@@ -99,7 +99,7 @@ register with `xor reg,reg`, which the atlas never emits even for `a ^= a` (prob
 That is one signal, from one instrument, against a probe corpus that was wrong about three other claims in the
 same session. So those 41 are `hand-asm-positive` at `probable`, not `proven`, and the note has to say "one
 signal, xor-zeroing, atlas probes A33 and A40, not cross-checked by a second method". A second independent
-signal would move them; a second run of the same census would not.
+signal would move them. A second run of the same census would not.
 
 ### The attribution states
 
@@ -237,7 +237,26 @@ groups carry meaning. Compiles nothing. Scope is the game module only.
 
 ### 0d. The ledger schema and the tool that fills it
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**What is now known.** `tools/ledger.py` generates `docs/ledger.json` covering all **875** functions with ten
+columns, and [attribution-ledger.md](attribution-ledger.md) documents it. The result is deliberately mostly
+empty: 8 `proven`, 43 `probable`, **824 `unattributed`**, and that count is printed every run rather than
+buried. `port-coverage` and `indirect` are `n-a` for every row because no tool produces them, and both are
+named in the ledger's own `unpopulated` field with the reason. 451 sizes are asserted from `docs/corpus.json`
+and 424 are `n-a`.
+
+**The frame error this item would have shipped, found before it was cited.** The module names functions in
+image offsets (`f_000e9c2c`) while every document uses file offsets (`0xe9e2c`), 0x200 apart. The first
+version compared them directly and produced a ledger that looked merely sparse: 11 asserted sizes out of 454
+and none of the ten matched routines mapped. After the shift, all but 23 of the census addresses land on a
+module function and 451 of 454 sized entries do, which took asserted sizes from 11 to 451 and matched
+routines from 0 to 10. A units error that presents as missing data is worth recording for that reason alone.
+
+**Two deliberate refusals.** `base-fold` is not promoted to a match, because that class is mixed (one entry is
+`0xfdeb6`, a two-instruction getter that recovers cleanly, and another is `0xf3e24` at 24 of 25 bytes) and parsing
+those prose entries to decide would be guessing from wording. And the 41 xor functions are `probable`, not
+`proven`, because one signal from one instrument is what they have.
 
 The columns and states above, as a real file, plus the derivation script. Both build tracks read it and
 neither may write a state it has not earned.
@@ -246,7 +265,7 @@ neither may write a state it has not earned.
 |---|---|
 | autonomy | autonomous. It builds on 0c, which is done |
 | depends on | nothing. 0c is finished, so the dependency is discharged and this is startable |
-| done when | a generated ledger covering all 818 game functions with every column populated or explicitly `n-a`, including `confidence`; a `verify.js` assertion that no row carries `hand-asm-positive` without a quoted excluding idiom, and that no row carries `proven` or `probable` without an evidence line in `notes`; and a count of rows still `unattributed` reported in the open. The failure case: a ledger where every row has a state and none of them has evidence attached, which is the confident sentence with no command behind it |
+| done when | a generated ledger covering all 818 game functions with every column populated or explicitly `n-a`, including `confidence`, a `verify.js` assertion that no row carries `hand-asm-positive` without a quoted excluding idiom, and that no row carries `proven` or `probable` without an evidence line in `notes`, and a count of rows still `unattributed` reported in the open. The failure case: a ledger where every row has a state and none of them has evidence attached, which is the confident sentence with no command behind it. **Met 2026-11-02**, with three deviations stated rather than glossed: the population is 875 rather than 818 (Paul's ruling, and 818 was the recompiler's count before the jump-table seed fix moved it to 875), the assertions live in `tools/checkall.js` rather than `verify.js` because they need the module parse and `verify.js` must stay dependency-free, and every one of them was confirmed able to fail |
 | blocked by | nothing |
 
 ## What this document deliberately does not decide

@@ -15,7 +15,7 @@ could disagree with it.
 
 Note the count. The plan says the game module is 818 functions and 41,847 instructions, and the module
 directory holds 875 function definitions. The two are not the same number and the difference is not
-reconciled here; the clustering runs on what is actually in the committed module.
+reconciled here. The clustering runs on what is actually in the committed module.
 
 **Clustering is a categorical signature, not a distance metric with a chosen k.** Every axis is a small discrete
 set taken from the atlas, so a function's cluster is the tuple of its axis values and the assignment is
@@ -131,8 +131,11 @@ a single contiguous span, and those are the ones to distrust without a second lo
 ```
 ./tools/cluster.py                       # summary
 ./tools/cluster.py --json                # full vectors and the sweep
-./tools/cluster.py --write docs/ledger.json
 ```
 
-`docs/ledger.json` carries a cluster id for all 875 functions, the id-to-signature map, and per-cluster size
-and address span.
+`docs/ledger.json` is written by `tools/ledger.py`, which includes the cluster column
+plus the nine others. This tool's `--write` was retired when that landed: two writers of one file silently
+drop each other's columns.
+
+The `in_enter` flag the old ledger carried is not in the new one, because it is the band whose cohesion
+failed above and the cluster column already separates those functions.

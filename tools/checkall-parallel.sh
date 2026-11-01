@@ -2,7 +2,7 @@
 # tools/checkall-parallel.sh - run tools/checkall.js across processes, because it is one long serial file.
 #
 # WHY THIS EXISTS. `node tools/checkall.js` takes about 29 s on a 32-core machine. Measured with --timing,
-# eleven checks are 27 s of that and the other twenty-six are 1.7 s. Nothing in the source says which are
+# twelve checks are 29 s of that and the other twenty-six are 1.7 s. Nothing in the source says which are
 # expensive, so checkall.js carries the measured list as SLOW and exposes it with --list-slow. This script
 # reads that list rather than repeating it, so adding a slow check there automatically adds a shard here.
 #

@@ -19,7 +19,7 @@
 //
 // Usage:
 //   node tools/checkall.js                all checks, ~29 s
-//   node tools/checkall.js --fast         everything except the 11 measured-slow checks, ~3 s
+//   node tools/checkall.js --fast         everything except the 12 measured-slow checks, ~2 s
 //   node tools/checkall.js --timing       print per-check elapsed, slowest first
 //   node tools/checkall.js --list-slow    the slow names, read by tools/checkall-parallel.sh
 //   node tools/checkall.js --only=NAME     run that check and print only it. Repeat the flag for more;
@@ -85,7 +85,7 @@ let lastStamp = Date.now();
 // --fast and --only exist so this suite can be made fast without making it weaker.
 //
 // SLOW is the measured set. `node tools/checkall.js --timing` gave 13,552 ms for the corpus census alone
-// before it was fixed, and 38.7 s across these eleven against 1.9 s for the other twenty-six. Nothing in the
+// before it was fixed, and 38.7 s across the original eleven against 1.9 s for the other twenty-six. Nothing in the
 // source suggests which checks are expensive: the census was one runNode call and looked identical to the
 // dozen beside it. So the list is a measurement, and re-measuring is one command.
 //
@@ -122,6 +122,7 @@ const SLOW = new Set([
 	'cfgwalk refuses seeds inside zero fill',
 	'disp32 comparison works and can fail',
 	'byte-identity equivalence rule',
+	'attribution ledger',
 ]);
 const skipCheck = (name) => FAST || (ONLY !== null && !ONLY.has(name));
 
@@ -589,39 +590,85 @@ if (skipCheck('byte-identity equivalence rule')) { recordSkip('byte-identity equ
 	}
 }
 
-// E7e. The clustering ledger, item 0c. The ledger is committed output of
-// tools/cluster.py, so the gate is that it is internally consistent and still
-// reproducible: every function names a cluster that exists, the cluster sizes sum
-// to the population, and re-running the derivation on the committed module gives
-// the same population and cluster count. A ledger that drifted from its generator
-// would silently misattribute functions.
-{
+// E7e. The attribution ledger, items 0c and 0d. docs/ledger.json is committed output of
+// tools/ledger.py, and it is the artefact both build tracks read, so the gate is that it is
+// internally consistent, still reproducible, and that no row claims more than it earned.//
+// The evidence rules are the point. 0d's failure case is "a ledger where every row has a state
+// and none of them has evidence", so a `proven` or `probable` row with no notes fails here, and a
+// `hand-asm-positive` row whose notes do not quote the excluding idiom fails too. Those two
+// assertions are the difference between a ledger and a list of confident adjectives.
+//
+// Regeneration equality is delegated to `tools/ledger.py --check` rather than reimplemented in
+// JS, so there is one definition of what the ledger is rather than two that can drift.
+if (skipCheck('attribution ledger')) { recordSkip('attribution ledger'); } else {
 	const ledgerPath = path.join(DOCS, 'ledger.json');
 	if (!fs.existsSync(ledgerPath)) {
 		skipped++;
 	} else {
 		const problems = [];
 		const L = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
-		const ids = new Set(Object.keys(L.by_id || {}));
-		let missing = 0;
-		for (const [addr, rec] of Object.entries(L.functions || {})) {
-			if (!ids.has(rec.cluster)) missing++;
+		const rows = Object.entries(L.functions || {});
+		const cols = L.columns || [];
+
+		if (!cols.length) problems.push('ledger declares no columns');
+		if (rows.length !== L.population) {
+			problems.push(`ledger holds ${rows.length} functions, population says ${L.population}`);
 		}
-		if (missing) problems.push(`${missing} functions name a cluster that is not in by_id`);
-		const sum = (L.clusters || []).reduce((a, c) => a + c.size, 0);
+		if ((L.population || 0) < 800) {
+			problems.push(`ledger covers ${L.population} functions, expected the whole game module`);
+		}
+
+		// Every row carries every column, populated or an explicit n-a.
+		const missingCol = new Map();
+		for (const [, rec] of rows) {
+			for (const c of cols) {
+				if (rec[c] === undefined || rec[c] === '') missingCol.set(c, (missingCol.get(c) || 0) + 1);
+			}
+		}
+		for (const [c, n] of missingCol) problems.push(`${n} rows leave column \`${c}\` empty; n-a is a value, a blank is not`);
+
+		// Cluster integrity.
+		const ids = new Set(Object.keys(L.clusters || {}));
+		const stray = rows.filter(([, rec]) => !ids.has(rec.cluster)).length;
+		if (stray) problems.push(`${stray} functions name a cluster that is not in clusters`);
+		const sum = Object.values(L.clusters || {}).reduce((a, c) => a + c.size, 0);
 		if (sum !== L.population) problems.push(`cluster sizes sum to ${sum}, population says ${L.population}`);
-		if ((L.population || 0) < 800) problems.push(`ledger covers ${L.population} functions, expected the whole game module`);
+
+		// The evidence rules. `n-a` is an honest value for notes but it is not evidence, so it does
+		// not excuse a proven or probable claim.
+		const hasEvidence = (r) => {
+			const n = String(r.notes || '').trim();
+			return n.length > 0 && n !== 'n-a';
+		};
+		const noEvidence = rows.filter(([, r]) => (r.confidence === 'proven' || r.confidence === 'probable') && !hasEvidence(r));
+		if (noEvidence.length) {
+			problems.push(`${noEvidence.length} rows claim ${noEvidence[0][1].confidence} with no evidence line. ` +
+				'First: ' + noEvidence[0][0]);
+		}
+		const noIdiom = rows.filter(([, r]) => r.attribution === 'hand-asm-positive' && !/`[^`]+`/.test(String(r.notes || '')));		if (noIdiom.length) {
+			problems.push(`${noIdiom.length} hand-asm-positive rows quote no excluding idiom. First: ${noIdiom[0][0]}. ` +
+				'A hand-asm label without the idiom that excludes compiler output is the laundering the rule exists to stop');
+		}
+
+		// The unattributed count must be reported, and must be the real number.
+		const actualUnattr = rows.filter(([, r]) => r.attribution === 'unattributed').length;
+		if (L.summary === undefined || L.summary.unattributed === undefined) {
+			problems.push('ledger does not report an unattributed count');
+		} else if (L.summary.unattributed !== actualUnattr) {
+			problems.push(`summary says ${L.summary.unattributed} unattributed, the rows say ${actualUnattr}`);
+		}
+
+		// Reproducible from the committed module.
 		const py = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
 			? path.join(__dirname, '.venv', 'bin', 'python3') : 'python3';
-		const r = spawnSync(py, [path.join(__dirname, 'cluster.py'), '--json'], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
-		try {
-			const j = JSON.parse(r.stdout);
-			if (j.population !== L.population) problems.push(`cluster.py now yields ${j.population} functions, ledger says ${L.population}. Re-generate the ledger`);
-			if (j.clusters !== (L.clusters || []).length) problems.push(`cluster.py now yields ${j.clusters} clusters, ledger says ${(L.clusters || []).length}`);
-		} catch {
-			problems.push('cluster.py --json gave no JSON: ' + ((r.stdout || '') + (r.stderr || '')).slice(0, 120));
+		const r = spawnSync(py, [path.join(__dirname, 'ledger.py'), '--check'],
+			{ cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
+		if (r.status !== 0) {
+			problems.push('ledger.py --check failed: ' +
+				((r.stdout || '') + (r.stderr || '')).split('\n').filter((l) => l.trim()).slice(0, 3).join(' | '));
 		}
-		record('clustering ledger', problems);
+
+		record('attribution ledger', problems);
 	}
 }
 
