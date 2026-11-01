@@ -89,6 +89,8 @@ AXIS = {
     'A33': 'the xor spelling of zeroing',
     'A34': 'a mask used only for its flags',
     'A35': 'xor as a real operation, and zeroing a loop accumulator',
+    'A36': 'a parameter used as a truthiness test',
+    'A37': 'a register used as a truthiness test',
 }
 
 
@@ -133,6 +135,7 @@ def flags(row):
     f['xor_used'] = any(i.mnemonic == 'xor' for i in ins)
     f['test_used'] = any(i.mnemonic == 'test' for i in ins)
     f['test_rr'] = any(re.match(r'test (\w+), \1$', t) for t in ts)
+    f['and_self'] = any(re.match(r'and (\w+), \1$', t) for t in ts)
     f['cmp_zero'] = any(i.mnemonic == 'cmp' and i.op_str.endswith(', 0') for i in ins)
     f['idiv'] = 'idiv' in mns
     f['div_unsigned'] = any(i.mnemonic == 'div' for i in ins)
@@ -171,6 +174,7 @@ CANDIDATES = [
     ('sub reg,reg for zeroing', lambda fl, rows: any(r['zero_sub'] for r in rows)),
     ('mov reg,0 for zeroing', lambda fl, rows: any(r['zero_mov_imm'] for r in rows)),
     ('test with two register operands as a zero test', lambda fl, rows: any(r['test_rr'] for r in rows)),
+    ('and reg,reg as a truthiness test on a register', lambda fl, rows: any(r['and_self'] for r in rows)),
     ('test at all, from a mask used only for its flags', lambda fl, rows: any(r['test_used'] for r in rows)),
     ('cmp against 0 for a zero test', lambda fl, rows: any(r['cmp_zero'] for r in rows)),
     ('cdq/sub/sar 1 halving chain produced from a /2^n division', lambda fl, rows: any(

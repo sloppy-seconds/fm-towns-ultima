@@ -79,7 +79,7 @@ Counting the whole module against the atlas's idioms is the step that turns the 
 | idiom | functions | atlas says |
 |---|---|---|
 | `sub reg,reg` to zero | 227 | emitted (A08, A09, A13, A33) |
-| `and reg,reg` as a truthiness test | 220 | **no probe covers this shape** |
+| `and reg,reg` as a truthiness test | 220 | **now explained: A37 shows a register condition compiles to exactly this** |
 | `xor reg,reg` to zero | 41 | never emitted, and A33 confirms `a ^= a` still gives `sub` |
 | `test` | 43 | emitted for a mask test (A34), absent as `test reg,reg` |
 | a string op | 25 | never emitted (A30 gives a manual loop) |
@@ -95,9 +95,11 @@ Two of these are live exclusion signals and one is not:
 - **43 functions use `test`, and that means nothing.** An earlier draft of the atlas said `test` never appears,
   and A34 refuted it the same day. See the correction in [idiom-atlas.md](idiom-atlas.md).
 
-And one honest gap: **220 functions use `and reg,reg` as a truthiness test**, which is a fifth of the module,
-and the atlas has no probe for it. It is flagged as a feature rather than silently ignored, because a vector
-that says "we have not characterised this" is worth more than one that pretends the question was asked.
+And one gap that got closed the same night: **220 functions use `and reg,reg` as a truthiness test**, a fifth of
+the module, and at the time the atlas had no probe for it. It was flagged as a feature rather than silently
+ignored, and probe A37 then showed that `while (p)` compiles to `and edi, edi; je`. So the shape is ordinary
+High C output and is not an exclusion signal at all. Flagging it as unknown is what made it possible to find
+out.
 
 ## The position check
 
