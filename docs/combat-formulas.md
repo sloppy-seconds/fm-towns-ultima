@@ -295,6 +295,112 @@ So **item 4b is no better off from this run**, and the honest reading is that th
 worth doing for the food, EXP and gold figures and worth nothing for the formula it was aimed at.
 The next attempt needs a fight the player does **not** win in one blow.
 
+## The damage site, read: 2026-11-02
+
+This page's stated next step was to find the routine that prints the attack text and follow it backwards.
+Done, by a better route: `tools/findvar.py` scans for the four little-endian bytes of a data address and
+reports only hits that fall on an instruction inside a function whose extent `docs/corpus.json` asserts.
+
+The consequence of asking it about `0xcde81` (`HP`): **37 occurrences, exactly one of which subtracts.**
+
+```
+0xf0144  push ebp
+0xf0145  mov  ebp, esp
+0xf0148  mov  edi, [ebp + 8]        ; the damage, a parameter
+0xf014b  call 0xef8a4
+0xf0150  push 8
+0xf0152  call 0xe1b44               ; window 8
+0xf0157  call 0xef8a4
+0xf015f  and  edi, edi
+0xf0161  jl   0xf0182               ; a negative argument takes the other path
+0xf0163  mov  eax, [0xceca0]        ; the current player index
+0xf0163  ...  lea/lea/shl/sub      ; edx = player_index * 351
+0xf0173  sub  [edx + 0xcde81], edi  ; HP -= damage
+0xf0179  cmp  [edx + 0xcde81], 0
+0xf0180  jge  0xf01b5               ; HP >= 0 is fine
+0xf0182  cmp  [0xcde44], 1
+0xf0189  jne  0xf0192
+0xf018b  call 0xf0ec4               ; the routine that writes HP = 99 / 75 / 25
+0xf0192  ...  edx = player_index * 351
+0xf01a2  mov  [edx + 0xcde81], 0    ; otherwise the floor is zero
+```
+
+So the arithmetic is `HP = max(HP - damage, 0)` for a non-negative argument, and a negative argument or an
+HP that went below zero both divert to `0xf0182`, where a flag decides between the 99/75/25 routine and the
+plain floor. The damage itself is never computed here.
+
+**A frame correction, and this is the third appearance of the same defect.** The item's earlier block quoted
+this routine at `0x0eff44` and its `call` as `0xef6a4`. Every code address in it is exactly `0x200` low: the
+routine is `0xf0144` and the call is `0xef8a4`. That is the guest frame, and every page in this repository
+quotes file offsets. The `0xcde81` in the same block is unaffected, because an operand's *value* is not
+frame-shifted, which is what made the block read as verified while its addresses pointed elsewhere. The
+analysis was right and its addressing was in the wrong frame.
+
+### The six callers, and what each pushes
+
+`tools/findcallers.py 0xf0144` finds **six** direct calls, not the eight the earlier note listed:
+
+| call site | pushed damage |
+|---|---|
+| `0xf0c60` in `0xf0c08` | `push 0xa`, which is 10 |
+| `0xf3b8b` in `0xf38d4` | `push -1`, the negative path |
+| `0xf92e6` in `0xf90a0` | `push 0x10`, which is 16 |
+| `0xf9331` in `0xf90a0` | `push 0x32`, which is 50 |
+| `0xfa105` in `0xf9ffc` | `push esi`, computed, the melee case |
+| `0xfc8d3` in `0xfc51c` | `push [ebp-8]`, computed from a local |
+
+The two constants 16 and 50 are worth noting against the live measurement above, where a monster hit the
+player for exactly 16. That is consistent with a fixed 16 somewhere, and one sample still does not
+establish it.
+
+### The melee damage, at `0xf9ffc`
+
+```
+0xfa0b6  push 0; call 0xf329c
+0xfa0bd  push 4; call 0xe1c7c            ; a roll, bound 4
+0xfa0c4  mov  [ebp - 4], eax             ; the roll
+0xfa0c7  mov  eax, [edi*4 + 0xce608]     ; a per-attacker word, indexed by the argument
+0xfa0d0  mov  ecx, 6
+0xfa0d5  div  ecx                        ; unsigned divide by 6
+0xfa0d7  mov  esi, [ebp - 4]
+0xfa0da  add  esi, eax
+0xfa0dc  inc  esi                        ; esi = roll(4) + table[attacker]/6 + 1
+0xfa0f0  cmp  [player + 0xcde99], 0
+0xfa0f7  jne  0xfa104
+0xfa0f9  cmp  [player + 0xcdf57], 3
+0xfa100  jne  0xfa104
+0xfa102  add  esi, esi                   ; doubled on that combination
+0xfa104  push esi
+0xfa105  call 0xf0144
+```
+
+So the melee damage is **`roll(4) + table[attacker] / 6 + 1`**, doubled when `[player+0xcde99]` is zero and
+`[player+0xcdf57]` is 3. `0xcdf57` is `MAP`, from the variable map, so the doubling is scoped to one map id
+and the rule for it is not yet read.
+
+### The hit test, and why it is not claimed
+
+Immediately before the damage branch, at `0xfa056`:
+
+```
+0xfa056  mov  eax, [player + 0xcde66]
+0xfa05c  cdq
+0xfa05d  mov  ecx, 0xa
+0xfa062  idiv ecx                        ; stat / 10
+0xfa064  inc  eax                        ; stat / 10 + 1
+0xfa065  cmp  eax, [ebp - 4]             ; against the roll(0x20) taken at 0xfa03a
+0xfa068  jg   0xfa09e                  ; branch taken when the stat term is LARGER
+```
+
+**That reads inverted and no rule is claimed.** A larger stat making the `jg` branch more likely would mean a
+higher stat misses more, which is not a plausible mechanic. Three explanations are open and unseparated: the
+branch target `0xfa09e` is the hit path rather than the miss path, `0xe1c7c` is not a uniform roll so
+`[ebp-4]` is not comparable to a stat, or `[0xcde66]` is not the attacker's skill. The two strings the
+branches print are at `0xad4c` and `0xad6c` and they are in the game's mixed SJIS-and-`0xEB` encoding, so
+settling which is "attacks" and which is "misses" needs the text decoder, not another reading of the flow.
+
+That is the next step on this page, and it is a decoding job.
+
 ## What would actually work, and it is not another scan
 
 **Read the routine that prints `\nによる攻撃` and follow it backwards.** That string must be printed at the

@@ -1249,28 +1249,59 @@ The item's own question is answered; the transition's arithmetic is the next rea
 `docs/combat-formulas.md` and `docs/hp-and-damage.md` hold partial work. This item completes them.
 
 **Progress, measured from the variable map.** `HP` is at **`0xcde81`** and `MHP` at **`0xcde85`**, from the save
-writer's own format strings. Of the 37 references to `HP` in the image, exactly **one subtracts**: `0x0eff73`,
-inside the routine at **`0x0eff44`**:
+writer's own format strings. Of the 37 references to `HP` in the image, exactly **one subtracts**: `0xf0173`,
+inside the routine at **`0xf0144`**:
 
 ```
-0x0eff44  push ebp; mov ebp, esp
-0x0eff48  edi = [ebp+8]          ; the damage amount, as a parameter
-0x0eff4b  call 0xef6a4            ; also called again after the window is set to 8
-0x0eff50  push 8; call 0xe1944    ; window 8
-0x0eff5f  if (edi < 0) goto 0x0eff82   ; a negative argument takes a different path
-0x0eff63  edx = [0xceca0] * 351
-0x0eff73  HP -= edi
-0x0eff79  if (HP < 0) HP = 0      ; the clamp is at 0x0effa2
+0xf0144  push ebp; mov ebp, esp
+0xf0148  mov edi, [ebp+8]         ; the damage amount, as a parameter
+0xf014b  call 0xef8a4             ; also called again after the window is set to 8
+0xf0150  push 8; call 0xe1b44     ; window 8
+0xf015f  and edi,edi; jl 0xf0182  ; a negative argument takes a different path
+0xf0163  edx = [0xceca0] * 351
+0xf0173  sub [edx+0xcde81], edi   ; HP -= damage
+0xf0179  cmp [edx+0xcde81], 0; jge 0xf01b5
+0xf01a2  mov [edx+0xcde81], 0     ; the floor is zero, unless [0xcde44] == 1
 ```
+
+> **Frame correction, 2026-11-02.** This block previously gave every code address `0x200` low (`0x0eff44`,
+> `call 0xef6a4`, `0x0eff73`) while keeping the data address `0xcde81` correct. That is the guest frame, and
+> every document here quotes file offsets, so the note read as verified while pointing `0x200` away from the
+> instruction. Its analysis was right; its addressing was in the wrong frame. Third appearance of this defect
+> in one night, after the module-versus-docs offsets and the `MP`/`P3` container sentence.
 
 So the damage **application** is `HP -= damage` with a floor of zero, and the damage itself is a parameter. The
-formula is therefore in the eight call sites: `0x0efc50`, `0x0efca4`, `0x0f0a60`, `0x0f398b`, `0x0f90e6`, `0x0f9131`,
-`0x0f9d92`, `0x0f9f05`. Reading what each pushes into that argument is the next step, and the answer for melee is
-among them rather than in one shared place.
+formula is therefore in the callers, and they are **six**, not the eight the first note listed. Derived with
+`tools/findcallers.py 0xf0144`:
 
-Two other `HP` writers are worth noting because they look like combat and are not obviously damage: `0x0f0d19` sets
-`HP = 0x63`, `0x0f0d35` sets `0x4b` and `0x0f0d51` sets `0x19` (99, 75, 25) in the same routine, which is a
-class-based starting or maximum value rather than a hit.
+| call site | pushed damage |
+|---|---|
+| `0xf0c60` | 10 |
+| `0xf3b8b` | -1 |
+| `0xf92e6` | 16 |
+| `0xf9331` | 50 |
+| `0xfa105` | `esi`, computed by the melee routine `0xf9ffc` |
+| `0xfc8d3` | `[ebp-8]` |
+
+**Melee is read as arithmetic.** At `0xf9ffc`, damage is `roll(4) + table[attacker]/6 + 1`, doubled when
+`[player+0xcde99] == 0` and `[player+0xcdf57] == 3`. The full listing and the derivation are on
+[combat-formulas.md](combat-formulas.md).
+
+**The hit test is located but not claimed.** At `0xfa056` a per-player word at `+0xcde66` is divided by 10, one
+is added, and the result is compared against a `roll(0x20)`; the branch is taken when the stat term is
+*larger*, which reads inverted. Three explanations are open and unseparated, and the two strings the branches
+print are in the game's mixed SJIS-and-`0xEB` encoding, so settling it needs the text decoder rather than
+another reading of the flow. Initiative and monster stats are not read at all.
+
+Two other `HP` writers are worth noting because they look like combat and are not obviously damage: `0xf0f19` sets
+`HP = 0x63`, `0xf0f35` sets `0x4b` and `0xf0f51` sets `0x19` (99, 75, 25) in the same routine, which is a
+class-based starting or maximum value rather than a hit. Those addresses also carry the `0x200` correction.
+
+**Two instruments were added for this**, because the site lists could not be trusted to a note:
+`tools/findvar.py` reports the instructions that reference a 32-bit address, keeping only hits on instruction
+boundaries inside asserted function extents, and `tools/findcallers.py` derives the callers of an address the
+same way. Asked about `0xcde81`, the first returns 37 sites of which exactly one subtracts, which is the claim
+this item rests on.
 
 ### 5f. Shops, prices and transports
 
