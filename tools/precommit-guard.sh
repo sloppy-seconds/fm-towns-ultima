@@ -89,17 +89,25 @@ Do not bypass with --no-verify unless you are certain.
 MSG
 fi
 
-# Second gate: documentation and plan consistency, per docs/plan-process.md Part 7.
+# Documentation and plan consistency is NOT checked here, as of 2026-11-02.
 #
-# The old Part 7 gave six shell one-liners, four of which could not fail and two of which reported failure
-# when clean. checkall.js is the replacement, and every check in it has been tested by breaking something it
-# should catch.
+# It used to be. This hook ran `node tools/checkall.js --quiet --no-build` on every commit, and the comment
+# above it said `--no-build` was used "because mkdocs is the slowest step". Measured, that was wrong: mkdocs
+# is 2.6 s of a 38 s suite, so the hook optimised away 7 percent of the cost and kept 93 percent of it.
 #
-# --no-build skips mkdocs here because it is the slowest step and this runs on every commit. The build is
-# still checked on the manual run and in any future CI job.
+# The real cost was that it ran the whole suite a second time. A normal pattern was `node tools/checkall.js &&
+# git commit`, which paid 38 s to check the tree and then another 35.5 s for the hook to check the identical
+# tree. Measured on 2026-11-02: checkall --quiet --no-build is 35.5 s, checkall --quiet is 38.1 s, and a
+# commit that way took 1 m 53 s. Over one night that was about seven minutes spent re-proving the same thing.
 #
-# SKIP_DOC_CHECKS=1 bypasses this. If you use it, say why in the commit message.
-if [ "${SKIP_DOC_CHECKS:-0}" != "1" ] && command -v node >/dev/null 2>&1; then
+# So the doc checks are a deliberate step before a commit now, not a hidden tax inside one. Run
+# `node tools/checkall.js` yourself. If you want the old behaviour back for a branch where you would rather
+# pay the time than remember, set CHECK_DOC_CHECKS=1.
+#
+# This is a real trade and it is recorded rather than slipped in: the copyright gate below still cannot be
+# forgotten, because it is the only thing standing between a stray `git add -f` and a takedown notice, and it
+# costs milliseconds. The doc checks can be forgotten, which is why they are the ones that moved out.
+if [ "${CHECK_DOC_CHECKS:-0}" = "1" ] && [ "${SKIP_DOC_CHECKS:-0}" != "1" ] && command -v node >/dev/null 2>&1; then
 	if ! node tools/checkall.js --quiet --no-build; then
 		cat >&2 <<'MSG'
 
@@ -109,7 +117,8 @@ These exist because drift has been the most common defect in this repository: a 
 places, the plan summary table contradicting the item sections under it, and items worked without their
 metadata being updated. None of them break the build, which is why they need a gate.
 
-SKIP_DOC_CHECKS=1 bypasses this.
+CHECK_DOC_CHECKS=1 opts into running them here. They are not run by default since 2026-11-02, because the
+hook was paying for the whole suite a second time on every commit.
 MSG
 		status=1
 	fi
