@@ -252,4 +252,13 @@ function main() {
 	process.exit(result.verdict === 'differs' ? 1 : 0);
 }
 
-main();
+// Only run the CLI when invoked directly. Without this guard, requiring the file
+// from tools/byteid.js would parse byteid's own argv and exit(2).
+if (require.main === module) main();
+
+// Exported so tools/byteid.js can reuse the encoding-derived relocation logic
+// instead of duplicating a decoder. AGENTS.md is explicit that shared format
+// logic is not to be copied, and this file carries a lot of hard-won corrections
+// (the base+disp32 form, the scale-1 nobase exception, the SIB mod=00 base=101
+// case) that a second implementation would inevitably get wrong differently.
+module.exports = { relocFields, targetInsns, bytes, PREFIXES };

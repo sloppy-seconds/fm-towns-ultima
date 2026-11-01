@@ -132,6 +132,7 @@ nav:
       - Ghidra viability: ghidra-viability.md
       - High C code generation: highc-codegen.md
       - The forward idiom atlas: idiom-atlas.md
+      - The byte-identity equivalence rule: byte-identity-rule.md
       - Same-compiler labelled material: attribution-samples.md
       - High C calibration spike: highc-spike.md
       - High C 3.04 installer: highc-v304-installer.md

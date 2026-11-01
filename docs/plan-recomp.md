@@ -26,7 +26,24 @@ Derived from the items below, not maintained separately. `node tools/plancheck.j
 
 ### 12a. The byte-identity equivalence rule, written and asserted
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**What is now known.** The rule is [byte-identity-rule.md](byte-identity-rule.md) and the code is
+`tools/byteid.js`. A candidate matches when its bytes equal the game's over the function's **asserted** extent
+from `docs/corpus.json`, with three exempt classes and no others: `L1` a four-byte absolute displacement, `L2`
+a signed `rel32` call or jump, and `P1` zero alignment padding. Each carries a per-site demonstration that is
+re-run at comparison time, and an address with no asserted extent gets `extent-unasserted` and exit 2 rather
+than a guessed boundary, which is the `0xe6a58` failure made unreachable. It is stricter than
+`tools/cmpdisp.js` in two ways that both came out of testing: a `rel8` short jump is authored code and is no
+longer masked, and a `rel32` is read signed, because read unsigned every backward call failed the
+demonstration. Verified against bytes the real toolchain produced: the standalone build of `0xe9e2c` comes out
+`byte-identical` with zero exemptions applied. One honest negative is recorded on the page: measured with the
+rule's own predicates the demonstrations refuse **0 of 1,288** sites on a 150-function sample, so they are
+validity guards rather than discriminators, and the narrowing comes from the encoding predicate. The gate
+therefore asserts the predicates directly, in both directions, and was seen to fail when `L1` was made
+unconditional. One deviation from the `done when`, stated rather than glossed: the assertion lives in
+`tools/checkall.js`, not `tools/verify.js`, because the rule needs the decoder and `verify.js` must stay
+dependency-free so a stranger can run it with nothing but the disc.
 
 Before any function is declared matched, the rules for what "matched" means have to exist as code. Which
 bytes are exempt and why, and how a function's boundaries are fixed. `AGENTS.md` already treats "identical

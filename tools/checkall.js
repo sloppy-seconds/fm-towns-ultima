@@ -46,6 +46,7 @@ const DISC_CHECKS = new Set([
 	'walk comparison',
 	'return convention split by ownership',
 	'disp32 comparison works and can fail',
+	'byte-identity equivalence rule',
 	'corpus census is reproducible',
 	'decoder session agrees with one-shot',
 	'cfgwalk refuses seeds inside zero fill',
@@ -403,6 +404,68 @@ const runNode = (script, args = []) => {
 			}
 		}
 		record('forward idiom atlas', problems);
+	}
+}
+
+// E7d. The byte-identity equivalence rule, item 12a. The rule has to be code
+// before any function is declared matched, and a masking rule is the easiest
+// thing in the world to make always pass, so this asserts it in both directions:
+// the game's own bytes must come out byte-identical, a one-byte change outside a
+// demonstrated exemption must come out differs, an address with no asserted
+// extent must be refused rather than guessed, and the L1/L2 predicates must
+// actually reject values that are not addresses. That last one is the
+// demonstration that the guard is a predicate and not `true`, which matters
+// because the measured refusal rate on real data is zero out of 1,288 sites.
+{
+	if (NO_DISC) {
+		skipped++;
+	} else {
+	const problems = [];
+	const B = require('./byteid.js');
+	const buf = fs.readFileSync(path.join(ROOT, 'ENCHANT.EXP'));
+	const ext = B.extents();
+	const addrs = [...ext.keys()].sort((a, b) => a - b).slice(0, 12);
+	let identical = 0;
+	for (const a of addrs) {
+		const r = B.compare(a, [...buf.subarray(a, a + ext.get(a))]);
+		if (r.verdict === 'byte-identical') identical++;
+		else problems.push(`0x${a.toString(16)} against its own bytes gave ${r.verdict}, expected byte-identical`);
+	}
+	if (identical < addrs.length) problems.push(`only ${identical}/${addrs.length} self-comparisons identical`);
+
+	// One byte changed outside any exemption. 0xe9e2c is 21 bytes with no exempt
+	// site, so its last byte is guaranteed unmasked.
+	{
+		const a = 0xe9e2c;
+		const good = [...buf.subarray(a, a + ext.get(a))];
+		const bad = good.slice();
+		bad[bad.length - 1] = bad[bad.length - 1] ^ 0xff;
+		const r = B.compare(a, bad);
+		if (r.verdict !== 'differs') problems.push(`flipping the last byte of 0xe9e2c must differ, got ${r.verdict}`);
+		const short = B.compare(a, good.slice(0, good.length - 1));
+		if (short.verdict === 'byte-identical' || short.verdict === 'identical-except-link') {
+			problems.push(`a truncated candidate must not verify, got ${short.verdict}`);
+		}
+	}
+
+	const unasserted = B.compare(0x1, [0x90]);
+	if (unasserted.verdict !== 'extent-unasserted') {
+		problems.push(`an address with no asserted extent gave ${unasserted.verdict}, expected extent-unasserted`);
+	}
+
+	const ctx = { imageSize: buf.length, insAddr: 0x1000, insSize: 5 };
+	const l1 = B.EXEMPTIONS.find((e) => e.id === 'L1');
+	const l2 = B.EXEMPTIONS.find((e) => e.id === 'L2');
+	if (l1.check(0xffffff6b, ctx) !== false) problems.push('L1 accepted a value that is not an image address');
+	if (l1.check(0xdea40, ctx) !== true) problems.push('L1 rejected a value that is an image address');
+	if (l2.check(0x7f048d0f, ctx) !== false) problems.push('L2 accepted a displacement that resolves nowhere');
+	if (l2.check(-4, ctx) !== true) problems.push('L2 rejected a backward displacement, so rel32 is not signed');
+
+	const doc = fs.readFileSync(path.join(DOCS, 'byte-identity-rule.md'), 'utf8');
+	for (const e of B.EXEMPTIONS) {
+		if (!doc.includes(e.id)) problems.push(`exempt class ${e.id} is not named in docs/byte-identity-rule.md`);
+	}
+	record('byte-identity equivalence rule', problems);
 	}
 }
 
