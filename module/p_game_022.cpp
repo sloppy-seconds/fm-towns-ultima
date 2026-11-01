@@ -1394,6 +1394,277 @@ L_ffe63:
     c.eip = pop32(c); return;
     x86_fault(c, 0xffe24u, "ran off the end of a function");
 }
+void f_000ffe93(X86Cpu& c) {
+    X86_TICK(c, 12);
+    // 0ffe93  cmp byte ptr [0xdfa01], 2
+    X86_AT(c, 0xffe93u);
+    (void)x86_sub(c, rd8((c.sbase[3] + (uint32_t)(0xDFA01u))), 0x2u, 0, 1);
+    // 0ffe9a  jb 0xffeae
+    X86_AT(c, 0xffe9au);
+    if (x86_cc(c, 2)) { goto L_ffeae; }
+    X86_TICK(c, 11);
+    // 0ffe9c  mov byte ptr [0xdfa03], al
+    X86_AT(c, 0xffe9cu);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA03u)), g8(c, 0));
+    // 0ffea1  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xffea1u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0ffea8  call 0xfff9b
+    X86_AT(c, 0xffea8u);
+    push32(c, 0xffeadu); f_000fff9b(c); X86_RET(c, 0xffeadu);
+    X86_TICK(c, 10);
+    // 0ffead  ret 
+    X86_AT(c, 0xffeadu);
+    c.eip = pop32(c); return;
+L_ffeae:
+    X86_TICK(c, 18);
+    // 0ffeae  mov byte ptr [0xdfa02], al
+    X86_AT(c, 0xffeaeu);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA02u)), g8(c, 0));
+    // 0ffeb3  inc byte ptr [0xdfa01]
+    X86_AT(c, 0xffeb3u);
+    { uint32_t ea = (c.sbase[3] + (uint32_t)(0xDFA01u)); uint32_t v = rd8(ea); wr8(ea, x86_inc(c, v, 1)); }
+    // 0ffeb9  ret 
+    X86_AT(c, 0xffeb9u);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xffe93u, "ran off the end of a function");
+}
+void f_000ffeba(X86Cpu& c) {
+    X86_TICK(c, 12);
+    // 0ffeba  cmp byte ptr [0xdfa01], 2
+    X86_AT(c, 0xffebau);
+    (void)x86_sub(c, rd8((c.sbase[3] + (uint32_t)(0xDFA01u))), 0x2u, 0, 1);
+    // 0ffec1  jb 0xffedf
+    X86_AT(c, 0xffec1u);
+    if (x86_cc(c, 2)) { goto L_ffedf; }
+    X86_TICK(c, 11);
+    // 0ffec3  mov byte ptr [0xdfa03], al
+    X86_AT(c, 0xffec3u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA03u)), g8(c, 0));
+    // 0ffec8  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xffec8u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0ffecf  and al, al
+    X86_AT(c, 0xffecfu);
+    { uint32_t v = g8(c, 0); s8(c, 0, x86_logic(c, v & g8(c, 0), 1)); }
+    // 0ffed1  je 0xffed9
+    X86_AT(c, 0xffed1u);
+    if (x86_cc(c, 4)) { goto L_ffed9; }
+    X86_TICK(c, 7);
+    // 0ffed3  call 0xffffe
+    X86_AT(c, 0xffed3u);
+    push32(c, 0xffed8u); f_000ffffe(c); X86_RET(c, 0xffed8u);
+    X86_TICK(c, 10);
+    // 0ffed8  ret 
+    X86_AT(c, 0xffed8u);
+    c.eip = pop32(c); return;
+L_ffed9:
+    X86_TICK(c, 7);
+    // 0ffed9  call 0xfff9b
+    X86_AT(c, 0xffed9u);
+    push32(c, 0xffedeu); f_000fff9b(c); X86_RET(c, 0xffedeu);
+    X86_TICK(c, 10);
+    // 0ffede  ret 
+    X86_AT(c, 0xffedeu);
+    c.eip = pop32(c); return;
+L_ffedf:
+    X86_TICK(c, 18);
+    // 0ffedf  mov byte ptr [0xdfa02], al
+    X86_AT(c, 0xffedfu);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA02u)), g8(c, 0));
+    // 0ffee4  inc byte ptr [0xdfa01]
+    X86_AT(c, 0xffee4u);
+    { uint32_t ea = (c.sbase[3] + (uint32_t)(0xDFA01u)); uint32_t v = rd8(ea); wr8(ea, x86_inc(c, v, 1)); }
+    // 0ffeea  ret 
+    X86_AT(c, 0xffeeau);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xffebau, "ran off the end of a function");
+}
+void f_000ffeeb(X86Cpu& c) {
+    X86_TICK(c, 12);
+    // 0ffeeb  cmp byte ptr [0xdfa01], 2
+    X86_AT(c, 0xffeebu);
+    (void)x86_sub(c, rd8((c.sbase[3] + (uint32_t)(0xDFA01u))), 0x2u, 0, 1);
+    // 0ffef2  jb 0xffefc
+    X86_AT(c, 0xffef2u);
+    if (x86_cc(c, 2)) { goto L_ffefc; }
+    X86_TICK(c, 12);
+    // 0ffef4  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xffef4u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0ffefb  ret 
+    X86_AT(c, 0xffefbu);
+    c.eip = pop32(c); return;
+L_ffefc:
+    X86_TICK(c, 18);
+    // 0ffefc  mov byte ptr [0xdfa02], al
+    X86_AT(c, 0xffefcu);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA02u)), g8(c, 0));
+    // 0fff01  inc byte ptr [0xdfa01]
+    X86_AT(c, 0xfff01u);
+    { uint32_t ea = (c.sbase[3] + (uint32_t)(0xDFA01u)); uint32_t v = rd8(ea); wr8(ea, x86_inc(c, v, 1)); }
+    // 0fff07  ret 
+    X86_AT(c, 0xfff07u);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xffeebu, "ran off the end of a function");
+}
+void f_000fff08(X86Cpu& c) {
+    X86_TICK(c, 12);
+    // 0fff08  cmp byte ptr [0xdfa01], 2
+    X86_AT(c, 0xfff08u);
+    (void)x86_sub(c, rd8((c.sbase[3] + (uint32_t)(0xDFA01u))), 0x2u, 0, 1);
+    // 0fff0f  jb 0xfff41
+    X86_AT(c, 0xfff0fu);
+    if (x86_cc(c, 2)) { goto L_fff41; }
+    X86_TICK(c, 15);
+    // 0fff11  mov byte ptr [0xdfa03], al
+    X86_AT(c, 0xfff11u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA03u)), g8(c, 0));
+    // 0fff16  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xfff16u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0fff1d  mov al, byte ptr [0xdfa02]
+    X86_AT(c, 0xfff1du);
+    s8(c, 0, rd8((c.sbase[3] + (uint32_t)(0xDFA02u))));
+    // 0fff22  cmp al, 7
+    X86_AT(c, 0xfff22u);
+    (void)x86_sub(c, g8(c, 0), 0x7u, 0, 1);
+    // 0fff24  je 0xfff2f
+    X86_AT(c, 0xfff24u);
+    if (x86_cc(c, 4)) { goto L_fff2f; }
+    X86_TICK(c, 7);
+    // 0fff26  cmp al, 0xa
+    X86_AT(c, 0xfff26u);
+    (void)x86_sub(c, g8(c, 0), 0xAu, 0, 1);
+    // 0fff28  je 0xfff35
+    X86_AT(c, 0xfff28u);
+    if (x86_cc(c, 4)) { goto L_fff35; }
+    X86_TICK(c, 7);
+    // 0fff2a  cmp al, 0x40
+    X86_AT(c, 0xfff2au);
+    (void)x86_sub(c, g8(c, 0), 0x40u, 0, 1);
+    // 0fff2c  je 0xfff3b
+    X86_AT(c, 0xfff2cu);
+    if (x86_cc(c, 4)) { goto L_fff3b; }
+    X86_TICK(c, 10);
+    // 0fff2e  ret 
+    X86_AT(c, 0xfff2eu);
+    c.eip = pop32(c); return;
+L_fff2f:
+    X86_TICK(c, 7);
+    // 0fff2f  call 0x10008f
+    X86_AT(c, 0xfff2fu);
+    push32(c, 0xfff34u); f_0010008f(c); X86_RET(c, 0xfff34u);
+    X86_TICK(c, 10);
+    // 0fff34  ret 
+    X86_AT(c, 0xfff34u);
+    c.eip = pop32(c); return;
+L_fff35:
+    X86_TICK(c, 7);
+    // 0fff35  call 0x1000cb
+    X86_AT(c, 0xfff35u);
+    push32(c, 0xfff3au); f_001000cb(c); X86_RET(c, 0xfff3au);
+    X86_TICK(c, 10);
+    // 0fff3a  ret 
+    X86_AT(c, 0xfff3au);
+    c.eip = pop32(c); return;
+L_fff3b:
+    X86_TICK(c, 7);
+    // 0fff3b  call 0x100107
+    X86_AT(c, 0xfff3bu);
+    push32(c, 0xfff40u); f_00100107(c); X86_RET(c, 0xfff40u);
+    X86_TICK(c, 10);
+    // 0fff40  ret 
+    X86_AT(c, 0xfff40u);
+    c.eip = pop32(c); return;
+L_fff41:
+    X86_TICK(c, 18);
+    // 0fff41  mov byte ptr [0xdfa02], al
+    X86_AT(c, 0xfff41u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA02u)), g8(c, 0));
+    // 0fff46  inc byte ptr [0xdfa01]
+    X86_AT(c, 0xfff46u);
+    { uint32_t ea = (c.sbase[3] + (uint32_t)(0xDFA01u)); uint32_t v = rd8(ea); wr8(ea, x86_inc(c, v, 1)); }
+    // 0fff4c  ret 
+    X86_AT(c, 0xfff4cu);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xfff08u, "ran off the end of a function");
+}
+void f_000fff4d(X86Cpu& c) {
+    X86_TICK(c, 11);
+    // 0fff4d  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xfff4du);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0fff54  mov byte ptr [0xdfa02], al
+    X86_AT(c, 0xfff54u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA02u)), g8(c, 0));
+    // 0fff59  call 0x10016e
+    X86_AT(c, 0xfff59u);
+    push32(c, 0xfff5eu); f_0010016e(c); X86_RET(c, 0xfff5eu);
+    X86_TICK(c, 10);
+    // 0fff5e  ret 
+    X86_AT(c, 0xfff5eu);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xfff4du, "ran off the end of a function");
+}
+void f_000fff5f(X86Cpu& c) {
+    X86_TICK(c, 14);
+    // 0fff5f  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xfff5fu);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0fff66  mov byte ptr [0xdfa02], al
+    X86_AT(c, 0xfff66u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA02u)), g8(c, 0));
+    // 0fff6b  ret 
+    X86_AT(c, 0xfff6bu);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xfff5fu, "ran off the end of a function");
+}
+void f_000fff6c(X86Cpu& c) {
+    X86_TICK(c, 12);
+    // 0fff6c  cmp byte ptr [0xdfa01], 2
+    X86_AT(c, 0xfff6cu);
+    (void)x86_sub(c, rd8((c.sbase[3] + (uint32_t)(0xDFA01u))), 0x2u, 0, 1);
+    // 0fff73  jb 0xfff87
+    X86_AT(c, 0xfff73u);
+    if (x86_cc(c, 2)) { goto L_fff87; }
+    X86_TICK(c, 11);
+    // 0fff75  mov byte ptr [0xdfa03], al
+    X86_AT(c, 0xfff75u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA03u)), g8(c, 0));
+    // 0fff7a  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xfff7au);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0fff81  call 0x1001a7
+    X86_AT(c, 0xfff81u);
+    push32(c, 0xfff86u); f_001001a7(c); X86_RET(c, 0xfff86u);
+    X86_TICK(c, 10);
+    // 0fff86  ret 
+    X86_AT(c, 0xfff86u);
+    c.eip = pop32(c); return;
+L_fff87:
+    X86_TICK(c, 18);
+    // 0fff87  mov byte ptr [0xdfa02], al
+    X86_AT(c, 0xfff87u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA02u)), g8(c, 0));
+    // 0fff8c  inc byte ptr [0xdfa01]
+    X86_AT(c, 0xfff8cu);
+    { uint32_t ea = (c.sbase[3] + (uint32_t)(0xDFA01u)); uint32_t v = rd8(ea); wr8(ea, x86_inc(c, v, 1)); }
+    // 0fff92  ret 
+    X86_AT(c, 0xfff92u);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xfff6cu, "ran off the end of a function");
+}
+void f_000fff93(X86Cpu& c) {
+    X86_TICK(c, 12);
+    // 0fff93  mov byte ptr [0xdfa01], 1
+    X86_AT(c, 0xfff93u);
+    wr8((c.sbase[3] + (uint32_t)(0xDFA01u)), 0x1u);
+    // 0fff9a  ret 
+    X86_AT(c, 0xfff9au);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0xfff93u, "ran off the end of a function");
+}
 void f_000fff9b(X86Cpu& c) {
     X86_TICK(c, 17);
     // 0fff9b  mov al, byte ptr [0xdfa00]
@@ -1838,6 +2109,123 @@ L_10016c:
     X86_AT(c, 0x10016du);
     c.eip = pop32(c); return;
     x86_fault(c, 0x100107u, "ran off the end of a function");
+}
+void f_0010016e(X86Cpu& c) {
+    X86_TICK(c, 17);
+    // 10016e  mov al, byte ptr [0xdfa00]
+    X86_AT(c, 0x10016eu);
+    s8(c, 0, rd8((c.sbase[3] + (uint32_t)(0xDFA00u))));
+    // 100173  and eax, 0xf
+    X86_AT(c, 0x100173u);
+    { uint32_t v = c.r[0]; c.r[0] = x86_logic(c, v & 0xFu, 4); }
+    // 100178  mov bl, byte ptr [eax + 0xdfa15]
+    X86_AT(c, 0x100178u);
+    s8(c, 3, rd8((c.sbase[3] + (uint32_t)(c.r[0] + 0xDFA15u))));
+    // 10017e  cmp bl, 0xff
+    X86_AT(c, 0x10017eu);
+    (void)x86_sub(c, g8(c, 3), 0xFFu, 0, 1);
+    // 100181  je 0x1001a6
+    X86_AT(c, 0x100181u);
+    if (x86_cc(c, 4)) { goto L_1001a6; }
+L_100187:
+    X86_TICK(c, 18);
+    // 100187  movzx eax, bl
+    X86_AT(c, 0x100187u);
+    c.r[0] = g8(c, 3);
+    // 10018a  lea esi, [eax*4 + 0xdfa25]
+    X86_AT(c, 0x10018au);
+    c.r[6] = (uint32_t)(c.r[0] * 4 + 0xDFA25u);
+    // 100191  mov dh, byte ptr [0xdfa02]
+    X86_AT(c, 0x100191u);
+    s8(c, 6, rd8((c.sbase[3] + (uint32_t)(0xDFA02u))));
+    // 100197  mov ah, 4
+    X86_AT(c, 0x100197u);
+    s8(c, 4, 0x4u);
+    // 100199  call 0xfdf3c
+    X86_AT(c, 0x100199u);
+    push32(c, 0x10019eu); f_000fdf3c(c); X86_RET(c, 0x10019eu);
+    X86_TICK(c, 11);
+    // 10019e  mov bl, byte ptr [esi + 1]
+    X86_AT(c, 0x10019eu);
+    s8(c, 3, rd8((c.sbase[3] + (uint32_t)(c.r[6] + 0x1u))));
+    // 1001a1  cmp bl, 0xff
+    X86_AT(c, 0x1001a1u);
+    (void)x86_sub(c, g8(c, 3), 0xFFu, 0, 1);
+    // 1001a4  jne 0x100187
+    X86_AT(c, 0x1001a4u);
+    if (x86_cc(c, 5)) { X86_POLL(c, 0x100187u); goto L_100187; }
+L_1001a6:
+    X86_TICK(c, 10);
+    // 1001a6  ret 
+    X86_AT(c, 0x1001a6u);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0x10016eu, "ran off the end of a function");
+}
+void f_001001a7(X86Cpu& c) {
+    X86_TICK(c, 17);
+    // 1001a7  mov al, byte ptr [0xdfa00]
+    X86_AT(c, 0x1001a7u);
+    s8(c, 0, rd8((c.sbase[3] + (uint32_t)(0xDFA00u))));
+    // 1001ac  and eax, 0xf
+    X86_AT(c, 0x1001acu);
+    { uint32_t v = c.r[0]; c.r[0] = x86_logic(c, v & 0xFu, 4); }
+    // 1001b1  mov bl, byte ptr [eax + 0xdfa15]
+    X86_AT(c, 0x1001b1u);
+    s8(c, 3, rd8((c.sbase[3] + (uint32_t)(c.r[0] + 0xDFA15u))));
+    // 1001b7  cmp bl, 0xff
+    X86_AT(c, 0x1001b7u);
+    (void)x86_sub(c, g8(c, 3), 0xFFu, 0, 1);
+    // 1001ba  je 0x1001f6
+    X86_AT(c, 0x1001bau);
+    if (x86_cc(c, 4)) { goto L_1001f6; }
+L_1001c0:
+    X86_TICK(c, 32);
+    // 1001c0  movzx eax, bl
+    X86_AT(c, 0x1001c0u);
+    c.r[0] = g8(c, 3);
+    // 1001c3  lea esi, [eax*4 + 0xdfa25]
+    X86_AT(c, 0x1001c3u);
+    c.r[6] = (uint32_t)(c.r[0] * 4 + 0xDFA25u);
+    // 1001ca  mov dl, byte ptr [0xdfa02]
+    X86_AT(c, 0x1001cau);
+    s8(c, 2, rd8((c.sbase[3] + (uint32_t)(0xDFA02u))));
+    // 1001d0  mov dh, byte ptr [0xdfa03]
+    X86_AT(c, 0x1001d0u);
+    s8(c, 6, rd8((c.sbase[3] + (uint32_t)(0xDFA03u))));
+    // 1001d6  shl dl, 1
+    X86_AT(c, 0x1001d6u);
+    { uint32_t v = g8(c, 2); bool w; uint32_t r = x86_shift(c, 4, v, 0x1u, 1, w); if (w) s8(c, 2, r); }
+    // 1001d8  shr dx, 1
+    X86_AT(c, 0x1001d8u);
+    { uint32_t v = (c.r[2] & 0xFFFFu); bool w; uint32_t r = x86_shift(c, 5, v, 0x1u, 2, w); if (w) s16(c, 2, r); }
+    // 1001db  and edx, 0x3fff
+    X86_AT(c, 0x1001dbu);
+    { uint32_t v = c.r[2]; c.r[2] = x86_logic(c, v & 0x3FFFu, 4); }
+    // 1001e1  sub edx, 0x2000
+    X86_AT(c, 0x1001e1u);
+    { uint32_t v = c.r[2]; c.r[2] = x86_sub(c, v, 0x2000u, 0, 4); }
+    // 1001e7  mov ah, 7
+    X86_AT(c, 0x1001e7u);
+    s8(c, 4, 0x7u);
+    // 1001e9  call 0xfdf3c
+    X86_AT(c, 0x1001e9u);
+    push32(c, 0x1001eeu); f_000fdf3c(c); X86_RET(c, 0x1001eeu);
+    X86_TICK(c, 11);
+    // 1001ee  mov bl, byte ptr [esi + 1]
+    X86_AT(c, 0x1001eeu);
+    s8(c, 3, rd8((c.sbase[3] + (uint32_t)(c.r[6] + 0x1u))));
+    // 1001f1  cmp bl, 0xff
+    X86_AT(c, 0x1001f1u);
+    (void)x86_sub(c, g8(c, 3), 0xFFu, 0, 1);
+    // 1001f4  jne 0x1001c0
+    X86_AT(c, 0x1001f4u);
+    if (x86_cc(c, 5)) { X86_POLL(c, 0x1001c0u); goto L_1001c0; }
+L_1001f6:
+    X86_TICK(c, 10);
+    // 1001f6  ret 
+    X86_AT(c, 0x1001f6u);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0x1001a7u, "ran off the end of a function");
 }
 void f_001001f8(X86Cpu& c) {
     X86_TICK(c, 28);

@@ -45330,11 +45330,21 @@ static const X86FuncEntry k_funcs[] = {
     {0xffd00u, p_game::f_000ffd00},
     {0xffd82u, p_game::f_000ffd82},
     {0xffe24u, p_game::f_000ffe24},
+    {0xffe93u, p_game::f_000ffe93},
+    {0xffebau, p_game::f_000ffeba},
+    {0xffeebu, p_game::f_000ffeeb},
+    {0xfff08u, p_game::f_000fff08},
+    {0xfff4du, p_game::f_000fff4d},
+    {0xfff5fu, p_game::f_000fff5f},
+    {0xfff6cu, p_game::f_000fff6c},
+    {0xfff93u, p_game::f_000fff93},
     {0xfff9bu, p_game::f_000fff9b},
     {0xffffeu, p_game::f_000ffffe},
     {0x10008fu, p_game::f_0010008f},
     {0x1000cbu, p_game::f_001000cb},
     {0x100107u, p_game::f_00100107},
+    {0x10016eu, p_game::f_0010016e},
+    {0x1001a7u, p_game::f_001001a7},
     {0x1001f8u, p_game::f_001001f8},
     {0x100508u, p_game::f_00100508},
     {0x10078cu, p_game::f_0010078c},
@@ -45530,4 +45540,4 @@ static const X86FuncEntry k_funcs[] = {
     {0x105a2cu, p_game::f_00105a2c},
     {0x105a78u, p_game::f_00105a78},
 };
-extern const X86Module g_mod_p_game = {"GAME", 0xc, 1071886u, 0xcba7045bu, k_funcs, 865u, 0x0u, k_image};
+extern const X86Module g_mod_p_game = {"GAME", 0xc, 1071886u, 0xcba7045bu, k_funcs, 875u, 0x0u, k_image};

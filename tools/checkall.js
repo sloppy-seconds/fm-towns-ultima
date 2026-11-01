@@ -251,12 +251,15 @@ const runNode = (script, args = []) => {
 	}
 	if (j) {
 		const want = [
-			['emitted functions', j.functions.theirs, 865],
-			['our starts (call targets plus the seed file)', j.functions.ours, 813],
-			['function starts in both', j.functions.both, 788],
+			// Re-measured 2026-11-01 on the jump-table seed fix (defect 1). Eight handlers of the table at
+			// 0xffe73 were unreachable by the rules: only a `call dword ptr cs:[ebx]` refers to them. Seeding all
+			// eight moved emitted functions 865 -> 875 and our starts 813 -> 821, which is the new code.
+			['emitted functions', j.functions.theirs, 875],
+			['our starts (call targets plus the seed file)', j.functions.ours, 821],
+			['function starts in both', j.functions.both, 798],
 			["fmtownskit's function starts in zero fill", j.functions.theirs_only.zero_run, 0],
 			['our starts in zero fill', j.functions.ours_only.zero_run, 7],
-			['emitted instructions', j.instructions.theirs, 43016],
+			['emitted instructions', j.instructions.theirs, 43117],
 			// Re-measured 2026-10-30 on the plan-item-4h decoder migration (ndisasm text
 			// parser -> Capstone via tools/decode.js). Ours fell 39820 -> 39795 because
 			// ndisasm counted its `db` lines for undecodable bytes as instructions and
@@ -264,8 +267,8 @@ const runNode = (script, args = []) => {
 			// resyncs the way fmtownskit's i386.py does (docs/fmtownskit-and-seeds.md
 			// records that decoder as agreeing with Capstone on every routine checked),
 			// so agreement with the other walk improved, not degraded.
-			['our instructions, seeded', j.instructions.ours, 39795],
-			['instruction starts in both', j.instructions.both, 38515],
+			['our instructions, seeded', j.instructions.ours, 39863],
+			['instruction starts in both', j.instructions.both, 38616],
 		];
 		for (const [what, got, exp] of want) {
 			if (got !== exp) problems.push(`FAIL ${what}: ${got}, expected ${exp}. Re-measure before changing this number.`);

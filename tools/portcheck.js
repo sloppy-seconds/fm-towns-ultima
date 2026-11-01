@@ -110,14 +110,16 @@ const seeds = read('tools/runtime-seeds.txt');
 {
 	const lines = (seeds || '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
 	const bad = lines.filter((l) => !/^0x[0-9a-f]{6,8}$/.test(l));
-	// 88 entries: 4 hook pointers read live off the machine, 41 starts from the cross-seed comparison, and 43 resume
-	// points derived by tools/resumepoints.js (functions the recompiler never resumes at because it stops at a `ret`).
+	// 96 entries: 4 hook pointers read live off the machine, 41 starts from the cross-seed comparison, 43 resume
+	// points derived by tools/resumepoints.js (functions the recompiler never resumes at because it stops at a `ret`),
+	// and 8 jump-table handlers added on 2026-11-01. Those eight are the reason this list can never be derived: the
+	// only reference to them is a `call dword ptr cs:[ebx]` through a table, so no direct-branch scan sees them.
 	// The four original ones must still be there, so the check names them rather than only counting, otherwise a rewrite
 	// that dropped the measured evidence would pass.
 	const measured = ['0x0ffb72', '0x0e7238', '0x0ffc90', '0x0fdf5f'];
 	const missing = measured.filter((a) => !lines.includes(a));
-	if (lines.length === 88 && bad.length === 0 && missing.length === 0) ok('the seed list holds 88 entries, including the four measured on the machine');
-	else fail('the seed list holds 88 entries, including the four measured on the machine', `${lines.length} lines, ${bad.length} malformed, missing ${missing.join(' ') || 'nothing'}`);
+	if (lines.length === 96 && bad.length === 0 && missing.length === 0) ok('the seed list holds 96 entries, including the four measured on the machine');
+	else fail('the seed list holds 96 entries, including the four measured on the machine', `${lines.length} lines, ${bad.length} malformed, missing ${missing.join(' ') || 'nothing'}`);
 }
 
 // ---- the TownsOS selector table, measured off the running game with `PRI GDT` ----
@@ -300,9 +302,17 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 			const bad = [];
 			if (!/Journey Onward/i.test(seg)) bad.push('no Journey Onward route');
 			if (!/port-defects\.md/.test(seg)) bad.push('no link to the defect page');
-			if (/Generate [Cc]haracter/.test(seg) && !/dead end/.test(seg)) bad.push('offers Generate Character without naming it a dead end');
+			// This asserted the opposite until 2026-11-01: "offers Generate Character without naming it a dead end".
+			// That was correct when it was written and stopped being true when defect 3 was closed (the digit row
+			// was the blocker, kit 4028a76) and the save disk became writable. A gate that keeps asserting a
+			// fixed bug trains people to read past it. What it checks now is that the route it names is one that
+			// has been run: creation is offered together with the fact that it persists, and the quit key it names
+			// is Ctrl-Q, which is what the kit actually does since 0b3ab59. Naming Esc or Q here is the failure,
+			// because neither quits any more.
+			if (/Generate [Cc]haracter/.test(seg) && !/persist/i.test(seg)) bad.push('offers Generate Character without saying the character persists');
+			if (/`?Esc`? or `?Q`? ends the run/i.test(seg)) bad.push('still says Esc or Q ends the run');
 			if (bad.length) fail(file + ' gives the tested port route', bad.join(', '));
-			else ok(file + ' gives the tested port route', 'Journey Onward, the defect page, creation named a dead end');
+			else ok(file + ' gives the tested port route', 'Journey Onward, the defect page, creation with persistence');
 		}
 	}
 }

@@ -147,3 +147,40 @@
 0x1050f4
 0x1019fc
 0x100107
+
+# ---------------------------------------------------------------------------------------------------
+# A JUMP TABLE'S EIGHT HANDLERS, which are the only code in the image reached by a computed call through
+# a table in its own segment. Added after the port faulted on the second of them.
+#
+# The port's message was `no recompiled function at 000c:000ffeba (eip 000fed47, machine frame 6014)`,
+# reached by creating a character and then playing it. The instruction at 0xffed47 is inside a routine
+# that ends in:
+#
+#   lea  ebx, [ebx*4+0xffe73]       0xffe57
+#   call dword ptr cs:[ebx]         0xffe5e
+#
+# so 0xffe73 is a table of 32-bit code pointers and the key byte selects an entry. The table itself, read
+# with `xxd -s 0x100073 -l 40 ENCHANT.EXP` (file offset is guest + 0x200):
+#
+#   00100073: 93fe 0f00 bafe 0f00 ebfe 0f00 08ff 0f00
+#   00100083: 4dff 0f00 5fff 0f00 6cff 0f00 93ff 0f00
+#
+# which is eight dwords: 0xffe93 0xffeba 0xffeeb 0xfff08 0xfff4d 0xfff5f 0xfff6c 0xfff93. The handlers
+# follow the table inline, 0xffe73 + 32 = 0xffe93, so the enclosing routine really runs to 0xfff9a rather
+# than stopping at the `ret` at 0xffe72 that the walk took to be its end.
+#
+# None of the eight is a direct call or jmp target and none is reachable by fall-through, which is why
+# the rules miss all of them. Seed the whole table, not just the entry that faulted: entry 1 was the one
+# this key pressed, and seeding only that would leave the other seven to be discovered one crash at a
+# time. A scan of all 93 CS-prefixed indirect call and jmp sites found this `lea reg,[reg*4+TABLE]`
+# idiom exactly once, so this shape is rare, but that is a measurement over one idiom and not proof the
+# class is closed.
+
+0x0ffe93
+0x0ffeba
+0x0ffeeb
+0x0fff08
+0x0fff4d
+0x0fff5f
+0x0fff6c
+0x0fff93
