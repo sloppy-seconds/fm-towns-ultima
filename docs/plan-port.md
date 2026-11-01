@@ -98,6 +98,21 @@ that produces defect 1.
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
+**The architecture is now decided: strangler.** Recorded in
+[goal-behavioural-faithfulness.md](goal-behavioural-faithfulness.md) "The architecture: strangler". A native
+engine grows beside the machine and the machine comes out at the end. That makes this item the seam the
+whole reimplementation runs through, not a one-off experiment.
+
+**The seam, measured 2026-11-02.** The machine dispatches by guest address through `x86_lookup_cs`, which walks
+`g_x86_modules` in order and takes the first hit; the game module's `k_funcs` is 875 `{address, void(*)(X86Cpu&)}`
+entries generated into `build/port/recomp/`. A replacement therefore has the same contract as a generated
+function: do the work, set `c.r[0]`, and `c.eip = pop32(c)`. **There is no per-function override hook**;
+`x86_park` excludes whole modules only. The preferred fix is a native module listed *before* the game module
+with the same `cs`, which needs no kit change because first hit wins.
+
+**First region: `0xe140c`**, chosen because item 4f proved 43 of 43 bytes identical, so the replacement tests
+the protocol rather than a guess about behaviour.
+
 The port currently runs original assembly and recompiled regions side by side. Stripping a region and
 replacing it incrementally needs a per-region gate, and the gate is the control socket: same scripted input,
 same frame, compare framebuffer on static screens, compare disk state by hash, and compare guest memory
@@ -110,9 +125,9 @@ assertion was content, and the check was demonstrated able to fail.
 | field | value |
 |---|---|
 | autonomy | autonomous |
-| depends on | 11a |
+| depends on | 11a (done) |
 | done when | one named region is stripped from the port's module, replaced, and the differential run is byte-identical on the static screens and on the disk image, with the script committed and shown to fail when the replacement is deliberately wrong. The failure case: a protocol that only compares animated screens, where a one-frame drift between runs reports a difference that is not one, which is exactly what the plan split's method note warns about |
-| blocked by | 11a |
+| blocked by | nothing. 11a is done |
 
 ## Phase 7: the port, which is the current line of work
 
