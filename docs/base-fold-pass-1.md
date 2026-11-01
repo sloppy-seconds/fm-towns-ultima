@@ -90,6 +90,12 @@ fragment" rather than a flag. The one lever this page has **not** tried is the o
 eax,[ecx+ecx]` for a multiply by two). That path is the Towns one, which needs TownsMENU and cannot coexist with a
 writable volume on the floppy-boot route, so it is a session of its own and not a flag to try.
 
+> **Corrected, 2026-11-02.** The TownsMENU part is wrong. It applies to the
+> floppy-boot route only. Boot the TownsOS hard-disk image with the CD seated and
+> you get a `Q:\>` command prompt with no desktop, and the driver runs there. That
+> is the route `docs/highc-authentic-toolchain.md` used to reproduce seven routines
+> byte for byte, and it is what `tools/atlas-build.py` now uses for every probe.
+
 ### The driver route, run, and it agrees with the DOS route byte for byte
 
 With the transport finally working (colon as `'`, `d:` to switch, a staged batch, output read back with mtools), the

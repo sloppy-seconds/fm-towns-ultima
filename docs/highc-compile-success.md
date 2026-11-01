@@ -150,6 +150,14 @@ need `CTL.SYS` to work under DOS 6.2, and it does not.
 
 - The `HC386.EXE` driver end to end. It stages `ARG0.TMP` files and invokes
   `RUN386 HCD386P.EXP`, so it needs the Towns route, so it needs TownsMENU.
+
+  > **Superseded, 2026-11-02.** The conclusion is wrong, not the mechanism. The
+  > driver does need the Towns route, and it does **not** need TownsMENU: booting
+  > the TownsOS hard-disk image with the CD seated lands at a `Q:\>` command
+  > prompt with no desktop anywhere, and the driver runs there. It was run end to
+  > end that way and reproduced seven routines byte for byte. The claim above was
+  > true only of the *floppy-boot* route, where a writable volume and TownsMENU
+  > cannot coexist. See `docs/highc-authentic-toolchain.md`.
 - Linking with `386LINK.EXE` and running the resulting program. The link step
   is the one `docs/bootable-dos-hdd.md` saw fail on path resolution
   (`$TOOLSDIR$bin` mixed separators). Untouched here.

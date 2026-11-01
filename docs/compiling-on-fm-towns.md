@@ -14,22 +14,44 @@ five-minute version**.
 
 The SDK CD ships the code generator twice:
 
-| file | on the CD at | needs |
-|---|---|---|
-| `HCD386P.EXP` | `HC386\BIN\` | `RUN386`, which needs TownsMENU, which needs a boot config that cannot coexist with a writable volume |
-| **`HCD386.EXE`** | `HC386\BIN\` | **nothing. Plain DOS. Use this one.** |
+| file | on the CD at | needs | optimiser |
+|---|---|---|---|
+| `HCD386P.EXP` | `HC386\BIN\` | something that can run a protected-mode extender. `RUN386` on the TownsOS hard-disk route, from a command prompt. **No TownsMENU and no desktop** | engages |
+| **`HCD386.EXE`** | `HC386\BIN\` | **nothing. Plain DOS.** | never engages: identical output across 21 flag sets |
 
 `HCD386.EXE` is the real-mode DOS code generator. It does not need
 `RUN386`, does not need TownsMENU, does not need the Towns window system and
 does not need a hard disk. It needs DOS with a writable volume and the CD
-mounted. That is all.
+mounted. That is all. It also cannot be made to optimise, which makes it the
+wrong generator for anything that asks what the compiler does.
 
-The CD's own `HC386\BIN\DEMO.BAT` confirms this is supported: it branches to
-`hcd386` when `bin\hcdriver.exe` is absent. Fujitsu shipped exactly this path.
+> **Correction, 2026-11-02.** The `needs` column above used to say `HCD386P.EXP`
+> requires "`RUN386`, which needs TownsMENU, which needs a boot config that cannot
+> coexist with a writable volume". **That is true only on the floppy-boot route,
+> and stated flatly it is false.** Boot the TownsOS hard-disk image with the CD
+> seated and the machine lands at a `Q:\>` command prompt with `Entering
+> Interactive Mode.`, no desktop anywhere, and the protected-mode generator runs
+> there. `docs/highc-authentic-toolchain.md` proved that by reproducing seven
+> routines byte for byte, and `docs/driving-the-townsos-prompt.md` is the driving
+> recipe. Passing `-BOOTKEY F0` or `-BOOTKEY CD` is what lands you on the desktop
+> instead, which is why the working command line deliberately passes neither.
+>
+> This overstated `needs` cell cost real time: it made the optimising generator
+> look unreachable, so every compile went through the generator that cannot
+> optimise, and the resulting never-optimised bytes were read as the compiler's
+> own limits. The two generators are the same High C 1.73 and they do **not**
+> emit the same code.
 
-**Ignore `HC386.EXE` too.** That is the *driver*. It stages `ARG0.TMP` files
-and invokes `RUN386 HCD386P.EXP`, so it drags in the whole TownsMENU problem.
-Call the generator directly.
+The CD's own `HC386\BIN\DEMO.BAT` confirms the plain-DOS path is supported: it
+branches to `hcd386` when `bin\hcdriver.exe` is absent. Fujitsu shipped exactly
+this path.
+
+**`HC386.EXE` is the driver**, not a third generator. It stages `ARG0.TMP` files
+and invokes `RUN386 HCD386P.EXP`. Call it when you want the optimiser, and call
+`HCD386.EXE` directly when you only want a quick object file and do not care that
+it is unoptimised. Which of the two produced a given candidate matters, and the
+quickest tell is that the real-mode generator never emits a frame unless a local
+survives.
 
 ## The five-minute version
 
@@ -246,9 +268,10 @@ recipe needs it. It is there so you can check what a file is without booting.
 ### Inside the guest, the relevant paths
 
 ```
-Q:\HC386\BIN\HCD386.EXE      the code generator. This is the one to call.  698,816 bytes
-Q:\HC386\BIN\HC386.EXE       the driver. Needs RUN386. Do not use.           61,888 bytes
-Q:\HC386\BIN\HCD386P.EXP     the P3 generator. Needs RUN386. Do not use.   670,437 bytes
+Q:\HC386\BIN\HCD386.EXE      the code generator, real mode. Unoptimised. 698,816 bytes
+Q:\HC386\BIN\HC386.EXE       the driver. Use this one for optimised code. 61,888 bytes
+Q:\HC386\BIN\HCD386P.EXP     the P3 generator the driver invokes.         670,437 bytes
+Q:\HC386\BIN\HC386SET.CNF    the driver's config. ARGS= and HCDEBUG= live here.
 Q:\HC386\BIN\386LINK.EXE     the linker. Untested here.                    192,192 bytes
 Q:\HC386\INC\                headers
 Q:\HC386\SMALL\              libraries, used only at link time
