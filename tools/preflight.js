@@ -36,7 +36,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { decodeSession, format } = require('./decode.js');
+const { decodeSession, decodeMany, format } = require('./decode.js');
 
 // One session for the whole run (plan item 4h): the census asks scanRoutine
 // about 738 entries, and a fresh interpreter per entry measured 116s against
@@ -44,17 +44,27 @@ const { decodeSession, format } = require('./decode.js');
 // session's default image is the raw ENCHANT.EXP, so no frame conversion.
 let PF_SESSION = null;
 let PF_TMP = null;
-function pfSession(buf) {
-	if (!PF_SESSION) {
+// The pid-scoped image copy, created once. Split out of pfSession so the batched census can hand the worker
+// the same file the session decodes from, rather than a second copy.
+function pfImage(buf) {
+	if (!PF_TMP) {
 		// Decode from a pid-scoped copy of exactly the buffer this tool loaded,
 		// whether it came from the local file or the disc. A fixed path is the
 		// stale-file hazard tools/imgaudit.js exists to catch.
 		PF_TMP = path.join(require('os').tmpdir(), 'pf-' + process.pid + '.bin');
 		fs.writeFileSync(PF_TMP, buf);
-		PF_SESSION = decodeSession({ image: PF_TMP });
+		process.on('exit', () => {
+			try { fs.unlinkSync(PF_TMP); } catch (e) { /* gone */ }
+		});
+	}
+	return PF_TMP;
+}
+
+function pfSession(buf) {
+	if (!PF_SESSION) {
+		PF_SESSION = decodeSession({ image: pfImage(buf) });
 		process.on('exit', () => {
 			try { PF_SESSION.close(); } catch (e) { /* gone */ }
-			try { fs.unlinkSync(PF_TMP); } catch (e) { /* gone */ }
 		});
 	}
 	return PF_SESSION;
@@ -96,8 +106,13 @@ function load() {
 //
 // Decoding from a known entry is correct because the entry supplies alignment.
 // Plan item 4h moved this off the ndisasm text parser onto tools/decode.js.
-function scanRoutine(buf, entry) {
-	const { insns } = pfSession(buf).decode(entry, Math.min(entry + 4096, buf.length));
+// The pure half: turn a decoded instruction list into a routine's extent and census.
+//
+// Split out so the census can decode every target in ONE worker call and then apply
+// the identical rules. The loop is moved rather than rewritten on purpose: this
+// refactor must not change a single byte of the census, and the way to be sure of
+// that is to leave the logic alone and only change where the instructions come from.
+function scanRoutineFromInsns(buf, insns, entry) {
 	const mnemonics = [];
 	let calls = 0, indirectCall = 0, rets = 0;
 	let end = entry;
@@ -114,6 +129,11 @@ function scanRoutine(buf, entry) {
 	// which under-reported sizes for routines with data embedded in the body.
 	const bytes = Array.from(buf.subarray(entry, Math.min(end, buf.length)));
 	return { bytes, calls, indirectCall, rets, length: bytes.length, mnemonics: mnemonics.join('\n') };
+}
+
+function scanRoutine(buf, entry) {
+	const { insns } = pfSession(buf).decode(entry, Math.min(entry + 4096, buf.length));
+	return scanRoutineFromInsns(buf, insns, entry);
 }
 
 // Is this address the START of a function, rather than an interior address that
@@ -352,9 +372,14 @@ function main() {
 		const targets = [...counts.entries()].sort((a, b) => b[1] - a[1]);
 
 		// Walk every target, not just the first n, so the totals are honest.
+		//
+		// Skipped entirely when a census is asked for. The census returns before the queue is
+		// ever read, so running this first was 738 scanRoutine round trips whose result was
+		// thrown away, which was about half the cost of `--scan 1 --census`.
+		const CENSUS = args.includes('--census');
 		const allLeaves = [];
 		const notC = [];
-		for (const [addr, callers] of targets) {
+		for (const [addr, callers] of (CENSUS ? [] : targets)) {
 			if (!cleanEntry(buf, addr)) continue;
 			const r = scanRoutine(buf, addr);
 			if (r.calls !== 0 || r.indirectCall !== 0) continue;
@@ -376,7 +401,46 @@ function main() {
 		// for a work queue and wrong for a census: the dropped ones are the data when
 		// the question is "what is in this binary". Reason strings are carried through
 		// so the exclusions can be audited rather than trusted.
-		if (args.includes('--census')) {
+		if (CENSUS) {
+			// THE COST HERE IS THE WINDOW, NOT THE TRANSPORT. Measured: batching all 738 targets
+			// into one decodeMany call took 11.1 s on its own, so the synchronous session round
+			// trips were never the problem. Decoding a fixed 4096 bytes per target produced about
+			// 1.2 million instruction records for the few thousand that were ever used.
+			//
+			// So it is decoded in two passes instead. A short window first, extended to the full
+			// 4096 only for targets whose short window did not reach the routine's `ret`. That is
+			// sound because decoding is sequential from the entry: every instruction before the
+			// terminating ret is identical in a short and a long window, so a terminated short
+			// decode is the same answer for a fraction of the work. A window that did not
+			// terminate is discarded and never contributes a size.
+			//
+			// The classification rules are scanRoutineFromInsns, the same function the leaf queue
+			// uses, so the census and the queue cannot disagree about what a routine is. That
+			// matters more than the speed: this output becomes docs/corpus.json, and
+			// "corpus census is reproducible" asserts the committed file still equals a fresh run.
+			const SHORT = 256;
+			const todo = targets.filter(([addr]) => cleanEntry(buf, addr));
+			const first = decodeMany(
+				todo.map(([addr]) => [addr, Math.min(addr + SHORT, buf.length)]),
+				{ image: pfImage(buf) },
+			);
+			const needLong = [];
+			todo.forEach(([addr], i) => {
+				if (!first[i].insns.some((x) => /^ret/.test(x.mnemonic))) needLong.push(i);
+			});
+			const longInsns = new Map();
+			if (needLong.length) {
+				const second = decodeMany(
+					needLong.map((i) => [todo[i][0], Math.min(todo[i][0] + 4096, buf.length)]),
+					{ image: pfImage(buf) },
+				);
+				needLong.forEach((i, k) => longInsns.set(todo[i][0], second[k].insns));
+			}
+			const byAddr = new Map();
+			todo.forEach(([addr], i) => {
+				const insns = longInsns.has(addr) ? longInsns.get(addr) : first[i].insns;
+				byAddr.set(addr, scanRoutineFromInsns(buf, insns, addr));
+			});
 			const rows = [];
 			for (const [addr, callers] of targets) {
 				const row = { addr, callers };
@@ -386,7 +450,7 @@ function main() {
 					rows.push(row);
 					continue;
 				}
-				const r = scanRoutine(buf, addr);
+				const r = byAddr.get(addr);
 				row.size = r.length;
 				row.calls = r.calls + r.indirectCall;
 				const kind = codeKind(buf, addr, r.mnemonics);

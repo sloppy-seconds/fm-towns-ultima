@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 # tools/checkall-parallel.sh - run tools/checkall.js across processes, because it is one long serial file.
 #
-# WHY THIS EXISTS. `node tools/checkall.js` takes about 40 s on a 32-core machine. Measured with --timing,
-# eleven checks are 38.7 s of that and the other twenty-six are 1.9 s, and the single worst offender is
-# `corpus census is reproducible` at 13.5 s, which is a third of the suite in one line that looks exactly
-# like the dozen beside it. Nothing in the source says which are expensive, so checkall.js carries the
-# measured list as SLOW and exposes it with --list-slow. This script reads that list rather than repeating
-# it, so adding a slow check there automatically adds a shard here.
+# WHY THIS EXISTS. `node tools/checkall.js` takes about 29 s on a 32-core machine. Measured with --timing,
+# eleven checks are 27 s of that and the other twenty-six are 1.7 s. Nothing in the source says which are
+# expensive, so checkall.js carries the measured list as SLOW and exposes it with --list-slow. This script
+# reads that list rather than repeating it, so adding a slow check there automatically adds a shard here.
 #
 # HOW. One process runs `--fast` for the twenty-six cheap checks. One process per slow check runs
 # `--only=<name>`, which skips the other slow ones and prints just its own result. They all run at once.
 #
-# The floor is the slowest single check, so wall time lands near the census's 13.5 s rather than the suite's
-# 40.6 s. Getting below that needs the census itself to be faster, which is a different job in
-# tools/preflight.js and not something sharding can reach.
+# The floor is the slowest single check rather than the merged total, so wall time lands near 7 s against
+# the suite's 29 s. Getting below that means making an individual check faster, which is a different job from
+# sharding. The corpus census was exactly that job: it was 13.5 s and is now 2.0 s, which took this script
+# from 17 s to 7 s without changing a line of it.
 #
 # IT REFUSES TO MERGE AN INCOMPLETE RUN. A skipped check records itself as a skip rather than a pass, and
 # this script additionally asserts that every shard produced exactly one result line for the check it was
@@ -25,7 +24,6 @@
 #   ./tools/checkall-parallel.sh --quiet
 #
 # Exit: 0 all checks passed, 1 any check failed or any shard was incomplete.
-
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

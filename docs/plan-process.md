@@ -218,12 +218,12 @@ present.
 
 ## Part 7: the mechanical checks
 
-Three ways to run it, because one of them was not enough:
+Two ways to run it, because one of them was not enough:
 
 ```
-./tools/checkall-parallel.sh      # ~17 s   fan the slow checks across processes
-node tools/checkall.js            # ~40 s   serial, the reference run
-node tools/checkall.js --fast     # ~3 s    everything except the eleven slow checks
+./tools/checkall-parallel.sh      # ~7 s    fan the slow checks across processes
+node tools/checkall.js            # ~29 s   serial, the reference run
+node tools/checkall.js --fast     # ~1.7 s  everything except the eleven slow checks
 ```
 
 **It reports 37 result lines** (`node tools/checkall.js | grep -cE '^(ok|FAIL) '` is the measurement, and it
@@ -236,20 +236,20 @@ as `skip`, never as `ok`, and its last line says the run "does NOT cover the ski
 "all checks pass". A skipped check must never be able to turn a run green on its own silence.
 
 **Where the time goes, measured rather than guessed.** `node tools/checkall.js --timing` prints per-check
-elapsed. Eleven checks are 38.7 s of the 40.6 s suite and the other twenty-six are 1.9 s. The single worst
-is `corpus census is reproducible` at **13.5 s**, a third of the whole suite in one `runNode` call that looks
-identical to the dozen beside it. That list is why `--fast` exists, and `--list-slow` exposes it so the
-parallel driver reads it instead of keeping a second copy.
+elapsed. Eleven checks were 38.7 s of the original 40.6 s suite and the other twenty-six were 1.9 s. The
+worst is no longer the census: it was 13.5 s, a third of the whole suite, and it is now 2.0 s because it was
+decoding a fixed 4096-byte window per target and paying for about 1.2 million instruction records to use a
+few thousand. The lesson is recorded on that tool rather than here, but the shape of it is worth keeping:
+the expensive thing was not the one that looked expensive.
 
-**The floor is one check, not the merge.** The parallel run lands near 17 s because the census alone is
-13.5 s and cannot be split from outside. Going below that means making `tools/preflight.js` faster, which is
-a different job.
+**The floor is the slowest single check, not the merge.** The parallel run lands near 7 s because
+`return convention split by ownership` alone is 6.6 s and cannot be split from outside.
 
 **The doc checks left the pre-commit hook on 2026-11-02.** The hook used to run
 `checkall --quiet --no-build` on every commit, so `node tools/checkall.js && git commit` paid for the whole
-suite twice: 38 s to check, then 35.5 s for the hook to check the identical tree. Measured, that pattern
-took 1 m 53 s. The copyright guard stays in the hook because it costs milliseconds and nothing else enforces
-it. `CHECK_DOC_CHECKS=1` puts the old behaviour back.
+suite twice. Measured, that pattern took 1 m 53 s, and a commit is now 14 ms. The copyright guard stays in
+the hook because it costs milliseconds and nothing else enforces it. `CHECK_DOC_CHECKS=1` puts the old
+behaviour back.
 
 | check | what it catches |
 |---|---|

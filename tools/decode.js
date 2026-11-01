@@ -161,11 +161,26 @@ function decodeMany(ranges, opts = {}) {
 		if (!line) continue;
 		const r = JSON.parse(line);
 		if (r.range !== undefined) {
-			cur = { insns: [], skips: [] };
+			cur = { insns: [], skips: [], start: r.range, ended: false };
 			results.push(cur);
 			continue;
 		}
 		if (!cur) throw new Error('decodeMany: record before first range marker');
+		// The worker closes every range with {"end": START}. That is a marker, not an
+		// instruction, and treating it as one appended an instruction with no address to the
+		// end of every range. It stayed invisible because every caller until now ran the list
+		// through toFirstRet() and stopped before reaching it. The first caller to walk a whole
+		// range hit `undefined.toString` immediately, which is how this was found.
+		//
+		// The marker is now checked rather than skipped, so a truncated or reordered worker
+		// stream fails here instead of quietly returning a short instruction list.
+		if (r.end !== undefined) {
+			if (r.end !== cur.start) {
+				throw new Error(`decodeMany: range started at 0x${cur.start.toString(16)} but ended at 0x${r.end.toString(16)}`);
+			}
+			cur.ended = true;
+			continue;
+		}
 		if (r.skip !== undefined) {
 			cur.skips.push(r.skip);
 			continue;
@@ -174,6 +189,10 @@ function decodeMany(ranges, opts = {}) {
 	}
 	if (results.length !== ranges.length) {
 		throw new Error(`decodeMany: ${ranges.length} ranges requested, ${results.length} returned`);
+	}
+	const unterminated = results.filter((x) => !x.ended).length;
+	if (unterminated) {
+		throw new Error(`decodeMany: ${unterminated} of ${results.length} ranges had no end marker, so the stream stopped early`);
 	}
 	return results;
 }

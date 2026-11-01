@@ -18,16 +18,16 @@
 // something it should catch before being trusted. See Part 7 of the process page for that rule.
 //
 // Usage:
-//   node tools/checkall.js                all checks, ~40 s
+//   node tools/checkall.js                all checks, ~29 s
 //   node tools/checkall.js --fast         everything except the 11 measured-slow checks, ~3 s
 //   node tools/checkall.js --timing       print per-check elapsed, slowest first
 //   node tools/checkall.js --list-slow    the slow names, read by tools/checkall-parallel.sh
 //   node tools/checkall.js --only=A,B     run those checks and print only them
-//   node tools/checkall.js --no-build     skip the site build. Saves 2.6 s of 40, so this is NOT the
-//                                         time saver it looks like: --fast is, and it saves 38.
+//   node tools/checkall.js --no-build     skip the site build. Saves 2.6 s of 29, so this is NOT the
+//                                         time saver it looks like: --fast is, and it saves 27.
 //   node tools/checkall.js --quiet        only print failures
 //
-// ./tools/checkall-parallel.sh runs the same suite across processes in about 17 s.
+// ./tools/checkall-parallel.sh runs the same suite across processes in about 7 s.
 
 'use strict';
 
@@ -84,9 +84,12 @@ let lastStamp = Date.now();
 // --fast and --only exist so this suite can be made fast without making it weaker.
 //
 // SLOW is the measured set. `node tools/checkall.js --timing` gave 13,552 ms for the corpus census alone
-// and 38.7 s across these eleven, against 1.9 s for the other twenty-six. Nothing in the source suggests
-// which checks are expensive: the census is one runNode call and looks identical to the dozen beside it.
-// So the list is a measurement, and re-measuring is one command.
+// before it was fixed, and 38.7 s across these eleven against 1.9 s for the other twenty-six. Nothing in the
+// source suggests which checks are expensive: the census was one runNode call and looked identical to the
+// dozen beside it. So the list is a measurement, and re-measuring is one command.
+//
+// The census itself is now 2.0 s rather than 13.5, because tools/preflight.js was decoding a fixed 4096-byte
+// window per target. It stays in this list at 2 s, and the rest of the list is unchanged.
 //
 // --fast runs everything except SLOW. It is for the edit loop.
 // --only=NAME,NAME runs those checks and nothing else expensive, and prints only them. It is what

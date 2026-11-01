@@ -13,7 +13,40 @@ node tools/preflight.js --scan 1 --census > docs/corpus.json
 ```
 
 The `--scan 1` argument is required only because the flag parser needs it; the
-census ignores the count and walks every target. Runtime is about 1.5 seconds.
+census ignores the count and walks every target.
+
+**Runtime is 2.0 seconds, measured 2026-11-02.** This page said 1.5 seconds for a
+long time and that had drifted: by the time anyone re-measured it was **13.4
+seconds**, which is most of `tools/checkall.js`. Two separate faults, both of which
+looked like nothing from the source:
+
+1. `--census` ran the leaf-queue walk first and then returned before reading it, so
+   every target was scanned twice. The queue is discarded whenever a census is
+   asked for, so it is now skipped entirely.
+2. Every target was decoded with a fixed 4096-byte window and then the walk stopped
+   at the routine's `ret`. That produced about **1.2 million instruction records** to
+   classify a few thousand, and batching the worker calls barely helped (measured:
+   `decodeMany` over all 738 targets took 11.1 s on its own), because the window was
+   the cost and not the transport. It now decodes a 256-byte window first and extends
+   to 4096 only for targets whose short window did not reach the `ret`. That is sound
+   because decoding is sequential from the entry, so every instruction before the
+   terminating `ret` is identical in a short and a long window.
+
+**The output did not change.** `cmp` against the committed `docs/corpus.json` is
+byte-identical after both changes, which is the only claim that matters here, and
+`node tools/checkall.js` asserts it on every run.
+
+**A latent bug in shared code turned up while doing this.** `decodeMany` in `tools/decode.js`
+appends the worker's per-range `{"end": N}` marker to the instruction
+list instead of skipping it, so every range ended with an instruction that had no
+address. It stayed invisible because all four existing callers (`globals.js`,
+`globals_od.js`, `randmods.js`) run the list through `toFirstRet()` and stop before
+reaching the end. The census is the first caller that walks a whole range, and it
+crashed on it immediately. The marker is now validated against the range start, and a
+range with no end marker is an error, so a truncated worker stream fails instead of
+silently returning a short list. Both branches were confirmed able to fail by
+injecting a wrong marker and a missing one into `tools/decode_worker.py` and watching
+the parse refuse.
 
 `docs/corpus.json` is the tool's **raw stdout**, with no wrapper and no
 hand-editing. `tools/checkall.js` regenerates it on every run and fails if a
