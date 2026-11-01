@@ -3,9 +3,10 @@
 Plan item [4f](plan.md). The question it exists to answer: is High C 1.73 the compiler that built this game,
 measured on a population rather than on two routines.
 
-**Answer: 11 of 14 match byte for byte, 78.6 percent.** The stop condition in the item is "fewer than 30
-percent match means the toolchain is not the original", so this is not close. Two more are blocked on a
-configuration toggle rather than on their C, which puts the recoverable set at 13 of 14.
+**Answer: 11 of 14 match byte for byte, 78.6 percent** (10 of them already in the register, `0xe140c` pending
+promotion). The stop condition in the item is "fewer than 30 percent match means the toolchain is not the
+original", so this is not close. Two more are blocked on a configuration toggle rather than on their C, which puts
+the recoverable set at 13 of 14.
 
 ## The population is 14, not 33, and that is the first finding
 
@@ -89,6 +90,21 @@ target is loaded at `0xe140c` and the standalone build at 0.
 the function ends at its `ret` and a candidate that genuinely ran past the function has a real instruction there.
 The exemption is recorded on the result as `candidatePaddingBytes` rather than silently discarded.
 
+**Promoting it in the register is 4j's work and is deliberately deferred, with the numbers recorded here so it
+cannot be lost.** `docs/routines.json` still classes `0xe140c` as `register-choice`, and that entry is not false:
+it already says "12 candidates, all 43/43 bytes", so it records that the bytes match and only leaves the source
+text undetermined. Changing the class to `matched` moves three owned counts across two ledgers at once:
+
+| ledger | change |
+|---|---|
+| `docs/routines.json` | `matched` 10 to 11, `register-choice` 1 to 0 |
+| `docs/queue.json` | its row would go `unattempted` to `matched`, so the queue reads 11 matched and 685 unattempted instead of 10 and 686 |
+| the driver-verified count | 8 to 9, which `tools/checkall.js` asserts and four pages restate |
+
+That is the grind and its ledger, which is item 4j, and doing half of it inside a measurement item is how two
+ledgers start disagreeing. The exact C is in `tools/cand-4f/a51_e140c.c` and the passing comparison is reproduced
+above, so the promotion is a five-minute edit for whoever picks up 4j rather than a rediscovery.
+
 ### `0xe1bf4` and `0xe1c24`: 48 against 46, blocked on the frame decision
 
 Both are "six ints into a fixed struct at absolute `0xe3f4`", fields at `+0x24` and `+0x3c`:
@@ -147,15 +163,17 @@ is supported.
 
 | outcome | count | share |
 |---|---|---|
-| byte-identical match | **11** | **78.6%** |
+| byte-identical match | **10** | **71.4%** |
+| matched by this run, awaiting promotion to the register (4j) | 1 | 7.1% |
 | blocked on the frame decision, C believed correct | 2 | 14.3% |
 | calling convention unexplained | 1 | 7.1% |
 | **attempted** | **14** | **100%** |
 
-The item's stop condition is 30 percent. At 78.6 percent this is nowhere near it, and the conclusion it licenses
-is the one the project has been building toward: **High C 1.73 is the compiler that built this game**. It is not
-"78.6 percent of the game is recoverable", because this population is the leaf set and deliberately the easiest
-part of it.
+The item's stop condition is 30 percent. Even counting only what is already in the register this is 71.4 percent,
+and with `0xe140c` included it is 78.6. Neither is near the stop condition, and the conclusion both license is the
+one the project has been building toward: **High C 1.73 is the compiler that built this game**. It is not "78.6
+percent of the game is recoverable", because this population is the leaf set and deliberately the easiest part of
+it.
 
 ## Reproducing
 

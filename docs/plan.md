@@ -489,7 +489,8 @@ should not be picked up before the rules work in Phase 4b.
 
 **State:** DONE · **Autonomy:** AUTONOMOUS
 
-**What is now known.** **11 of 14 Level-1 leaves match byte for byte, 78.6 percent.** The stop condition is 30
+**What is now known.** **11 of 14 Level-1 leaves match byte for byte, 78.6 percent**, of which 10 were already in
+the register and one (`0xe140c`) awaits promotion under 4j. The stop condition is 30
 percent, so the conclusion it licenses is that High C 1.73 is the compiler that built this game. Two more are
 blocked on the frame decision rather than on their C, which puts the recoverable set at 13 of 14.
 
@@ -502,7 +503,8 @@ answered by two routines" when 10 of the 14 were already matched before this run
 `register-choice` because the source text was under-determined rather than the bytes wrong. `0xe1bf4` and
 `0xe1c24` came out 48 against 46, and the disassembly shows the target is framed where the build is not, which is
 the same arithmetic `0xe52c8` has. `0xfe95d` reads its argument from `al` with no prologue, and High C passes no
-arguments in registers, so no C source can produce it. Full disassembly comparisons and the four candidate
+arguments in registers, so no C source can produce it. Promoting `0xe140c` in the register is deferred to 4j
+because it moves three owned counts across two ledgers at once. Full disassembly comparisons and the four candidate
 sources: [byte-match-rate.md](byte-match-rate.md).
 
 **One tool fix fell out of it.** A P3 code segment is padded and the linker map reports the padded size, so a
