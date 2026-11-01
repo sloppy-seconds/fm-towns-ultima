@@ -121,13 +121,13 @@ which is two numbers in one sentence for the same set. They are not the same set
 
 Seven of those ten, `0xe9e2c`, `0xe44d0`, `0xe9940`, `0xe07e8`, `0xe65fc`, `0xe662c` and `0xfd0ec`, are the
 set `docs/highc-authentic-toolchain.md` re-verified byte for byte through the driver route. The other three,
-`0xe552c`, `0xe52c8` and `0xe5304`, carry evidence naming `docs/compile-route-dos.md`, so they were matched
-through the older real-mode route and have not been re-run through the driver.
+`0xe552c`, `0xe52c8` and `0xe5304`, carry evidence naming `docs/compile-route-dos.md`: they were matched
+through the older real-mode route, and all three have since been re-run through the driver below.
 
-**Verdict: POSITIVE.** Ten is the count of `matched` routines. Seven is the count of those ten confirmed
-against the authentic generator. The ledger should carry ten with seven flagged as driver-verified, and the
-three DOS-route matches need re-running before they are cited as 1.73 output, because the real-mode generator
-is the one whose optimiser never engages.
+**Verdict: POSITIVE.** Ten is the count of `matched` routines. **Eight** of those ten are confirmed against
+the authentic generator: the seven above plus `0xe552c`. The remaining two, `0xe52c8` and `0xe5304`, are
+matched but not yet reproduced under the driver's default, and the reason is documented below rather than
+left as a gap.
 
 ## The three DOS-route matches, re-run the same night
 
@@ -141,9 +141,34 @@ Followed up rather than left as a caveat. Each was compiled through the authenti
 non-default configuration, and the gap is the `esp`-versus-`ebp` one |
 | `0xe5304` | 189 B | 192 B | length-differs by three bytes, and no existing explanation covers it |
 
-So **eight of the ten** `matched` routines are now confirmed against the generator that reproduced the game,
-and `0xe5304` is the one genuinely open case. Full write-up, including the `Remove_BP` experiment that came
-out of it: [highc-authentic-toolchain.md](highc-authentic-toolchain.md).
+So **eight of the ten** `matched` routines are now confirmed against the generator that reproduced the game.
+Full write-up, including the `Remove_BP` experiment that came out of it:
+[highc-authentic-toolchain.md](highc-authentic-toolchain.md).
+
+## Why the two are probably right anyway
+
+The count above would read as two failures if it stopped there. It should not, and the evidence is in the
+bytes.
+
+All three DOS-route routines begin with the same three bytes:
+
+```
+0xe52c8  55 8b ec   push ebp ; mov ebp, esp
+0xe5304  55 8b ec
+0xe552c  55 8b ec
+```
+
+**The game's code is framed.** For a function taking eight arguments the framed form is also the *shorter*
+one, because `[ebp+8]` is three bytes where `[esp+8]` is four: you spend four bytes on the frame to save
+eight. That is exactly the 58-versus-64 split.
+
+So the sequence is: the game contains framed code, the frame-preserving generator emitted framed code and
+matched, and the driver's **default** strips the frame, which is why `0xe52c8` comes out 64 bytes against 58.
+`0xe52c8` is therefore not a refutation of its original match. It is a blocked reproduction, and the block is
+a compiler toggle rather than the C.
+
+The honest ledger entry for those two is `compiler-1.73-matched`, with the note that the reproduction requires
+the frame-preserving configuration and that the driver default does not provide it yet.
 
 ## What was not re-attempted
 

@@ -15,15 +15,20 @@
 # from 17 s to 7 s without changing a line of it.
 #
 # IT REFUSES TO MERGE AN INCOMPLETE RUN. A skipped check records itself as a skip rather than a pass, and
-# this script additionally asserts that every shard produced exactly one result line for the check it was
-# asked to run. A shard that dies, or a name that stops matching, is a hard failure rather than a quiet gap,
-# because a merged report missing a check reads as "that check passed".
+# this script additionally requires every shard to report exactly one result line for the check it was asked
+# to run. A shard that dies, or a name that stops matching, is a hard failure rather than a quiet gap, because
+# a merged report missing a check reads as "that check passed".
+#
+# A FAILURE IS NEVER HIDDEN BY THE FILTER. `--only` says which checks a process was asked to run, not
+# permission to suppress a problem another check found, so every shard prints any failure it sees. Those
+# duplicate across processes by design, and the merge counts unique names and lists them once.
 #
 # Usage:
 #   ./tools/checkall-parallel.sh
 #   ./tools/checkall-parallel.sh --quiet
 #
 # Exit: 0 all checks passed, 1 any check failed or any shard was incomplete.
+
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -40,14 +45,16 @@ done
 WORK="$(mktemp -d /var/tmp/ckparallel.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
+# escape a fixed string for use inside a grep -E pattern.
+rx() { printf '%s' "$1" | sed 's/[][\.*^$(){}?+|/]/\\&/g'; }
+
 mapfile -t SLOW < <(node tools/checkall.js --list-slow)
 if [ "${#SLOW[@]}" -eq 0 ]; then
 	echo "checkall --list-slow returned nothing; refusing to run" >&2
 	exit 2
 fi
 
-# The cheap checks, and every slow one, all at once. No --quiet is passed to the shards so that a failure
-# carries its detail lines into the merged output.
+# The cheap checks, and every slow one, all at once.
 node tools/checkall.js --fast >"$WORK/fast.out" 2>&1 &
 fast_pid=$!
 
@@ -65,43 +72,61 @@ i=0
 for name in "${SLOW[@]}"; do
 	eval "pid=\$shard_pid_$i"
 	wait "$pid"; rc=$?
-	# Exactly one result line, and it must be for this check. Anything else is a gap in the merge.
-	lines=$(grep -cE '^(ok|FAIL|skip) ' "$WORK/shard.$i.out" || true)
-	if [ "$lines" -ne 1 ]; then
-		echo "SHARD INCOMPLETE: '$name' produced $lines result line(s), expected 1" >&2
-		shard_bad=1
-	fi
-	# The label column pads to four characters (`ok  `, `FAIL`) and a failure appends `  (N)`, so both the
-	# separator and that suffix have to be allowed. Requiring exactly one space made every shard look
-	# mismatched while all 37 checks actually passed.
-	if ! grep -qE "^(ok|FAIL) +$(printf '%s' "$name" | sed 's/[][\.*^$/]/\\&/g')(  \([0-9]+\))?\$" "$WORK/shard.$i.out"; then
-		echo "SHARD MISMATCH: '$name' did not report a result for its own name" >&2
+	# Exactly one result line for its own name, with the padded label and the optional `  (N)`
+	# failure suffix both allowed. Anything else is a gap in the merge, not a pass.
+	own=$(grep -cE "^(ok|FAIL) +$(rx "$name")(  \([0-9]+\))?\$" "$WORK/shard.$i.out" || true)
+	if [ "$own" -ne "$((1))" ]; then
+		echo "SHARD INCOMPLETE: '$name' reported $own result line(s) for itself, expected 1" >&2
 		shard_bad=1
 	fi
 	[ "$rc" -ne 0 ] && shard_bad=1
 	i=$((i + 1))
 done
 
-# The cheap shard prints its eleven skipped slow checks as `skip`. Those lines are replaced by the real
-# results above, so they are dropped rather than merged.
+# --- merge ------------------------------------------------------------------
+#
+# Printing is deterministic: the cheap checks in their own order, then the slow ones in --list-slow order.
+# Counting is by unique name, so a failure that several processes reported is counted and shown once.
+
 if [ "$QUIET" -eq 0 ]; then
 	grep -E '^(ok|FAIL) ' "$WORK/fast.out" || true
 fi
 i=0
 for name in "${SLOW[@]}"; do
-	grep -E '^(ok|FAIL|skip) ' "$WORK/shard.$i.out" || true
+	[ "$QUIET" -eq 0 ] && { grep -E "^(ok|FAIL) +$(rx "$name")(  \([0-9]+\))?\$" "$WORK/shard.$i.out" || true; }
 	i=$((i + 1))
 done
 
-ok_n=$(cat "$WORK"/fast.out "$WORK"/shard.*.out 2>/dev/null | grep -cE '^ok ' || true)
-fail_n=$(cat "$WORK"/fast.out "$WORK"/shard.*.out 2>/dev/null | grep -cE '^FAIL ' || true)
-skip_n=$(cat "$WORK"/fast.out "$WORK"/shard.*.out 2>/dev/null | grep -cE '^skip ' || true)
-# The fast shard's own skip lines are duplicates of real results, so they are not counted.
-skip_n=$((skip_n - ${#SLOW[@]}))
-[ "$skip_n" -lt 0 ] && skip_n=0
+# Unique result lines across every process. Anything a shard saw that it was not asked to run
+# (a cheap check failing) appears here and nowhere above.
+cat "$WORK/fast.out" "$WORK"/shard.*.out 2>/dev/null \
+	| grep -E '^(ok|FAIL) ' \
+	| sed 's/  ([0-9]*)$//' \
+	| sort -u > "$WORK/unique.out"
+
+ok_n=$(grep -cE '^ok ' "$WORK/unique.out" || true)
+fail_n=$(grep -cE '^FAIL ' "$WORK/unique.out" || true)
+
+# Failures that were not already printed above: the cheap shard printed its own, and each shard printed
+# its own slow check, so what is left is a cheap check's failure as seen by a slow shard.
+{
+	grep -E '^ok |^FAIL ' "$WORK/fast.out" || true
+	i=0
+	for name in "${SLOW[@]}"; do
+		grep -E "^(ok|FAIL) +$(rx "$name")(  \([0-9]+\))?\$" "$WORK/shard.$i.out" || true
+		i=$((i + 1))
+	done
+} | sed 's/  ([0-9]*)$//' | sort -u > "$WORK/shown.out"
+
+comm -23 "$WORK/unique.out" "$WORK/shown.out" | grep -E '^FAIL ' > "$WORK/extra_fails.out" || true
+if [ -s "$WORK/extra_fails.out" ]; then
+	echo
+	echo "failures found by a process that was not asked to run that check:"
+	cat "$WORK/extra_fails.out"
+fi
 
 echo
-echo "parallel run: $ok_n passed, $fail_n failed, $skip_n skipped, ${#SLOW[@]} shards across ${#SLOW[@]} processes"
+echo "parallel run: $ok_n passed, $fail_n failed, ${#SLOW[@]} checks across $(( ${#SLOW[@]} + 1 )) processes"
 
 if [ "$fail_n" -gt 0 ] || [ "$shard_bad" -ne 0 ] || [ "$fast_rc" -ne 0 ]; then
 	echo "NOT CLEAN. This exits non-zero, so it can gate a commit."

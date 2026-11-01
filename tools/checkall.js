@@ -22,7 +22,8 @@
 //   node tools/checkall.js --fast         everything except the 11 measured-slow checks, ~3 s
 //   node tools/checkall.js --timing       print per-check elapsed, slowest first
 //   node tools/checkall.js --list-slow    the slow names, read by tools/checkall-parallel.sh
-//   node tools/checkall.js --only=A,B     run those checks and print only them
+//   node tools/checkall.js --only=NAME     run that check and print only it. Repeat the flag for more;
+//                                         names contain commas so they are not comma-separated.
 //   node tools/checkall.js --no-build     skip the site build. Saves 2.6 s of 29, so this is NOT the
 //                                         time saver it looks like: --fast is, and it saves 27.
 //   node tools/checkall.js --quiet        only print failures
@@ -100,8 +101,14 @@ let lastStamp = Date.now();
 // check would otherwise look like a pass, which is the defect this file exists to catch.
 const FAST = process.argv.includes('--fast');
 const ONLY = (() => {
-	const a = process.argv.find((x) => x.startsWith('--only='));
-	return a ? new Set(a.slice('--only='.length).split(',').filter(Boolean)) : null;
+	// One name per flag, and repeat the flag for more. It must NOT split on commas: check names
+	// contain them. `matched-routine count is settled at ten, eight driver-verified` split into two
+	// names that matched nothing, so `--only=<that>` ran no check at all and reported success.
+	const vals = process.argv
+		.filter((x) => x.startsWith('--only='))
+		.map((x) => x.slice('--only='.length))
+		.filter(Boolean);
+	return vals.length ? new Set(vals) : null;
 })();
 const SLOW = new Set([
 	'corpus census is reproducible',
@@ -398,11 +405,21 @@ if (skipCheck('return convention split by ownership')) { recordSkip('return conv
 
 // E7b. The matched-routine count, which item 0b exists to settle. docs/compiler-generation.md once said
 // "the seven routines known to be High C 1.73 output (the ten `matched`)" in one sentence, and the two numbers
-// answer different questions: ten is everything classed `matched` in docs/routines.json, seven is the subset
-// re-verified through the authentic driver route in docs/highc-authentic-toolchain.md. Both are correct and
-// conflating them is the error. This pins the settled answer so a later edit cannot drift it back into an
-// ambiguity, and it fails if the driver-verified set stops being a subset of the matched set, which is the
-// only relationship between the two numbers that is actually a claim rather than a coincidence.
+// answer different questions: ten is everything classed `matched` in docs/routines.json, and the
+// driver-verified subset is how many of those the authentic generator has actually reproduced.
+//
+// It was seven and is now eight, after 0xe552c was re-run through the driver on 2026-11-02 and came out
+// byte-identical with zero exemptions applied.
+//
+// THE TWO THAT ARE NOT DRIVER-VERIFIED ARE NOT REFUTATIONS, and this is the part that is easy to get wrong.
+// All three of the DOS-route routines begin `55 8b ec`, so the game's code is FRAMED. The frame-preserving
+// generator produced framed code and matched. The driver's DEFAULT strips the frame, which is why e52c8 and
+// e5304 come out longer under it. They are blocked on a compiler toggle, not on wrong C. Demoting them would
+// throw away two correct matches and would have been the wrong reading of the evidence.
+//
+// This pins the answer so a later edit cannot drift it back, and it asserts that eight verified plus two
+// pending account for all ten matched. That total is the claim: if a routine is in neither list it has no
+// explanation at all, which fails here instead of going unnoticed.
 {
 	const problems = [];
 	let j = null;
@@ -420,16 +437,26 @@ if (skipCheck('return convention split by ownership')) { recordSkip('return conv
 			if (by[cls] !== n) problems.push(`class ${cls}: ${by[cls]}, expected ${n}. Re-measure before changing this number`);
 		}
 		if (rs.length !== 103) problems.push(`routines.json holds ${rs.length} routines, expected 103`);
-		// The seven re-verified through the driver, from docs/highc-authentic-toolchain.md's table.
-		const driver = ['e9e2c', 'e44d0', 'e9940', 'e07e8', 'e65fc', 'e662c', 'fd0ec'];
+		// The eight re-verified through the driver: the seven in docs/highc-authentic-toolchain.md's table, plus
+		// 0xe552c, re-run through the same route on 2026-11-02.
+		const driver = ['e9e2c', 'e44d0', 'e9940', 'e07e8', 'e65fc', 'e662c', 'fd0ec', 'e552c'];
+		// Matched under the frame-preserving generator, and blocked on the driver's default removing the frame.
+		// Named explicitly so a change of status is deliberate rather than silent.
+		const framedPending = ['e52c8', 'e5304'];
 		const matched = new Set(rs.filter((r) => r.class === 'matched').map((r) => r.addr));
 		const outside = driver.filter((a) => !matched.has(a));
 		if (outside.length) problems.push(`driver-verified routine(s) not classed matched: ${outside.join(', ')}`);
-		if (driver.length !== 7 || matched.size !== 10) {
-			problems.push(`the seven-of-ten claim needs 7 driver-verified inside 10 matched, got ${driver.length} and ${matched.size}`);
+		const pendingGone = framedPending.filter((a) => !matched.has(a));
+		if (pendingGone.length) problems.push(`framed-pending routine(s) no longer classed matched: ${pendingGone.join(', ')}`);
+		if (driver.length !== 8 || matched.size !== 10) {
+			problems.push(`the count needs 8 driver-verified inside 10 matched, got ${driver.length} and ${matched.size}`);
+		}
+		if (driver.length + framedPending.length !== matched.size) {
+			problems.push(`${driver.length} driver-verified plus ${framedPending.length} framed-pending must account for all ` +
+				`${matched.size} matched, but they sum to ${driver.length + framedPending.length}. A routine in neither list has no explanation`);
 		}
 	}
-	record('matched-routine count is settled at ten with seven driver-verified', problems);
+	record('matched-routine count is settled at ten, eight driver-verified', problems);
 }
 
 // E7c. The forward idiom atlas, item 0a. The atlas is the gate on the whole
@@ -1074,12 +1101,15 @@ for (const r of results) {
 	// With --only, print just the requested checks. The other slow ones were skipped and the cheap ones ran
 	// again in this process, so printing them all would duplicate lines when tools/checkall-parallel.sh
 	// concatenates its shards.
-	if (ONLY !== null && !ONLY.has(r.name)) continue;
-	if (!QUIET || r.failures.length) {
-		const label = r.wasSkipped ? 'skip' : (r.failures.length ? 'FAIL' : 'ok  ');
-		console.log(`${label} ${r.name}` + (r.failures.length ? `  (${r.failures.length})` : ''));
-		for (const f of r.failures.slice(0, 6)) console.log('       ' + f);
-	}
+	// A failure is always printed. --only says which checks this process was asked to run, not
+	// permission to hide a problem that another check found. Under the parallel driver that
+	// distinction is load bearing: a cheap check failing in a shard would otherwise exit non-zero
+	// with no message anywhere, which is the silent-failure shape this whole file exists to catch.
+	const asked = ONLY === null || ONLY.has(r.name);
+	if (!r.failures.length && (QUIET || !asked)) continue;
+	const label = r.wasSkipped ? 'skip' : (r.failures.length ? 'FAIL' : 'ok  ');
+	console.log(`${label} ${r.name}` + (r.failures.length ? `  (${r.failures.length})` : ''));
+	for (const f of r.failures.slice(0, 6)) console.log('       ' + f);
 }
 if (TIMING) {
 	const ranked = timings.slice().sort((a, b) => b.ms - a.ms);

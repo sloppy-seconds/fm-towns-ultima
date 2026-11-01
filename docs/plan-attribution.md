@@ -56,8 +56,10 @@ hypotheses, none separated, and separating them is not needed to act on the find
 
 **A count that needed one owner, now settled by item 0b.** `docs/compiler-generation.md` said "the seven
 routines known to be High C 1.73 output (the ten `matched`)". Seven or ten, in one sentence. Both were right
-and they were different sets: ten routines are classed `matched`, seven of those ten are driver-verified. The
-owner is [attribution-samples.md](attribution-samples.md) and `tools/checkall.js` asserts it.
+and they were different sets: ten routines are classed `matched`, and **eight** of those ten are
+driver-verified. The other two are not refutations, they are blocked on a compiler toggle that strips the
+frame the game actually uses. The owner is [attribution-samples.md](attribution-samples.md) and
+`tools/checkall.js` asserts that eight plus two account for all ten.
 
 ## The ledger
 
@@ -150,9 +152,9 @@ MetaWare members and 224,972 code bytes, in `HCE.LIB` (428), `HCC.LIB` (357), `N
 pristine kit archive in `references/metaware/` are the same disc differing by exactly 50 bytes in a 74-byte
 span, and those 50 bytes are the three documented in-place `AUTOEXEC.BAT` patches, so the working image is a
 fully accounted-for derivative of the archived original. The seven-or-ten count is settled: **ten** routines
-are classed `matched` in `docs/routines.json`, and **seven** of those ten are the subset re-verified through
-the authentic driver route. Both numbers were right and the sentence that put them side by side was the bug.
-The three DOS-route matches need re-running through the driver before they are cited as 1.73 output.
+are classed `matched` in `docs/routines.json`, **eight** of those ten are re-verified through the authentic
+driver route, and the remaining two match under the frame-preserving generator that the game's own framed code
+implies. Both original numbers were right and the sentence that put them side by side was the bug.
 Full inventory, with the commands: [attribution-samples.md](attribution-samples.md).
 
 Look for compiler-emitted code we did not write. Two candidates, and one dead end that must not be
