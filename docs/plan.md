@@ -507,10 +507,12 @@ arguments in registers, so no C source can produce it. Promoting `0xe140c` in th
 because it moves three owned counts across two ledgers at once. Full disassembly comparisons and the four candidate
 sources: [byte-match-rate.md](byte-match-rate.md).
 
-**One tool fix fell out of it.** A P3 code segment is padded and the linker map reports the padded size, so a
-correct candidate can arrive one byte long. `tools/byteid.js` exempted trailing padding only on the target side
-and reported `0xe140c` as `length-differs`; it now exempts an all-zero tail on the candidate side too, records
-the count as `candidatePaddingBytes`, and still refuses a tail that is not zero.
+**One tool fix fell out of it.** The two containers are different: `ENCHANT.EXP` is `MP`, and a candidate is `P3`
+because that is what `386LINK.EXE` emits. A candidate's extent is read from the linker map's segment size, and that
+size is aligned to 4 bytes: all 40 atlas probes and all 7 candidate modules report a multiple of 4, so `0xe140c`'s
+43 bytes of code arrive as `0x2C` = 44. `tools/byteid.js` exempted trailing padding only on the target side and
+reported that correct candidate as `length-differs`; it now exempts an all-zero tail on the candidate side too,
+records the count as `candidatePaddingBytes`, and still refuses a tail that is not zero.
 
 | field | value |
 |---|---|

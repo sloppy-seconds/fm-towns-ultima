@@ -188,11 +188,15 @@ function compare(addr, ours) {
 		for (let i = ours.length; i < theirs.length; i++) exempt[i] = { id: 'P1' };
 		result.paddingBytes = tailExempt;
 	} else if (ours.length > theirs.length) {
-		// The candidate may carry the linker's own trailing alignment padding. A P3 code
-		// segment is padded to a boundary and `tools/atlas-build.py` reads the extent from the
-		// linker map, which reports the PADDED size, so a correct candidate can arrive one or
-		// more bytes long. `0xe140c` is the worked case: its 43 code bytes are identical and the
-		// 44th is a single 00.
+		// The candidate may carry the linker's own trailing alignment padding.
+		//
+		// THE TWO CONTAINERS ARE DIFFERENT AND THIS EXEMPTION IS ABOUT THE CANDIDATE ONLY.
+		// ENCHANT.EXP is an `MP` flat image, and the game's extents here come from
+		// docs/corpus.json, which is a walk to the routine's `ret`. A candidate is built by
+		// 386LINK.EXE, which emits `P3`, and tools/atlas-build.py reads a candidate's extent
+		// from the linker map's segment size. That size is aligned: all 40 atlas probes and
+		// all 7 candidate modules report a code segment divisible by 4, so 0xe140c's 43 bytes
+		// of code are reported as 0x2C = 44.
 		//
 		// This is only exempt when every extra byte is zero, and only at the tail. A function
 		// ends at its `ret`, so anything all-zero after that is fill rather than code. A

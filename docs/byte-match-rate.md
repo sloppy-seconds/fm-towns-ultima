@@ -83,12 +83,23 @@ candidate produces all 43 bytes, which settles the byte question. It is **instru
 including every branch displacement**, and the branch targets shown by a disassembler differ only because the
 target is loaded at `0xe140c` and the standalone build at 0.
 
-**The comparison needed a fix to report this honestly.** The candidate arrived as 44 bytes: 43 of code plus one
-`00` of trailing alignment fill, because a P3 code segment is padded and the linker map reports the padded size.
-`tools/byteid.js` exempted trailing padding only on the *target* side, so a correct candidate was reported as
-`length-differs`. It now also exempts an all-zero tail on the candidate side, and only an all-zero tail, because
-the function ends at its `ret` and a candidate that genuinely ran past the function has a real instruction there.
-The exemption is recorded on the result as `candidatePaddingBytes` rather than silently discarded.
+**The comparison needed a fix to report this honestly, and the fix is about the two containers being different.**
+`ENCHANT.EXP` is an **`MP`** flat image, and the game's extents here come from `docs/corpus.json`, which is a walk
+to the routine's `ret`. A candidate is built by `386LINK.EXE`, which emits **`P3`** (signature `50 33`), and
+`tools/atlas-build.py` reads a candidate's extent from the linker map's segment size. **That size is aligned:**
+all 40 atlas probes and all 7 candidate modules report a code segment divisible by 4, so `0xe140c`'s 43 bytes
+of code are reported as `0x2C` = 44.
+
+The candidate therefore arrived as 44 bytes: 43 of code plus one `00` of trailing alignment fill. `tools/byteid.js`
+exempted trailing padding only on the *target* side, so a correct candidate was reported as `length-differs`. It
+now also exempts an all-zero tail on the candidate side, and only an all-zero tail, because the function ends at
+its `ret` and a candidate that genuinely ran past the function has a real instruction there. The exemption is
+recorded on the result as `candidatePaddingBytes` rather than silently discarded.
+
+**A caveat this exposes in the atlas, recorded rather than fixed.** The atlas table's `bytes` column also comes
+from a map segment size, so for any probe whose real code length is not a multiple of four the figure includes
+one to three bytes of alignment fill. No atlas finding depends on it, because the claims are about instructions
+and idioms rather than lengths, but the number is the segment size and not the code size.
 
 **Promoting it in the register is 4j's work and is deliberately deferred, with the numbers recorded here so it
 cannot be lost.** `docs/routines.json` still classes `0xe140c` as `register-choice`, and that entry is not false:
