@@ -252,6 +252,41 @@ remaining question is narrower than it was, which is what spelling of the toggle
 the **generator** parses, and `doc/hc17um.doc` is the place to look for it rather
 than the command line. This is now a lookup, not a blocker.
 
+### Update, 2026-11-02, later: the config file is readable and its toggles are inert too
+
+The lookup was done and it closed the question in the other direction. `DOC/HC17UM.DOC`
+confirms the syntax is exactly `-Hon=toggle` / `-Hoff=toggle`, and that the toggle is
+spelled `Remove_BP`. So the spelling was never the problem.
+
+The driver's config is `HC386SET.CNF`, whose `ARGS=` line is documented as "command-line
+options that will be evaluated at _every_ compilation". It is reachable: copying the
+driver and its `.cnf` to a writable directory so it auto-detects `HCDIR` there makes the
+driver read the modified file. Three variants, each one boot:
+
+| `ARGS=` | outcome |
+|---|---|
+| `-native -HVp -off remove_bp` | `Unknown option -off will be passed to the linker`, then `Fatal error: Missing value to command switch "-off"`, citing line 7 of the answer file `5cdf0000.tmp` |
+| `-native -HVp -Hoff=Remove_BP` | compiles cleanly, output **byte-identical to the default**, 64 bytes and still unframed |
+| `-native -HVp -Hon=Quiet -Hoff=Remove_BP` | compiles cleanly, **banner not suppressed** |
+
+The first row is the useful one: it proves the `.cnf` is being read and its `ARGS` does
+reach the answer file. The third row is the control that interprets the second. `Quiet`
+is a toggle with a visible effect, and it had none either, so toggles handed in through
+`ARGS` are **accepted and inert** rather than merely misspelled. `Remove_BP` is not a
+special case and no spelling of it is going to work through this route.
+
+**What that means.** The blocker was never the tokeniser and never the config file. It
+is that these toggles do not take effect through this driver invocation, and the
+remaining explanations are a build where they are compiled out, or a route that applies
+them somewhere other than the front-end answer file. Both are larger questions than a
+spelling and neither is worth another boot tonight.
+
+**The practical consequence for `0xe52c8` and `0xe5304` is unchanged and worth restating:**
+they are matched, they are framed, the game is framed, and the frame-preserving
+generator is the one that matched them. What is missing is a reproduction under the
+driver's default, which removes frames. That is a configuration gap, not a wrong C, and
+it is recorded as such in [attribution-samples.md](attribution-samples.md).
+
 ### The three DOS-route matches, re-run through the driver
 
 `docs/routines.json` classes ten routines `matched` and this page verified seven of

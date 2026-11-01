@@ -87,6 +87,16 @@ So the state moves from "blocked on the tokenizer" to "accepted by the driver, n
 generator", which is a lookup in `doc/hc17um.doc` rather than an obstacle. `-off Remove_BP` in the answer file
 confirms the routing: the driver forwards unrecognised switches to `386LINK`, not to the generator.
 
+**The lookup was done, and it closed the question in the other direction.** The manual confirms the syntax is
+`-Hon=`/`-Hoff=` and the toggle is `Remove_BP`, so the spelling was never the problem. The driver's
+`HC386SET.CNF` was then edited directly, with the driver copied to a writable directory so it auto-detects
+`HCDIR` there. Three variants, each a boot: `-off remove_bp` in `ARGS` reaches the answer file and errors,
+which proves the config is read; `-Hoff=Remove_BP` compiles cleanly and is byte-identical to the default; and
+`-Hon=Quiet`, the control, fails to suppress the banner. So toggles through `ARGS` are **accepted and inert**,
+not misspelled. The remaining explanations are a build where the toggles are compiled out or a route that
+applies them elsewhere, and neither is worth another boot. Full table in
+`docs/highc-authentic-toolchain.md`.
+
 Both are written up in `docs/highc-authentic-toolchain.md` and `docs/attribution-samples.md`.
 
 ## 5. What is outstanding, by plan item
