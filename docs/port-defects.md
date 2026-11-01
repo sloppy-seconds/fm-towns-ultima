@@ -248,15 +248,52 @@ plus the log:
 ./tools/x-run.sh logs
 ```
 
+## Reported and refuted: keys queue up and act more than once
+
+**Reported 2026-11-01.** Typing a direction key five times quickly walks five tiles, and the original was said to
+accept only one action per turn, which would matter in combat where the direction keys get mashed.
+
+**What the port does, measured.** `Machine::press_key` is `keys.push_back(...)` in
+`fmtownskit/runtime/towns_dos.cpp`, so the queue has no depth limit, no expiry and no per-frame budget. The game
+drains it as fast as it fills: over 1,600 frames the guest called `int 90h` with `AX=0901` (`KYB_read`) **803,794
+times**, about 500 polls per frame, and called `AH=06` (clear) not once. Every key offered is therefore consumed,
+and N presses produce N actions.
+
+**What the machine does, measured in Tsugaru.** Five presses of one direction, on a corridor first proven open six
+tiles long and walked back between trials so a trial could not reach a wall:
+
+| gap between presses | moves registered |
+|---|---|
+| 400 ms | 5 of 5 |
+| 300 ms | 5 of 5 |
+| 200 ms | 5 of 5 |
+| 150 ms | 5 of 5 |
+| 100 ms | 5 of 5 |
+| 60 ms | 5 of 5 |
+| 30 ms | 5 of 5 |
+| 10 ms | 4 of 5 |
+
+Eight presses 30 ms apart gave 8 of 8.
+
+**Verdict: refuted.** The machine buffers at least eight fast presses, so it does not limit input to one action per
+turn, and the port is faithful at every speed a person can type. Two caveats stated rather than smoothed. At 10 ms
+apart one press was lost, and that may be the game or may be `xdotool` coalescing at the X server, so it is not
+evidence either way. The depth above eight is unmeasured.
+
+**Two failed attempts are part of the finding**, because each produced a confident wrong answer first. The first
+run reported 0 of 5 at every fast gap, from a tile whose westward neighbour is blocked. The second flagged every
+fast trial as ambiguous, because three moves reached water. A corridor that runs out and a buffer that drops a
+press are the same reading until the corridor is proven long enough to hold the whole trial.
+
+**A real bug found on the way, and not the cause.** `int 90h AH=06`, the keyboard clear, is a no-op stub in the kit
+(`case 0x00: case 0x01: case 0x02: case 0x05: case 0x06: break;`). Ultima II never calls it, so it cannot produce
+this report, but a program that does call it will not get a cleared buffer.
+
 ## What would settle what is left
 
-Defect 1 has a fault address now, so the question changed from "find a crash" to "what is at `0xffeba` and why does
-the guest go there". Three things would close it, in order of cost. Decode the containing routine `f_000ffe24` from
-its start and find why `cfgwalk` and a seeded decode disagree about `0xffeba`. Then identify the transfer that
-reached it, which the register hint (`ebx 000ffe77`, a code address) says is probably one of the 30 unresolved
-indirects in `module/report.txt`. Then decide whether the answer is a missing resume point, in which case
-`tools/resumepoints.js` already has the machinery, or a computed jump into a routine body, which is a different
-problem and a bigger one.
+Defect 1 is closed: the fault at `0xffeba` was table entry 1 of eight handlers at `0xffe73` that only a
+`call dword ptr cs:[ebx]` refers to, all eight are now seeds, and the scripted route that faulted runs 9,000 frames
+clean. The 30 unresolved indirect transfers remain the obvious place to look for the next hole of that shape.
 
 Defect 2 needs one measurement that nobody has taken: what `Q` does in the original. The emulator binds `Q` to its
 own quit, which is why the memory of "Q crashes it" is not trustworthy, and the port forwards `Q` to the guest
