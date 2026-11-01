@@ -129,6 +129,22 @@ against the authentic generator. The ledger should carry ten with seven flagged 
 three DOS-route matches need re-running before they are cited as 1.73 output, because the real-mode generator
 is the one whose optimiser never engages.
 
+## The three DOS-route matches, re-run the same night
+
+Followed up rather than left as a caveat. Each was compiled through the authentic driver and checked under
+[byte-identity-rule.md](byte-identity-rule.md):
+
+| routine | asserted | candidate | verdict |
+|---|---|---|---|
+| `0xe552c` | 76 B | 76 B | **byte-identical**, zero exemptions applied |
+| `0xe52c8` | 58 B | 64 B | length-differs, and not a refutation: its recorded evidence already names a
+non-default configuration, and the gap is the `esp`-versus-`ebp` one |
+| `0xe5304` | 189 B | 192 B | length-differs by three bytes, and no existing explanation covers it |
+
+So **eight of the ten** `matched` routines are now confirmed against the generator that reproduced the game,
+and `0xe5304` is the one genuinely open case. Full write-up, including the `Remove_BP` experiment that came
+out of it: [highc-authentic-toolchain.md](highc-authentic-toolchain.md).
+
 ## What was not re-attempted
 
 The `TMENU.SYM1` naming route, which `docs/name-propagation.md` records as a measured negative. It was not

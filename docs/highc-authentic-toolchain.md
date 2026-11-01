@@ -229,6 +229,50 @@ the answer file even though `-Hoff=` cannot express it.
 fail with `(syntactic) unexpected symbol: <DONE>` at the end of file, so the
 pragma spelling in the manual does not work as written in this build.
 
+### Update, 2026-11-02: the tokenizer obstacle is solved, the switch is not
+
+The answer file is reachable directly. `HC386.EXE @R1.RSP` where `R1.RSP` contains
+`A42.C -Hoff=Remove_BP` compiles and links with no error at all, from the same
+DOS prompt, and the underscore survives because the front end is not tokenising a
+command line. So the blocking claim above is no longer true: the toggle can be
+handed to the driver.
+
+What it does is nothing, though. The output is **byte-identical** to the default
+build, 64 bytes, `8b 4c 24 04 8b 44 24 08 89 01 ...`, with the arguments still
+read through `esp`. Verified by comparing the two `.EXP` files byte for byte, not
+by comparing sizes.
+
+The other spelling behaves as this page already recorded: `-off Remove_BP` in the
+answer file produces `Unknown option -off will be passed to the linker` and then
+`Fatal error: Missing value to command switch "-off"`, which confirms the driver
+routes unrecognised switches to `386LINK` rather than to the code generator.
+
+So the state of `Remove_BP` is: reachable, accepted, and not yet effective. The
+remaining question is narrower than it was, which is what spelling of the toggle
+the **generator** parses, and `doc/hc17um.doc` is the place to look for it rather
+than the command line. This is now a lookup, not a blocker.
+
+### The three DOS-route matches, re-run through the driver
+
+`docs/routines.json` classes ten routines `matched` and this page verified seven of
+them. The remaining three were matched through the real-mode route whose optimiser
+never engages, and they have now been recompiled through the authentic driver and
+checked under the equivalence rule of
+[byte-identity-rule.md](byte-identity-rule.md):
+
+| routine | asserted | candidate | verdict |
+|---|---|---|---|
+| `0xe552c` | 76 B | 76 B | **byte-identical**, no exemptions applied |
+| `0xe52c8` | 58 B | 64 B | length-differs, the `esp`-versus-`ebp` gap this page already diagnosed |
+| `0xe5304` | 189 B | 192 B | length-differs, three bytes over, cause not yet identified |
+
+So one of the three survives and the driver-verified count goes from seven to
+eight of ten. `0xe52c8` is not a refutation of the original match, because its
+recorded evidence already names a non-default configuration; it is an independent
+reproduction of the gap this page describes, reached from a different direction.
+`0xe5304` is a genuinely open case and the only one of the three where the
+existing explanation does not cover the difference.
+
 Note on method: a quoted form was attempted and appeared to fail, but the quotes
 were typed as `*` because the guest keyboard is Japanese layout. That test was
 invalid, not negative.

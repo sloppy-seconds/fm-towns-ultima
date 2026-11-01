@@ -70,7 +70,26 @@ bytes in a 74-byte span and reads out as exactly the three documented `AUTOEXEC.
 those ten are the driver-route re-verification. Both numbers were always right and the sentence that put them
 side by side was the bug. Gate: `matched-routine count`, **seen to fail** when the expected count was changed.
 
-## 4. What is outstanding, by plan item
+## 4. Two follow-ups completed past the stated scope
+
+**The three DOS-route matches were re-run through the authentic driver**, because item 0b's own report said
+they should be before being cited as 1.73 output. Result: `0xe552c` is **byte-identical** with zero exemptions
+applied, so the driver-verified count goes from seven to **eight of ten**. `0xe52c8` comes out 64 B against an
+asserted 58 B, which is not a refutation but an independent reproduction of the `esp`-versus-`ebp` gap
+`highc-authentic-toolchain.md` already describes. `0xe5304` comes out 192 B against 189 B and is the one
+genuinely open case.
+
+**The `Remove_BP` blocker is partly cleared.** That page recorded the toggle as unreachable because the
+front-end tokenises on the underscore. It is reachable: `HC386.EXE @R1.RSP` with `A42.C -Hoff=Remove_BP` in
+the response file compiles and links cleanly, underscore intact. What it does is nothing, the output is
+**byte-identical** to the default build, verified by comparing the two `.EXP` files rather than their sizes.
+So the state moves from "blocked on the tokenizer" to "accepted by the driver, not yet effective on the code
+generator", which is a lookup in `doc/hc17um.doc` rather than an obstacle. `-off Remove_BP` in the answer file
+confirms the routing: the driver forwards unrecognised switches to `386LINK`, not to the generator.
+
+Both are written up in `docs/highc-authentic-toolchain.md` and `docs/attribution-samples.md`.
+
+## 5. What is outstanding, by plan item
 
 **0c needs a decision from you.** The clustering works and the ledger is committed, but the item's own
 acceptance check fails and I did not tune it away. The enter band does not cohere at any granularity: a sweep
@@ -92,7 +111,7 @@ are done, so the block is entirely the 0c question above.
 exclusion signal and has withstood two targeted probes (A33, A40). It is worth one more pass before it is used
 in the ledger, for the reason the other three just demonstrated.
 
-## 5. What this made stale or false elsewhere
+## 6. What this made stale or false elsewhere
 
 - `AGENTS.md` known-good row on the `sar`/`sub` halving chain: **corrected in place**. High C 1.73 does not
   emit a `sar 1` chain for a division by 2^n; it emits one wide `sar 3` with a bias. The chain is reachable

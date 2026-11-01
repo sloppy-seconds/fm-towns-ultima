@@ -205,8 +205,8 @@ def crlf(lines):
     return ''.join(l + '\r\n' for l in lines)
 
 
-def corpus_probes(only=None):
-    """Every aNN_*.c in the corpus, sorted, with its 8.3-safe stem and source.
+def corpus_probes(only=None, corpus_dir=None):
+    """Every aNN_*.c in a corpus directory, sorted, with its 8.3-safe stem and source.
 
     The stem is the leading A<digits> of the file name and nothing else, because
     DOS cannot see a name longer than eight characters and a silently truncated
@@ -214,10 +214,17 @@ def corpus_probes(only=None):
 
     `only` is a comma-separated stem list for re-running a few probes without
     recompiling the whole corpus, which costs a boot per six probes.
+
+    `corpus_dir` points at a different set of sources. The recomp track's
+    candidate loop uses this to compile routines recorded in docs/routines.json
+    through the same authentic route without mixing them into the atlas statistics.
     """
+    cdir = corpus_dir or CORPUS
+    if not os.path.isdir(cdir):
+        raise SystemExit('no such corpus directory: %s' % cdir)
     out = []
     want = set(s.upper() for s in only.split(',')) if only else None
-    for name in sorted(os.listdir(CORPUS)):
+    for name in sorted(os.listdir(cdir)):
         if not name.endswith('.c'):
             continue
         m = re.match(r'^([a-z]\d\d)_', name)
@@ -226,14 +233,14 @@ def corpus_probes(only=None):
         stem = m.group(1).upper()
         if want is not None and stem not in want:
             continue
-        with open(os.path.join(CORPUS, name), 'r') as fh:
+        with open(os.path.join(cdir, name), 'r') as fh:
             out.append({'stem': stem, 'file': name, 'source': fh.read()})
     if want:
         missing = want - set(p['stem'] for p in out)
         if missing:
             raise SystemExit('--only named stems not in the corpus: %s' % ', '.join(sorted(missing)))
         return out
-    if len(out) < 20:
+    if not corpus_dir and len(out) < 20:
         raise SystemExit('corpus has %d probes; item 0a needs at least 20' % len(out))
     stems = [p['stem'] for p in out]
     if len(set(stems)) != len(stems):
@@ -522,9 +529,13 @@ def main():
     ap.add_argument('--chunk-timeout', type=int, default=300)
     ap.add_argument('--only', default=None,
                     help='comma-separated stems to compile, leaving the rest alone')
+    ap.add_argument('--corpus', default=None,
+                    help='alternate directory of aNN_*.c sources, for candidate verification')
     args = ap.parse_args()
 
-    probes = corpus_probes(args.only)
+    probes = corpus_probes(args.only, args.corpus)
+    if args.corpus and args.out == DEFAULT_OUT:
+        args.out = os.path.join(ROOT, 'analysis', 'candidates')
     work = os.path.join(os.path.dirname(args.out) or '.', 'atlas-work')
     print('atlas-build: %d probes, image %s' % (len(probes), args.image))
 
