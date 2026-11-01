@@ -82,24 +82,26 @@ Counting the whole module against the atlas's idioms is the step that turns the 
 | `and reg,reg` as a truthiness test | 220 | **now explained: A37 shows a register condition compiles to exactly this** |
 | `xor reg,reg` to zero | 41 | never emitted, and A33 confirms `a ^= a` still gives `sub` |
 | `test` | 43 | emitted for a mask test (A34), absent as `test reg,reg` |
-| a string op | 25 | never emitted (A30 gives a manual loop) |
+| a string op | 25 | **now explained: A39 shows an inlined `memcpy` emits `rep movsd` and `rep movsb`** |
 | `sar 1` | 14 | only reachable from an explicit halving (A32) |
 
 Two of these are live exclusion signals and one is not:
 
-- **41 functions zero with `xor reg,reg`.** The atlas measured this as never emitted, and the probe most likely
-  to provoke it (`a ^= a`) still produced `sub`. This is the strongest `hand-asm-positive` candidate the
-  clustering produced.
-- **25 functions use a string op.** The atlas never emitted `rep movsb` and A30 shows a byte copy becomes a
-  manual loop. Also a strong candidate.
+- **41 functions zero with `xor reg,reg`.** The atlas measured this as never emitted, and the two probes most
+  likely to provoke it both refused: A33's `a ^= a` gives `sub eax, eax`, and A40's xor-toggle accumulator gives
+  `not cl` plus `sub` for the zeroing. This is the strongest `hand-asm-positive` candidate the clustering
+  produced, and it is the only one that survived being tested.
 - **43 functions use `test`, and that means nothing.** An earlier draft of the atlas said `test` never appears,
   and A34 refuted it the same day. See the correction in [idiom-atlas.md](idiom-atlas.md).
+- **25 functions use a string op, and that also means nothing.** The draft claimed the compiler never emits one,
+  and A39 refuted it: `memcpy` inlines to `rep movsd` plus `rep movsb`. This was the largest of the three
+  near-misses, because those 25 functions looked like the best hand-asm evidence in the module for about an
+  hour.
 
-And one gap that got closed the same night: **220 functions use `and reg,reg` as a truthiness test**, a fifth of
-the module, and at the time the atlas had no probe for it. It was flagged as a feature rather than silently
-ignored, and probe A37 then showed that `while (p)` compiles to `and edi, edi; je`. So the shape is ordinary
-High C output and is not an exclusion signal at all. Flagging it as unknown is what made it possible to find
-out.
+And one gap that closed the same way: **220 functions use `and reg,reg` as a truthiness test**, a fifth of the
+module, with no probe behind it at the time. A37 showed `while (p)` compiles to `and edi, edi; je`, so it is
+ordinary output. Flagging each of these as unknown rather than reasoning from them is what made all three
+findable.
 
 ## The position check
 

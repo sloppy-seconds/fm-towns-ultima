@@ -30,17 +30,23 @@ High C 1.73 driver emitted. Gate: `forward idiom atlas` in `checkall.js`, which 
 non-empty never-emits list, the `xor`/`sub` headline in both directions, doc cross-references, and a
 too-narrow-corpus tripwire. **Seen to fail** when the `xor` predicate was made unconditional.
 
-**Two of the atlas's own early conclusions were wrong, and probes caught both.** This is the most important
-thing in the report, because both would have corrupted an attribution.
+**Three of the atlas's own conclusions were wrong, and probes caught all three before any of them corrupted an
+attribution.** This is the most important thing in the report, because each one was a ready-made mislabelled
+function set.
 
 - "`test` never appears." Refuted by A34: `if ((a & b) == 0)` compiles to `test dword ptr [esp + 8], eax`. The
   clustering pass had already counted 43 game functions using `test`, and under the uncorrected atlas those 43
   would have been labelled hand-written assembly on evidence that was really an unprobed source shape.
 - "`and reg,reg` as a truthiness test is an unexplained shape in 220 functions." Refuted by A37: `while (p)`
-  compiles to `and edi, edi; je`. Ordinary compiler output.
+  compiles to `and edi, edi; je`. Ordinary compiler output, and a fifth of the module.
+- "No string op, ever." Refuted by A39: `memcpy(d, s, n)` inlines to
+  `shrd; shr; rep movsd; shld; rep movsb`. The census had found 25 game functions using a string op and they
+  looked like the strongest hand-asm candidate in the module. They are ordinary inlined library code.
 
-Both corrections are recorded on the page as corrections rather than quietly applied. The surviving claim is
-narrower and stronger: the discriminator is the **shape** of the test, not the presence of the instruction.
+All three corrections are recorded on the page as corrections rather than quietly applied. What survived is
+narrower and stronger than what was there: the discriminator is the **shape** of a test or a copy, not the
+presence of an instruction, and the one exclusion signal that withstood being probed is `xor reg,reg` for
+zeroing, which A33 and A40 both refused to produce.
 
 **The byte-identity rule does not buy its verdicts with masking.** Gate: `byte-identity equivalence rule`,
 asserting self-comparison identity on a sample, that a one-byte flip differs, that a truncated candidate does
@@ -82,10 +88,9 @@ of them.
 **0d and 12b are blocked on that decision.** 0d depends on 0c, and 12b depends on 0a, 0c and 12a. 0a and 12a
 are done, so the block is entirely the 0c question above.
 
-**Two atlas gaps remain unprobed**, both surfaced by the census: 41 functions zero with `xor reg,reg` and 25
-use a string op, neither of which any probe produced. These are the strongest live `hand-asm-positive`
-candidates and they are worth probing harder before being used, for the reason the `test` episode just
-demonstrated.
+**Two atlas gaps remain unprobed.** 41 functions zero with `xor reg,reg`, which is now the only surviving
+exclusion signal and has withstood two targeted probes (A33, A40). It is worth one more pass before it is used
+in the ledger, for the reason the other three just demonstrated.
 
 ## 5. What this made stale or false elsewhere
 
@@ -109,7 +114,7 @@ demonstrated.
 
 ```
 ./tools/decode-setup.sh                    # capstone, once
-./tools/atlas-build.py                     # ~20 min, seven boots, 37 probes
+./tools/atlas-build.py                     # ~22 min, eight boots, 40 probes
 ./tools/atlas-report.py                    # the atlas table and both lists
 ./tools/cluster.py --write docs/ledger.json
 node tools/checkall.js                     # every gate, including the four new ones

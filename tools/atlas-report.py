@@ -91,6 +91,9 @@ AXIS = {
     'A35': 'xor as a real operation, and zeroing a loop accumulator',
     'A36': 'a parameter used as a truthiness test',
     'A37': 'a register used as a truthiness test',
+    'A38': 'a word-at-a-time copy written as a loop',
+    'A39': 'an inlined library copy, the shape that produces string ops',
+    'A40': 'xor as a flag toggle inside a loop',
 }
 
 
@@ -191,7 +194,9 @@ CANDIDATES = [
     ('shl for a stride multiply', lambda fl, rows: any(
         r['shl_const'] and r['stem'] == 'A20' for r in rows)),
     ('lea for a small constant multiply', lambda fl, rows: any(r['lea'] and r['stem'] == 'A22' for r in rows)),
-    ('rep movsb / string ops for a byte copy', lambda fl, rows: any(r['rep_string_op'] for r in rows)),
+    ('rep string op at all, from an inlined library copy', lambda fl, rows: any(r['rep_string_op'] for r in rows)),
+    ('rep string op from a hand-written loop', lambda fl, rows: any(
+        r['rep_string_op'] and r['stem'] in ('A30', 'A38') for r in rows)),
     ('manual byte loop for a byte copy', lambda fl, rows: any(r['stem'] == 'A30' and not r['rep_string_op']
                                                              for r in rows)),
     ('sub esp,N to allocate locals', lambda fl, rows: any(r['locals_via_sub_esp'] for r in rows)),

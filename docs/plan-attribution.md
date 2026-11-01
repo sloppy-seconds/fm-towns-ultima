@@ -109,7 +109,7 @@ transfers are the same class of problem and are a first-class category for the s
 
 **State:** DONE · **Autonomy:** AUTONOMOUS
 
-**What is now known.** 37 small C sources were compiled with the real driver route and disassembled, producing
+**What is now known.** 40 small C sources were compiled with the real driver route and disassembled, producing
 [idiom-atlas.md](idiom-atlas.md) and an eleven-entry never-emits list. The headline entries, each measured
 rather than assumed: this compiler zeroes with `sub reg,reg` and never with `xor reg,reg`, it tests a memory
 operand against zero with `cmp x, 0`, a register for truthiness with `and reg, reg` and a mask with
@@ -119,9 +119,10 @@ struct is 6, it allocates locals with `push` and never `sub esp,N`, it lowers sm
 `lea` and strides to `shl` and reserves `imul` for runtime operands, and it emits no string ops so a byte copy
 is a manual loop. It also corrected a known-good row: division by a power of two is a single wide `sar 3` with
 a bias rather than the `sar 1` halving chain `AGENTS.md` recorded, and that chain is only reachable from a
-source that halves explicitly. The corpus produced 3 frame shapes, 31 mnemonic sets and 36 distinct
-instructions, which is the check that it is not too narrow to say anything. Two of its own early conclusions
-were refuted by probes written to test them, and both corrections are on the page rather than quietly applied.
+source that halves explicitly. The corpus produced 3 frame shapes, 33 mnemonic sets and 40 distinct
+instructions, which is the check that it is not too narrow to say anything. Three of its own early conclusions
+were refuted by probes written to test them, and all three corrections are on the page rather than quietly
+applied.
 
 Compile a corpus of small C programs with the FM Towns High C 1.73 kit through the working TownsOS route
 and harvest what comes out: prologue and epilogue shapes, frame style, the zeroing idiom, `idiv` against
