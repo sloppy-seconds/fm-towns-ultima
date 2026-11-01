@@ -50,7 +50,7 @@ Values present and matching the format string's identity, though not independent
 0xcde89  21        EXPERIENCE
 0xcde8d  37735     FOOD
 0xcde91  235       GOLD
-0xcdf53  148
+0xcdf53  148       TURN, not a map id (see the correction at the end of this page)
 0xcdf6b  34        PLAYER_X
 0xcdf6f  23        PLAYER_Y
 0xcdf7f  80
@@ -260,6 +260,29 @@ that way. The remaining fields need the same: change one thing in game, observe 
 find that number in memory.
 
 That is slow and it is the only method that has not produced a wrong answer.
+
+---
+
+## Correction: `0xcdf53` is a turn counter, not a map id
+
+**Added 2026-11-01.** This page, `tools/peek.js` and `tools/globrefs.js` all called the dword at `0xcdf53` `MAP`. The
+address is right and the name is wrong. It counts completed commands.
+
+Measured: it advances by exactly one for a move, for an attack (`A` then a direction), for `P)ass`, for `L)ook` and
+for opening inventory, and it does **not** advance for keys typed into the modal YELL line. A map id cannot behave
+that way, and `save-files.md` section 8.0.2 already says `MAP` is a map *type* rather than a number, so a counter that
+climbs on every step was never that field.
+
+`tools/u2bot.py` reached the same conclusion independently and before this page did: it keeps `map` as a legacy
+label, reports `turn` alongside it, and its own comment records what the mistake cost, which was a bot that retried
+the same wall 64 times because it keyed blockages on a value that never recurred. That note was in the repository
+while this page still said `MAP (unverified)`, which is the usual way a stale label survives.
+
+The record-layout arithmetic on this page is unaffected: it depends on the field being four bytes at `0xcdf53`, which
+is still true. Only the name changed, and it changed to `turn` in `peek.js` and `TURN_CLOCK` in `globrefs.js`.
+
+The port reads this field. Its one-command-per-turn rule drops queued keys when this value has moved and the guest
+asks for the next one, which is the machine's own boundary. See `port-defects.md`, defect 4.
 
 ---
 

@@ -23,7 +23,12 @@
 //   0xcde91  GOLD        verified against the status screen
 //   0xcdf6b  PLAYER_X    verified by one west step decrementing it by one
 //   0xcdf6f  PLAYER_Y    verified by the same step leaving it unchanged
-//   0xcdf53  MAP         unverified
+//   0xcdf53  TURN        counts completed commands, not a map id. Verified by watching it advance by exactly
+//                         one on a move, an attack ("A" then a direction), P)ass, L)ook and inventory, and by it
+//                         NOT advancing for keys typed into the modal YELL line. It was called MAP here until
+//                         2026-11-01, on the strength of its position in the roster layout rather than on its
+//                         behaviour. tools/u2bot.py had already found the same thing and reports it as `turn`.
+//                         The port's one-command-per-turn rule reads this field: docs/port-defects.md.
 //   0xdfc78  RNG seed    verified as the LCG state by finding consecutive samples on the chain
 //
 // Usage:
@@ -74,7 +79,9 @@ const FIELDS = {
 	trilithium: 0xcdf23,
 	px: 0xcdf6b,
 	py: 0xcdf6f,
-	map: 0xcdf53,
+	// 0xcdf53 is a turn counter, not a map id. Named `turn` here and in tools/u2bot.py. The docstring above
+	// says how it was verified and why the old name was wrong.
+	turn: 0xcdf53,
 	rng: 0xdfc78,
 };
 

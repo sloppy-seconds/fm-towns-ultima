@@ -37,7 +37,9 @@ const NAMED = {
 	MAP_Y: 0xcdf67,
 	PLAYER_X: 0xcdf6b,
 	PLAYER_Y: 0xcdf6f,
-	MAP_ID: 0xcdf53,
+	// A turn counter, not a map id. The address is right and the old name was wrong: see tools/peek.js,
+	// which says how it was verified, and docs/live-fieldmap.md's correction.
+	TURN_CLOCK: 0xcdf53,
 	SEED: 0xcdf7f,
 	STR: 0xcde62,
 	AGI: 0xcde66,

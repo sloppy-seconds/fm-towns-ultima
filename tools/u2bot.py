@@ -25,7 +25,8 @@ No new server code is needed for any of that. The recording is done here, by wri
     FOOD            0xcde8d, the status bar calls it P, and it is divided by 100 for display
     GOLD            0xcde91, the status bar calls it G
     PLAYER_X/Y      0xcdf6b / 0xcdf6f
-    MAP             0xcdf53, unverified
+    TURN            0xcdf53, one per completed command. Called MAP in this list until 2026-11-01, which was wrong:
+                    a map id does not climb on every step. See World.check_area for what the mistake cost.
     RNG             0xdfc78, confirmed as the LCG state
 
     food per turn   15, measured on two consecutive P)ass turns
