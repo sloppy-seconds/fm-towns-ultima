@@ -61,7 +61,18 @@ is 228, and an analysis on a truncated function is a wrong analysis with confide
 
 ### 12b. Bulk compile-and-diff on the dominant cluster, as a positive oracle only
 
-**State:** OPEN · **Autonomy:** BLOCKED ON INPUT
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+**Unblocked 2026-11-02.** All three items it was waiting for are done: `0a` produced the never-emits list and
+32 probes, `12a` produced the equivalence rule as code, and `0c` produced the clusters in `docs/ledger.json`.
+The gate that this item was told to respect now exists, which is what changes its autonomy from blocked to
+autonomous.
+
+One consequence of `0c` that shapes the work rather than blocking it: the clustering did not produce a single
+dominant cluster in the way this item assumes. The largest is 113 of 875 functions and its signature is the
+bare unframed leaf, which is a real category and also one with nothing distinctive to say about it. So "the
+dominant cluster" here means the largest handful by size, and the ledger is what selects them rather than an
+assumption about there being one.
 
 The preservation track's main grind, and the only place in the project where writing candidate C at scale
 is the point. It is gated on the atlas because without a never-emits list there is no way to tell a
@@ -69,10 +80,10 @@ compiler mismatch from a wrong-C mismatch, and the whole value of the oracle is 
 
 | field | value |
 |---|---|
-| autonomy | blocked on input. Not a person, exactly: it needs item 0a finished and item 0c telling it which functions are in the dominant cluster, and until then every hour spent here buys mismatches nobody can interpret |
-| depends on | 0a, 0c, 12a |
+| autonomy | autonomous. Compiles nothing that touches the disc or the emulator, and `tools/atlas-build.py --corpus` now runs arbitrary candidate sources through the authentic driver route |
+| depends on | nothing. 0a, 0c and 12a are all finished, so the gate this item was waiting for exists |
 | done when | every function in the dominant cluster has a candidate C, a compile under the equivalence rule, and a ledger row whose state is earned by the result, with the count of `compiler-1.73-matched` reported and the count still `unattributed` reported beside it rather than hidden. The failure case: a rising matched count achieved by widening an exemption, which is the tolerance failure item 12a exists to prevent |
-| blocked by | 0a, 0c, 12a |
+| blocked by | nothing |
 
 ### 12c. Hand-asm sites preserved as documented asm, not as failed C
 

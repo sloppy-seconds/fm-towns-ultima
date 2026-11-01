@@ -3,7 +3,8 @@
 Plan item [0c](plan-attribution.md). The instrument is `tools/cluster.py`, the committed output is
 `docs/ledger.json`. The short version: the clustering works, the atlas-coverage census it produces is the
 valuable part, and **the item's own acceptance check fails**. The enter band does not land in one cluster at
-any granularity, and that is recorded as a measurement rather than tuned away.
+any granularity, that measurement was accepted as the result on 2026-11-02 rather than tuned away, and the
+item is closed on it.
 
 ## Population and method
 
@@ -68,9 +69,19 @@ provenance. On these 21 axes it is not one thing. It is at least nineteen kinds 
 linked library of unrelated routines would also look like, and what a hand-written region that grew over time
 would look like too.
 
-**This needs a decision, not more computation.** Either the criterion is wrong and the item is finished by the
-measurement above, or there is an axis the atlas has not identified that would make the band cohere, and
-finding it is a different piece of work than anything currently planned.
+**Accepted as a negative, 2026-11-02.** The criterion is not met and the item is closed on the measurement
+rather than on a retry. The alternative was to hunt for an axis that makes the band cohere, and the sweep is
+evidence against that working: coherence fell as axes were added, so a richer vector makes the region less
+uniform, not more. Two further readings were considered and neither is worth the time. There is no planned
+work that would produce the missing axis, and the criterion was asking the region to be one homogeneous thing
+with one provenance, which is a claim about the enter band that nothing else in the repository supports.
+
+What this does **not** do is separate the three hypotheses `docs/compiler-generation.md` left open: an older
+MetaWare library, a different compiler, or hand-written assembly. All three would look like this. Separating
+them still needs the atlas's never-emits list pointed at individual routines, which is `hand-asm-positive`
+work and not clustering work.
+
+`0d` and `12b` were both held behind this and are now unblocked.
 
 ## The atlas-coverage census, which is what 0c was actually for
 

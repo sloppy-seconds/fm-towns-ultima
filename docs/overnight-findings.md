@@ -16,7 +16,7 @@ clustering if 0a finished clean.
 | 0a forward idiom atlas | **DONE** | `78afdb3`, `fffdb50`, `6a378cb` | `tools/atlas-corpus/` (37 probes), `tools/atlas-build.py`, `tools/atlas-report.py`, `docs/idiom-atlas.md` |
 | 0b labelled-sample inventory | **DONE** | `868b963` | `tools/omflib.py`, `docs/attribution-samples.md`, seven-or-ten count settled |
 | 12a byte-identity rule | **DONE** | `0a17b5b` | `tools/byteid.js`, `docs/byte-identity-rule.md` |
-| 0c clustering | **NEEDS A DECISION** | `d6d4b8a`, `6a378cb` | `tools/cluster.py`, `docs/ledger.json`, `docs/clustering-0c.md` |
+| 0c clustering | **DONE** (accepted as a negative, 2026-11-02) | `d6d4b8a`, `6a378cb` | `tools/cluster.py`, `docs/ledger.json`, `docs/clustering-0c.md` |
 
 Supporting: `tools/look.py` (vision read of the guest screen), `tools/toskey.py` (safe keystroke encoding),
 `tools/omflib.py`, and four new gates in `tools/checkall.js`.
@@ -119,6 +119,11 @@ in the ledger, for the reason the other three just demonstrated.
 - `docs/compiler-generation.md`: the seven-or-ten sentence now carries a dated correction pointing at the page
   that owns the count.
 - `docs/plan-attribution.md`: 0a and 0b rewritten with what is now known, 0c rewritten as NEEDS A DECISION.
+
+  **Resolved 2026-11-02, after this report was written.** Paul decided to accept the enter-cohesion result as a
+  negative rather than keep hunting for an axis, so 0c is DONE and 0d and 12b are unblocked. `plancheck --todo`
+  also gained a real fix: it used to list every item that *declared* a dependency whether or not that
+  dependency was satisfied, so items stayed in "held back by item order" after their prerequisites finished.
 - `docs/plan-recomp.md`: 12a rewritten with what is now known, including the stated deviation that the
   assertion lives in `checkall.js` rather than `verify.js`, because the rule needs the decoder and `verify.js`
   must stay dependency-free.

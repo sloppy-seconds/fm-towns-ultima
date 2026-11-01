@@ -69,7 +69,13 @@ function load() {
 				Boolean(dependsRow) ||
 				/\*\*Autonomy:\*\*[^\n]*\bonce\b/i.test(c) ||
 				/\|\s*autonomy\s*\|[^\n]*\bdepends on\s+[0-9]{1,2}[a-z]/i.test(c);
-			items.push({ id, title, state, autonomy, doneWhen, blockedBy, waitsOnItem, file: path.basename(p), text: c });
+			items.push({
+				id, title, state, autonomy, doneWhen, blockedBy, waitsOnItem,
+				// The ids this item declares, so the --todo report can check whether they are actually done
+				// rather than assuming any declared dependency still holds.
+				dependsOn: dependsRow ? dependsRow.split(',').map((s) => s.trim()) : [],
+				file: path.basename(p), text: c,
+			});
 		}
 	}
 	// An id in two documents is a silent failure: the summary table in one would be cross-checked against
@@ -116,7 +122,21 @@ function main() {
 			);
 		}
 		if (args.includes('--todo')) {
-			const held = items.filter((i) => i.waitsOnItem).map((i) => i.id);
+			// "Held back by item order" has to mean the order is actually unsatisfied. It used to list
+			// every item that DECLARED a dependency, so an item whose prerequisite was already DONE stayed
+			// on the list forever, and items 0d and 12b still looked blocked after 0c and the other three
+			// finished. An item is held only when it is still open, it declares a dependency, and at least
+			// one of those dependencies is not DONE. A dependency on an unknown id counts as unmet, because
+			// that is a typo and silently treating it as satisfied would hide it.
+			const byId = new Map(items.map((i) => [i.id, i]));
+			const unmetDeps = (i) => (i.dependsOn || []).filter((d) => {
+				const dep = byId.get(d);
+				return !dep || dep.state !== 'DONE';
+			});
+			const held = items
+				.filter((i) => i.state !== 'DONE' && i.state !== 'CUT')
+				.filter((i) => (i.dependsOn || []).length ? unmetDeps(i).length > 0 : i.waitsOnItem)
+				.map((i) => i.id);
 			console.log(`\n${rows.length} of ${items.length} items can be started right now without a human.`);
 			if (held.length) console.log(`held back by item order: ${held.join(', ')}`);
 		}
