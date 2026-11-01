@@ -400,6 +400,28 @@ Before trusting any check, **break something it should catch and confirm it fail
 A check that was never seen to fail is a comment. This has now happened four times: three tests that returned
 their own baseline, and one tool that printed success unconditionally.
 
+### A claim of absence needs a test that tried to make it happen
+
+**Any "the compiler never emits X" or "this cannot happen" claim must name the specific attempt that would
+have produced it, or say in the open that nothing tried.** The same standard as above, applied to prose
+instead of to code: an absence with no attempt behind it is a comment, not a measurement.
+
+This rule was earned in one session, three times over. The atlas recorded that High C 1.73 never emits `test`,
+never emits `and reg,reg` as a truthiness test, and never emits a `rep` string op. All three were wrong, and
+all three were wrong for the identical reason: the absence was of a **source shape** in a 32-probe corpus, not
+of an instruction in the compiler. A mask test produced `test`, a pointer condition produced `and reg,reg`, and
+a `memcpy` call produced `rep movsd` and `rep movsb`. Under the uncorrected claims, 43 game functions using
+`test` and 25 using a string op were on their way to being labelled hand-written assembly.
+
+The three fixes are structural rather than a promise to be careful:
+
+- the never-emits list in [idiom-atlas.md](idiom-atlas.md) carries a **probes that tried** column, and an entry
+  nothing provoked says `UNPROBED` in the open
+- `tools/checkall.js` refuses a never-emits entry that names no probe, so a new claim cannot be added without
+  one
+- the one entry with no probe, `int 21h` emitted from C, is labelled rather than quietly dropped, because
+  "nobody tested this" is a different fact from "the compiler cannot do it" and both are worth recording
+
 ## What this process deliberately does not do
 
 - **No dates and no estimates.** They would be invented, and an invented date is worse than no date.

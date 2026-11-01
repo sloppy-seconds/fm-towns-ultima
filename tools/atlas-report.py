@@ -171,47 +171,84 @@ def flags(row):
 # The never-emits list. Each entry is an idiom that a reader might reasonably
 # expect in this toolchain's output, stated as the predicate that would have
 # found it, so absence is a measurement and not an impression.
+# Each entry is (idiom, predicate, tried-by). The tried-by string names the probes that would have
+# provoked the idiom, so an absence is a measurement rather than an impression.
+#
+# THIS FIELD IS THE RULE, ENFORCED. Three never-emits claims in one session were wrong because the
+# absence was of a source shape, not of an instruction: `test` needed a mask test, `and reg,reg` needed
+# a register condition, `rep movsb` needed a library call instead of a loop. Naming the provoking probe
+# is what would have caught all three before they were written down, so an entry without one must say
+# UNPROBED and that is visible in the output.
 CANDIDATES = [
     ('xor reg,reg for zeroing', lambda fl, rows: any(re.search(r'xor (\w+), \1$', t) for r in rows
-                                                     for t in [text(i) for i in insns(r)])),
-    ('sub reg,reg for zeroing', lambda fl, rows: any(r['zero_sub'] for r in rows)),
-    ('mov reg,0 for zeroing', lambda fl, rows: any(r['zero_mov_imm'] for r in rows)),
-    ('test with two register operands as a zero test', lambda fl, rows: any(r['test_rr'] for r in rows)),
-    ('and reg,reg as a truthiness test on a register', lambda fl, rows: any(r['and_self'] for r in rows)),
-    ('test at all, from a mask used only for its flags', lambda fl, rows: any(r['test_used'] for r in rows)),
-    ('cmp against 0 for a zero test', lambda fl, rows: any(r['cmp_zero'] for r in rows)),
+                                                     for t in [text(i) for i in insns(r)]),
+     'A08, A09, A13, A33, A35, A40 all zero a register. A33 (`a ^= a`) and A40 (xor toggle) are the two shapes most likely to provoke it and both gave `sub reg,reg`'),
+    ('sub reg,reg for zeroing', lambda fl, rows: any(r['zero_sub'] for r in rows),
+     'A08, A09, A13, A33, A40'),
+    ('mov reg,0 for zeroing', lambda fl, rows: any(r['zero_mov_imm'] for r in rows),
+     'A08, A09, A13, A33, A40. None produced a `mov reg, 0`'),
+    ('test with two register operands as a zero test', lambda fl, rows: any(r['test_rr'] for r in rows),
+     'A09 (`cmp` against 0), A36 (`if (a)`) and A37 (`while (p)`) are the three spellings. A36 gave `cmp mem,0` and A37 gave `and reg,reg`'),
+    ('and reg,reg as a truthiness test on a register', lambda fl, rows: any(r['and_self'] for r in rows),
+     'A37, `while (p)`'),
+    ('test at all, from a mask used only for its flags', lambda fl, rows: any(r['test_used'] for r in rows),
+     'A34, `(a & b) == 0`'),
+    ('cmp against 0 for a zero test', lambda fl, rows: any(r['cmp_zero'] for r in rows),
+     'A09, A36'),
     ('cdq/sub/sar 1 halving chain produced from a /2^n division', lambda fl, rows: any(
-        r['halving_chain'] for r in rows if r['stem'] in ('A11', 'A31'))),
+        r['halving_chain'] for r in rows if r['stem'] in ('A11', 'A31')),
+     'A11 (`a/8`) and A31 (`(a-6)/8`) are the two division shapes. Both gave one wide shift with a bias'),
     ('sar 1 emitted at all, from a source that halves explicitly', lambda fl, rows: any(
-        r['halving_chain'] for r in rows if r['stem'] == 'A32')),
-    ('cdq/and/add/sar bias-then-shift for /2^n', lambda fl, rows: any(r['bias_then_shift'] for r in rows)),
+        r['halving_chain'] for r in rows if r['stem'] == 'A32'),
+     'A32, three explicit `>>= 1`'),
+    ('cdq/and/add/sar bias-then-shift for /2^n', lambda fl, rows: any(r['bias_then_shift'] for r in rows),
+     'A11, A31'),
     ('magic multiply reciprocal for constant division', lambda fl, rows: any(
-        r['imul'] and not r['idiv'] for r in rows if r['stem'] in ('A11', 'A12'))),
+        r['imul'] and not r['idiv'] for r in rows if r['stem'] in ('A11', 'A12')),
+     'A11 and A12. A12 (`a/7`) gave `idiv ecx`'),
     ('hardware idiv for a constant divisor', lambda fl, rows: any(
-        r['idiv'] and 'A12' == r['stem'] for r in rows)),
+        r['idiv'] and 'A12' == r['stem'] for r in rows),
+     'A12'),
     ('imul for a small constant multiply', lambda fl, rows: any(
-        r['imul'] and r['stem'] == 'A22' for r in rows)),
+        r['imul'] and r['stem'] == 'A22' for r in rows),
+     'A22 (`a*3 + a*5 + a*9`) gave three `lea`'),
     ('shl for a stride multiply', lambda fl, rows: any(
-        r['shl_const'] and r['stem'] == 'A20' for r in rows)),
-    ('lea for a small constant multiply', lambda fl, rows: any(r['lea'] and r['stem'] == 'A22' for r in rows)),
-    ('rep string op at all, from an inlined library copy', lambda fl, rows: any(r['rep_string_op'] for r in rows)),
+        r['shl_const'] and r['stem'] == 'A20' for r in rows),
+     'A20, a 64-byte row stride'),
+    ('lea for a small constant multiply', lambda fl, rows: any(r['lea'] and r['stem'] == 'A22' for r in rows),
+     'A22'),
+    ('rep string op at all, from an inlined library copy', lambda fl, rows: any(r['rep_string_op'] for r in rows),
+     'A39, `return memcpy(d, s, n)`'),
     ('rep string op from a hand-written loop', lambda fl, rows: any(
-        r['rep_string_op'] and r['stem'] in ('A30', 'A38') for r in rows)),
+        r['rep_string_op'] and r['stem'] in ('A30', 'A38') for r in rows),
+     'A30 (byte loop) and A38 (word loop). Both stayed manual'),
     ('manual byte loop for a byte copy', lambda fl, rows: any(r['stem'] == 'A30' and not r['rep_string_op']
-                                                             for r in rows)),
-    ('sub esp,N to allocate locals', lambda fl, rows: any(r['locals_via_sub_esp'] for r in rows)),
-    ('push reg to allocate a local', lambda fl, rows: any(r['locals_via_push'] for r in rows)),
-    ('setcc for a relational value', lambda fl, rows: any(r['setcc'] for r in rows)),
-    ('branch pair for a relational value', lambda fl, rows: any(r['stem'] == 'A09' for r in rows)),
-    ('inline jump table for a dense switch', lambda fl, rows: any(r['jump_table'] for r in rows)),
-    ('compare chain for a sparse switch', lambda fl, rows: any(r['cmp_chain'] for r in rows)),
-    ('movsx for a signed narrow load', lambda fl, rows: any(r['movsx'] for r in rows)),
-    ('movzx for an unsigned narrow load', lambda fl, rows: any(r['movzx'] for r in rows)),
-    ('struct padding to a natural alignment', lambda fl, rows: any(r['stem'] == 'A25' and False for r in rows)),
-    ('enter instruction for a frame', lambda fl, rows: any(r['enter_instr'] for r in rows)),
-    ('leave instruction for an epilogue', lambda fl, rows: any(r['leave'] for r in rows)),
-    ('int 21h emitted from C', lambda fl, rows: any(r['int_21'] for r in rows)),
-    ('xchg to move a second result into eax', lambda fl, rows: any(r['xchg'] for r in rows)),
+                                                             for r in rows),
+     'A30'),
+    ('sub esp,N to allocate locals', lambda fl, rows: any(r['locals_via_sub_esp'] for r in rows),
+     'A03 (address-taken local) gave `push eax`. A20, A23, A27, A29 and A30 all allocate with `push reg`'),
+    ('push reg to allocate a local', lambda fl, rows: any(r['locals_via_push'] for r in rows),
+     'A03, A20, A23, A27, A29, A30'),
+    ('setcc for a relational value', lambda fl, rows: any(r['setcc'] for r in rows), 'A28'),
+    ('branch pair for a relational value', lambda fl, rows: any(r['stem'] == 'A09' for r in rows), 'A09'),
+    ('inline jump table for a dense switch', lambda fl, rows: any(r['jump_table'] for r in rows), 'A15'),
+    ('compare chain for a sparse switch', lambda fl, rows: any(r['cmp_chain'] for r in rows), 'A16'),
+    ('movsx for a signed narrow load', lambda fl, rows: any(r['movsx'] for r in rows), 'A21'),
+    ('movzx for an unsigned narrow load', lambda fl, rows: any(r['movzx'] for r in rows), 'A21'),
+    # This entry used to be `any(r['stem'] == 'A25' and False for r in rows)`, a hardcoded false that could
+    # never be emitted. That is a claim dressed as a measurement, which is the exact defect the tried-by rule
+    # exists to stop. The real test: if the compiler padded to natural alignment, the dword store for the int
+    # field would be at offset 4. A25 puts it at offset 1, and sizeof is 6.
+    ('struct padding to a natural alignment', lambda fl, rows: any(
+        r['stem'] == 'A25' and any(i.op_str.startswith('dword ptr [edx + 4]') for i in insns(r)) for r in rows),
+     'A25 (`char c; int i; char d;`). The int stores at offset 1, not 4, and sizeof is 6'),
+    ('enter instruction for a frame', lambda fl, rows: any(r['enter_instr'] for r in rows),
+     'A03, A06, A20, A23, A27, A29, A30 all frame, and every one used `push ebp; mov ebp, esp`'),
+    ('leave instruction for an epilogue', lambda fl, rows: any(r['leave'] for r in rows),
+     'A03, A06, A20, A23, A27, A29, A30'),
+    ('int 21h emitted from C', lambda fl, rows: any(r['int_21'] for r in rows),
+     'UNPROBED: no probe makes a DOS call. A library call would be the route and none was written'),
+    ('xchg to move a second result into eax', lambda fl, rows: any(r['xchg'] for r in rows), 'A14, A21, A29'),
 ]
 
 
@@ -230,8 +267,10 @@ def main():
         r.update(f)
 
     emitted, absent = [], []
-    for name, pred in CANDIDATES:
+    tried = {}
+    for name, pred, tried_by in CANDIDATES:
         (emitted if pred(None, rows) else absent).append(name)
+        tried[name] = tried_by
 
     shapes = sorted({(r['flags']['frame'], r['flags']['callee_saved_spill'],
                       r['flags']['args_via_ebp']) for r in rows})
@@ -244,6 +283,9 @@ def main():
     if args.json:
         print(json.dumps({'probes': len(rows), 'distinct_frame_shapes': len(shapes),
                           'emitted': emitted, 'never_emitted': absent,
+                          # never_emitted stays a list of names so existing consumers keep working. The
+                          # detail carries the probe that tried, which is the part the rule is about.
+                          'never_emitted_detail': [{'idiom': n, 'tried_by': tried[n]} for n in absent],
                           'rows': [{'stem': r['stem'], 'file': r['file'], **r['flags']} for r in rows]},
                          indent=1))
         return
@@ -289,8 +331,12 @@ def main():
             % (len(rows), len(shapes), len(msets), len(all_mn)), '',
             '## Emitted somewhere in the corpus', '']
     body += ['- %s' % n for n in emitted]
-    body += ['', '## Never emitted across the whole corpus', '']
-    body += ['- %s' % n for n in absent]
+    body += ['', '## Never emitted across the whole corpus', '',
+             'Each entry names the probes that would have provoked it. An idiom nothing tried to '
+             'provoke is marked UNPROBED, because an absence with no test behind it is not evidence.', '',
+             '| idiom never emitted | probes that tried |', '|---|---|']
+    for n in absent:
+        body.append('| %s | %s |' % (n, tried[n]))
     text_out = '\n'.join(body) + '\n'
     if args.out:
         with open(args.out, 'w') as fh:

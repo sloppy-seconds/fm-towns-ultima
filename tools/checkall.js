@@ -489,6 +489,27 @@ if (skipCheck('return convention split by ownership')) { recordSkip('return conv
 			if (!j.emitted.includes('sub reg,reg for zeroing')) {
 				problems.push('`sub reg,reg for zeroing` is no longer present, which is the atlas headline');
 			}
+			// The never-emits rule, asserted rather than promised. An absence is only evidence if something
+			// tried to make it happen, so every entry must name its provoking probes, and the ones nothing
+			// tried must say so. Three claims were wrong in one session because this was not enforced, so a
+			// new entry without a probe list is a hard failure rather than a note.
+			const detail = j.never_emitted_detail || [];
+			if (detail.length !== j.never_emitted.length) {
+				problems.push(`never_emitted_detail covers ${detail.length} of ${j.never_emitted.length} entries`);
+			}
+			for (const d of detail) {
+				if (!d.tried_by || !d.tried_by.trim()) {
+					problems.push(`never-emits entry \`${d.idiom}\` names no probe that tried. An absence with no ` +
+						'attempt behind it is a comment, not a measurement');
+				}
+				if (/^UNPROBED/.test(d.tried_by) && !fs.readFileSync(path.join(DOCS, 'idiom-atlas.md'), 'utf8').includes('UNPROBED')) {
+					problems.push(`\`${d.idiom}\` is UNPROBED and docs/idiom-atlas.md does not say so`);
+				}
+			}
+			const probed = detail.filter((d) => d.tried_by && !/^UNPROBED/.test(d.tried_by)).length;
+			if (probed < detail.length - 1) {
+				problems.push(`only ${probed} of ${detail.length} never-emits entries name a probe that tried`);
+			}
 			const doc = fs.readFileSync(path.join(DOCS, 'idiom-atlas.md'), 'utf8');
 			for (const phrase of ['xor reg,reg', 'sub reg,reg', 'rep movsb', 'sar eax, 3']) {
 				if (!doc.includes(phrase)) problems.push(`docs/idiom-atlas.md no longer mentions \`${phrase}\``);
