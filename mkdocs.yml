@@ -131,6 +131,7 @@ nav:
       - The indirect branches: indirect-branches.md
       - Ghidra viability: ghidra-viability.md
       - High C code generation: highc-codegen.md
+      - Same-compiler labelled material: attribution-samples.md
       - High C calibration spike: highc-spike.md
       - High C 3.04 installer: highc-v304-installer.md
       - High C forensics: highc-forensics.md

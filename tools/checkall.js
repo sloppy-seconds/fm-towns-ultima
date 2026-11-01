@@ -328,6 +328,42 @@ const runNode = (script, args = []) => {
 	record('return convention split by ownership', problems);
 }
 
+// E7b. The matched-routine count, which item 0b exists to settle. docs/compiler-generation.md once said
+// "the seven routines known to be High C 1.73 output (the ten `matched`)" in one sentence, and the two numbers
+// answer different questions: ten is everything classed `matched` in docs/routines.json, seven is the subset
+// re-verified through the authentic driver route in docs/highc-authentic-toolchain.md. Both are correct and
+// conflating them is the error. This pins the settled answer so a later edit cannot drift it back into an
+// ambiguity, and it fails if the driver-verified set stops being a subset of the matched set, which is the
+// only relationship between the two numbers that is actually a claim rather than a coincidence.
+{
+	const problems = [];
+	let j = null;
+	try {
+		j = JSON.parse(fs.readFileSync(path.join(DOCS, 'routines.json'), 'utf8'));
+	} catch (e) {
+		problems.push('docs/routines.json unreadable: ' + e.message);
+	}
+	if (j) {
+		const rs = j.routines;
+		const by = {};
+		for (const r of rs) by[r.class] = (by[r.class] || 0) + 1;
+		const want = [['not-c', 62], ['base-fold', 21], ['matched', 10], ['unresolved', 9], ['register-choice', 1]];
+		for (const [cls, n] of want) {
+			if (by[cls] !== n) problems.push(`class ${cls}: ${by[cls]}, expected ${n}. Re-measure before changing this number`);
+		}
+		if (rs.length !== 103) problems.push(`routines.json holds ${rs.length} routines, expected 103`);
+		// The seven re-verified through the driver, from docs/highc-authentic-toolchain.md's table.
+		const driver = ['e9e2c', 'e44d0', 'e9940', 'e07e8', 'e65fc', 'e662c', 'fd0ec'];
+		const matched = new Set(rs.filter((r) => r.class === 'matched').map((r) => r.addr));
+		const outside = driver.filter((a) => !matched.has(a));
+		if (outside.length) problems.push(`driver-verified routine(s) not classed matched: ${outside.join(', ')}`);
+		if (driver.length !== 7 || matched.size !== 10) {
+			problems.push(`the seven-of-ten claim needs 7 driver-verified inside 10 matched, got ${driver.length} and ${matched.size}`);
+		}
+	}
+	record('matched-routine count is settled at ten with seven driver-verified', problems);
+}
+
 // E8. The calls the port was skipping. The recompiler stops each function at its terminating `ret` and never resumes
 // after the alignment padding that follows, so a function with no caller never enters the module and the calls inside
 // it are absent from the port. tools/resumepoints.js derives those resume points and asserts that every one is seeded

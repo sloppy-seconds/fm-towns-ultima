@@ -54,8 +54,10 @@ hypotheses, none separated, and separating them is not needed to act on the find
   compiler**. That is a negative about 2.31. "1.73 is the leading candidate" rests on the matched
   routines, and the ledger must keep those two states apart.
 
-**A count that needs one owner before it is cited.** `docs/compiler-generation.md` says "the seven routines
-known to be High C 1.73 output (the ten `matched`)". Seven or ten, in one sentence. Item 0b settles it.
+**A count that needed one owner, now settled by item 0b.** `docs/compiler-generation.md` said "the seven
+routines known to be High C 1.73 output (the ten `matched`)". Seven or ten, in one sentence. Both were right
+and they were different sets: ten routines are classed `matched`, seven of those ten are driver-verified. The
+owner is [attribution-samples.md](attribution-samples.md) and `tools/checkall.js` asserts it.
 
 ## The ledger
 
@@ -124,7 +126,19 @@ It is the gate on everything else. Without it, clustering yields groups and not 
 
 ### 0b. The labelled-sample inventory: same-compiler ground truth that is not our own guesses
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**What is now known.** There is a large labelled population on disk and none of it had been examined. The SDK CD
+ships four OMF libraries whose members `tools/omflib.py` walks to an exact byte accounting: 1,095 named
+MetaWare members and 224,972 code bytes, in `HCE.LIB` (428), `HCC.LIB` (357), `NA.LIB` (307) and `PTOC.LIB`
+(3), plus seven loose `.OBJ` files and 20 vendor sample C sources in `HC386\DEMOS\`. `saves/hc.img` and the
+pristine kit archive in `references/metaware/` are the same disc differing by exactly 50 bytes in a 74-byte
+span, and those 50 bytes are the three documented in-place `AUTOEXEC.BAT` patches, so the working image is a
+fully accounted-for derivative of the archived original. The seven-or-ten count is settled: **ten** routines
+are classed `matched` in `docs/routines.json`, and **seven** of those ten are the subset re-verified through
+the authentic driver route. Both numbers were right and the sentence that put them side by side was the bug.
+The three DOS-route matches need re-running through the driver before they are cited as 1.73 output.
+Full inventory, with the commands: [attribution-samples.md](attribution-samples.md).
 
 Look for compiler-emitted code we did not write. Two candidates, and one dead end that must not be
 re-attempted.

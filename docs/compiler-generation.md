@@ -85,6 +85,15 @@ across source shape. Candidate instruction is the zeroing idiom, because it is
 compiler-wide rather than function-specific: count `33 c0` against `2b c0` across the
 whole image and see whether the split follows the same address boundary as `enter`.
 
+> **Correction, item 0b, settled 2026-11-01.** The parenthetical above put two numbers
+> in one sentence for what looked like one set and was two. Ten is everything classed
+> `matched` in `docs/routines.json`. Seven is the subset of those ten re-verified byte
+> for byte through the authentic driver route in `docs/highc-authentic-toolchain.md`.
+> Both are correct, and the three that are matched but not driver-verified (`0xe552c`,
+> `0xe52c8`, `0xe5304`) came from the real-mode route whose optimiser never engages.
+> The page that owns this count is now
+> [attribution-samples.md](attribution-samples.md), and `tools/checkall.js` asserts it.
+
 ## The test, run
 
 The zeroing idiom was counted across the whole image and it follows the same boundary.
