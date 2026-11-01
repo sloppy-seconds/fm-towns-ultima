@@ -111,7 +111,40 @@ function: do the work, set `c.r[0]`, and `c.eip = pop32(c)`. **There is no per-f
 with the same `cs`, which needs no kit change because first hit wins.
 
 **First region: `0xe140c`**, chosen because item 4f proved 43 of 43 bytes identical, so the replacement tests
-the protocol rather than a guess about behaviour.
+the protocol rather than a guess about behaviour. Its **guest** address is `0xe120c`, because the machine
+dispatches in the guest frame while the documents quote file offsets.
+
+**The scaffold is in place, 2026-11-02, before the first replacement so the gate exists before there is
+anything to protect.**
+
+| file | what it is |
+|---|---|
+| `port/native_shadows.h` | the contract a shadow must keep, and why the module order is load-bearing |
+| `port/native_shadows.cpp` | the shadow table (empty) and `g_mod_native` |
+| `port/modules.cpp` | the module list the port runs, with `g_mod_native` first |
+
+`port/modules.cpp` exists because the recompiler writes `module/modules.cpp` from the modules it compiled and
+any edit there is destroyed by the next recompile. `x86_lookup_cs()` walks the list in order and takes the first
+hit, so the order *is* the mechanism and it has to be a committed file the port owns. Changing CMake to link
+`port/modules.cpp` instead of `${RECOMP_DIR}/modules.cpp` needed no kit patch.
+
+Five checks in `tools/portcheck.js`, each demonstrated failing on a mutated copy through its `--root` flag:
+
+| check | what it catches |
+|---|---|
+| the native module is listed first | appending it last, which silently kills every shadow |
+| the port list covers every generated module | a recompile that adds a module |
+| every shadow address is a function start | a shadow for an address `module/p_game_funcs.h` does not declare |
+| every shadow symbol is defined | a table entry that will not link |
+| the shadow table is ascending | an entry the binary search never reaches |
+
+**The start-of-table check caught a real bug in its own first draft.** The example entry was written with the
+file offset `0xe140c`, and the check reported it as not a start, because `module/p_game_funcs.h` names
+`f_000e120c`. That is the 0x200 frame difference again, caught before anyone could write a shadow that
+silently shadows nothing. The header now states the conversion with both examples.
+
+There is deliberately no count assertion: removing a shadow is a visible one-line deletion in a committed file,
+and a second place recording the number is the drift this repository keeps paying for.
 
 The port currently runs original assembly and recompiled regions side by side. Stripping a region and
 replacing it incrementally needs a per-region gate, and the gate is the control socket: same scripted input,

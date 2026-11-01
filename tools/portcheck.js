@@ -8,9 +8,10 @@
 // half: assert the measured values on the source that carries them, so a later edit that reverts one fails
 // `node tools/checkall.js` in a second rather than surviving until the next emulator session.
 //
-// What it can and cannot see. It reads `port/`, `tools/` and `docs/` and nothing else. It does not need
-// ENCHANT.EXP, the TBIOS image, the emulator or a built binary, which is what makes it runnable by a stranger
-// who has cloned the repository and downloaded nothing. What it therefore cannot check is the port's runtime
+// What it can and cannot see. It reads `port/`, `tools/` and `docs/`, plus the two files in `module/` that the
+// shadow checks need (`modules.cpp` and `p_game_funcs.h`). `module/` is committed and is itself the recompiler's
+// output, so reading it costs nothing: there is still no ENCHANT.EXP, no TBIOS image, no emulator and no built
+// binary, which is what makes this runnable by a stranger who has cloned the repository and downloaded nothing. What it therefore cannot check is the port's runtime
 // behaviour: that is `tools/divergence.py` against a capture, and it needs the machine.
 //
 // The failure case, demonstrated rather than asserted: `node tools/portcheck.js --root <copy>` points every
@@ -396,6 +397,72 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	else if (cmake.includes('SDL3::SDL3-static') && cmake.includes('$ORIGIN'))
 		ok('the port asks for a relative rpath', 'static target named, $ORIGIN on the rpath');
 	else fail('the port asks for a relative rpath', 'no SDL3::SDL3-static status or no $ORIGIN');
+}
+
+// ---- the strangler's shadow manifest ---------------------------------------------------------------
+//
+// A shadow is a hand-written native function registered for a guest address the recompiler also emits. It works
+// only because x86_lookup_cs() walks g_x86_modules in order and takes the FIRST module with a function at the
+// address. So the two things that can silently kill every shadow are the module order and an address that stops
+// being a function start after a recompile. Both are checked here, and both are text in committed files, so this
+// runs without the disc, the emulator or a build.
+//
+// There is deliberately NO count assertion. Removing a shadow is a visible one-line deletion in a committed file,
+// and a second place recording the number is the drift this repository keeps paying for.
+{
+	const shim = stripComments(read('port/native_shadows.cpp'));
+	const order = stripComments(read('port/modules.cpp'));
+	const generated = stripComments(read('module/modules.cpp'));
+	const funcsHdr = read('module/p_game_funcs.h');
+
+	// Parse `{ 0xADDR, symbol }` entries from the table.
+	const entries = [];
+	for (const m of (shim || '').matchAll(/\{\s*(0x[0-9a-fA-F]+)\s*,\s*([A-Za-z_]\w*)\s*\}/g)) {
+		entries.push({ addr: parseInt(m[1], 16), symbol: m[2] });
+	}
+
+	// Parse the module order out of `g_x86_modules[] = { &a, &b, ... }`.
+	const moduleOrder = (src) => {
+		const m = /g_x86_modules\s*\[\s*\]\s*=\s*\{([^}]*)\}/.exec(src || '');
+		return m ? [...m[1].matchAll(/&\s*(\w+)/g)].map((x) => x[1]) : null;
+	};
+
+	const portOrder = moduleOrder(order);
+	const genOrder = moduleOrder(generated);
+
+	// 1. The native module must be FIRST, because first hit wins and appending it is a silent revert.
+	if (!portOrder) fail('the native module is listed first', 'no g_x86_modules[] initialiser in port/modules.cpp');
+	else if (portOrder[0] !== 'g_mod_native')
+		fail('the native module is listed first', 'order is ' + portOrder.join(', ') + ', so every shadow is dead');
+	else ok('the native module is listed first', portOrder.join(', '));
+
+	// 2. Every module the recompiler generated must still be in the port's list. A recompile that adds a module
+	//    would otherwise drop it from the build with nothing to say so.
+	if (!genOrder) fail('the port list covers every generated module', 'no g_x86_modules[] in module/modules.cpp');
+	else {
+		const missing = genOrder.filter((m) => !(portOrder || []).includes(m));
+		if (missing.length) fail('the port list covers every generated module', 'missing ' + missing.join(' '));
+		else ok('the port list covers every generated module', genOrder.join(', '));
+	}
+
+	// 3. Every shadow address must still be a declared function start. A recompile can move starts, and a shadow
+	//    for an address that is no longer a start is silently inert.
+	const notStart = entries.filter((e) => !(funcsHdr || '').includes('void f_' + e.addr.toString(16).padStart(8, '0') + '('));
+	if (notStart.length)
+		fail('every shadow address is a function start', 'no f_ declaration for ' +
+			notStart.map((e) => '0x' + e.addr.toString(16)).join(' '));
+	else ok('every shadow address is a function start', entries.length + ' shadow(s)');
+
+	// 4. Every shadow symbol must be defined in the same file, or the table will not link.
+	const undefined = entries.filter((e) => !new RegExp('void\\s+' + e.symbol + '\\s*\\(').test(shim || ''));
+	if (undefined.length) fail('every shadow symbol is defined', 'not defined: ' + undefined.map((e) => e.symbol).join(' '));
+	else ok('every shadow symbol is defined', entries.length + ' shadow(s)');
+
+	// 5. Ascending, because x86_lookup() binary-searches and an unsorted entry is simply never found.
+	const outOfOrder = entries.filter((e, i) => i > 0 && e.addr < entries[i - 1].addr);
+	if (outOfOrder.length)
+		fail('the shadow table is ascending', 'out of order at 0x' + outOfOrder[0].addr.toString(16));
+	else ok('the shadow table is ascending', entries.length + ' shadow(s)');
 }
 
 console.log(failures ? 'portcheck: ' + failures + ' failed' : 'portcheck: ' + checks + ' checks pass');

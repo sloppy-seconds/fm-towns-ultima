@@ -32,12 +32,16 @@ if(U2_TRACE)
   message(STATUS "u2port: instruction tracing on")
 endif()
 
+# The module list is port/modules.cpp rather than ${RECOMP_DIR}/modules.cpp on purpose. x86_lookup_cs() walks the
+# list in order and takes the FIRST module with a function at an address, so a hand-written replacement shadows
+# the recompiled function only if its module comes first. The recompiler writes ${RECOMP_DIR}/modules.cpp from the
+# modules it compiled and its order is the recompiler's, so the port owns the list. See port/native_shadows.h.
 file(GLOB RECOMP_SRC ${RECOMP_DIR}/p_*.cpp)
 add_library(game_recomp STATIC ${RECOMP_SRC})
 target_include_directories(game_recomp PUBLIC ${FMT_RUNTIME})
 target_compile_options(game_recomp PRIVATE -Wno-unused-label -Wno-unused-variable)
 
-add_executable(u2port main.cpp ${RECOMP_DIR}/modules.cpp)
+add_executable(u2port main.cpp modules.cpp native_shadows.cpp)
 target_link_libraries(u2port game_recomp fmt_towns)
 if(TARGET fmt_towns_sdl)
   target_link_libraries(u2port fmt_towns_sdl)
