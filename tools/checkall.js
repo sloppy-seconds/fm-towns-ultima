@@ -18,9 +18,16 @@
 // something it should catch before being trusted. See Part 7 of the process page for that rule.
 //
 // Usage:
-//   node tools/checkall.js                all checks
-//   node tools/checkall.js --no-build     skip the site build (slowest, and needs mkdocs)
+//   node tools/checkall.js                all checks, ~40 s
+//   node tools/checkall.js --fast         everything except the 11 measured-slow checks, ~3 s
+//   node tools/checkall.js --timing       print per-check elapsed, slowest first
+//   node tools/checkall.js --list-slow    the slow names, read by tools/checkall-parallel.sh
+//   node tools/checkall.js --only=A,B     run those checks and print only them
+//   node tools/checkall.js --no-build     skip the site build. Saves 2.6 s of 40, so this is NOT the
+//                                         time saver it looks like: --fast is, and it saves 38.
 //   node tools/checkall.js --quiet        only print failures
+//
+// ./tools/checkall-parallel.sh runs the same suite across processes in about 17 s.
 
 'use strict';
 
@@ -61,8 +68,65 @@ const record = (name, failures) => {
 		skipped++;
 		return;
 	}
-	results.push({ name, failures });
+	results.push({ name, failures, at: Date.now() });
 };
+
+// --timing prints how long each check took. It exists because "checkall is slow" was a complaint with no
+// measurement behind it, and the two things that turned out to matter could not be guessed from the source:
+// the site build is 2.6 s of a 38 s suite, and six tools account for 22 s of it. A suite people run before a
+// commit needs to be able to say where its own time goes.
+//
+// The elapsed figure for a check is the gap between this record() call and the previous one, so it measures
+// the block that just ran and needs no instrumentation inside the blocks themselves.
+const TIMING = process.argv.includes('--timing');
+let lastStamp = Date.now();
+
+// --fast and --only exist so this suite can be made fast without making it weaker.
+//
+// SLOW is the measured set. `node tools/checkall.js --timing` gave 13,552 ms for the corpus census alone
+// and 38.7 s across these eleven, against 1.9 s for the other twenty-six. Nothing in the source suggests
+// which checks are expensive: the census is one runNode call and looks identical to the dozen beside it.
+// So the list is a measurement, and re-measuring is one command.
+//
+// --fast runs everything except SLOW. It is for the edit loop.
+// --only=NAME,NAME runs those checks and nothing else expensive, and prints only them. It is what
+// tools/checkall-parallel.sh uses to fan the slow ones out across processes.
+//
+// A skipped check records an empty failure list, which is a pass. That is a real weakening and it is why
+// the driver refuses to merge a run whose shards did not each report their own check: a silently skipped
+// check would otherwise look like a pass, which is the defect this file exists to catch.
+const FAST = process.argv.includes('--fast');
+const ONLY = (() => {
+	const a = process.argv.find((x) => x.startsWith('--only='));
+	return a ? new Set(a.slice('--only='.length).split(',').filter(Boolean)) : null;
+})();
+const SLOW = new Set([
+	'corpus census is reproducible',
+	'return convention split by ownership',
+	'image tooling audit',
+	'site build',
+	'global tooling regression',
+	'walk comparison',
+	'calls the port was skipping',
+	'call targets that are not called',
+	'cfgwalk refuses seeds inside zero fill',
+	'disp32 comparison works and can fail',
+	'byte-identity equivalence rule',
+]);
+const skipCheck = (name) => FAST || (ONLY !== null && !ONLY.has(name));
+
+// A skipped check is recorded as SKIPPED, never as a pass. Printing `ok` for work that did not happen is
+// the silent-pass defect this file exists to catch, and --fast would otherwise be indistinguishable from a
+// real run in its output. A skip is also not counted toward `total`, so it can never turn a run green on
+// its own evidence.
+const recordSkip = (name) => {
+	results.push({ name, failures: [], at: Date.now(), wasSkipped: true });
+};
+
+if (process.argv.includes('--list-slow')) {
+	for (const n of SLOW) console.log(n);
+	process.exit(0);
+}
 
 const pages = () => fs.readdirSync(DOCS).filter((f) => f.endsWith('.md'));
 
@@ -241,7 +305,7 @@ const runNode = (script, args = []) => {
 // bytes, which makes them `E8` bytes inside data rather than routines, and the list is asserted by address so a
 // new bad seed fails loudly instead of quietly lowering a percentage. recondiff.js exits 1 for exactly that
 // reason, so the exit code is asserted too, and a run that suddenly exits 0 is also a failure.
-{
+if (skipCheck('walk comparison')) { recordSkip('walk comparison'); } else {
 	const r = runNode('recondiff.js', ['--json']);
 	const problems = [];
 	let j = null;
@@ -306,7 +370,7 @@ const runNode = (script, args = []) => {
 //
 //   - at least one callee-pops return exists, so "0 of N" cannot come back silently
 //   - every one of them is at or above the library floor, so the split cannot spread into game code unnoticed
-{
+if (skipCheck('return convention split by ownership')) { recordSkip('return convention split by ownership'); } else {
 	const problems = [];
 	const LIBRARY_FLOOR = 0xff000; // the same floor tools/preflight.js classifies with
 	try {
@@ -416,7 +480,12 @@ const runNode = (script, args = []) => {
 // actually reject values that are not addresses. That last one is the
 // demonstration that the guard is a predicate and not `true`, which matters
 // because the measured refusal rate on real data is zero out of 1,288 sites.
-{
+if (skipCheck('byte-identity equivalence rule')) { recordSkip('byte-identity equivalence rule'); } else if (!fs.existsSync(path.join(DOCS, 'corpus.json'))) {
+	// This check used to throw here rather than report, because tools/byteid.js refuses to guess a function
+	// extent when docs/corpus.json is missing. A check that throws is a check that vanishes from the report,
+	// and under the parallel driver it surfaced as a shard producing no line at all. Report it instead.
+	record('byte-identity equivalence rule', ['docs/corpus.json missing, so there is no asserted extent to compare against']);
+} else {
 	if (NO_DISC) {
 		skipped++;
 	} else {
@@ -509,7 +578,7 @@ const runNode = (script, args = []) => {
 // after the alignment padding that follows, so a function with no caller never enters the module and the calls inside
 // it are absent from the port. tools/resumepoints.js derives those resume points and asserts that every one is seeded
 // except three named in the tool, so the residue cannot grow unnoticed. Measured before this: 138 skipped calls.
-{
+if (skipCheck('calls the port was skipping')) { recordSkip('calls the port was skipping'); } else {
 	const r = runNode('resumepoints.js', ['--check']);
 	record('calls the port was skipping', r.ok ? [] : r.out.split('\n').filter((l) => /FAIL|^ {8}0x/.test(l)));
 }
@@ -519,7 +588,7 @@ const runNode = (script, args = []) => {
 // here is an instruction in EITHER walk", and the second decoder is not optional: with ours alone it marks 124 targets
 // instead of 26. tools/non-call-targets.txt records the answer so tools/queue.js works on a clone with no module, and
 // this re-derives it whenever the module is present. Skips with a printed note when it is absent.
-{
+if (skipCheck('call targets that are not called')) { recordSkip('call targets that are not called'); } else {
 	const r = runNode('calltargets.js', ['--check']);
 	record('call targets that are not called', r.ok ? [] : r.out.split('\n').filter((l) => /FAIL|missing:|recorded but/.test(l)));
 }
@@ -546,7 +615,7 @@ const runNode = (script, args = []) => {
 // `mov [abs],imm` form, the raw-versus-stripped 0x20 offset, and the matched
 // routines' own bytes. Every assertion in it has been deliberately broken and
 // watched to fail, which is the standard the rest of this file is held to.
-{
+if (skipCheck('image tooling audit')) { recordSkip('image tooling audit'); } else {
 	const r = runNode('imgaudit.js');
 	record('image tooling audit', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
 }
@@ -563,7 +632,7 @@ const runNode = (script, args = []) => {
 // directions: a known-good candidate must be identical-except-disp32, and three
 // deliberately wrong candidates must DIFFER. The wrong-constant case is the one that
 // catches a mask that has grown to cover the whole instruction.
-{
+if (skipCheck('disp32 comparison works and can fail')) { recordSkip('disp32 comparison works and can fail'); } else {
 	const problems = [];
 	const run = (args) => {
 		const r = spawnSync(process.execPath, [path.join(__dirname, 'cmpdisp.js'), ...args],
@@ -654,7 +723,7 @@ const runNode = (script, args = []) => {
 // if the tool changes, if the image changes, or if someone hand-edits the JSON.
 // The comparison is on parsed data rather than raw bytes so that formatting alone
 // does not fail it, but every value must agree.
-{
+if (skipCheck('corpus census is reproducible')) { recordSkip('corpus census is reproducible'); } else {
 	const r = runNode('preflight.js', ['--scan', '1', '--census']);
 	const problems = [];
 	if (!r.ok) {
@@ -696,7 +765,7 @@ const runNode = (script, args = []) => {
 //
 // The assertion is the specific routine that exposed it, plus the seven matched
 // ones as a no-regression guard.
-{
+if (skipCheck('global tooling regression')) { recordSkip('global tooling regression'); } else {
 	const r = runNode('checkglobals.js');
 	record('global tooling regression', r.ok ? [] : r.out.split('\n').filter((l) => /^FAIL/.test(l)));
 }
@@ -841,7 +910,7 @@ console.log(bad.length ? bad.join('; ') : 'agree');
 	// refusals by address, because those three need no decoder to derive: a CALL target inside a
 	// zero run is arithmetic on bytes. They are also the three addresses the corpus had already
 	// classified not-entry, which is why fixing them is calibration rather than tuning.
-	{
+	if (skipCheck('cfgwalk refuses seeds inside zero fill')) { recordSkip('cfgwalk refuses seeds inside zero fill'); } else {
 		const cw = runNode('cfgwalk.js', ['--refusals']);
 		const got = (cw.out.match(/^seed 0x[0-9a-f]+/gm) || []).map((s) => s.replace(/\s+/, ' '));
 		// In the GUEST frame, because `--refusals` converts and says so in its header. These three were 0x174e9,
@@ -968,6 +1037,8 @@ console.log(bad.length ? bad.join('; ') : 'agree');
 // passing silently.
 if (NO_BUILD) {
 	record('site build', []);
+} else if (skipCheck('site build')) {
+	recordSkip('site build');
 } else {
 	const mkdocs = '/var/tmp/mkvenv/bin/mkdocs';
 	if (!fs.existsSync(mkdocs)) {
@@ -990,16 +1061,44 @@ if (NO_BUILD) {
 // ---------------------------------------------------------------------------
 
 let total = 0;
+let skippedByFlag = 0;
+const timings = [];
 for (const r of results) {
+	timings.push({ name: r.name, ms: r.at - lastStamp });
+	lastStamp = r.at;
 	total += r.failures.length;
+	if (r.wasSkipped) skippedByFlag++;
+	// With --only, print just the requested checks. The other slow ones were skipped and the cheap ones ran
+	// again in this process, so printing them all would duplicate lines when tools/checkall-parallel.sh
+	// concatenates its shards.
+	if (ONLY !== null && !ONLY.has(r.name)) continue;
 	if (!QUIET || r.failures.length) {
-		console.log(`${r.failures.length ? 'FAIL' : 'ok  '} ${r.name}` + (r.failures.length ? `  (${r.failures.length})` : ''));
+		const label = r.wasSkipped ? 'skip' : (r.failures.length ? 'FAIL' : 'ok  ');
+		console.log(`${label} ${r.name}` + (r.failures.length ? `  (${r.failures.length})` : ''));
 		for (const f of r.failures.slice(0, 6)) console.log('       ' + f);
 	}
+}
+if (TIMING) {
+	const ranked = timings.slice().sort((a, b) => b.ms - a.ms);
+	const sum = timings.reduce((a, t) => a + t.ms, 0);
+	console.log('\n-- timing, slowest first --');
+	for (const t of ranked) {
+		if (t.ms >= 50) console.log(`  ${String(t.ms).padStart(6)} ms  ${t.name}`);
+	}
+	const small = ranked.filter((t) => t.ms < 50);
+	if (small.length) console.log(`  ${String(small.reduce((a, t) => a + t.ms, 0)).padStart(6)} ms  (${small.length} checks under 50 ms each)`);
+	console.log(`  ${String(sum).padStart(6)} ms  total across ${timings.length} checks`);
 }
 if (total) {
 	console.log(`\n${total} problem(s). This exits non-zero, so it can gate a commit.`);
 	process.exit(1);
 }
 if (skipped) console.log(`\n${skipped} checks skipped: no disc present. This run proves the tree, not the disc.`);
-console.log('\nall checks pass.');
+if (skippedByFlag) {
+	// Never say "all checks pass" over work that did not happen. A --fast run is useful and it is not the
+	// same claim as a full run, so the last line says which one this was.
+	console.log(`\n${results.length - skippedByFlag - skipped} checks passed, ${skippedByFlag} skipped by --fast or --only.`);
+	console.log('This run does NOT cover the skipped checks. `node tools/checkall.js` runs the full suite.');
+} else {
+	console.log('\nall checks pass.');
+}

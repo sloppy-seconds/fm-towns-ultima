@@ -218,14 +218,38 @@ present.
 
 ## Part 7: the mechanical checks
 
-One command, and it returns a real exit code:
+Three ways to run it, because one of them was not enough:
 
 ```
-node tools/checkall.js
+./tools/checkall-parallel.sh      # ~17 s   fan the slow checks across processes
+node tools/checkall.js            # ~40 s   serial, the reference run
+node tools/checkall.js --fast     # ~3 s    everything except the eleven slow checks
 ```
 
-**It reports 29 checks** (`node tools/checkall.js | grep -c '^ok '` is the measurement, and it was 10 when this page named ten of them). The table below covers the ones that guard documents and planning, not all 29. **Each was tested by breaking something it should catch and confirming it fails**, because a
+**It reports 37 result lines** (`node tools/checkall.js | grep -cE '^(ok|FAIL) '` is the measurement, and it
+was 10 when this page named ten of them). The table below covers the ones that guard documents and planning,
+not all 37. **Each was tested by breaking something it should catch and confirming it fails**, because a
 check that has never been seen to fail is a comment.
+
+**Use `--fast` while editing and the full run before committing.** `--fast` records the checks it did not run
+as `skip`, never as `ok`, and its last line says the run "does NOT cover the skipped checks" rather than
+"all checks pass". A skipped check must never be able to turn a run green on its own silence.
+
+**Where the time goes, measured rather than guessed.** `node tools/checkall.js --timing` prints per-check
+elapsed. Eleven checks are 38.7 s of the 40.6 s suite and the other twenty-six are 1.9 s. The single worst
+is `corpus census is reproducible` at **13.5 s**, a third of the whole suite in one `runNode` call that looks
+identical to the dozen beside it. That list is why `--fast` exists, and `--list-slow` exposes it so the
+parallel driver reads it instead of keeping a second copy.
+
+**The floor is one check, not the merge.** The parallel run lands near 17 s because the census alone is
+13.5 s and cannot be split from outside. Going below that means making `tools/preflight.js` faster, which is
+a different job.
+
+**The doc checks left the pre-commit hook on 2026-11-02.** The hook used to run
+`checkall --quiet --no-build` on every commit, so `node tools/checkall.js && git commit` paid for the whole
+suite twice: 38 s to check, then 35.5 s for the hook to check the identical tree. Measured, that pattern
+took 1 m 53 s. The copyright guard stays in the hook because it costs milliseconds and nothing else enforces
+it. `CHECK_DOC_CHECKS=1` puts the old behaviour back.
 
 | check | what it catches |
 |---|---|
