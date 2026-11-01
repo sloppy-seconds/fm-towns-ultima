@@ -735,7 +735,7 @@ Do not re-derive these. Everything here is backed by a measurement in
 | Use `.ccd` not `.cue` (PREGAP ambiguity, documented by Tsugaru's author) | High |
 | Written in C, MetaWare High C, Phar Lap extender | High |
 | The FM Towns High C 1.73 kit **compiles** in Tsugaru. `docs/compiling-on-fm-towns.md` is the recipe | High |
-| High C 1.73 emits the game's `idiv` and its naive `sar`/`sub` halving chain. 2.31 does not | High |
+| High C 1.73 emits the game's `idiv`, including for constant divisors. It does **not** emit a `sar 1` halving chain for a division by 2^n, because that shape needs a source that halves explicitly. 2.31 does neither. Corrected 2026-11-01 by the atlas, `docs/idiom-atlas.md` | High |
 | `DARKNESS`/`ENCHANT`/`EXODUS` are `MP` flat images, header parses exactly | High |
 | `TMENU.EXP` is `P3` extended format, not `MP` | High |
 | `ENEMY2` = 65 tiles of 32x32 4bpp packed at 512 B | High |

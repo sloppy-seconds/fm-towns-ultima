@@ -364,6 +364,48 @@ const runNode = (script, args = []) => {
 	record('matched-routine count is settled at ten with seven driver-verified', problems);
 }
 
+// E7c. The forward idiom atlas, item 0a. The atlas is the gate on the whole
+// preservation track, so the two claims it exists to make are asserted here
+// rather than left to a page: that this compiler zeroes with `sub reg,reg` and
+// never with `xor reg,reg`, and that the never-emits list is a real list rather
+// than an empty one produced by a corpus that was too narrow to exclude anything.
+// The corpus lives in analysis/, which is gitignored because it is toolchain
+// output, so the check skips with a stated reason when it has not been built.
+{
+	const atlasJson = path.join(ROOT, 'analysis', 'atlas', 'build.json');
+	if (!fs.existsSync(atlasJson)) {
+		// A skip, counted and reported at the end like every other skip, rather
+		// than a silent pass: the corpus is toolchain output and is not in git.
+		skipped++;
+	} else {
+		const py = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
+			? path.join(__dirname, '.venv', 'bin', 'python3') : 'python3';
+		const r = spawnSync(py, [path.join(__dirname, 'atlas-report.py'), '--json'],
+			{ cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
+		const problems = [];
+		let j = null;
+		try { j = JSON.parse(r.stdout); } catch { problems.push('atlas-report.py --json gave no JSON: ' + ((r.stdout || '') + (r.stderr || '')).slice(0, 160)); }
+		if (j) {
+			if (j.probes < 20) problems.push(`atlas has ${j.probes} probes, item 0a requires at least 20`);
+			if (!j.never_emitted.length) problems.push('never-emits list is empty, so nothing could ever be labelled hand-asm-positive');
+			if (!j.never_emitted.includes('xor reg,reg for zeroing')) {
+				problems.push('`xor reg,reg for zeroing` is no longer absent, which is the atlas headline');
+			}
+			if (!j.emitted.includes('sub reg,reg for zeroing')) {
+				problems.push('`sub reg,reg for zeroing` is no longer present, which is the atlas headline');
+			}
+			const doc = fs.readFileSync(path.join(DOCS, 'idiom-atlas.md'), 'utf8');
+			for (const phrase of ['xor reg,reg', 'sub reg,reg', 'rep movsb', 'sar eax, 3']) {
+				if (!doc.includes(phrase)) problems.push(`docs/idiom-atlas.md no longer mentions \`${phrase}\``);
+			}
+			if (j.distinct_frame_shapes < 2) {
+				problems.push(`only ${j.distinct_frame_shapes} frame shape, which is the too-narrow corpus the item warns about`);
+			}
+		}
+		record('forward idiom atlas', problems);
+	}
+}
+
 // E8. The calls the port was skipping. The recompiler stops each function at its terminating `ret` and never resumes
 // after the alignment padding that follows, so a function with no caller never enters the module and the calls inside
 // it are absent from the port. tools/resumepoints.js derives those resume points and asserts that every one is seeded

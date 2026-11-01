@@ -107,7 +107,19 @@ transfers are the same class of problem and are a first-class category for the s
 
 ### 0a. The forward idiom atlas: what High C 1.73 emits, and what it never emits
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**What is now known.** 32 small C sources were compiled with the real driver route and disassembled, producing
+[idiom-atlas.md](idiom-atlas.md) and an eleven-entry never-emits list. The headline entries, each measured
+rather than assumed: this compiler zeroes with `sub reg,reg` and never with `xor reg,reg`, it tests zero with
+`cmp x, 0` and `test` appears nowhere in the corpus, it uses hardware `idiv` even for a constant divisor and
+never a reciprocal multiply, it packs structs to byte alignment with no padding so `sizeof` a `char,int,char`
+struct is 6, it allocates locals with `push` and never `sub esp,N`, it lowers small constant multiplies to
+`lea` and strides to `shl` and reserves `imul` for runtime operands, and it emits no string ops so a byte copy
+is a manual loop. It also corrected a known-good row: division by a power of two is a single wide `sar 3` with
+a bias rather than the `sar 1` halving chain `AGENTS.md` recorded, and that chain is only reachable from a
+source that halves explicitly. The corpus produced 3 frame shapes, 26 mnemonic sets and 34 distinct
+instructions, which is the check that it is not too narrow to say anything.
 
 Compile a corpus of small C programs with the FM Towns High C 1.73 kit through the working TownsOS route
 and harvest what comes out: prologue and epilogue shapes, frame style, the zeroing idiom, `idiv` against
