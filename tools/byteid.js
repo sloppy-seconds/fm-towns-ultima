@@ -188,9 +188,27 @@ function compare(addr, ours) {
 		for (let i = ours.length; i < theirs.length; i++) exempt[i] = { id: 'P1' };
 		result.paddingBytes = tailExempt;
 	} else if (ours.length > theirs.length) {
-		result.verdict = 'length-differs';
-		result.note = 'the candidate is longer than the asserted extent, which means it ran past the function';
-		return result;
+		// The candidate may carry the linker's own trailing alignment padding. A P3 code
+		// segment is padded to a boundary and `tools/atlas-build.py` reads the extent from the
+		// linker map, which reports the PADDED size, so a correct candidate can arrive one or
+		// more bytes long. `0xe140c` is the worked case: its 43 code bytes are identical and the
+		// 44th is a single 00.
+		//
+		// This is only exempt when every extra byte is zero, and only at the tail. A function
+		// ends at its `ret`, so anything all-zero after that is fill rather than code. A
+		// candidate that genuinely ran past the function has to contain a real instruction
+		// there, which is not all-zero, and that still fails.
+		const excess = ours.slice(theirs.length);
+		if (!excess.every((b) => b === 0)) {
+			result.verdict = 'length-differs';
+			result.note = 'the candidate is longer than the asserted extent and the excess is not '
+				+ 'zero fill, so it ran past the function';
+			return result;
+		}
+		result.candidatePaddingBytes = excess.length;
+		ours = ours.slice(0, theirs.length);
+		result.ourLen = ours.length;
+		result.ours = fmtBytes(ours);
 	}
 
 	const diffs = [];

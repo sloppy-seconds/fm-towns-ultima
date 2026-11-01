@@ -487,12 +487,33 @@ should not be picked up before the rules work in Phase 4b.
 
 ### 4f. Measure the byte-match rate across a population of leaves
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**What is now known.** **11 of 14 Level-1 leaves match byte for byte, 78.6 percent.** The stop condition is 30
+percent, so the conclusion it licenses is that High C 1.73 is the compiler that built this game. Two more are
+blocked on the frame decision rather than on their C, which puts the recoverable set at 13 of 14.
+
+**The population is 14, not 33, and 4f could not have been completed as written.** `docs/corpus.json` holds
+exactly 14 rows of `kind: c-leaf` and `tools/preflight.js --scan 40` independently reports 14, so "25 of the 33"
+was never reachable. The premise was stale a second way too: it says the compiler question is "currently
+answered by two routines" when 10 of the 14 were already matched before this run.
+
+**All 14 were attempted.** `0xe140c` matched at 43 of 43 bytes, resolving a class that had been called
+`register-choice` because the source text was under-determined rather than the bytes wrong. `0xe1bf4` and
+`0xe1c24` came out 48 against 46, and the disassembly shows the target is framed where the build is not, which is
+the same arithmetic `0xe52c8` has. `0xfe95d` reads its argument from `al` with no prologue, and High C passes no
+arguments in registers, so no C source can produce it. Full disassembly comparisons and the four candidate
+sources: [byte-match-rate.md](byte-match-rate.md).
+
+**One tool fix fell out of it.** A P3 code segment is padded and the linker map reports the padded size, so a
+correct candidate can arrive one byte long. `tools/byteid.js` exempted trailing padding only on the target side
+and reported `0xe140c` as `length-differs`; it now exempts an all-zero tail on the candidate side too, records
+the count as `candidatePaddingBytes`, and still refuses a tail that is not zero.
 
 | field | value |
 |---|---|
-| autonomy | runs unattended via `tools/cserve.js` and `tools/preflight.js` |
-| done when | at least 25 of the 33 Level-1 candidates are attempted and the match rate is recorded, or the run stops on the trigger below |
+| autonomy | autonomous. It needs the driver route and `tools/preflight.js`, not the `tools/cserve.js` named originally: cserve drives the real-mode generator whose optimiser never engages, and a rate measured on unoptimised output is a rate for the wrong generator |
+| done when | at least 25 of the 33 Level-1 candidates are attempted and the match rate is recorded, or the run stops on the trigger below. **Met 2026-11-02 in substance, not in its numbers:** the population is 14 so 25 was impossible, and all 14 were attempted with the rate recorded. The count is corrected here rather than silently relaxed |
 | blocked by | nothing |
 
 **Why this is a plan item and not just tooling.** The whole question of whether High C 1.73 is the
