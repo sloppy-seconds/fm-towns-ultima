@@ -61,7 +61,7 @@ OUT = os.path.join(DOCS, 'ledger.json')
 
 # Routines re-verified byte for byte through the authentic driver route. Kept here as a list rather
 # than inferred from prose, and asserted by tools/checkall.js to stay consistent with routines.json.
-DRIVER_VERIFIED = ['e9e2c', 'e44d0', 'e9940', 'e07e8', 'e65fc', 'e662c', 'fd0ec', 'e552c']
+DRIVER_VERIFIED = ['e9e2c', 'e44d0', 'e9940', 'e07e8', 'e65fc', 'e662c', 'fd0ec', 'e552c', 'e140c']
 # Matched under the frame-preserving generator, blocked on the driver default removing the frame.
 FRAMED_PENDING = ['e52c8', 'e5304']
 

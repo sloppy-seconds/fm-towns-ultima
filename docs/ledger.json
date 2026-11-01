@@ -5755,12 +5755,12 @@
   },
   "0xe140c": {
    "addr": "0xe140c",
-   "attribution": "unattributed",
+   "attribution": "compiler-1.73-matched",
    "cluster": "C24",
-   "confidence": "unknown",
+   "confidence": "proven",
    "indirect": "n-a",
    "module": "ENCHANT",
-   "notes": "docs/routines.json class=register-choice: scan for 0xf2 stepping 6. 12 candidates, all 43/43 bytes, one register pair differs.",
+   "notes": "byte-identical through the authentic driver route, zero exemptions applied (docs/attribution-samples.md)",
    "port-coverage": "n-a",
    "recomp": "compiled",
    "size": 43
@@ -13140,16 +13140,16 @@
  "sizes_asserted_by": "docs/corpus.json (an inferred extent gets no verdict, per item 12a)",
  "summary": {
   "attribution": {
-   "compiler-1.73-matched": 10,
+   "compiler-1.73-matched": 11,
    "hand-asm-positive": 41,
-   "unattributed": 824
+   "unattributed": 823
   },
   "confidence": {
    "probable": 43,
-   "proven": 8,
-   "unknown": 824
+   "proven": 9,
+   "unknown": 823
   },
-  "unattributed": 824,
+  "unattributed": 823,
   "with_asserted_size": 451,
   "without_asserted_size": 424
  },

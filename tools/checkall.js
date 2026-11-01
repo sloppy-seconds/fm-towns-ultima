@@ -102,7 +102,7 @@ let lastStamp = Date.now();
 const FAST = process.argv.includes('--fast');
 const ONLY = (() => {
 	// One name per flag, and repeat the flag for more. It must NOT split on commas: check names
-	// contain them. `matched-routine count is settled at ten, eight driver-verified` split into two
+	// contain them. `matched-routine count is settled at eleven, nine driver-verified` split into two
 	// names that matched nothing, so `--only=<that>` ran no check at all and reported success.
 	const vals = process.argv
 		.filter((x) => x.startsWith('--only='))
@@ -418,8 +418,8 @@ if (skipCheck('return convention split by ownership')) { recordSkip('return conv
 // e5304 come out longer under it. They are blocked on a compiler toggle, not on wrong C. Demoting them would
 // throw away two correct matches and would have been the wrong reading of the evidence.
 //
-// This pins the answer so a later edit cannot drift it back, and it asserts that eight verified plus two
-// pending account for all ten matched. That total is the claim: if a routine is in neither list it has no
+// This pins the answer so a later edit cannot drift it back, and it asserts that nine verified plus two
+// pending account for all eleven matched. That total is the claim: if a routine is in neither list it has no
 // explanation at all, which fails here instead of going unnoticed.
 {
 	const problems = [];
@@ -433,14 +433,14 @@ if (skipCheck('return convention split by ownership')) { recordSkip('return conv
 		const rs = j.routines;
 		const by = {};
 		for (const r of rs) by[r.class] = (by[r.class] || 0) + 1;
-		const want = [['not-c', 62], ['base-fold', 21], ['matched', 10], ['unresolved', 9], ['register-choice', 1]];
+		const want = [['not-c', 62], ['base-fold', 21], ['matched', 11], ['unresolved', 9]];
 		for (const [cls, n] of want) {
 			if (by[cls] !== n) problems.push(`class ${cls}: ${by[cls]}, expected ${n}. Re-measure before changing this number`);
 		}
 		if (rs.length !== 103) problems.push(`routines.json holds ${rs.length} routines, expected 103`);
 		// The eight re-verified through the driver: the seven in docs/highc-authentic-toolchain.md's table, plus
 		// 0xe552c, re-run through the same route on 2026-11-02.
-		const driver = ['e9e2c', 'e44d0', 'e9940', 'e07e8', 'e65fc', 'e662c', 'fd0ec', 'e552c'];
+		const driver = ['e9e2c', 'e44d0', 'e9940', 'e07e8', 'e65fc', 'e662c', 'fd0ec', 'e552c', 'e140c'];
 		// Matched under the frame-preserving generator, and blocked on the driver's default removing the frame.
 		// Named explicitly so a change of status is deliberate rather than silent.
 		const framedPending = ['e52c8', 'e5304'];
@@ -449,15 +449,15 @@ if (skipCheck('return convention split by ownership')) { recordSkip('return conv
 		if (outside.length) problems.push(`driver-verified routine(s) not classed matched: ${outside.join(', ')}`);
 		const pendingGone = framedPending.filter((a) => !matched.has(a));
 		if (pendingGone.length) problems.push(`framed-pending routine(s) no longer classed matched: ${pendingGone.join(', ')}`);
-		if (driver.length !== 8 || matched.size !== 10) {
-			problems.push(`the count needs 8 driver-verified inside 10 matched, got ${driver.length} and ${matched.size}`);
+		if (driver.length !== 9 || matched.size !== 11) {
+			problems.push(`the count needs 9 driver-verified inside 11 matched, got ${driver.length} and ${matched.size}`);
 		}
 		if (driver.length + framedPending.length !== matched.size) {
 			problems.push(`${driver.length} driver-verified plus ${framedPending.length} framed-pending must account for all ` +
 				`${matched.size} matched, but they sum to ${driver.length + framedPending.length}. A routine in neither list has no explanation`);
 		}
 	}
-	record('matched-routine count is settled at ten, eight driver-verified', problems);
+	record('matched-routine count is settled at eleven, nine driver-verified', problems);
 }
 
 // E7c. The forward idiom atlas, item 0a. The atlas is the gate on the whole

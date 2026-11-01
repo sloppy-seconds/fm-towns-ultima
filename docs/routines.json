@@ -84,9 +84,10 @@
       "addr": "e140c",
       "callers": 2,
       "bytes": 43,
-      "class": "register-choice",
-      "what": "scan for 0xf2 stepping 6. 12 candidates, all 43/43 bytes, one register pair differs.",
-      "evidence": "result 20"
+      "class": "matched",
+      "what": "Counts occurrences of 0xf2 in a 6-byte-stride array and returns the element after the n-th one. n == 0 returns the base pointer. 43/43 bytes identical, every branch displacement included.",
+      "evidence": "plan item 4f, 2026-11-02, compiled through the authentic driver route and compared under docs/byte-identity-rule.md. Was class=register-choice with 12 candidates already holding all 43 bytes: the source text was under-determined, not the bytes wrong",
+      "c": "char *f(char *p, int n) {\n\tint i;\n\ti = 0;\n\tif (n == 0)\n\t\treturn p;\n\tfor (;;) {\n\t\tif (*p == (char)0xf2) {\n\t\t\ti++;\n\t\t\tif (i == n)\n\t\t\t\treturn p + 6;\n\t\t}\n\t\tp += 6;\n\t}\n}\n"
     },
     {
       "addr": "e65fc",

@@ -489,8 +489,8 @@ should not be picked up before the rules work in Phase 4b.
 
 **State:** DONE · **Autonomy:** AUTONOMOUS
 
-**What is now known.** **11 of 14 Level-1 leaves match byte for byte, 78.6 percent**, of which 10 were already in
-the register and one (`0xe140c`) awaits promotion under 4j. The stop condition is 30
+**What is now known.** **11 of 14 Level-1 leaves match byte for byte, 78.6 percent**, all eleven now in the
+register: `0xe140c` was promoted on 2026-11-02. The stop condition is 30
 percent, so the conclusion it licenses is that High C 1.73 is the compiler that built this game. Two more are
 blocked on the frame decision rather than on their C, which puts the recoverable set at 13 of 14.
 
@@ -787,8 +787,25 @@ holding the first anchor (exit 2, anchor named).
 | field | value |
 |---|---|
 | autonomy | runs unattended via `tools/cc.sh`; no emulator interaction, no disc state |
-| done when | every routine in the queue carries a status, the statuses sum to the routine count owned by `docs/call-graph.md` (788: 713 call targets that something really calls, plus 75 with no call site, with 25 of the 738 excluded as not routines), and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty |
+| done when | every routine in the queue carries a status, the statuses sum to the routine count owned by `docs/call-graph.md` (**798**: 715 call targets that something really calls, plus 83 with no call site, with 23 excluded as not routines), and no routine is left `unattempted`. Recovered is `matched` plus `identical except disp32`. The run is not done at a count, it is done when the queue is empty. **Numbers corrected 2026-11-02** from 788/713/75/25, which is what `node tools/queue.js --counts` printed before the seed derivation changed |
 | blocked by | nothing |
+
+**Where the grind stands, and the size of its one structural blocker, measured 2026-11-02.** Of the 875
+functions in the module, the frame decision makes only a small part unreachable. Re-decoding each function's
+opening instructions gives:
+
+| class | count | share |
+|---|---|---|
+| unframed | 530 | 60.6% |
+| framed, with a callee-saved spill | 207 | 23.7% |
+| framed, with a `push` local | 71 | 8.1% |
+| **framed, no local, no spill** | **67** | **7.7%** |
+
+Only the last row is what the driver's default cannot reproduce, and it is also the class no route found so
+far can be made to produce: `ARGS` toggles in `HC386SET.CNF` are accepted and inert (item 4l), so `Remove_BP`
+changes nothing. So the queue is **92 percent reachable today** and the frame decision is a 7.7 percent tax
+rather than a wall. Two of the fourteen Level-1 leaves are in that class, which is why item 4f reports them as
+blocked on the frame rather than on their C.
 
 **This replaces the earlier "finish `0xe6a58`" framing, which was the wrong unit of work.** One
 routine is not a plan. This item is the whole grind, and it exists because a previous run stopped at
@@ -828,22 +845,29 @@ See [overnight-run.md](overnight-run.md) for the per-routine loop and the angle 
 image and prints, as of this pass:
 
 ```
-statuses (738 starts):
-  matched        10
+statuses (798 routines: 715 from call targets, 83 from the seed file, 23 excluded):
+  matched        11
   disp32          0
   parked         30
-  not-c          58
-  unattempted   686
-  excluded       25
-  recovered      10  (matched + disp32)
+  not-c          61
+  unattempted   696
+  excluded       23
+  recovered      11  (matched + disp32)
 ```
 
-The statuses sum to 788 routines: 713 that a real call site points at, 75 with no call site from
-`tools/runtime-seeds.txt`, and 26 of the 738 call targets excluded because they are not routines. The count is owned by
+The statuses sum to 798 routines: 715 that a real call site points at, plus 83 with no call site from
+`tools/runtime-seeds.txt`, with 23 excluded because they are not routines. The count is owned by
 `docs/call-graph.md` and the arithmetic is asserted by `checkall.js` as `decompilation queue`.
-**Ten recovered, 686 unattempted**, so the queue is not close to empty and there is no honest
-way to say otherwise. The 30 parked rows all carry a cause (20 `base-fold`, 9 `unresolved`, 1 `register-choice`) and
+**Eleven recovered, 696 unattempted**, so the queue is not close to empty and there is no honest
+way to say otherwise. The 30 parked rows all carry a cause (21 `base-fold`, 9 `unresolved`) and
 `tools/queue.js` reports all 30 as workable now, none blocked on an unmet dependency.
+
+**These figures were 788 and 10 recovered until 2026-11-02, and the block above is now the tool's own output
+rather than a transcription.** The queue grew because the seed derivation changed, and the eleventh recovery is
+`0xe140c`, promoted after item 4f matched it. It needed one further step that is easy to miss: `queue.js`
+consults `docs/queue.json` **before** the register, so a stored row saying `register-choice` kept winning over the
+register's new `matched`. The row was removed rather than restated, because the register owns the verdict and a
+second copy is the drift this ledger exists to prevent.
 
 **The next work is concrete rather than general**: the parked `base-fold` routines are exactly the set the disp32
 standard exists for, so they are the cheapest recoveries in the queue, and the pass that works them needs the compile
@@ -946,6 +970,17 @@ binds only the `-O` family plus the two toggles proven live.
 names, all from the one `HCDEBUG` line in `hc386set.cnf`: `optimize_xjmp`, `optimize_fp`,
 `auto_reg_alloc`, `postpone_arg_pops`, `remove_bp`. The kit ships `hc386.cnf`, `hc386set.cnf`
 and `config.exe` in `Q:\HC386\BIN`, and none of the three has been read.
+
+**Update, 2026-11-02: `hc386set.cnf` has now been read, and reading it was not enough.** Its
+`ARGS=` line is documented as applying to every compilation and it is reachable, but three runs
+showed that toggles handed in through it are **accepted and inert**: `-Hoff=Remove_BP` compiles
+cleanly and changes nothing, and `-Hon=Quiet`, the control, fails to suppress the banner. So the
+item's premise, that the names merely had to be read, holds for the *names* and not for the
+*mechanism*. Recorded in full on [leasib-flags-negative.md](leasib-flags-negative.md).
+
+For the frame-decision class this matters concretely: **67 of 875 routines (7.7%) are framed with
+no local and no spill**, which is the shape the driver's default cannot produce, and no route
+found so far can be made to produce it either. See item 4j for the measurement.
 
 **The route, which is already documented.** `docs/working-set.md` records that a guest-side
 `COPY Q:\HC386\... C:\...` works, and `tools/cserve.js` already drives a batch file with

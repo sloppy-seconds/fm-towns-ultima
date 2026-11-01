@@ -56,9 +56,10 @@ hypotheses, none separated, and separating them is not needed to act on the find
 
 **A count that needed one owner, now settled by item 0b.** `docs/compiler-generation.md` said "the seven
 routines known to be High C 1.73 output (the ten `matched`)". Seven or ten, in one sentence. Both were right
-and they were different sets: ten routines are classed `matched`, and **eight** of those ten are
-driver-verified. The other two are not refutations, they are blocked on a compiler toggle that strips the
-frame the game actually uses. The owner is [attribution-samples.md](attribution-samples.md) and
+and they were different sets: **eleven** routines are classed `matched` since `0xe140c` was promoted on
+2026-11-02, and **nine** of those are driver-verified. The other two are not refutations, they are blocked on a
+compiler toggle that strips the frame the game actually uses. The owner is
+[attribution-samples.md](attribution-samples.md) and
 `tools/checkall.js` asserts that eight plus two account for all ten.
 
 ## The ledger
@@ -241,7 +242,7 @@ groups carry meaning. Compiles nothing. Scope is the game module only.
 
 **What is now known.** `tools/ledger.py` generates `docs/ledger.json` covering all **875** functions with ten
 columns, and [attribution-ledger.md](attribution-ledger.md) documents it. The result is deliberately mostly
-empty: 8 `proven`, 43 `probable`, **824 `unattributed`**, and that count is printed every run rather than
+empty: 9 `proven`, 43 `probable`, **823 `unattributed`**, and that count is printed every run rather than
 buried. `port-coverage` and `indirect` are `n-a` for every row because no tool produces them, and both are
 named in the ledger's own `unpopulated` field with the reason. 451 sizes are asserted from `docs/corpus.json`
 and 424 are `n-a`.
@@ -251,7 +252,8 @@ image offsets (`f_000e9c2c`) while every document uses file offsets (`0xe9e2c`),
 version compared them directly and produced a ledger that looked merely sparse: 11 asserted sizes out of 454
 and none of the ten matched routines mapped. After the shift, all but 23 of the census addresses land on a
 module function and 451 of 454 sized entries do, which took asserted sizes from 11 to 451 and matched
-routines from 0 to 10. A units error that presents as missing data is worth recording for that reason alone.
+routines from 0 to 10 (eleven once `0xe140c` was promoted). A units error that presents as missing data is
+worth recording for that reason alone.
 
 **Two deliberate refusals.** `base-fold` is not promoted to a match, because that class is mixed (one entry is
 `0xfdeb6`, a two-instruction getter that recovers cleanly, and another is `0xf3e24` at 24 of 25 bytes) and parsing

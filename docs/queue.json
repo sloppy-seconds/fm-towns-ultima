@@ -24,10 +24,6 @@
   "e07c8": {
    "status": "matched"
   },
-  "e120c": {
-   "status": "parked",
-   "cause": "register-choice"
-  },
   "e19f4": {
    "status": "parked",
    "cause": "base-fold"

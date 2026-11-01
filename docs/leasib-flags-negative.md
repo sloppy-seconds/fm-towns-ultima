@@ -102,6 +102,39 @@ own help output on the `Q:` drive. Neither has been read.
 
 That is the next probe, and it is a documentation read rather than a compile sweep.
 
+## The configuration file was read, and toggles passed through it are inert
+
+2026-11-02, during the `Remove_BP` work. `HC386SET.CNF` **has** now been read, and the
+result narrows this page rather than closing it.
+
+What it contains: an `ARGS=` line documented as "command-line options that will be
+evaluated at _every_ compilation", an `HCDEBUG=` line carrying `-on codeview` and
+`-off optimize_xjmp optimize_fp auto_reg_alloc postpone_arg_pops`, and `LINKNAME=386linkp.exp`.
+The toggle names in that `HCDEBUG` line are `-off`-style and underscore-separated, which is
+what the command line cannot accept, so this looked like the way in.
+
+**It is not.** Three runs, one boot each, with the driver copied to a writable directory so
+it auto-detects `HCDIR` there and reads the modified file:
+
+| `ARGS=` | outcome |
+|---|---|
+| `-native -HVp -off remove_bp` | `Unknown option -off will be passed to the linker`, then `Fatal error: Missing value to command switch "-off"`, citing line 7 of the answer file `5cdf0000.tmp` |
+| `-native -HVp -Hoff=Remove_BP` | compiles cleanly, output **byte-identical to the default** |
+| `-native -HVp -Hon=Quiet -Hoff=Remove_BP` | compiles cleanly, **banner not suppressed** |
+
+The first row proves the file is read and its `ARGS` reaches the answer file. The third row
+is the control that interprets the second: `Quiet` is a toggle with a visible effect and it
+had none either, so **toggles handed in through `ARGS` are accepted and inert**, not
+misspelled. `docs/HC17UM.DOC` on the kit confirms the syntax is `-Hon=`/`-Hoff=` and the
+toggle is spelled `Remove_BP`, so no spelling of it was ever going to work through this
+route.
+
+**What this changes on this page.** "Neither has been read" is no longer true, and the
+next probe is no longer a documentation read: the file is known and its toggles are known
+not to take effect. What is left is a build where the toggles are compiled out, or a route
+that applies them somewhere other than the front-end answer file. Neither is an invented
+name and neither is reachable from here. The negative on the `lea` class stands unchanged.
+
 ## Consequence for the parked routines
 
 `0xe3c58` stays parked with the cause "the `lea` encoding is not reachable by a flag this

@@ -92,7 +92,7 @@ whole image and see whether the split follows the same address boundary as `ente
 > not refutations: the game's code is framed, the frame-preserving generator matches it, and the driver's
 > default removes the frame. See `docs/attribution-samples.md`. The page that owns this count is
 > [attribution-samples.md](attribution-samples.md), and `tools/checkall.js` asserts that eight verified plus
-> two framed-pending account for all ten matched.
+> two framed-pending account for all eleven matched.
 
 ## The test, run
 
