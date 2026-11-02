@@ -69,6 +69,14 @@ add_executable(u2port main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_RO
 # symbol always exists; tools/portcheck.js asserts the address is still declared there.
 target_include_directories(u2port PRIVATE ${RECOMP_DIR})
 target_link_libraries(u2port game_recomp fmt_towns)
+
+# A WINDOWS BUILD HAS TO CARRY ITS RUNTIME, because mingw's would otherwise be two DLLs nobody has. The first cross
+# build imported libgcc_s_seh-1.dll and libstdc++-6.dll, which is the same defect as a binary that needs libSDL3: it
+# looks self-contained and is not. Static linking here matches what SDL already does on every platform, so the
+# artefact is one file.
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_options(u2port PRIVATE -static -static-libgcc -static-libstdc++)
+endif()
 if(TARGET fmt_towns_sdl)
   target_link_libraries(u2port fmt_towns_sdl)
 endif()

@@ -81,7 +81,18 @@ static void print_vram_hash(const towns::Machine& m) {
 //
 // A switch set in a build that cannot honour it is marked, because an env var that is set and ignored looks exactly
 // like one that is set and working, which is the whole failure this function exists to remove.
+// The environment block, and how to remove one variable from it, which is the whole of this file's platform
+// difference. Windows has no `unsetenv` and calls the block `_environ`; emptying a variable with `_putenv_s` is what
+// its own documentation recommends instead. Nothing else in the port or the toolkit is POSIX: grepping for
+// unsetenv, setenv, environ, mmap, dlopen, pthread_ or /proc/ finds only these lines.
+#ifdef _WIN32
+extern "C" char** _environ;
+#define environ _environ
+static void unset_env(const char* name) { _putenv_s(name, ""); }
+#else
 extern char** environ;
+static void unset_env(const char* name) { unsetenv(name); }
+#endif
 // Instrument variables removed because --dev was not given. Declared here because the sweep that fills it runs in
 // main() and the line that reports it is printed later.
 static std::vector<std::string> g_instruments_dropped;
@@ -472,7 +483,7 @@ int main(int argc, char** argv) {
 			if (!keep) drop.push_back(name);
 		}
 		for (const std::string& n : drop) {
-			unsetenv(n.c_str());
+			unset_env(n.c_str());
 			g_instruments_dropped.push_back(n);
 		}
 	}
@@ -1232,6 +1243,7 @@ int main(int argc, char** argv) {
 		return false;
 	};
 
+#ifndef _WIN32   // the control channel, which the Windows build does not port: see port/control.h
 	// Build a `shot` reply: render is already done, this writes the PNG and either names the file or inlines it as
 	// base64. Shared by the immediate command and the parked one so the two cannot drift apart.
 	auto shot_reply = [](const std::string& want_path, long id, const std::vector<uint32_t>& rgb, int w, int h,
@@ -1266,6 +1278,7 @@ int main(int argc, char** argv) {
 		return u2ctl::ok_reply(id, "\"width\":" + std::to_string(w) + ",\"height\":" + std::to_string(h) +
 		                              ",\"png\":\"" + u2ctl::b64(png) + "\"," + fr);
 	};
+#endif  // !_WIN32
 
 	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty() || ctl) {
 		// The last value of the turn clock at 0xcdf53, and whether it has been read yet.
@@ -1320,6 +1333,7 @@ int main(int argc, char** argv) {
 			}
 			// Control commands, answered between frames. `frame` in every reply is the machine's own counter, so a
 			// caller can tell that two commands were served in the same frame rather than assuming it.
+#ifndef _WIN32   // the control channel, which the Windows build does not port: see port/control.h
 			if (ctl) {
 				// Parked commands first, so a `frame` that became due this frame is answered before new commands are read.
 				if (ctlpend.frame_id >= 0 && (long)mm.frame >= ctlpend.frame_target) {
@@ -1706,6 +1720,7 @@ int main(int argc, char** argv) {
 					}
 				}
 			}
+#endif  // !_WIN32
 		};
 	}
 

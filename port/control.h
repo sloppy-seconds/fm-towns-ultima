@@ -1,4 +1,43 @@
 #pragma once
+
+#ifdef _WIN32
+// THE CONTROL SOCKET IS NOT PORTED, and this is the whole of that decision. Everything below is POSIX: <arpa/inet.h>,
+// <sys/un.h>, poll(), read() and close(). The channel exists for the measurement tools and the tests, not for playing,
+// and a Windows build is for playing. So it answers rather than pretending: --control fails to open and says why, which
+// is the same shape as a missing disc reporting itself instead of starting and failing later.
+//
+// Porting it is a day of work no player benefits from: winsock2 for the TCP half, a named pipe for the Unix-socket
+// half, and every tool in this repository would then need testing against a second socket implementation. If a Windows
+// session ever needs the instruments, that is the item to open.
+#include <map>
+#include <string>
+
+namespace u2ctl {
+
+struct Command {
+	long id = 0;
+	std::string cmd;
+	std::map<std::string, std::string> args;
+};
+
+class Channel {
+public:
+	bool open(const std::string&, std::string& err) {
+		err = "this build has no control socket: it is POSIX only and the Windows build does not port it";
+		return false;
+	}
+	const std::string& bound() const { return empty_; }
+	void poll() {}
+	void send(const std::string&) {}
+	int next(Command&, std::string&) { return -1; }
+
+private:
+	std::string empty_;
+};
+
+}  // namespace u2ctl
+
+#else
 // port/control.h - the JSON-lines control channel, phase 10 tier 1.
 //
 // WHY THIS EXISTS, AND WHY IT IS A TAP AND NOT A FRONT-END. Driving the port from a script currently means a
@@ -413,3 +452,5 @@ private:
 };
 
 }  // namespace u2ctl
+
+#endif  // !_WIN32
