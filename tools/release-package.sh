@@ -13,7 +13,9 @@
 # proves it is the `ldd` assertion below, and it refuses to package rather than warning.
 #
 # WHAT MAY NEVER BE IN IT, and this is the half of the policy that did not change: the original media. Not
-# ENCHANT.EXP, not the disc images, not the floppy, not a ROM, not one extracted asset. The reader supplies those
+# ENCHANT.EXP, not the disc images, not the floppy, not one extracted asset. One ROM ships and it is named by exact path below,
+# because it is not Fujitsu code: FMT_FNT.ROM is generated from a public-domain font, the port renders no text
+# without it, and assets/font-rom/README.md records the whole of what is and is not established about it. The reader supplies those
 # and is expected to own them. The guard below enforces it by extension and by name, and it was demonstrated by
 # planting a forbidden file and reading the refusal.
 #
@@ -89,6 +91,16 @@ fi
 cp "$ROOT/play.sh" "$STAGE/play.sh"
 cp "$ROOT/tools/getfile.js" "$ROOT/tools/cd.js" "$ROOT/tools/vendor.sh" "$STAGE/tools/"
 cp "$ROOT/assets/save-disk/userdisk.hdm.zip" "$STAGE/assets/save-disk/"
+# ...and EXPANDED as well, only in the archive. git keeps the zip because the disk is 1.26 MB of almost pure zero
+# fill, but a reader should not have to unzip something to play: the no-argument search in the port looks for a
+# .hdm and cannot open a zip, so shipping only the zip means the first run reaches the game's own WRONG DISK
+# prompt. Compressed in git, expanded in the artefact. Guarded by its own named exception below.
+python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
+	"$ROOT/assets/save-disk/userdisk.hdm.zip" "$STAGE/assets/save-disk"
+# The one platform ROM this project carries, with the provenance document beside it. It is the glyph ROM and
+# the port renders no text without it, and it is not Fujitsu code: see assets/font-rom/README.md.
+mkdir -p "$STAGE/assets/font-rom"
+cp "$ROOT/assets/font-rom/FMT_FNT.ROM" "$ROOT/assets/font-rom/README.md" "$STAGE/assets/font-rom/"
 cp "$ROOT/LICENSE" "$STAGE/LICENSE"
 cp "$ROOT/fmtownskit/LICENSE" "$STAGE/LICENSE.fmtownskit"
 cp "$SDL3_PREFIX/LICENSE.SDL3" "$STAGE/LICENSE.SDL3"
@@ -99,6 +111,8 @@ chmod 0755 "$STAGE/u2port" "$STAGE/play.sh" "$STAGE/tools/vendor.sh"
 # it is what the tested route picks a character from; everything else game-shaped is refused.
 LEAKY=$(find "$STAGE" -type f \
 	-not -path "*/assets/save-disk/userdisk.hdm.zip" \
+	-not -path "*/assets/font-rom/FMT_FNT.ROM" \
+	-not -path "*/assets/save-disk/userdisk.hdm" \
 	\( -iname '*.exp' -o -iname '*.img' -o -iname '*.ccd' -o -iname '*.cue' -o -iname '*.sub' \
 	-o -iname '*.hdm' -o -iname '*.rom' -o -iname '*.fnt' -o -iname '*.snd' -o -iname '*.eup' \
 	-o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.mp3' -o -iname '*.dg3' -o -iname '*.dat' \) -print)

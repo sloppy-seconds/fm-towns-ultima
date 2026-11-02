@@ -42,20 +42,37 @@ request. The point of the project is preservation, not a fight.
 Playing from this archive
 =========================
 
-You need three things, and only the first two come from us.
+You need two things, and only the first comes from us.
 
-1. This archive, unpacked anywhere you like.
-2. The FM Towns font ROM. The clean-room FreeTOWNS set works and carries no copyright
-   problem: ./tools/vendor.sh fetches it. Without it the game runs and every glyph is
-   blank.
-3. Your own copy of the game. Unpack the FM Towns release into a directory called game/
-   next to this file. The disc image is the part that matters, because the port opens the
-   disc at run time for its artwork and its kanji font.
+1. This archive, unpacked anywhere you like. It carries the port, a save disk with three
+   characters on it, and the glyph ROM, so there is nothing to install and nothing to
+   download.
+2. Your own copy of the game, which means three files out of it: the program, TBIOS, and
+   the disc image itself, because the port opens the disc while it runs for its artwork
+   and its kanji font.
+
+## Getting your game files in place
+
+Unpack the archive.org download. It gives you a .img, a .ccd and a .cue. The .img is the
+one that matters and it goes in game/ unchanged:
+
+  mkdir -p game
+  cp "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img" game/ultima.img
+
+The other two files are inside that image rather than beside it, and this archive ships the
+reader for them. Node.js is the only tool you need beyond a shell:
+
+  node tools/getfile.js ENCHANT.EXP --disc game/ultima.img --out game
+  node tools/getfile.js TBIOS.BIN   --disc game/ultima.img --out game
+
+Ignore the .cue that came with the download. It declares a PREGAP on the audio tracks that a
+rip may or may not already contain, so the reader refuses it rather than read the wrong
+sectors, and the port writes a correct one-track cue itself.
 
 Then either of these:
 
   ./u2port                      finds your media itself, see below
-  ./play.sh                     the same, and it also unpacks the save disk for you
+  ./play.sh                     does the same three steps for you, then runs the port
 
 With no arguments the port looks for ENCHANT.EXP, tbios.bin, a .cue (or a single .img, for
 which it writes one beside the image) and a save disk. It searches ./ and game/, original/
@@ -92,16 +109,20 @@ What is in this archive
   play.sh                    the runner described above
   tools/getfile.js           reads one file out of your disc image, into a build directory
   tools/cd.js                the ISO reader getfile.js uses
-  tools/vendor.sh            fetches the emulator, the FreeTOWNS ROMs, pinned and checksummed
+  tools/vendor.sh            fetches the emulator and the full FreeTOWNS ROM set, if you want them
   assets/save-disk/          a save disk with three characters, so the tested route works
+  assets/font-rom/           the glyph ROM the port needs for text, and a document saying where
+                             it came from and what is and is not established about its licence
   LICENSE                    MIT, this project's own code and the recompiled translation
   LICENSE.fmtownskit         the MIT licence of the toolkit this binary statically links
   LICENSE.SDL3               the zlib licence of the SDL that this binary statically links
   README.txt                 this file
 
-Not in this archive, by policy: ENCHANT.EXP, any disc image, any ROM, any extracted
-asset, and the recompiled module's source (which is in the git repository, where it can
-be read and diffed).
+Not in this archive, by policy: ENCHANT.EXP, any disc image, any extracted asset, and the
+recompiled module's source (which is in the git repository, where it can be read and
+diffed). The glyph ROM in assets/font-rom is the single exception to the ROM half of that
+rule, and its own README explains why it is not affected by it. The other four ROMs in the
+FreeTOWNS set are not here and the port does not read them.
 
 
 The toolkit

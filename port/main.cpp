@@ -315,7 +315,14 @@ static void report_media(const std::string& program, const std::string& tbios, c
 	if (!tbios.empty()) std::printf("media     tbios   %s\n", tbios.c_str());
 	if (!cue.empty()) std::printf("media     disc    %s\n", cue.c_str());
 	if (!disk.empty()) std::printf("media     save    %s\n", disk.c_str());
-	if (!program.empty() && !tbios.empty() && !cue.empty()) return;
+	// A disc image is enough on its own: the program and TBIOS are inside its ISO 9660 volume and are read from there
+	// when they are not on disk. So the only thing that can be missing fatally here is the disc itself.
+	if (!cue.empty()) {
+		if (program.empty()) std::printf("media     program will be read from the disc (\\ENCHANT.EXP)\n");
+		if (tbios.empty()) std::printf("media     TBIOS will be read from the disc (\\TBIOS.BIN)\n");
+		if (disk.empty()) std::printf("media     no save disk (.hdm); the game will ask for one\n");
+		return;
+	}
 
 	std::printf("media     looked in:");
 	for (const std::string& d : dirs) std::printf(" %s", d.c_str());
@@ -449,7 +456,7 @@ int main(int argc, char** argv) {
 		m_disk = find_media(m_dirs, {"userdisk.hdm", "save.hdm", "disk.hdm"});
 		if (m_cue.empty()) m_cue = cue_from_image(m_dirs);
 		report_media(m_program, m_tbios, m_cue, m_disk, m_dirs);
-		if (m_program.empty() || m_tbios.empty() || m_cue.empty()) return 2;
+		if (m_cue.empty()) return 2;   // the disc is the only fatal absence; the two files can come out of it
 	}
 	const char* exp_path = pos.size() > 0 ? pos[0] : m_program.c_str();
 	// The second positional is a frame count only when it is one. It is optional, and when `--frames=N` already
@@ -480,9 +487,31 @@ int main(int argc, char** argv) {
 		floppy_path = m_disk.empty() ? "userdisk.hdm" : m_disk.c_str();
 	}
 
-	std::vector<uint8_t> file = read_file(exp_path);
+	// THE DISC IS A SOURCE, NOT JUST A DEPENDENCY. ENCHANT.EXP and TBIOS.BIN live inside the ISO 9660 volume, and the
+	// kit already walks it: the port has read \UTFONT.FNT out of the same volume for the kanji font since the font
+	// window was fixed. So a player who has the disc image and nothing else has everything, and the extraction script
+	// tools/getfile.js stops being a step they have to know about.
+	//
+	// The disc is opened here only if a file is actually missing, so a tree that already has the two files never pays
+	// for the ISO index walk, and a run with no disc at all reaches the same error it always did.
+	towns::Disc unpack;
+	bool unpack_tried = false;
+	std::string unpack_err;
+	auto from_disc = [&](const char* iso_path, std::vector<uint8_t>& out) -> bool {
+		if (!unpack_tried) {
+			unpack_tried = true;
+			unpack.open(cue_path, unpack_err);
+		}
+		out.clear();
+		return unpack.file(iso_path, out) && !out.empty();
+	};
+
+	std::vector<uint8_t> file = exp_path[0] ? read_file(exp_path) : std::vector<uint8_t>();
+	if (file.size() < 0x1000 && from_disc("\\ENCHANT.EXP", file))
+		std::printf("media     program \\ENCHANT.EXP read from the disc (%zu bytes)\n", file.size());
 	if (file.size() < 0x1000) {
-		std::fprintf(stderr, "%s: cannot read the executable\n", exp_path);
+		std::fprintf(stderr, "%s: cannot read the executable, and \\ENCHANT.EXP is not on the disc\n",
+		             exp_path[0] ? exp_path : "ENCHANT.EXP");
 		return 2;
 	}
 
@@ -537,13 +566,15 @@ int main(int argc, char** argv) {
 	// through the kit's Disc, because the kit's cue reader refuses this disc's PREGAP on the audio tracks
 	// ("a gap not in the files is not read here"), and tool 21 in this repository already reads the ISO
 	// correctly. tools/port-build.sh extracts it from the disc with tools/cd.js.
-	std::vector<uint8_t> tbios = read_file(tbios_path);
+	std::vector<uint8_t> tbios = tbios_path[0] ? read_file(tbios_path) : std::vector<uint8_t>();
+	const bool tbios_from_disc = tbios.empty() && from_disc("\\TBIOS.BIN", tbios);
 	if (tbios.empty()) {
-		std::fprintf(stderr, "TBIOS: cannot read %s\n", tbios_path);
+		std::fprintf(stderr, "TBIOS: cannot read %s, and \\TBIOS.BIN is not on the disc\n",
+		             tbios_path[0] ? tbios_path : "tbios.bin");
 		return 2;
 	}
 	std::printf("machine   TBIOS %zu bytes from %s, low 768 KB mapped by boot_towns\n", tbios.size(),
-	            tbios_path);
+	            tbios_from_disc ? "\\TBIOS.BIN on the disc" : tbios_path);
 	// U2_TRACE_INT=1 records every BIOS call the program makes. The kit's int90() implements the
 	// services its own recordings saw, and this program asks for one they never did, so the list of
 	// what it asks for is the evidence needed to decide what to add.
