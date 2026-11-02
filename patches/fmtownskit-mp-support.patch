@@ -508,7 +508,7 @@ index 08029b9..cc426a4 100644
 +
  }  // namespace towns
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..966b4ec 100644
+index 75d5dad..bcb5256 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
 @@ -10,9 +10,21 @@
@@ -533,40 +533,50 @@ index 75d5dad..966b4ec 100644
  [[noreturn]] void x86_fault(X86Cpu& c, uint32_t site, const char* why) {
      std::fprintf(stderr, "fault at %04x:%08x: %s (eip %08x, frame %llu)\n", c.sreg[1], site, why, c.eip,
                   (unsigned long long)(g_towns ? g_towns->frame : 0));
-@@ -25,6 +37,32 @@ using towns::g_towns;
+@@ -24,7 +36,42 @@ using towns::g_towns;
+     std::exit(3);
  }
  
- static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
-+    // PATCH, this repository: log every entry into one code-selector address range, deduped. This is how "does the
-+    // program reach this routine at all" becomes answerable in a port whose functions are C++ calls with no
-+    // instruction fetches to watch. Set from the port's U2_TRACE_FN=<cs>:<lo>:<hi>.
-+    if (g_trace_fn_lo < g_trace_fn_hi && (cs & 0xFFFC) == (g_trace_fn_cs & 0xFFFC) && off >= g_trace_fn_lo
-+        && off <= g_trace_fn_hi) {
-+        static long entries = 0;
-+        if (++entries <= (long)g_watch_max)
-+            std::fprintf(stderr, "fn        %04x:%08x from %08x f%llu eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x es %08x ds %08x gs %08x\n",
-+                         cs, off, site, (unsigned long long)(g_towns ? g_towns->frame : 0), c.r[0], c.r[3], c.r[1], c.r[2],
-+                         c.r[6], c.r[7], c.r[5], c.sbase[0], c.sbase[3], c.sbase[5]);
-+        // Dump the routine's state at the same instant the machine's breakpoint fires, so a comparison of two samples
-+        // is a comparison of the same moment. Done once: a per-call dump is a file per iteration and no more truth.
-+        static bool dumped = false;
-+        if (!dumped && g_trace_fn_dump_path && g_trace_fn_dump_len && g_towns
-+            && g_towns->frame >= g_trace_fn_dump_frame) {
-+            dumped = true;
-+            const uint32_t at = c.sbase[5] + c.r[5] + g_trace_fn_dump_off;
-+            std::vector<uint8_t> buf(g_trace_fn_dump_len);
-+            g_towns->read_block(at, buf.data(), buf.size());
-+            if (FILE* fp = std::fopen(g_trace_fn_dump_path, "wb")) {
-+                std::fwrite(buf.data(), 1, buf.size(), fp);
-+                std::fclose(fp);
-+                std::printf("fndump    %08x -> %s (%u bytes)\n", at, g_trace_fn_dump_path, g_trace_fn_dump_len);
-+            }
++// PATCH, this repository: log every entry into one code-selector address range. This is how "does the program reach
++// this routine at all" becomes answerable in a port whose functions are C++ calls with no instruction fetches to
++// watch. Set from the port's U2_TRACE_FN=<cs>:<lo>:<hi>.
++//
++// It is a function rather than a block inside find() because a call to a function the module already knows no longer
++// goes through find(): x86_call_known goes straight to the translation after checking the overlay table, which is what
++// makes the overlay free. Left inside find() alone it reported ONE routine across an entire create route where
++// stop-at proved dozens were entered, and the truncation looked like a finding.
++void x86_fn_trace_enter(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
++    if (!(g_trace_fn_lo < g_trace_fn_hi && (cs & 0xFFFC) == (g_trace_fn_cs & 0xFFFC) && off >= g_trace_fn_lo
++          && off <= g_trace_fn_hi))
++        return;
++    static long entries = 0;
++    if (++entries <= (long)g_watch_max)
++        std::fprintf(stderr, "fn        %04x:%08x from %08x f%llu eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x es %08x ds %08x gs %08x\n",
++                     cs, off, site, (unsigned long long)(g_towns ? g_towns->frame : 0), c.r[0], c.r[3], c.r[1], c.r[2],
++                     c.r[6], c.r[7], c.r[5], c.sbase[0], c.sbase[3], c.sbase[5]);
++    // Dump the routine's state at the same instant the machine's breakpoint fires, so a comparison of two samples is a
++    // comparison of the same moment. Done once: a per-call dump is a file per iteration and no more truth.
++    static bool dumped = false;
++    if (!dumped && g_trace_fn_dump_path && g_trace_fn_dump_len && g_towns
++        && g_towns->frame >= g_trace_fn_dump_frame) {
++        dumped = true;
++        const uint32_t at = c.sbase[5] + c.r[5] + g_trace_fn_dump_off;
++        std::vector<uint8_t> buf(g_trace_fn_dump_len);
++        g_towns->read_block(at, buf.data(), buf.size());
++        if (FILE* fp = std::fopen(g_trace_fn_dump_path, "wb")) {
++            std::fwrite(buf.data(), 1, buf.size(), fp);
++            std::fclose(fp);
++            std::printf("fndump    %08x -> %s (%u bytes)\n", at, g_trace_fn_dump_path, g_trace_fn_dump_len);
 +        }
 +    }
++}
++
+ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
++    x86_fn_trace_enter(c, cs, off, site);
      X86Func f = x86_lookup_cs(cs & 0xFFFC, off);
      if (!f) f = x86_lookup_cs(cs, off);
      if (!f) {
-@@ -38,6 +76,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
+@@ -38,6 +85,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
  void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t next) {
      sel &= 0xFFFF;
      if (n == 2) off &= 0xFFFF;
@@ -598,7 +608,7 @@ index 75d5dad..966b4ec 100644
      if (call) {
          if (n == 4) { push32(c, c.sreg[1]); push32(c, next); }
          else { push16(c, c.sreg[1]); push16(c, next); }
-@@ -46,6 +109,14 @@ void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t n
+@@ -46,6 +118,14 @@ void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t n
      x86_load_seg(c, 1, sel);
      X86Func f = find(c, (uint16_t)sel, off, next);
      f(c);
@@ -613,7 +623,7 @@ index 75d5dad..966b4ec 100644
      if (!call) return;
      // a far call returns through retf, which set CS and EIP; the caller checks EIP
      (void)old;
-@@ -74,6 +145,29 @@ void x86_call(X86Cpu& c, uint32_t target) {
+@@ -74,6 +154,30 @@ void x86_call(X86Cpu& c, uint32_t target) {
      f(c);
  }
  
@@ -636,6 +646,7 @@ index 75d5dad..966b4ec 100644
 +}
 +
 +void x86_call_known(X86Cpu& c, uint32_t target, X86Func fn) {
++    x86_fn_trace_enter(c, c.sreg[1], target, target);
 +    X86Func s = x86_shadow(c.sreg[1], target);
 +    (s ? s : fn)(c);
 +}
@@ -643,7 +654,7 @@ index 75d5dad..966b4ec 100644
  void x86_jump(X86Cpu& c, uint32_t target) {
      X86Func f = find(c, c.sreg[1], target, target);
      f(c);
-@@ -158,6 +252,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
+@@ -158,6 +262,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
      towns::Machine& m = *g_towns;
      m.advance(m.machine_time(c.clocks));
      c.eip = next;
@@ -1264,7 +1275,7 @@ index 2a0e2eb..7c7e0e4 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/x86.h b/runtime/x86.h
-index 48bb159..594ec7e 100644
+index 48bb159..b55efa2 100644
 --- a/runtime/x86.h
 +++ b/runtime/x86.h
 @@ -34,6 +34,31 @@ struct X86Cpu {
@@ -1335,7 +1346,7 @@ index 48bb159..594ec7e 100644
      uint8_t* p = g_x86_page[a >> 12];
      if (X86_UNLIKELY(!p || (a & 0xFFF) > 0xFFC)) { x86_mem_write(a, 4, v); return; }
      std::memcpy(p + (a & 0xFFF), &v, 4);
-@@ -187,6 +218,13 @@ void     x86_iret(X86Cpu& c, int n);
+@@ -187,6 +218,16 @@ void     x86_iret(X86Cpu& c, int n);
  void     x86_system(X86Cpu& c, uint32_t site, const char* what);      // lgdt, mov crN, hlt, ...
  bool     x86_lsl(X86Cpu& c, uint32_t sel, uint32_t& limit);           // false: no such selector
  void     x86_call(X86Cpu& c, uint32_t target);           // a call through a register or memory
@@ -1345,6 +1356,9 @@ index 48bb159..594ec7e 100644
 +// the table is empty and the cost is one comparison before the direct call, and adding an overlay never needs
 +// the module regenerated because every known call site already comes through here.
 +void     x86_call_known(X86Cpu& c, uint32_t target, X86Func fn);
++// Log one entry into the U2_TRACE_FN address range, if one is set. Called from BOTH find() and x86_call_known,
++// because a call to a function the module already knows does not go through find() any more.
++void     x86_fn_trace_enter(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site);
 +X86Func  x86_shadow(uint16_t cs, uint32_t addr);         // the overlay for cs:addr, or null
  void     x86_jump(X86Cpu& c, uint32_t target);           // a jump the function does not hold
  void     x86_poll(X86Cpu& c);                            // the budget is spent: time, interrupts

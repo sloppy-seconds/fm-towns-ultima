@@ -148,9 +148,100 @@ void native_000e9c2c(X86Cpu& c) {
 	c.eip = pop32(c);                                       // ret
 }
 
+// ---- native_000e42d0: guest 0xe42d0, file 0xe44d0 ---------------------------------------
+//
+// A decimal parser, 49 bytes and one of the four byte-identical matches that the create route actually enters (329
+// times). Skip spaces and tabs, then read digits:
+//
+//     int f(char *p) { while (*p == ' ' || *p == '\t') p++; int n = 0;
+//                      while (*p >= '0' && *p <= '9') n = n * 10 + (*p++ - '0'); return n; }
+//
+// The multiply is the compiler's `lea ecx,[ecx+ecx*4]` then `add ecx,ecx`, so it is ten times, not a call. Blocks and
+// their ticks come from the twin: 6 entry, 11 at each loop head, 7 for the second test, 9 on the skip advance, 23 on
+// the digit accumulate, 12 at the exit. The two cursors stay in edx and ecx because both backward jumps are poll
+// sites and the twin resumes at 0xe42d6 and 0xe42e3.
+void native_000e42d0(X86Cpu& c) {
+	shadow_entered(0xE42D0u);
+	if (shadow_off()) { p_game::f_000e42d0(c); return; }
+	X86_TICK(c, 6);
+	c.r[2] = rd32(c.sbase[2] + c.r[4] + 0x4u);          // edx = p
+	c.r[1] = x86_sub(c, c.r[1], c.r[1], 0, 4);          // sub ecx, ecx
+	for (;;) {
+		X86_TICK(c, 11);                                // L_e42d6: skip blanks
+		s8(c, 0, rd8(c.sbase[3] + c.r[2]));
+		(void)x86_sub(c, g8(c, 0), 0x20u, 0, 1);        // cmp al, ' '
+		if (x86_cc(c, 4)) goto advance;
+		X86_TICK(c, 7);
+		(void)x86_sub(c, g8(c, 0), 0x09u, 0, 1);        // cmp al, tab
+		if (x86_cc(c, 5)) break;                        // jne: not a blank, go read digits
+	advance:
+		X86_TICK(c, 9);
+		c.r[2] = x86_inc(c, c.r[2], 4);                 // inc edx
+		X86_POLL(c, 0xE42D6u);
+	}
+	for (;;) {
+		X86_TICK(c, 11);                                // L_e42e3: digits
+		s8(c, 0, rd8(c.sbase[3] + c.r[2]));
+		(void)x86_sub(c, g8(c, 0), 0x30u, 0, 1);        // cmp al, '0'
+		if (x86_cc(c, 2)) break;                        // below '0'
+		X86_TICK(c, 7);
+		(void)x86_sub(c, g8(c, 0), 0x39u, 0, 1);        // cmp al, '9'
+		if (x86_cc(c, 7)) break;                        // above '9'
+		X86_TICK(c, 23);
+		c.r[1] = c.r[1] + c.r[1] * 4;                   // lea ecx,[ecx+ecx*4]
+		c.r[1] = x86_add(c, c.r[1], c.r[1], 0, 4);      // add ecx, ecx  => n * 10
+		c.r[0] = g8(c, 0);                              // movzx eax, al
+		c.r[0] = x86_sub(c, c.r[0], 0x30u, 0, 4);       // sub eax, '0'
+		c.r[0] = x86_add(c, c.r[0], c.r[1], 0, 4);      // add eax, ecx
+		{ uint32_t t = c.r[1]; c.r[1] = c.r[0]; c.r[0] = t; }   // xchg ecx, eax
+		c.r[2] = x86_inc(c, c.r[2], 4);                 // inc edx
+		X86_POLL(c, 0xE42E3u);
+	}
+	X86_TICK(c, 12);                                    // L_e42fe
+	c.r[0] = c.r[1];
+	c.eip = pop32(c);
+}
+
+// ---- native_000e642c: guest 0xe642c, file 0xe662c ---------------------------------------
+//
+// A signed 16-bit field getter, 9 bytes: `int f(char *p) { return *(int16_t *)(p + 0x36); }`. Entered 12 times on the
+// create route. One block, 20 ticks, no branch and nothing to poll.
+void native_000e642c(X86Cpu& c) {
+	shadow_entered(0xE642Cu);
+	if (shadow_off()) { p_game::f_000e642c(c); return; }
+	X86_TICK(c, 20);
+	c.r[0] = rd32(c.sbase[2] + c.r[4] + 0x4u);
+	c.r[0] = (uint32_t)(int32_t)(int16_t)rd16(c.sbase[3] + c.r[0] + 0x36u);
+	c.eip = pop32(c);
+}
+
+// ---- native_000e63fc: guest 0xe63fc, file 0xe65fc ---------------------------------------
+//
+// Copies two fields out of a record, 23 bytes:
+//
+//     void f(char *p, int *a, int *b) { *a = *(int *)(p + 0x1e); *b = *(int *)(p + 0x2a); }
+//
+// One block, 34 ticks. The writes go through wr32 on the data segment, matching the twin.
+void native_000e63fc(X86Cpu& c) {
+	shadow_entered(0xE63FCu);
+	if (shadow_off()) { p_game::f_000e63fc(c); return; }
+	X86_TICK(c, 34);
+	c.r[1] = rd32(c.sbase[2] + c.r[4] + 0x4u);          // ecx = p
+	c.r[0] = rd32(c.sbase[3] + c.r[1] + 0x1Eu);         // eax = *(p + 0x1e)
+	c.r[2] = rd32(c.sbase[2] + c.r[4] + 0x8u);          // edx = a
+	wr32(c.sbase[3] + c.r[2], c.r[0]);
+	c.r[0] = rd32(c.sbase[3] + c.r[1] + 0x2Au);         // eax = *(p + 0x2a)
+	c.r[2] = rd32(c.sbase[2] + c.r[4] + 0xCu);          // edx = b
+	wr32(c.sbase[3] + c.r[2], c.r[0]);
+	c.eip = pop32(c);
+}
+
 // Ascending by address, because x86_lookup() binary-searches this table.
 const X86FuncEntry g_x86_shadows[] = {
 	{ 0xe120c, native_000e120c },
+	{ 0xe42d0, native_000e42d0 },
+	{ 0xe63fc, native_000e63fc },
+	{ 0xe642c, native_000e642c },
 	{ 0xe9c2c, native_000e9c2c },
 };
 

@@ -820,6 +820,11 @@ int main(int argc, char** argv) {
 	// byte can miss the write it was set for. Linear is what the program's code addresses.
 	long watch_at = -1;
 	uint32_t watch_lo_arm = 0, watch_hi_arm = 0;
+	// U2_WATCH_MAX=<n> prints that many hits instead of 64. It is read HERE, outside every block, because the budget
+	// is shared: it also bounds `U2_TRACE_FN`, which logs every routine entry in a range. Read only inside the U2_WATCH
+	// block, a traced enumeration silently stopped at 64 entries and looked complete, which is exactly the kind of
+	// quiet truncation that reads as a finding. Measured 2026-11-02 on the create route.
+	if (const char* mx = std::getenv("U2_WATCH_MAX")) g_watch_max = (uint32_t)std::strtoul(mx, nullptr, 10);
 	if (const char* w = std::getenv("U2_WATCH")) {
 		char buf[64];
 		std::snprintf(buf, sizeof buf, "%s", w);
@@ -831,12 +836,10 @@ int main(int argc, char** argv) {
 		}
 		g_watch_lo = (uint32_t)std::strtoul(buf, nullptr, 16);
 		g_watch_hi = g_watch_lo + (len ? len : 1);
-		// U2_WATCH_AT=<frame> arms it at that frame instead of at start-up, and U2_WATCH_MAX=<n> prints that many
-		// hits instead of 64. Both exist for one reason: the interesting writes to a screen come after the fills that
-		// clear it, and a watch armed at start-up spends its whole budget on the fills. Measured before the knob:
-		// four watches over different ranges all reported exactly 64 lines, all the same start-up fill, which read
-		// as "nothing else writes there".
-		if (const char* mx = std::getenv("U2_WATCH_MAX")) g_watch_max = (uint32_t)std::strtoul(mx, nullptr, 10);
+		// U2_WATCH_AT=<frame> arms it at that frame instead of at start-up. It exists for one reason: the interesting
+		// writes to a screen come after the fills that clear it, and a watch armed at start-up spends its whole budget on
+		// the fills. Measured before the knob: four watches over different ranges all reported exactly 64 lines, all the
+		// same start-up fill, which read as "nothing else writes there".
 		if (const char* at = std::getenv("U2_WATCH_AT")) {
 			watch_at = std::strtol(at, nullptr, 10);
 			watch_lo_arm = g_watch_lo;
