@@ -66,13 +66,15 @@ def one_run(port_path, template_disk, shadow_off, boot, settle, work, tag):
         target = boot
         for i, key in enumerate(ROUTE):
             target += settle
-            port.key_at(target, key)
+            port.cmd(cmd='key', key=key, at=str(target))
             if i in CHECKPOINTS:
-                r = port.cmd(cmd='mem', addr=f'0x{SCREEN_LO:x}', n=SCREEN_LEN)
-                block = r['hex']
+                # PARKED at the same frame as the key, and issued before reaching it. Asking after the fact lands a
+                # frame or two late and varies per run, which is what made the control fail.
+                r = port.cmd(cmd='mem', addr=f'0x{SCREEN_LO:x}', n=SCREEN_LEN, at=str(target))
                 frames_seen.append((target, int(r.get('frame', -1))))
-                shots[CHECKPOINTS[i]] = hashlib.sha256(bytes.fromhex(block)).hexdigest()[:16]
+                shots[CHECKPOINTS[i]] = hashlib.sha256(bytes.fromhex(r['hex'])).hexdigest()[:16]
                 entered_at.append(port.hits())
+            port.step_to(target)
         entry = port.hits()
     finally:
         port.close()

@@ -243,6 +243,21 @@ static std::vector<uint8_t> read_file(const char* path) {
 	return v;
 }
 
+// Read a block and render it as hex. Shared by the immediate and the parked `mem` replies so the two cannot drift
+// apart in formatting, and so the parked one is the same read at a different moment rather than a second implementation.
+static std::string mem_hex(towns::Machine& m, uint32_t linear, uint32_t len) {
+	std::vector<uint8_t> bytes(len, 0);
+	m.read_block(linear, bytes.data(), len);
+	std::string hex;
+	hex.reserve((size_t)len * 2);
+	for (uint8_t b : bytes) {
+		char hx[3];
+		std::snprintf(hx, sizeof hx, "%02x", b);
+		hex += hx;
+	}
+	return hex;
+}
+
 int main(int argc, char** argv) {
 	// Flags first, then the positional arguments the port has always taken. `--sdl` opens the kit's window
 	// (fmtownskit's SdlHost) and runs unpaced until the window is closed, and it changes NOTHING else: the
@@ -852,7 +867,13 @@ int main(int argc, char** argv) {
 		long shot_id = -1;       // the id of a `shot` parked until a frame
 		long shot_at = 0;        // the frame it renders on, so the picture is frame-exact and comparable
 		std::string shot_path;   // empty means inline the PNG as base64
-		bool busy() const { return frame_id >= 0 || wait_id >= 0 || shot_id >= 0; }
+		// A `mem` parked until a frame, for the same reason a shot is: the reply is what a differential samples, and a
+		// reply serviced "a frame or two later, whenever" is what made two identical runs disagree. Measured before
+		// this existed: wanted frame 6200, read at 6201, and 13400 read at 13402, varying per run.
+		long mem_id = -1;
+		long mem_at = 0;
+		uint32_t mem_linear = 0, mem_len = 0;
+		bool busy() const { return frame_id >= 0 || wait_id >= 0 || shot_id >= 0 || mem_id >= 0; }
 	} ctlpend;
 
 	// A cheap stand-in for "did the picture change", computed the same way every time so two frames are comparable.
@@ -998,6 +1019,19 @@ int main(int argc, char** argv) {
 					                                    ",\"from\":" + std::to_string((long long)ctlpend.frame_from) +
 					                                    ",\"stepped\":true"));
 					ctlpend.frame_id = -1;
+				}
+				// A parked `mem` is answered on exactly the frame it asked for, like a shot. This is what makes a sample a
+				// property of the run rather than of when the driver's previous command happened to be read.
+				if (ctlpend.mem_id >= 0 && (long)mm.frame >= ctlpend.mem_at) {
+					const long mid = ctlpend.mem_id;
+					const uint32_t ml = ctlpend.mem_linear, mn = ctlpend.mem_len;
+					ctlpend.mem_id = -1;
+					char linh[16];
+					std::snprintf(linh, sizeof linh, "0x%08x", ml);
+					ctl->send(u2ctl::ok_reply(mid,
+					                            std::string("\"linear\":\"") + linh + "\",\"n\":" + std::to_string(mn) +
+					                                    ",\"hex\":\"" + mem_hex(m, ml, mn) + "\",\"frame\":" +
+					                                    std::to_string((unsigned long long)mm.frame)));
 				}
 				if (ctlpend.shot_id >= 0 && (long)mm.frame >= ctlpend.shot_at) {
 					// A parked shot renders on exactly the frame it asked for, which is what makes it comparable with
@@ -1233,20 +1267,31 @@ int main(int argc, char** argv) {
 							ctl->send(u2ctl::error_reply(cc.id, "mem n must be between 1 and 65536"));
 							continue;
 						}
-						std::vector<uint8_t> bytes(len, 0);
-						m.read_block(linear, bytes.data(), len);
-						std::string hex;
-						hex.reserve(len * 2);
-						for (uint8_t b : bytes) {
-							char hx[3];
-							std::snprintf(hx, sizeof hx, "%02x", b);
-							hex += hx;
+						// `at` parks the read until that frame, so the sample is a property of the run and not of when this
+						// command happened to be read. Idempotent like `frame at`: a frame already gone is answered now.
+						if (auto it = cc.args.find("at"); it != cc.args.end()) {
+							long at = std::strtol(it->second.c_str(), nullptr, 10);
+							if (at < 0) {
+								ctl->send(u2ctl::error_reply(cc.id, "mem at must not be negative"));
+								continue;
+							}
+							if (at > (long)mm.frame) {
+								if (ctlpend.mem_id >= 0) {
+									ctl->send(u2ctl::error_reply(cc.id, "a mem is already parked"));
+									continue;
+								}
+								ctlpend.mem_id = cc.id;
+								ctlpend.mem_at = at;
+								ctlpend.mem_linear = linear;
+								ctlpend.mem_len = len;
+								continue;
+							}
 						}
 						char lin[16];
 						std::snprintf(lin, sizeof lin, "0x%08x", linear);
 						ctl->send(u2ctl::ok_reply(cc.id,
 						                            std::string("\"linear\":\"") + lin + "\",\"n\":" + std::to_string(len) +
-						                                    ",\"hex\":\"" + hex + "\"," + fr));
+						                                    ",\"hex\":\"" + mem_hex(m, linear, len) + "\"," + fr));
 					} else if (cc.cmd == "shot") {
 						// The same renderer U2_SHOT uses, so "the socket's picture" and "the file's picture" are the
 						// same bytes and that is checkable rather than plausible. Inline as base64 by default; a `path`

@@ -123,6 +123,7 @@ const SLOW = new Set([
 	'disp32 comparison works and can fail',
 	'byte-identity equivalence rule',
 	'attribution ledger',
+	'shadow differential',
 ]);
 const skipCheck = (name) => FAST || (ONLY !== null && !ONLY.has(name));
 
@@ -671,6 +672,32 @@ if (skipCheck('attribution ledger')) { recordSkip('attribution ledger'); } else 
 
 		record('attribution ledger', problems);
 	}
+}
+
+// E7b. The shadow differential: does a natively written replacement leave the machine in the same state as the
+// recompiled function it replaces? This is item 11c's claim, so it is a check rather than a paragraph. Two parts, both
+// must pass. The comparison is baseline against live shadows on five screens and the save disk. The control is the
+// baseline against itself, which catches a harness measuring run-to-run noise instead of the code under test: that is
+// not hypothetical, it is what the first three versions did, and the cause was a sample serviced a frame late.
+// Skips nothing: it needs a built port, and says so rather than passing quietly.
+if (!skipCheck('shadow differential')) {
+	const problems = [];
+	const binary = path.join(ROOT, 'build', 'port', 'b', 'u2port');
+	const py = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
+		? path.join(__dirname, '.venv', 'bin', 'python3') : 'python3';
+	if (!fs.existsSync(binary)) {
+		problems.push('build/port/b/u2port is missing, so the differential was not run (./tools/port-build.sh)');
+	} else {
+		for (const [label, extra] of [['differential', []], ['control', ['--control']]]) {
+			const r = spawnSync(py, [path.join(__dirname, 'shadow-diff.py'), ...extra],
+				{ cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
+			if (r.status !== 0) {
+				const lines = ((r.stdout || '') + (r.stderr || '')).split('\n').filter((l) => /FAIL/.test(l));
+				problems.push(`${label}: ` + (lines.slice(0, 2).join(' | ') || 'exited ' + r.status));
+			}
+		}
+	}
+	record('shadow differential', problems);
 }
 
 // E7c. A tool that launches the port and sets an instrument switch must pass --dev, because without the flag the port

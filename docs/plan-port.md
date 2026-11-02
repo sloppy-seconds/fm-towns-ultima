@@ -96,7 +96,7 @@ that produces defect 1.
 
 ### 11c. The region-replacement protocol, with differential verification
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 **The architecture is now decided: strangler.** Recorded in
 [goal-behavioural-faithfulness.md](goal-behavioural-faithfulness.md) "The architecture: strangler". A native
@@ -362,20 +362,25 @@ Three fixes went in, each closing part of the gap and each measured:
 | `key at=<frame>` | schedules the press through the same list `U2_KEYS` fills, so the keystroke itself is framed |
 | `step_to` / `key_at` in `tools/drive.py` | the harness uses both |
 
-**It is still not exact.** Recording the frame the sample was actually taken on gives `(6200, 6201)`, `(9800, 9801)`,
-`(13400, 13402)`, so the port replies when `mm.frame >= target` and keeps advancing while the reply is transmitted.
-The overshoot varies by a frame between runs, so the screens still disagree and the control still fails.
+**It was not exact, and a parked read is what fixed it.** Recording the frame each sample was actually taken on gave
+`(6200, 6201)`, `(9800, 9801)`, `(13400, 13402)`: the `mem` reply was a *separate command*, serviced a frame or two
+after the `frame at=` that was supposed to anchor it, and the lateness varied per run.
 
-**The fix is a hold, and it is a design change worth doing deliberately.** The control loop is serviced inside the
-vsync hook, so blocking there until the next command would stop the machine advancing and make the socket behave like
-a debugger instead of a suggestion box. The alternative that needs no port change is one process per checkpoint using
-`--frames=<n>` with `U2_KEYS` and `U2_MEM_DUMP`, which stops exactly at the frame limit, at the cost of ten runs
-instead of two.
+`mem at=<frame>` parks the read the way `shot at` already parked a render, and it is the same read at a different
+moment rather than a second implementation: `mem_hex()` renders both replies. The harness now schedules the key and
+parks the read at the same frame, before reaching it, so neither can be serviced late.
 
-**The gate entry was added and then taken back out.** `tools/shadow-diff.py` ran as a check for one iteration and
-failed on its own control, which is the correct behaviour for a flaky instrument and the wrong thing to leave in a
-suite that has to be green. The script stays, the check does not, and 11c stays OPEN until the hold makes the
-comparison exact.
+**Measured, five times each:** the control is identical **5 of 5** where it was 1 of 3, and the differential is
+identical **5 of 5**. The deliberately wrong build still fails, on four screens and on the disk, so the comparison did
+not become insensitive while it became stable. That check matters more than the others: a stable harness that agrees
+with everything is worse than a flaky one.
+
+**And the gate is back, verified both ways.** `tools/shadow-diff.py` runs as a check with its control, passes clean,
+and goes red when the wrong binary is swapped in.
+
+A hold was considered and rejected. The control loop is serviced inside the vsync hook, so blocking there would stop
+the machine, but it would also add a pause the original never had in order to make a measurement work. Anchoring the
+observation leaves the machine behaving as it should.
 
 **The silent-instrument class is closed, 2026-11-02.** Every run now prints one `instruments` line listing the `U2_`
 variables that are set, derived from the environment so it cannot drift from the 39 switches the port reads, with any
