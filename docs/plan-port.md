@@ -43,6 +43,7 @@ Derived from the items below, not maintained separately. `node tools/plancheck.j
 | 10f `state`, the roster and world parsed for the caller | AUTONOMOUS | **done**, three characters named and every compared field agrees with `savedisk.js` |
 | 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
 | 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
+| 5m Music: where it comes from, and when it starts | AUTONOMOUS | **partly known**, the port's side is measured and recorded in `docs/music.md`, the original's side has no sound device to measure |
 
 ## The items this track owns that the old plan did not have
 
@@ -1723,6 +1724,38 @@ nowhere else, because everything else in the port reads bytes rather than the ro
 The auto-play harness is the one with the largest shadow. An agent that can step frames, read state and press keys
 without a window is an agent that can walk the overworld until something breaks, which is how defect 1 was found and
 is how the phase-5 mechanics items would be confirmed against the running game rather than inferred from the module.
+
+### 5m. Music: where it comes from, and when it starts
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous, and it needs no decision. The work left is a sound device inside the emulator container and a capture, both mechanical |
+| depends on | nothing |
+| done when | the original's silence gap is captured and set beside the port's 63 seconds, either showing they agree or naming the difference in seconds and which way it points. The failure case: if Tsugaru still cannot be given an audio device, `docs/music.md` records that negative and the item closes as CUT rather than sitting open |
+| blocked by | nothing technical anywhere. Paul parked it on 2026-11-03 and asked for it not to be worked further for now |
+
+**What is now known.** The music is not CD audio, measured rather than inferred: across 14,000 frames the program
+makes exactly one CD-DA play request and it asks for MSF `00:00:00` to `00:00:00`, in both `DS` and `ES`. The seven
+audio tracks on the disc start at LBA 9000 and are never touched. So the music comes from the sound chips, and those
+are silent for 63 machine seconds before the first write, then driven continuously at about 695 writes a second to the
+end of the run. The screen at the exact frame the first write lands is the title menu.
+
+**What that settles.** The port is not adding the delay. A program that writes nothing to the sound hardware for a
+minute cannot be made silent by its mixer, and the mixer was the easy suspect because that is what a late start sounds
+like.
+
+**What is left.** Whether the original behaves the same way. That needs the emulator to have audio at all, and on
+2026-11-03 it did not: `SDL_AUDIODRIVER=disk` was set and confirmed in the container, SDL still went to ALSA and failed
+with `Cannot open PCM device.`, and Tsugaru's readme warns that audio does not work on natively-running Linux and
+offers no dump option of its own. The next step is a PulseAudio null sink inside the container so the emulator has a
+device that always opens, with the capture taken from the sink's monitor rather than through a driver the emulator has
+to cooperate with.
+
+The two instruments this produced, the `int 93h` segment dump and the `out8` sound census, are committed in
+`fmtownskit` at `db7744d` and pinned in the parent. Both sit behind `trace_int`, so neither changes a frame. Full
+measurements, the refuted segment hypothesis included, are in `docs/music.md`.
 
 ---
 

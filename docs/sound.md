@@ -88,4 +88,4 @@ for Ultima III's towns. *Format open.*
 
 ---
 
-**[Assets and graphics](assets-and-graphics.md)** **[The save disk](save-disk.md)**
+**[Assets and graphics](assets-and-graphics.md)** **[The save disk](save-disk.md)** **[Music: where it comes from, and when it starts](music.md)**
