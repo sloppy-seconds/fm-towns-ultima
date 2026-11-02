@@ -149,6 +149,33 @@ plays either.
 **That is also why a route is now possible to construct** rather than guess: the trigger is a named sound, and a
 key sweep during gameplay either enters the shadow or records that it does not.
 
+### The route into gameplay exists, and a long in-game run hangs, 2026-11-02
+
+`tools/drive.py` drives the port over its control socket, always on a copy of the disk. The first job was finding a
+route that reaches gameplay, and vision settled the navigation rather than guesswork (`tools/look.py`):
+
+```
+space, Down, Down, Return, Down, Return, Y, space
+```
+
+That is the title, the three-item main menu (Return to Title / Generate Character / Journey Onward), Journey Onward,
+the four-slot Select Player screen (`Select with arrows`, so the digits do nothing), the `O.K.? (Y/N)` confirmation,
+and the space that dismisses the prompt. At the end of it a screenshot shows the map, the character sprite and the
+status panel, so the route is confirmed by the display and not by a guess about the menu.
+
+**No swept key has entered the shadow.** Every sweep run reports zero entries, and the reason is not the keys: a
+settle of 900 frames per key works repeatedly, but a **20,000-frame settle after entering the map did not return
+within 1500 seconds**. The port stops answering frame commands, which is a hang rather than a slow run.
+
+**One thing this cost, recorded so nobody repeats it.** The port prints `stopped` both when the guest calls
+`int 21h AH=4Ch` (`fmtownskit/runtime/towns_dos.cpp:525`) and when the control socket's own `quit` arrives
+(`port/main.cpp:1208`), and the printed register block is identical. Reading `stopped` as "the game exited" was
+wrong twice this session. The two causes are distinguishable only by a stderr or exit-code change that the port
+does not currently make.
+
+**So 11c is now blocked on a gameplay hang, not on the call graph.** The route is found and the sweep logic works.
+What is missing is a port that survives more than a few thousand frames in the world.
+
 **Two corrections this investigation forced, both from the guest-versus-file frame.**
 
 - `tools/findcallers.py` reports direct calls only from inside asserted extents, so it answered "0 callers" for
