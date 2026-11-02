@@ -779,7 +779,7 @@ index 4d13162..a91e9f7 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..ffea69e 100644
+index 629a87e..26e1029 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,12 +35,43 @@ static int new_handle(Machine& m) {
@@ -967,7 +967,26 @@ index 629a87e..ffea69e 100644
          char why[64];
          std::snprintf(why, sizeof why, "int 93h AX=%04Xh: not the CD", eax & 0xFFFF);
          x86_fault(c, c.eip, why);
-@@ -522,6 +655,14 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -503,6 +636,18 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+         return;
+     case 0x54: {                                    // the table of contents
+         const auto& t = disc.tracks();
++        // PATCH, this repository. With no disc opened the track list is empty and front()/back() dereference
++        // nothing: that is a segfault in the host, not a DOS error the program can see. It happened for real in the
++        // ultima-trilogy port once the disc became optional, where a cached run reached the TOC ask and died. Answer
++        // the way an empty drive does, with nothing, and let the caller deal with it.
++        if (t.empty()) {
++            // AH=2 is the error the program's own probe already treats as "no CD", measured at guest 0xe2440-0xe24d7
++            // and recorded further up this function, so the answer is the one it knows how to read rather than a
++            // buffer of invented tracks.
++            if (trace_int) std::fprintf(stderr, "  CD-DA toc: no disc mounted\n");
++            ret = (ret & 0xFFFF00FFu) | 0x0200u;
++            return;
++        }
+         std::vector<uint8_t> o(6 + 3 * t.size());
+         o[0] = 3;                                   // as RUN386's buffer held it (*not understood*)
+         o[1] = (uint8_t)t.front().number;
+@@ -522,6 +667,14 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      x86_fault(c, c.eip, why);
  }
  
@@ -982,7 +1001,7 @@ index 629a87e..ffea69e 100644
  // The keyboard BIOS, int 90h, as FORRBIOS.NSD answers it in protected mode (the program
  // pushes "DOSX" "BIOS" before each call): read on the oracle (tools/oracle.py --trace-calls at
  // each int and the instruction after it) with no key ever pressed -- AH 0 for every function,
-@@ -531,11 +672,35 @@ void Machine::int90(X86Cpu& c) {
+@@ -531,11 +684,35 @@ void Machine::int90(X86Cpu& c) {
      uint8_t ah = (c.r[0] >> 8) & 0xFF;
      if (trace_int) std::fprintf(stderr, "int 90h AX=%04X EBX=%08X ECX=%08X EDX=%08X\n", c.r[0] & 0xFFFF, c.r[3], c.r[1], c.r[2]);
      switch (ah) {
