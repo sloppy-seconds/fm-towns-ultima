@@ -310,7 +310,8 @@ static std::string cue_from_image(const std::vector<std::string>& dirs) {
 // Say what was found and, when something is missing, what to do about it. Silence here is the failure mode this
 // repository keeps paying for: a run that found nothing looks exactly like a run that found the wrong thing.
 static void report_media(const std::string& program, const std::string& tbios, const std::string& cue,
-                         const std::string& disk, const std::vector<std::string>& dirs) {
+                         const std::string& disk, const std::vector<std::string>& dirs,
+                         const std::string& cache_dir) {
 	if (!program.empty()) std::printf("media     program %s\n", program.c_str());
 	if (!tbios.empty()) std::printf("media     tbios   %s\n", tbios.c_str());
 	if (!cue.empty()) std::printf("media     disc    %s\n", cue.c_str());
@@ -320,6 +321,14 @@ static void report_media(const std::string& program, const std::string& tbios, c
 	if (!cue.empty()) {
 		if (program.empty()) std::printf("media     program will be read from the disc (\\ENCHANT.EXP)\n");
 		if (tbios.empty()) std::printf("media     TBIOS will be read from the disc (\\TBIOS.BIN)\n");
+		if (disk.empty()) std::printf("media     no save disk (.hdm); the game will ask for one\n");
+		return;
+	}
+	// No disc, but an earlier run kept what the disc was for. That is a success, and it must not print the block below,
+	// which reads as a failure.
+	if (!cache_dir.empty() && file_exists(cache_dir + "/ENCHANT.EXP")) {
+		std::printf("media     no disc, running from the cache at %s (put a disc image back to refresh it)\n",
+		            cache_dir.c_str());
 		if (disk.empty()) std::printf("media     no save disk (.hdm); the game will ask for one\n");
 		return;
 	}
@@ -339,6 +348,11 @@ static void report_media(const std::string& program, const std::string& tbios, c
 	std::printf("  u2port ENCHANT.EXP tbios.bin disc.cue userdisk.hdm\n");
 	std::printf("README.txt in this archive has the longer version.\n");
 }
+
+// Write a file taken from the disc into the cache, creating the directories it needs. False on any failure, so a
+// caller can leave the read on the disc rather than serve a path that is not there. A read-only tree is the ordinary
+// case for that: the game still runs, it just keeps reading the disc.
+static bool cache_store(const std::string& dir, const std::string& rel, const std::vector<uint8_t>& bytes);
 
 static std::vector<uint8_t> read_file(const char* path) {
 	std::vector<uint8_t> v;
@@ -368,6 +382,17 @@ static std::string mem_hex(towns::Machine& m, uint32_t linear, uint32_t len) {
 		hex += hx;
 	}
 	return hex;
+}
+
+static bool cache_store(const std::string& dir, const std::string& rel, const std::vector<uint8_t>& bytes) {
+	if (dir.empty() || rel.empty() || bytes.empty()) return false;
+	std::error_code ec;
+	const fs::path out(dir + "/" + rel);
+	fs::create_directories(out.parent_path(), ec);
+	std::ofstream f(out, std::ios::binary);
+	if (!f) return false;
+	f.write(reinterpret_cast<const char*>(bytes.data()), (std::streamsize)bytes.size());
+	return f.good();
 }
 
 int main(int argc, char** argv) {
@@ -447,6 +472,10 @@ int main(int argc, char** argv) {
 	// NO ARGUMENTS: find the media rather than refusing to start. See the block above for what is searched and why
 	// nothing is extracted here.
 	std::string m_program, m_tbios, m_cue, m_disk;
+	// Where the disc's files are kept once they have been read once. Beside the media when there is media, so a run
+	// that starts in game/ and a run that starts elsewhere agree on one place, and otherwise the two conventional
+	// names a cache-only tree will have.
+	std::string cache_dir;
 	std::vector<std::string> m_dirs;
 	if (pos.empty()) {
 		m_dirs = media_dirs(argv[0]);
@@ -455,8 +484,21 @@ int main(int argc, char** argv) {
 		m_cue = find_media(m_dirs, {"disc.cue", "game.cue", "u2.cue"});
 		m_disk = find_media(m_dirs, {"userdisk.hdm", "save.hdm", "disk.hdm"});
 		if (m_cue.empty()) m_cue = cue_from_image(m_dirs);
-		report_media(m_program, m_tbios, m_cue, m_disk, m_dirs);
-		if (m_cue.empty()) return 2;   // the disc is the only fatal absence; the two files can come out of it
+		// cache_dir has to be known before the report, because the report has to say whether a missing disc is a
+		// failure or a tree that already has what it needs.
+		{
+			std::error_code ec;
+			if (!m_cue.empty()) cache_dir = (fs::path(m_cue).parent_path() / "extracted").string();
+			else if (fs::is_directory("game", ec)) cache_dir = "game/extracted";
+			else cache_dir = "extracted";
+		}
+		report_media(m_program, m_tbios, m_cue, m_disk, m_dirs, cache_dir);
+		// NO DISC IS NOT FATAL IF THE CACHE ALREADY HOLDS WHAT THE DISC WAS FOR. That is the whole point of caching: run
+		// once with your own disc, and from then on the image is optional.
+		if (m_cue.empty() && !file_exists(cache_dir + "/ENCHANT.EXP")) {
+			std::printf("media     no disc image, and no cached copy at %s/ENCHANT.EXP\n", cache_dir.c_str());
+			return 2;
+		}
 	}
 	const char* exp_path = pos.size() > 0 ? pos[0] : m_program.c_str();
 	// The second positional is a frame count only when it is one. It is optional, and when `--frames=N` already
@@ -497,18 +539,40 @@ int main(int argc, char** argv) {
 	towns::Disc unpack;
 	bool unpack_tried = false;
 	std::string unpack_err;
-	auto from_disc = [&](const char* iso_path, std::vector<uint8_t>& out) -> bool {
+	// Every disc file the PORT reads goes through here: cache first, then the disc, and whatever comes off the disc is
+	// kept. The program's own opens go through the on_disc_cached hook with the same policy, so the two cannot drift
+	// into disagreeing about what is cached. \\UTFONT.FNT is why this exists: it was read straight off the disc, so a
+	// cache-only tree had no kanji font and drew nothing for two-byte characters.
+	auto disc_or_cache = [&](const char* iso_path, std::vector<uint8_t>& out) -> bool {
+		std::string rel = iso_path;
+		while (!rel.empty() && (rel[0] == '\\' || rel[0] == '/')) rel.erase(0, 1);
+		for (char& ch : rel)
+			if (ch == '\\') ch = '/';
+		out.clear();
+		if (!cache_dir.empty()) {
+			const std::string cached = cache_dir + "/" + rel;
+			std::error_code ec;
+			if (fs::is_regular_file(cached, ec)) {
+				out = read_file(cached.c_str());
+				if (!out.empty()) return true;
+			}
+		}
 		if (!unpack_tried) {
 			unpack_tried = true;
+			if (!cue_path[0]) return false;
 			unpack.open(cue_path, unpack_err);
 		}
-		out.clear();
-		return unpack.file(iso_path, out) && !out.empty();
+		std::vector<uint8_t> bytes;
+		if (!unpack.file(iso_path, bytes) || bytes.empty()) return false;
+		if (!cache_dir.empty() && cache_store(cache_dir, rel, bytes))
+			std::printf("disc      cached %s (%zu bytes)\n", rel.c_str(), bytes.size());
+		out = std::move(bytes);
+		return true;
 	};
 
 	std::vector<uint8_t> file = exp_path[0] ? read_file(exp_path) : std::vector<uint8_t>();
-	if (file.size() < 0x1000 && from_disc("\\ENCHANT.EXP", file))
-		std::printf("media     program \\ENCHANT.EXP read from the disc (%zu bytes)\n", file.size());
+	if (file.size() < 0x1000 && disc_or_cache("\\ENCHANT.EXP", file))
+		std::printf("media     program \\ENCHANT.EXP read from the disc or its cache (%zu bytes)\n", file.size());
 	if (file.size() < 0x1000) {
 		std::fprintf(stderr, "%s: cannot read the executable, and \\ENCHANT.EXP is not on the disc\n",
 		             exp_path[0] ? exp_path : "ENCHANT.EXP");
@@ -567,14 +631,40 @@ int main(int argc, char** argv) {
 	// ("a gap not in the files is not read here"), and tool 21 in this repository already reads the ISO
 	// correctly. tools/port-build.sh extracts it from the disc with tools/cd.js.
 	std::vector<uint8_t> tbios = tbios_path[0] ? read_file(tbios_path) : std::vector<uint8_t>();
-	const bool tbios_from_disc = tbios.empty() && from_disc("\\TBIOS.BIN", tbios);
+	const bool tbios_from_disc = tbios.empty() && disc_or_cache("\\TBIOS.BIN", tbios);
 	if (tbios.empty()) {
 		std::fprintf(stderr, "TBIOS: cannot read %s, and \\TBIOS.BIN is not on the disc\n",
 		             tbios_path[0] ? tbios_path : "tbios.bin");
 		return 2;
 	}
 	std::printf("machine   TBIOS %zu bytes from %s, low 768 KB mapped by boot_towns\n", tbios.size(),
-	            tbios_from_disc ? "\\TBIOS.BIN on the disc" : tbios_path);
+	            tbios_from_disc ? "\\TBIOS.BIN on the disc or in its cache" : tbios_path);
+	// SERVE THE DISC'S FILES FROM THE CACHE, which is what makes the image needed once rather than always. The program
+	// asks for Q:\GRAPH\MAP2_1.TIF and its friends; the first time that is a disc read and the bytes are kept, and from
+	// then on it is a local file, whether or not the disc is still there. The hook is asked from on_disc() in the kit,
+	// the one place a guest path stops being a string and becomes a decision.
+	if (!cache_dir.empty()) {
+		m.on_disc_cached = [&m, cache_dir](const std::string& disc_path, std::string& host) -> bool {
+			std::string rel = disc_path;
+			while (!rel.empty() && (rel[0] == '\\' || rel[0] == '/')) rel.erase(0, 1);
+			for (char& ch : rel)
+				if (ch == '\\') ch = '/';
+			if (rel.empty() || rel.find("..") != std::string::npos) return false;   // never write outside the cache
+			const std::string cached = cache_dir + "/" + rel;
+			std::error_code ec;
+			if (fs::is_regular_file(cached, ec)) {
+				host = cached;
+				return true;
+			}
+			std::vector<uint8_t> bytes;
+			if (!m.disc.file(disc_path, bytes) || bytes.empty()) return false;
+			if (!cache_store(cache_dir, rel, bytes)) return false;   // cannot keep it, so read it off the disc as before
+			std::printf("disc      cached %s (%zu bytes)\n", rel.c_str(), bytes.size());
+			host = cached;
+			return true;
+		};
+	}
+
 	// U2_TRACE_INT=1 records every BIOS call the program makes. The kit's int90() implements the
 	// services its own recordings saw, and this program asks for one they never did, so the list of
 	// what it asks for is the evidence needed to decide what to add.
@@ -754,7 +844,7 @@ int main(int argc, char** argv) {
 		std::vector<uint8_t> utf;
 		const uint32_t FONT_BASE = 0x3B7E1;
 		const uint32_t BANK = 94 * 48;            // one bank of records as stored, header included
-		if (!m.disc.file("\\UTFONT.FNT", utf) || utf.size() < 2 * BANK) {
+		if (!disc_or_cache("\\UTFONT.FNT", utf) || utf.size() < 2 * BANK) {
 			std::printf("machine   no kanji font (\\UTFONT.FNT, %zu bytes) on the disc: two-byte characters will draw "
 			            "nothing\n",
 			            utf.size());
