@@ -53,32 +53,33 @@ You need two things, and only the first comes from us.
 
 ## Getting your game files in place
 
-Unpack the archive.org download. It gives you a .img, a .ccd and a .cue. The .img is the
-one that matters and it goes in game/ unchanged:
+Unpack the archive.org download. It gives you a .img, a .ccd and a .cue. The .img is the only
+file you need to supply, and it goes in game/ unchanged:
 
   mkdir -p game
   cp "Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img" game/ultima.img
 
-The other two files are inside that image rather than beside it, and this archive ships the
-reader for them. Node.js is the only tool you need beyond a shell:
+Then:
 
-  node tools/getfile.js ENCHANT.EXP --disc game/ultima.img --out game
-  node tools/getfile.js TBIOS.BIN   --disc game/ultima.img --out game
+  ./u2port
 
-Ignore the .cue that came with the download. It declares a PREGAP on the audio tracks that a
-rip may or may not already contain, so the reader refuses it rather than read the wrong
-sectors, and the port writes a correct one-track cue itself.
+The port reads ENCHANT.EXP, TBIOS, the graphics, the sounds and the kanji font out of the image
+itself, so there is nothing to extract and no Node.js to install. It keeps what it reads under
+game/extracted/, and after that first run the image is optional: delete it and the game still
+starts from what was kept.
 
-Then either of these:
+Ignore the .cue that came with the download. It declares a PREGAP on the audio tracks that a rip
+may or may not already contain, so the reader refuses it rather than read the wrong sectors, and
+the port writes a correct one-track cue itself.
 
-  ./u2port                      finds your media itself, see below
-  ./play.sh                     does the same three steps for you, then runs the port
+./play.sh does the same thing, and also unpacks the save disk if you would rather have it do the
+whole setup.
 
-With no arguments the port looks for ENCHANT.EXP, tbios.bin, a .cue (or a single .img, for
-which it writes one beside the image) and a save disk. It searches ./ and game/, original/
-and data/, and its own directory, so unpacking this archive anywhere and starting the binary
-from anywhere both work. It prints what it found. When something is missing it says which
-file and the command that produces it.
+With no arguments the port looks for a disc image (or a .cue) and a save disk, and for a cache
+of what an earlier run kept. It searches ./ and game/, original/ and data/, and its own
+directory, so unpacking this archive anywhere and starting the binary from anywhere both work.
+It prints what it found and what it took from where. A tree with neither a disc image nor a
+cache says so rather than starting and failing later.
 
 At the game menu pick Journey Onward for a character that already exists, or Generate
 Character to make one. A disk with three characters is included at
@@ -107,7 +108,8 @@ What is in this archive
 
   u2port                     the port. Contains the recompiled game code and nothing else
   play.sh                    the runner described above
-  tools/getfile.js           reads one file out of your disc image, into a build directory
+  tools/getfile.js           reads one file out of your disc image, for the analysis routes. The
+                             port does not need it: it reads what it needs from the image itself
   tools/cd.js                the ISO reader getfile.js uses
   tools/vendor.sh            fetches the emulator and the full FreeTOWNS ROM set, if you want them
   assets/save-disk/          a save disk with three characters, so the tested route works
