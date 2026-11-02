@@ -163,9 +163,41 @@ the four-slot Select Player screen (`Select with arrows`, so the digits do nothi
 and the space that dismisses the prompt. At the end of it a screenshot shows the map, the character sprite and the
 status panel, so the route is confirmed by the display and not by a guess about the menu.
 
-**No swept key has entered the shadow.** Every sweep run reports zero entries, and the reason is not the keys: a
-settle of 900 frames per key works repeatedly, but a **20,000-frame settle after entering the map did not return
-within 1500 seconds**. The port stops answering frame commands, which is a hang rather than a slow run.
+**No swept key has entered the shadow**, and the sweep now runs the whole alphabet, the digits, the arrows,
+Return and space: 43 keys, 900 frames each, zero entries.
+
+**There is no hang, and the first report of one was wrong.** The port is paced by the SDL window and the headless
+backend is not. Measured on 2026-11-02, 20,000 frames:
+
+| backend | wall | rate | guest clocks |
+|---|---|---|---|
+| `--graphics=sdl` | 329.08 s | 61 frames/s | 5333320012 |
+| `--graphics=none` | 2.42 s | 8,262 frames/s | 5333320012 |
+
+Identical guest clocks, so the backend paces the run and changes nothing else. A settle of 20,000 frames applied to
+each of nine keys is a 180,000-frame run, which is about 49 minutes at the padded rate, and the 1500-second timeout
+killed it partway. That is a timeout, not a hang. `tools/drive.py` now defaults to `--graphics=none` and only takes
+`sdl` when a screenshot is wanted.
+
+**The block is not reached by keyboard input, and this is a measured negative with a control.** `U2_STOP_AT` ends the
+run at an address, `U2_STOP_FRAME` ignores hits before a frame so boot-time execution does not mask everything, and
+`0xe4b8d` (the game's own loop, seen as the exit eip of earlier runs) **does** fire as a positive control after frame
+9300. Against that control, these are reached **neither** during the prefix **nor** by any swept key:
+
+| guest address | what | reached |
+|---|---|---|
+| `0xe33cc` | the `call 0xe1970` that plays `MAP.EUP` | no |
+| `0xe19f4` | the `0xe1bf4` draw call in the same block | no |
+| `0xe120c` | the shadow itself | no |
+
+So the sound path in question is not one a keystroke reaches from the world map, and the block's neighbours do not run
+there either. The remaining route to the trigger is static, not empirical: recover the function that contains
+`0xe3598`-`0xe35d5`, which sits in the 595-byte corpus hole, then find what selects its jump-table cases.
+
+**Three instrument facts that each cost a wrong answer this session.** `U2_STOP_COUNT` is "stop at the N-th hit", so
+setting it high to "see every hit" suppresses all output and reports a false negative. `U2_STOP_AT` **ends the run**
+when it fires, so a boot-time hit looks exactly like a dead socket. And a stop line is printed on stdout, so any
+driver that keeps only the last few lines throws away the proof it was looking for.
 
 **One thing this cost, recorded so nobody repeats it.** The port prints `stopped` both when the guest calls
 `int 21h AH=4Ch` (`fmtownskit/runtime/towns_dos.cpp:525`) and when the control socket's own `quit` arrives

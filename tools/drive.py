@@ -45,7 +45,7 @@ ALPHABET = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ') + list('0123456789') + \
 class Port:
     """The port under a control socket, with its stderr kept so shadow entries can be counted."""
 
-    def __init__(self, binary, disk, errlog, shadow_off=False, frames=200000):
+    def __init__(self, binary, disk, errlog, shadow_off=False, frames=200000, graphics='none'):
         env = dict(os.environ)
         env.update({'SDL_VIDEODRIVER': 'dummy', 'SDL_AUDIODRIVER': 'dummy',
                     'U2_FONT': os.path.join(ROOT, 'vendor/roms/FMT_FNT.ROM'),
@@ -56,7 +56,7 @@ class Port:
             env['U2_SHADOW_OFF'] = '1'
         self.errlog = errlog
         self.proc = subprocess.Popen(
-            [binary, '--graphics=sdl', f'--frames={frames}', '--control=127.0.0.1:0',
+            [binary, f'--graphics={graphics}', f'--frames={frames}', '--control=127.0.0.1:0',
              os.path.join(ROOT, 'ENCHANT.EXP'), os.path.join(ROOT, 'build/port/tbios.bin'),
              os.path.join(ROOT, 'build/port/disc.cue'), disk],
             stdout=subprocess.PIPE, stderr=open(errlog, 'wb'), text=True, env=env)
@@ -126,7 +126,11 @@ class Port:
             rest = self.proc.stdout.read() or ''
         except (OSError, ValueError):
             rest = ''
-        self.final_stdout = rest.strip().splitlines()[-6:] if rest.strip() else []
+        lines = rest.strip().splitlines() if rest.strip() else []
+        self.final_stdout = lines[-6:]
+        # U2_STOP_AT reports on stdout, and truncating to the last few lines would have thrown it away. Keep
+        # every stop line separately so a reachability test cannot silently pass because the proof was cut.
+        self.stops = [l for l in lines if l.startswith('stop ')]
         self.returncode = self.proc.returncode
 
 
@@ -140,6 +144,7 @@ def main():
     ap.add_argument('--boot', type=int, default=400, help='frames before the first key')
     ap.add_argument('--shots', default='', help='directory for one PNG per step')
     ap.add_argument('--shadow-off', action='store_true')
+    ap.add_argument('--graphics', default='', help="none (fast, default) or sdl (real time, needed for --shots)")
     ap.add_argument('--json', action='store_true')
     args = ap.parse_args()
 
@@ -154,13 +159,24 @@ def main():
         os.makedirs(args.shots, exist_ok=True)
 
     prefix = [k for k in args.keys.split(',') if k]
-    sweep = [k for k in args.sweep.split(',') if k] or (ALPHABET if args.sweep == 'all' else [])
+    # `all` first: written the other way round, 'all' parses as one key called "all" and the alphabet never runs.
+    sweep = ALPHABET if args.sweep == 'all' else [k for k in args.sweep.split(',') if k]
 
     report = {'prefix': prefix, 'sweep': [], 'shadow_hits': 0, 'work': work, 'died_at': None}
-    port = Port(args.port, disk, errlog, args.shadow_off)
+    # The backend paces the run and changes nothing else: measured 2026-11-02, 20,000 frames took 2.42 s with
+    # `none` and 329.08 s with `sdl`, and both reported guest clocks 5333320012. So `none` is the default and
+    # `sdl` is used only when a picture is wanted, because shots need the renderer.
+    graphics = args.graphics or ('sdl' if args.shots else 'none')
+    port = Port(args.port, disk, errlog, args.shadow_off, graphics=graphics)
     try:
-        port.step(args.boot)
-        for i, k in enumerate(prefix):
+        try:
+            port.step(args.boot)
+        except (OSError, json.JSONDecodeError) as e:
+            # U2_STOP_AT ends the run when it hits, so a boot-time hit looks like a dead socket. Record it rather
+            # than raising, because "the address was reached during boot" is a result and a traceback is not.
+            report['died_at'] = {'phase': 'boot', 'error': type(e).__name__}
+            report['shadow_hits'] = port.hits()
+        for i, k in enumerate(prefix if report['died_at'] is None else []):
             try:
                 port.key(k, args.settle)
             except (OSError, json.JSONDecodeError) as e:
@@ -193,6 +209,8 @@ def main():
                 if now > was:
                     print(f'  HIT  {k!r} entered the shadow {now - was} time(s)')
             report['shadow_hits'] = port.hits()
+            if report['died_at']:
+                print(f"  the port stopped responding during the sweep at {report['died_at']}")
         disk_hash = hashlib.sha256(open(disk, 'rb').read()).hexdigest()
         report['disk_sha256'] = disk_hash
     finally:
@@ -200,6 +218,7 @@ def main():
 
     report['port_exit'] = getattr(port, 'returncode', None)
     report['port_final'] = getattr(port, 'final_stdout', [])
+    report['port_stops'] = getattr(port, 'stops', [])
 
     if args.json:
         print(json.dumps(report, indent=2))
@@ -207,6 +226,8 @@ def main():
         print(f'drive: shadow entries total {report["shadow_hits"]} '
               f'({report.get("shadow_hits_before_sweep", 0)} before the sweep)')
         print(f'  disk {disk_hash[:16]}  temp {work}')
+        for line in report['port_stops']:
+            print('  ' + line)
         if report['port_final']:
             print('  port said: ' + ' | '.join(report['port_final']))
         if sweep and not any(e['hits'] for e in report['sweep']):
