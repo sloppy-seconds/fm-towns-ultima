@@ -191,8 +191,47 @@ run at an address, `U2_STOP_FRAME` ignores hits before a frame so boot-time exec
 | `0xe120c` | the shadow itself | no |
 
 So the sound path in question is not one a keystroke reaches from the world map, and the block's neighbours do not run
-there either. The remaining route to the trigger is static, not empirical: recover the function that contains
-`0xe3598`-`0xe35d5`, which sits in the 595-byte corpus hole, then find what selects its jump-table cases.
+there either.
+
+### The hole is a 10-case jump-table dispatcher, recovered, 2026-11-02
+
+Recovered statically, and it settles what the block is.
+
+| file offset | what |
+|---|---|
+| `0xe3385` | two-byte alignment nop |
+| `0xe3388` | **function start**: `push ebp` / `mov ebp,esp` / `mov edx,[ebp+8]` / `cmp edx,9` / `ja 0xe35a1` / `jmp [edx*4+0xe319f]` |
+| `0xe339f` | the jump table, **10 entries** (guest `0xe31c7`...`0xe3374`, i.e. file `0xe33c7`...`0xe3574`) |
+| `0xe33c7`-`0xe3574` | cases 0 to 8 |
+| `0xe3574` | **case 9**, which pushes `Q:\SOUND\BRIGHT1.EUP` at `0xe359a` and jumps to the shared tail |
+| `0xe35a1` | the **out-of-range default**, reached by the `ja`, which pushes `Q:\SOUND\MAP.EUP` at `0xe35c7` |
+| `0xe35cc` | `call 0xe1970` then `add esp,0x3c` / `leave` / `ret` |
+
+Every case is the same shape: six pushes and a call to `0xe1c24`, six pushes and a call to `0xe1bf4`, then three
+pushes and the sound, which is exactly the 15 pushes that `add esp,0x3c` accounts for. So the dispatcher draws two
+shapes and plays a sound, and the index chooses which.
+
+**The index is the facing direction.** Each of the 14 call sites sets `[player+0xcdf57]` (the field item 5e already
+recorded as the facing value) immediately before the call, and the indexes actually passed are 0, 2, 4, 6, 8 and 9.
+So **case 9 is live** and plays `BRIGHT1.EUP`, and `MAP.EUP` sits on the out-of-range default rather than on any case
+something deliberately selects. That corrects this section's earlier reading, which had `MAP.EUP` as the trigger to
+hunt.
+
+**And then the measurement moved the blocker again.** With the same positive control that fires (`0xe4b8d`), none of
+the following is reached after frame 9300 during the prefix plus all 43 keys:
+
+| guest address | what |
+|---|---|
+| `0xe3188` | the dispatcher itself |
+| `0xe33cc` | its `call 0xe1970` |
+| `0xe120c` | the shadow |
+
+The dispatcher not running is the load-bearing result: if no case executes, no sound is played, and the arrows in the
+route produced no step. So the shadow is not blocked on the sound path after all, it is blocked on **the player never
+moving**, which is a smaller and much more checkable question.
+
+**This also closes the census gap.** The hole was a real function with a real jump table and 14 callers, and the
+census missed all of it because it was never a `call` target.
 
 **Three instrument facts that each cost a wrong answer this session.** `U2_STOP_COUNT` is "stop at the N-th hit", so
 setting it high to "see every hit" suppresses all output and reports a false negative. `U2_STOP_AT` **ends the run**
