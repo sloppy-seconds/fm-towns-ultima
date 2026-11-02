@@ -49,7 +49,21 @@ add_library(game_recomp STATIC ${RECOMP_SRC})
 target_include_directories(game_recomp PUBLIC ${FMT_RUNTIME})
 target_compile_options(game_recomp PRIVATE -Wno-unused-label -Wno-unused-variable)
 
-add_executable(u2port main.cpp modules.cpp native_shadows.cpp)
+# The glyph ROM, embedded so the port does not need it beside the binary. Generated into the build directory from the
+# committed file, so git does not carry a second copy of the data: assets/font-rom/FMT_FNT.ROM stays the source of truth
+# and this is a build product like any other. tools/embed.js refuses the extensions that would make it a way to bake
+# game media in.
+set(EMBEDDED_FONT_ROM ${CMAKE_CURRENT_BINARY_DIR}/embedded_font_rom.cpp)
+add_custom_command(
+  OUTPUT ${EMBEDDED_FONT_ROM}
+  COMMAND node ${CMAKE_CURRENT_SOURCE_DIR}/../tools/embed.js
+          ${CMAKE_CURRENT_SOURCE_DIR}/../assets/font-rom/FMT_FNT.ROM
+          ${EMBEDDED_FONT_ROM} g_embedded_font_rom
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../assets/font-rom/FMT_FNT.ROM
+          ${CMAKE_CURRENT_SOURCE_DIR}/../tools/embed.js
+  COMMENT "embedding the glyph ROM")
+
+add_executable(u2port main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM})
 # RECOMP_DIR is on the include path for p_game_funcs.h, which native_shadows.cpp needs to name the recompiled
 # twin when U2_SHADOW_OFF gives the baseline. It is a generated header, but the module is always linked, so the
 # symbol always exists; tools/portcheck.js asserts the address is still declared there.

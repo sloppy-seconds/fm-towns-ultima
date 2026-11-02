@@ -328,6 +328,7 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		[store !== null && store.includes('class Dir'), 'a directory can answer the A: drive hooks'],
 		[store !== null && store.includes('kSeed'), 'a fresh save directory is seeded from the disk that ships'],
 		[main.includes('g_saves_dir'), 'the port can switch the A: drive from the image to that directory'],
+		[main.includes('g_embedded_font_rom'), 'the port can take the glyph ROM from its own binary'],
 	];
 	for (const [pass, what] of checks) {
 		if (pass) ok(what);

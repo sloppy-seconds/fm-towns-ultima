@@ -361,6 +361,11 @@ static void report_media(const std::string& program, const std::string& tbios, c
 // case for that: the game still runs, it just keeps reading the disc.
 static bool cache_store(const std::string& dir, const std::string& rel, const std::vector<uint8_t>& bytes);
 
+// The glyph ROM as a table in this binary, generated at build time by tools/embed.js from
+// assets/font-rom/FMT_FNT.ROM. Declared here rather than in a header because nothing else needs it.
+extern const unsigned char g_embedded_font_rom[];
+extern const unsigned long g_embedded_font_rom_size;
+
 static std::vector<uint8_t> read_file(const char* path) {
 	std::vector<uint8_t> v;
 	FILE* f = std::fopen(path, "rb");
@@ -712,6 +717,12 @@ int main(int argc, char** argv) {
 		                            ? std::getenv("U2_FONT")
 		                            : (found_font.empty() ? "FMT_FNT.ROM" : found_font.c_str());
 		std::vector<uint8_t> glyphs = read_file(font_path);
+		// THE COPY INSIDE THIS BINARY, used when there is no file. The ROM is generated from a public-domain font and
+		// committed as assets/font-rom/FMT_FNT.ROM, and tools/embed.js turns it into a table at build time, so the port
+		// does not need the file beside it. An external copy still wins, because a reader with a real FM Towns dump
+		// should be able to use it.
+		const bool embedded = glyphs.empty();
+		if (embedded) glyphs.assign(g_embedded_font_rom, g_embedded_font_rom + g_embedded_font_rom_size);
 		if (glyphs.empty()) {
 			std::printf("machine   no font ROM at %s, so every glyph will be blank (set U2_FONT)\n", font_path);
 		} else {
@@ -719,7 +730,11 @@ int main(int argc, char** argv) {
 			// The 16x16 ANK block is reached at physical 0xCB000, inside the RAM that boot_towns mapped, so those pages
 			// have to be dropped for the font window to answer instead of the zero-filled RAM under it.
 			m.unmap_font_window();
-			std::printf("machine   font ROM %zu bytes from %s\n", m.font.size(), font_path);
+			if (embedded)
+				std::printf("machine   font ROM %zu bytes, embedded in this binary (no %s beside it)\n", m.font.size(),
+				            font_path);
+			else
+				std::printf("machine   font ROM %zu bytes from %s\n", m.font.size(), font_path);
 		}
 		// The 20-dot font, a second ROM in its own window at linear 0xC2180000. Separate from the ANK font, and a
 		// program drawing a title screen's large text may be using this one.
