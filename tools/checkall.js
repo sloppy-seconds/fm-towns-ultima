@@ -673,6 +673,7 @@ if (skipCheck('attribution ledger')) { recordSkip('attribution ledger'); } else 
 	}
 }
 
+
 // E8. The calls the port was skipping. The recompiler stops each function at its terminating `ret` and never resumes
 // after the alignment padding that follows, so a function with no caller never enters the module and the calls inside
 // it are absent from the port. tools/resumepoints.js derives those resume points and asserts that every one is seeded

@@ -346,8 +346,36 @@ somewhere that `Machine::clock_start` does not cover.
 
 Two things were tried and are **ruled out**: pinning the DOS clock with a new `U2_CLOCK` (the port now sets
 `m.clock_start`, and the banner confirms it took), and fixing the copied disk's mtime with `os.utime`. Neither moves
-the byte. So 11c's differential stays blocked on determinism, and the next step is to find what reads the host clock,
-with the one-byte measurement as the instrument for it.
+the byte.
+
+### The cause is frame drift, not a clock, and it needs a hold, 2026-11-02
+
+The byte is explained and the explanation is not a clock at all. It cycles `0x8c`, `0x8d`, `0x8e`, `0x8f` with period
+four, and two runs sat **one phase apart** because they were at **different frames**: measured, the first sample found
+run A at frame 60 and run B at frame 1, since the port free-runs between binding the socket and the first command.
+
+Three fixes went in, each closing part of the gap and each measured:
+
+| change | effect |
+|---|---|
+| `frame at=<absolute>` | lands on a named frame instead of a relative distance |
+| `key at=<frame>` | schedules the press through the same list `U2_KEYS` fills, so the keystroke itself is framed |
+| `step_to` / `key_at` in `tools/drive.py` | the harness uses both |
+
+**It is still not exact.** Recording the frame the sample was actually taken on gives `(6200, 6201)`, `(9800, 9801)`,
+`(13400, 13402)`, so the port replies when `mm.frame >= target` and keeps advancing while the reply is transmitted.
+The overshoot varies by a frame between runs, so the screens still disagree and the control still fails.
+
+**The fix is a hold, and it is a design change worth doing deliberately.** The control loop is serviced inside the
+vsync hook, so blocking there until the next command would stop the machine advancing and make the socket behave like
+a debugger instead of a suggestion box. The alternative that needs no port change is one process per checkpoint using
+`--frames=<n>` with `U2_KEYS` and `U2_MEM_DUMP`, which stops exactly at the frame limit, at the cost of ten runs
+instead of two.
+
+**The gate entry was added and then taken back out.** `tools/shadow-diff.py` ran as a check for one iteration and
+failed on its own control, which is the correct behaviour for a flaky instrument and the wrong thing to leave in a
+suite that has to be green. The script stays, the check does not, and 11c stays OPEN until the hold makes the
+comparison exact.
 
 **The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
 window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong

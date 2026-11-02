@@ -56,19 +56,25 @@ def one_run(port_path, template_disk, shadow_off, boot, settle, work, tag):
     errlog = os.path.join(work, f'err-{tag}.log')
     port = drive.Port(port_path, disk, errlog, shadow_off=shadow_off, graphics='none',
                       frames=len(ROUTE) * (settle + 200) + boot + 20000, clock=CLOCK)
-    shots, entered_at = {}, []
+    shots, entered_at, frames_seen = {}, [], []
     try:
-        port.step(boot)
+        # ABSOLUTE frames, because relative stepping leaves each process wherever it happened to be when the first
+        # command arrived, and the game's counters then disagree for reasons that have nothing to do with a shadow.
+        port.step_to(boot)
+        target = boot
         for i, key in enumerate(ROUTE):
-            port.key(key, settle)
+            target += settle
+            port.key_at(target, key)
             if i in CHECKPOINTS:
-                block = port.cmd(cmd='mem', addr=f'0x{SCREEN_LO:x}', n=SCREEN_LEN)['hex']
+                r = port.cmd(cmd='mem', addr=f'0x{SCREEN_LO:x}', n=SCREEN_LEN)
+                block = r['hex']
+                frames_seen.append((target, int(r.get('frame', -1))))
                 shots[CHECKPOINTS[i]] = hashlib.sha256(bytes.fromhex(block)).hexdigest()[:16]
                 entered_at.append(port.hits())
         entry = port.hits()
     finally:
         port.close()
-    return {'screens': shots, 'entry': entry, 'entered_at': entered_at,
+    return {'screens': shots, 'entry': entry, 'entered_at': entered_at, 'frames_wanted_vs_got': frames_seen,
             'disk': hashlib.sha256(open(disk, 'rb').read()).hexdigest(),
             'stdout': getattr(port, 'stdout_path', '')}
 
@@ -115,6 +121,7 @@ def main():
             print(f'  screen {name:22s} {h}  {same}')
         print(f'  disk   {" " * 22} {base["disk"][:16]}  '
               f'{"same" if base["disk"] == shad["disk"] else "DIFFERS"}')
+        print(f'  frames wanted vs reached: {base["frames_wanted_vs_got"]}')
         print(f'  shadow entries: baseline {base["entry"]}, shadow {shad["entry"]}'
               f'  (per checkpoint {shad["entered_at"]})')
         if vacuous:

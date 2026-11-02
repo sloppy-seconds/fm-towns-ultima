@@ -108,9 +108,26 @@ class Port:
             self.cmd(cmd='frame', n=d)
             n -= d
 
+    def now(self):
+        """The machine's own frame counter. `frame` steps are RELATIVE, and the port free-runs between binding the
+        socket and the first command, so a route built from relative steps starts at a different absolute frame in
+        every process. Measured: two identical runs sat at frame 60 and frame 1, which is enough for the game's own
+        counters to disagree and for a differential to blame the code under test."""
+        return int(self.cmd(cmd='frame', n=1).get('frame', 0))
+
+    def step_to(self, target):
+        """Advance to an ABSOLUTE frame. Asking the frame and then stepping is not enough: frames run between the two
+        commands, so each run lands wherever scheduling left it. `frame at=N` waits for that exact frame in the port."""
+        return int(self.cmd(cmd='frame', at=str(int(target))).get('frame', target))
+
     def key(self, k, settle):
         self.cmd(cmd='key', key=k)
         self.step(settle)
+
+    def key_at(self, frame, name):
+        """Press a key ON a frame, then wait for it. The scheduled path, so two runs press at the same instant."""
+        self.cmd(cmd='key', key=name, at=str(int(frame)))
+        return self.step_to(frame)
 
     def hits(self):
         """Shadow entries recorded so far. Read fresh each time, so it works between keys."""

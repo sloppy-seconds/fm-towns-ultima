@@ -1003,6 +1003,24 @@ int main(int argc, char** argv) {
 							ctl->send(u2ctl::error_reply(cc.id, "not a key name SDL knows: " + k->second));
 							continue;
 						}
+						// `at` schedules the press on a FRAME, through the same list U2_KEYS fills. A key delivered "now"
+						// lands wherever scheduling put the machine, which is enough to make two runs of one route differ;
+						// a differential needs the keystroke itself to be at a fixed frame, not merely the sample after it.
+						if (auto it = cc.args.find("at"); it != cc.args.end()) {
+							long at = std::strtol(it->second.c_str(), nullptr, 10);
+							uint8_t scan = 0, ascii = 0;
+							if (!towns::towns_key_scancode((int)SDL_GetScancodeFromKey(sym, nullptr), (int)sym, scan, ascii)) {
+								ctl->send(u2ctl::error_reply(cc.id, "the Towns keyboard has no code for: " + k->second));
+								continue;
+							}
+							keypresses.push_back(KeyPress{at, scan, ascii});
+							std::string kn;
+							u2ctl::escape(k->second, kn);
+							ctl->send(u2ctl::ok_reply(cc.id, "\"key\":\"" + kn + "\",\"at\":" + std::to_string(at) +
+							                                   ",\"scan\":" + std::to_string(scan) + ",\"ascii\":" +
+							                                   std::to_string(ascii) + "," + fr));
+							continue;
+						}
 						// HEADLESS. There is no window, so there is no SDL event to push, but the guest does not care where a
 						// keystroke came from. What the window's path uniquely supplies is the PC-to-Towns translation, so ask
 						// for exactly that and press the result. Refusing here instead is what made a 43-key sweep report that
@@ -1047,6 +1065,26 @@ int main(int argc, char** argv) {
 						if (auto it = cc.args.find("n"); it != cc.args.end()) n = std::strtol(it->second.c_str(), nullptr, 10);
 						if (n < 1 || n > 1000000) {
 							ctl->send(u2ctl::error_reply(cc.id, "frame n must be between 1 and 1000000"));
+							continue;
+						}
+						// `at` makes the step ABSOLUTE, which is what a differential needs. With relative steps a caller
+						// that asks the frame and then asks to step lands somewhere that depends on how many frames ran
+						// between the two commands, so two runs of the same route sit at different frames and their state
+						// differs for reasons unrelated to the code under test. Measured: frame 60 against frame 1. `at` is
+						// idempotent, because being already there is the state the caller asked for, not an error.
+						if (auto it = cc.args.find("at"); it != cc.args.end()) {
+							long at = std::strtol(it->second.c_str(), nullptr, 10);
+							if (at < 0) {
+								ctl->send(u2ctl::error_reply(cc.id, "frame at must not be negative"));
+								continue;
+							}
+							if (at <= (long)mm.frame) {
+								ctl->send(u2ctl::ok_reply(cc.id, fr));
+								continue;
+							}
+							ctlpend.frame_id = cc.id;
+							ctlpend.frame_from = (long)mm.frame;
+							ctlpend.frame_target = at;
 							continue;
 						}
 						ctlpend.frame_id = cc.id;
