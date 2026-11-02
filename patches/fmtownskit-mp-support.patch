@@ -407,7 +407,7 @@ index da2a0d6..2b76dcf 100644
      if a.functions:
          print(' '.join('%x' % f for f in sorted(p.functions)))
 diff --git a/runtime/towns.h b/runtime/towns.h
-index 08029b9..e0d9e5d 100644
+index 08029b9..cc426a4 100644
 --- a/runtime/towns.h
 +++ b/runtime/towns.h
 @@ -139,6 +139,7 @@ public:
@@ -463,6 +463,18 @@ index 08029b9..e0d9e5d 100644
  };
  
  extern Machine* g_towns;
+@@ -314,4 +337,11 @@ private:
+ // (0x84, 0x85) as MAME's driver takes them, the mix written from power-on for `seconds`.
+ bool replay_sound_log(Machine& m, const std::string& log, double seconds, WavWriter& wav, std::string& err);
+ 
++// Translate a PC keystroke into the Towns' (scan, ascii) pair using the same table the window's own key path
++// uses. It exists so a headless run can deliver a key at all: the guest does not care where a keystroke came
++// from, but only `towns_key` in towns_sdl.cpp knows which Towns scan code a PC scancode maps to, and copying
++// that table here would be a second one to keep in step. The arguments are plain ints so this header does not
++// need SDL's, which is what lets a headless build call it. False means the Towns keyboard has no code for it.
++bool towns_key_scancode(int sdl_scancode, int sdl_key, uint8_t& scan, uint8_t& ascii);
++
+ }  // namespace towns
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
 index 75d5dad..fa639af 100644
 --- a/runtime/towns_cpu.cpp
@@ -1040,10 +1052,10 @@ index 7fd99da..71f4c01 100644
      unknown("read of linear %08x (no device)", a & ~0xFFFu);
      return 0;
 diff --git a/runtime/towns_sdl.cpp b/runtime/towns_sdl.cpp
-index 3328d10..4274778 100644
+index 3328d10..3699d2c 100644
 --- a/runtime/towns_sdl.cpp
 +++ b/runtime/towns_sdl.cpp
-@@ -87,6 +87,87 @@ static unsigned held_pad(SDL_Gamepad* g) {
+@@ -87,6 +87,94 @@ static unsigned held_pad(SDL_Gamepad* g) {
      return v;
  }
  
@@ -1128,10 +1140,17 @@ index 3328d10..4274778 100644
 +    return true;
 +}
 +
++bool towns_key_scancode(int sdl_scancode, int sdl_key, uint8_t& scan, uint8_t& ascii) {
++    SDL_KeyboardEvent k {};
++    k.scancode = (SDL_Scancode)sdl_scancode;
++    k.key = (SDL_Keycode)sdl_key;
++    return towns_key(k, scan, ascii);
++}
++
  void SdlHost::vsync(Machine& m) {
      Impl& s = *p_;
      SDL_Event e;
-@@ -95,12 +176,25 @@ void SdlHost::vsync(Machine& m) {
+@@ -95,12 +183,25 @@ void SdlHost::vsync(Machine& m) {
          case SDL_EVENT_QUIT: throw Stop{0};
          case SDL_EVENT_KEY_DOWN:
              if (e.key.repeat) break;

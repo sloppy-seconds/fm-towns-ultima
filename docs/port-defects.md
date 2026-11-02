@@ -249,23 +249,27 @@ half and not the frame spacing, because both were varied and measured.
 That is the gap the control API in phase 10 is for: a `key` command that pushes through SDL, which is the path that
 works, rather than a parallel one that does not.
 
-**Extended 2026-11-02: the `key` command needs the SDL host too, so `--graphics=none` cannot test input.** The control
-socket accepts keys and the port counts them served, and the guest does nothing with them. Same route, same disk copy,
-64 KB diff over `0x4c0000..0x4d0000` and the turn clock at `0x4cdf53`:
+**Extended 2026-11-02, and then fixed the same day.** The `key` command used to refuse outright without the SDL
+host, with an error reply saying so, so `--graphics=none` could not test input at all. The control socket accepted
+nothing. Same route, same disk copy, 64 KB diff over `0x4c0000..0x4d0000` and the turn clock at `0x4cdf53`:
 
 | backend | 600 frames idle | after `Down` | turn clock |
 |---|---|---|---|
-| `--graphics=none` | 0 bytes changed | **0 bytes changed** | 70, unmoved |
+| `--graphics=none` (before) | 0 bytes changed | **0 bytes changed** | 70, unmoved |
 | `--graphics=sdl` | 3,583 bytes changed | **14,075 bytes changed** | 71, then 72 |
+| `--graphics=none` (after) | 3,841 bytes changed | **13,849 bytes changed** | 71, then 72 |
 
-So no key completes a turn without the window, and about 14 KB of screen and map is rewritten per step with it. The
-practical consequence, which cost this session several wrong negatives: **`--graphics=none` is 135 times faster and
-invalid for anything involving input**, and a sweep run under it reports zero because the guest never moved rather
-than because the code was not reached.
+**The fix is that the window was supplying more than a window.** Only `towns_key` in `towns_sdl.cpp` knows which Towns
+scan code a PC scancode maps to, and it was `static`, so the headless path had no translation and fell back to
+refusing. `towns.h` now declares `towns_key_scancode(int sdl_scancode, int sdl_key, uint8_t& scan, uint8_t& ascii)`,
+which takes plain ints so a headless build can call it, and the `key` command presses the translated pair through
+`Machine::press_key` when there is no host. Headless input now completes turns, so the 135-fold speed difference is
+available for key-driven tests instead of only for keyless ones.
 
-One more trap, because it made a working control look broken: `0xe4b8d` fires as a `stop-at` target **only under
-`none`**, where the guest sits in that loop. Under `sdl` it does not fire at all, so it is a control for the headless
-stall and not for gameplay.
+Two consequences worth keeping. `Escape` is dropped by `kPcToTowns` and still has no Towns code, so a sweep must not
+include it, and a key the port cannot translate is now an error rather than a silent no-op. And `0xe4b8d`, which
+fires as a `stop-at` target, is the key-poll loop: under `none` it fires because the guest sits there, which makes it
+a control for "the port is watching" rather than a control for gameplay.
 
 Defect 3 is older than the other two and is the reason `assets/save-disk/` carries a disk with three characters on
 it. Without that disk the honest quickstart would be "play the original first and make a character", which is a

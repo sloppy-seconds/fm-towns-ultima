@@ -271,12 +271,29 @@ a weak negative, it is no measurement at all.
 **The control problem is now solved, and it invalidated the fast path.** `0xe4b8d` fires only under `--graphics=none`,
 where the guest sits in that loop, so it was never a gameplay control at all. The working control is the turn clock:
 with the same route, `--graphics=none` changes **nothing** over 600 idle frames and no key completes a turn, while
-`--graphics=sdl` rewrites about 14 KB per step and the clock walks 70 to 71 to 72. The `key` command needs the SDL
-host, which `docs/port-defects.md` now records.
+`--graphics=sdl` rewrites about 14 KB per step and the clock walks 70 to 71 to 72.
 
-So the instrument works, the configuration has to be `sdl`, and the sweep's negatives must be taken there. That run is
-slow rather than hard: 61 frames/s, about eleven minutes for the alphabet with a 900-frame settle. **The dispatcher's
-reachability is still open** and this section must not be read as having answered it.
+**Then the headless key path was fixed, and the question was answered.** `towns_key` was `static` in
+`towns_sdl.cpp`, so only a window could translate a PC keystroke into a Towns scan code, and without one the `key`
+command refused. Exposing `towns_key_scancode` and pressing the translated pair directly through `Machine::press_key`
+makes `--graphics=none` deliver keys: the turn clock now walks 70 to 71 to 72 headlessly, at 8,262 frames/s instead of
+61. `docs/port-defects.md` carries the measurements.
+
+With a working key path, an error-checking driver, 42 keys covering the alphabet, the digits, the arrows, space and
+Return, and a control that demonstrably fires (`0xe4b8d` reaches its loop), none of these is reached:
+
+| guest address | what | reached |
+|---|---|---|
+| `0xe3188` | the direction dispatcher | **no** |
+| `0xe33cc` | its `call 0xe1970` | **no** |
+| `0xe19f4`, `0xe1a24` | the two draw calls every case makes | **no** |
+| `0xe120c` | the shadow | **no** |
+
+So the dispatcher is **not part of ordinary play**. It is not the walk animation and not the step redraw, which is
+what the 14 KB per step turned out to be, and the facing field it sets is written by a path that normal input never
+takes. The consequence for 11c is direct and does not depend on any remaining unknown: **`0xe120c` cannot be reached
+from play input**, so no scripted gameplay route can differential-test it. A different target is needed, one whose
+caller chain is verified reachable by the same instrument rather than assumed reachable because it sits in the game.
 
 **The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
 window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong

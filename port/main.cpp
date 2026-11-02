@@ -989,14 +989,26 @@ int main(int argc, char** argv) {
 							ctl->send(u2ctl::error_reply(cc.id, "key wants a key field, for example \"key\":\"Return\""));
 							continue;
 						}
-						if (!use_sdl) {
-							ctl->send(u2ctl::error_reply(cc.id, "key needs SDL; run with --graphics=sdl, and "
-							                                       "SDL_VIDEODRIVER=dummy needs no display"));
-							continue;
-						}
 						SDL_Keycode sym = SDL_GetKeyFromName(k->second.c_str());
 						if (sym == SDLK_UNKNOWN) {
 							ctl->send(u2ctl::error_reply(cc.id, "not a key name SDL knows: " + k->second));
+							continue;
+						}
+						// HEADLESS. There is no window, so there is no SDL event to push, but the guest does not care where a
+						// keystroke came from. What the window's path uniquely supplies is the PC-to-Towns translation, so ask
+						// for exactly that and press the result. Refusing here instead is what made a 43-key sweep report that
+						// nothing reached the code under test, when in truth no key ever reached the guest.
+						if (!use_sdl) {
+							uint8_t scan = 0, ascii = 0;
+							if (!towns::towns_key_scancode((int)SDL_GetScancodeFromKey(sym, nullptr), (int)sym, scan, ascii)) {
+								ctl->send(u2ctl::error_reply(cc.id, "the Towns keyboard has no code for: " + k->second));
+								continue;
+							}
+							m.press_key(scan, ascii);
+							std::string kn;
+							u2ctl::escape(k->second, kn);
+							ctl->send(u2ctl::ok_reply(cc.id, "\"key\":\"" + kn + "\",\"scan\":" + std::to_string(scan) +
+							                                   ",\"ascii\":" + std::to_string(ascii) + "," + fr));
 							continue;
 						}
 						SDL_Event ev {};
