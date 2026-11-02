@@ -1727,3 +1727,34 @@ is how the phase-5 mechanics items would be confirmed against the running game r
 ---
 
 **[Distance to reimplementation](reimplementation-gap.md)** **[Unattended queue](overnight.md)** **[All pages](index.md)**
+
+### The create path, swept: 13 routines replaced, 2026-11-02
+
+The path a player meets first is now enumerated and partly native. `U2_TRACE_FN` over splash, menu, character
+creation and the register reports **101 distinct routines**, 77 with a corpus record. Replaced so far, each verified by
+the differential on five screens and the save disk:
+
+| guest | size | what |
+|---|---|---|
+| `0xe42d0` | 49 B | decimal parser, entered 329 times |
+| `0xe63fc` | 23 B | copies two fields out of a record |
+| `0xe642c` | 9 B | signed 16-bit field getter |
+| `0xe5748`, `0xe5760`, `0xe5778`, `0xe5790` | 22 B | `g(0x7a7d8, N, x)` for N = 0..3, one address per constant |
+| `0xe5810`, `0xe58b8`, `0xe58cc` | 18 B | `g(0x7a7d8, x)` with three different callees |
+| `0xe58e0` | 34 B | advance an index, wrap at four, then call 0x1e6 |
+| `0xe9c2c` | 21 B | the `"="` scanner, 11c's first target |
+| `0xe120c` | 43 B | 11c's original target, replaced and verified but **never entered from play**, which is what turned the target choice from a guess into a measurement |
+
+Shadow entries on the create route went from 0 to **114,882**, so this is not idle code.
+
+**The next tier is deliberately excluded.** `0x1c4`, `0x1e6`, `0x27d` and `0x4b1` are the callees the wrappers above
+reach, and each is a TBIOS gateway of the same shape: `mov ah, N` then `call fs:[0x20]` with `fs` set to selector
+`0x110`. Those are the boundary into the system layer rather than the game's logic. Replacing them would be
+reimplementing the platform, which the port already does in C code, and the shapes are uniform enough that a native
+version would only restate `x86_far`.
+
+**What the remaining work looks like.** Of the 101, four are done and four are the TBIOS gateways. The rest are mostly
+non-leaf, and 24 have no corpus record at all, so they must be named before they can be replaced. Two instrument bugs
+surfaced while doing this and are fixed in the kit: `U2_TRACE_FN` hooked `find()` and so missed every call that now
+goes through `x86_call_known`, reporting one routine where dozens were entered, and `U2_WATCH_MAX` was only read inside
+the `U2_WATCH` block, so a traced enumeration stopped silently at 64 entries.

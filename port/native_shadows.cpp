@@ -236,10 +236,144 @@ void native_000e63fc(X86Cpu& c) {
 	c.eip = pop32(c);
 }
 
+// ---- a family: guest 0xe5748, 0xe5760, 0xe5778, 0xe5790 --------------------------------
+//
+// Four 22-byte wrappers, identical except one constant. Each is
+//
+//     int f(short x) { return g(0x7a7d8, N, x); }   with N = 0, 1, 2, 3
+//
+// so the address alone selects the constant. They are entered 32, 18, 10 and 2 times on the create route, which makes
+// them the most-used small routines left. The call is to a function the module already holds, so it goes through
+// x86_call_known with the same return address the twin pushes, and the tick layout is the twin's: 23 for the block
+// that ends at the call, 16 for the epilogue after it.
+static void wrapper_7a7d8(X86Cpu& c, uint32_t which, uint32_t ret) {
+	X86_TICK(c, 23);
+	push32(c, c.r[5]);                                  // push ebp
+	c.r[5] = c.r[4];                                    // mov ebp, esp
+	c.r[0] = (uint32_t)(int32_t)(int16_t)rd16(c.sbase[2] + c.r[5] + 0x8u);   // movsx eax, [ebp+8]
+	push32(c, c.r[0]);
+	push32(c, which);
+	push32(c, 0x7A7D8u);
+	push32(c, ret);
+	x86_call_known(c, 0x20Eu, p_game::f_0000020e);
+	X86_RET(c, ret);
+	X86_TICK(c, 16);
+	c.r[4] = c.r[5];                                    // leave
+	c.r[5] = pop32(c);
+	c.eip = pop32(c);                                   // ret
+}
+
+void native_000e5748(X86Cpu& c) {
+	shadow_entered(0xE5748u);
+	if (shadow_off()) { p_game::f_000e5748(c); return; }
+	wrapper_7a7d8(c, 0u, 0xE575Cu);
+}
+
+void native_000e5760(X86Cpu& c) {
+	shadow_entered(0xE5760u);
+	if (shadow_off()) { p_game::f_000e5760(c); return; }
+	wrapper_7a7d8(c, 1u, 0xE5774u);
+}
+
+void native_000e5778(X86Cpu& c) {
+	shadow_entered(0xE5778u);
+	if (shadow_off()) { p_game::f_000e5778(c); return; }
+	wrapper_7a7d8(c, 2u, 0xE578Cu);
+}
+
+void native_000e5790(X86Cpu& c) {
+	shadow_entered(0xE5790u);
+	if (shadow_off()) { p_game::f_000e5790(c); return; }
+	wrapper_7a7d8(c, 3u, 0xE57A4u);
+}
+
+// ---- three more wrappers into 0x7a7d8: 0xe5810, 0xe58b8, 0xe58cc --------------------
+//
+// Eighteen bytes each and identical but for the callee: `int f(int x) { return g(0x7a7d8, x); }`, where g is 0x4b1,
+// 0x27d and 0x1c4. The argument is pushed as a dword here, not sign-extended from a word, which is the only difference
+// from the 0xe57xx family above. Ticks from the twin: 18 for the block ending at the call, 16 for the epilogue.
+static void wrapper_7a7d8_arg(X86Cpu& c, uint32_t callee, X86Func twin, uint32_t ret) {
+	X86_TICK(c, 18);
+	push32(c, c.r[5]);                                  // push ebp
+	c.r[5] = c.r[4];                                    // mov ebp, esp
+	push32(c, rd32(c.sbase[2] + c.r[5] + 0x8u));        // push [ebp+8]
+	push32(c, 0x7A7D8u);
+	push32(c, ret);
+	x86_call_known(c, callee, twin);
+	X86_RET(c, ret);
+	X86_TICK(c, 16);
+	c.r[4] = c.r[5];
+	c.r[5] = pop32(c);
+	c.eip = pop32(c);
+}
+
+void native_000e5810(X86Cpu& c) {
+	shadow_entered(0xE5810u);
+	if (shadow_off()) { p_game::f_000e5810(c); return; }
+	wrapper_7a7d8_arg(c, 0x4B1u, p_game::f_000004b1, 0xE5820u);
+}
+
+void native_000e58b8(X86Cpu& c) {
+	shadow_entered(0xE58B8u);
+	if (shadow_off()) { p_game::f_000e58b8(c); return; }
+	wrapper_7a7d8_arg(c, 0x27Du, p_game::f_0000027d, 0xE58C8u);
+}
+
+void native_000e58cc(X86Cpu& c) {
+	shadow_entered(0xE58CCu);
+	if (shadow_off()) { p_game::f_000e58cc(c); return; }
+	wrapper_7a7d8_arg(c, 0x1C4u, p_game::f_000001c4, 0xE58DCu);
+}
+
+// ---- native_000e58e0: guest 0xe58e0, file 0xe5ae0 ---------------------------------------
+//
+// Thirty-four bytes: advance an index and wrap it at four, then call 0x1e6 with (0x7a7d8, 0, index):
+//
+//     int f(int i) { i++; if (i == 4) i = 0; return g(0x7a7d8, 0, i); }
+//
+// Ticks: 19 for the prologue block, 2 for the wrap that only runs when the index reached four, 13 for the pushes and
+// the call, 22 for the epilogue including the `add esp,0xc` that drops the three arguments.
+void native_000e58e0(X86Cpu& c) {
+	shadow_entered(0xE58E0u);
+	if (shadow_off()) { p_game::f_000e58e0(c); return; }
+	X86_TICK(c, 19);
+	push32(c, c.r[5]);
+	c.r[5] = c.r[4];
+	push32(c, c.r[7]);                                  // push edi
+	c.r[7] = rd32(c.sbase[2] + c.r[5] + 0x8u);          // edi = i
+	c.r[7] = x86_inc(c, c.r[7], 4);
+	(void)x86_sub(c, c.r[7], 0x4u, 0, 4);               // cmp edi, 4
+	if (!x86_cc(c, 5)) {                                // jne skips the wrap
+		X86_TICK(c, 2);
+		c.r[7] = x86_sub(c, c.r[7], c.r[7], 0, 4);      // sub edi, edi
+	}
+	X86_TICK(c, 13);
+	push32(c, c.r[7]);
+	push32(c, 0u);
+	push32(c, 0x7A7D8u);
+	push32(c, 0xE58FCu);
+	x86_call_known(c, 0x1E6u, p_game::f_000001e6);
+	X86_RET(c, 0xE58FCu);
+	X86_TICK(c, 22);
+	c.r[4] = x86_add(c, c.r[4], 0xCu, 0, 4);            // add esp, 0xc
+	c.r[7] = pop32(c);
+	c.r[4] = c.r[5];
+	c.r[5] = pop32(c);
+	c.eip = pop32(c);
+}
+
 // Ascending by address, because x86_lookup() binary-searches this table.
 const X86FuncEntry g_x86_shadows[] = {
 	{ 0xe120c, native_000e120c },
 	{ 0xe42d0, native_000e42d0 },
+	{ 0xe5748, native_000e5748 },
+	{ 0xe5760, native_000e5760 },
+	{ 0xe5778, native_000e5778 },
+	{ 0xe5790, native_000e5790 },
+	{ 0xe5810, native_000e5810 },
+	{ 0xe58b8, native_000e58b8 },
+	{ 0xe58cc, native_000e58cc },
+	{ 0xe58e0, native_000e58e0 },
 	{ 0xe63fc, native_000e63fc },
 	{ 0xe642c, native_000e642c },
 	{ 0xe9c2c, native_000e9c2c },
