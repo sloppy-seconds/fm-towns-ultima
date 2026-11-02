@@ -95,6 +95,10 @@ inline bool call_prepare_and_dispatch(X86Cpu& c, uint32_t target, X86Func fn, in
 }
 }  // namespace detail
 
+inline bool call0(X86Cpu& c, uint32_t target, X86Func fn) {
+	return detail::call_prepare_and_dispatch(c, target, fn, 0);
+}
+
 inline bool call1(X86Cpu& c, uint32_t target, X86Func fn, uint32_t a1) {
 	push32(c, a1);
 	return detail::call_prepare_and_dispatch(c, target, fn, 1);

@@ -23,6 +23,38 @@ using namespace u2glue;
 // The rules, ascending by address.
 // ---------------------------------------------------------------------------------------------------------------------
 
+// 0xe05e8 (58 bytes, the last leaf on the create path).
+//     void f(uint8_t *p) -- decrement a three-byte counter whose low byte wraps at 74.
+// Not a number but a countdown: the low byte steps down through 0..73, borrows into the middle byte, which borrows into
+// the high byte. Something reads it as a position in a 74-step cycle; whether that cycle is a timer or a phase is not
+// established, so the rule stops at the arithmetic.
+void native_000e05e8(X86Cpu& c) {
+	if (delegate(0xE05E8u)) { p_game::f_000e05e8(c); return; }
+	tick(c, 37);
+	const uint32_t p = arg32(c, 0);
+	uint8_t high = data8(c, p);
+	uint8_t mid = data8(c, p + 1u);
+	uint8_t low = data8(c, p + 2u);
+	low = (uint8_t)(low - 1u);
+	if ((int8_t)low < 0) {
+		tick(c, 20);
+		low = 0x4Au;                       // the cycle length, 74
+		mid = (uint8_t)(mid - 1u);
+		if ((int8_t)mid < 0) {
+			tick(c, 6);
+			high = (uint8_t)(high - 1u);
+		}
+	}
+	tick(c, 34);
+	// eax is not restored by the original either, so the byte left in al is part of what it returns.
+	s8(c, 0, high);
+	wr8(c.sbase[3] + p, high);
+	s8(c, 0, mid);
+	wr8(c.sbase[3] + p + 1u, mid);
+	wr8(c.sbase[3] + p + 2u, low);
+	ret(c, c.r[0]);
+}
+
 // 0xe120c (43 bytes). Never entered on any route measured so far.
 //     char *f(char *p, int n) -- walk a 6-byte-stride array, and return the element after the n-th 0xf2 marker.
 // Kept in explicit form on purpose: it has never been observed running, so a readable rule for it would be a guess
@@ -61,6 +93,54 @@ void native_000e120c(X86Cpu& c) {
 	c.r[4] = c.r[5];
 	c.r[5] = pop32(c);
 	c.eip = pop32(c);
+}
+
+// 0xe1a54 (23 bytes).
+//     int f(int x) { *(int *)0x40e04 = system_a(); return system_b(x); }
+// One value recorded in a global on the way past, then the argument handed to a second system-layer call.
+void native_000e1a54(X86Cpu& c) {
+	if (delegate(0xE1A54u)) { p_game::f_000e1a54(c); return; }
+	tick(c, 11);
+	if (!call0(c, 0xFDCB6u, p_game::f_000fdcb6)) return;
+	put32(c, 0x40E04u, c.r[0]);
+	tick(c, 14);
+	if (!call1(c, 0xFDCA0u, p_game::f_000fdca0, arg32(c, 0))) return;
+	tick(c, 16);
+	ret(c, c.r[0]);
+}
+
+// 0xe23cc (31 bytes).
+//     int f(void *p) { return system_0x102317(p, 0) != 0 ? -1 : 0; }
+// A boolean flattened to the game's two answer values, which is the shape a predicate takes when the caller tests it
+// with a comparison against zero in several places.
+void native_000e23cc(X86Cpu& c) {
+	if (delegate(0xE23CCu)) { p_game::f_000e23cc(c); return; }
+	tick(c, 18);
+	if (!call2(c, 0x102317u, p_game::f_00102317, arg32(c, 0), 0u)) return;
+	tick(c, 7);
+	uint32_t answer;
+	if (c.r[0] != 0) {
+		tick(c, 9);
+		answer = 0xFFFFFFFFu;              // -1: the call reported true
+	} else {
+		tick(c, 2);
+		answer = 0u;
+	}
+	tick(c, 18);
+	ret(c, answer);
+}
+
+// 0xe3530 (22 bytes).
+//     int f(int i) { return g(table_7a5d8[i], -1); }
+// The argument indexes a table of pointers and the entry is passed on with a constant -1, which is the shape of a
+// dispatch through a table of handlers where the constant selects an operation.
+void native_000e3530(X86Cpu& c) {
+	if (delegate(0xE3530u)) { p_game::f_000e3530(c); return; }
+	tick(c, 22);
+	const uint32_t entry = data32(c, 0x7A5D8u + 4u * arg32(c, 0));
+	if (!call2(c, 0xE07C8u, p_game::f_000e07c8, entry, 0xFFFFFFFFu)) return;
+	tick(c, 16);
+	ret(c, c.r[0]);
 }
 
 // 0xe42d0 (49 bytes, entered 329 times on the create route).
@@ -184,6 +264,20 @@ void native_000e58e0(X86Cpu& c) {
 	ret(c, c.r[0]);
 }
 
+// 0xe5c6c (32 bytes).
+//     int f(int x) { tbios6(0x7a7d8, 1, x); return g(0x7a7d8); }
+// Set a display-context state through TBIOS service 6, then hand the context to 0x518. The pair is "change it, then
+// apply it", and the same two calls appear together in the family at 0xe58xx.
+void native_000e5c6c(X86Cpu& c) {
+	if (delegate(0xE5C6Cu)) { p_game::f_000e5c6c(c); return; }
+	tick(c, 23);
+	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 1u, (uint32_t)arg16(c, 0))) return;
+	tick(c, 9);
+	if (!call1(c, 0x518u, p_game::f_00000518, 0x7A7D8u)) return;
+	tick(c, 16);
+	ret(c, c.r[0]);
+}
+
 // 0xe63fc (23 bytes).
 //     void f(char *p, int *a, int *b) { *a = *(int *)(p + 0x1e); *b = *(int *)(p + 0x2a); }
 void native_000e63fc(X86Cpu& c) {
@@ -231,7 +325,11 @@ void native_000e9c2c(X86Cpu& c) {
 
 // Ascending by address, because x86_lookup() binary-searches this table.
 const X86FuncEntry g_x86_shadows[] = {
+	{ 0xe05e8, native_000e05e8 },
 	{ 0xe120c, native_000e120c },
+	{ 0xe1a54, native_000e1a54 },
+	{ 0xe23cc, native_000e23cc },
+	{ 0xe3530, native_000e3530 },
 	{ 0xe42d0, native_000e42d0 },
 	{ 0xe5748, native_000e5748 },
 	{ 0xe5760, native_000e5760 },
@@ -241,6 +339,7 @@ const X86FuncEntry g_x86_shadows[] = {
 	{ 0xe58b8, native_000e58b8 },
 	{ 0xe58cc, native_000e58cc },
 	{ 0xe58e0, native_000e58e0 },
+	{ 0xe5c6c, native_000e5c6c },
 	{ 0xe63fc, native_000e63fc },
 	{ 0xe642c, native_000e642c },
 	{ 0xe9c2c, native_000e9c2c },
