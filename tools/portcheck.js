@@ -315,6 +315,26 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	else fail('the commit guard allows that one path by name', 'assets/font-rom/FMT_FNT.ROM is not in ALLOW_RE, so the ROM cannot be committed');
 }
 
+// ---- the disc is a source and a cache, and the A: drive can be a directory ----
+// Two behaviours a player depends on, neither visible in a build, and each one line away from silently reverting to
+// "extract it yourself first" and "you must own a floppy image". Asserted rather than trusted: the whole point of the
+// 2026-11-02 change is that the setup is one file, and a refactor that dropped the fallback would still compile.
+{
+	const main = read('port/main.cpp') || '';
+	const store = read('port/savestore.h');
+	const checks = [
+		[main.includes('disc_or_cache'), 'the port reads its own disc files through one cache-first helper'],
+		[main.includes('on_disc_cached'), "the program's asset opens can be served from the cache"],
+		[store !== null && store.includes('class Dir'), 'a directory can answer the A: drive hooks'],
+		[store !== null && store.includes('kSeed'), 'a fresh save directory is seeded from the disk that ships'],
+		[main.includes('g_saves_dir'), 'the port can switch the A: drive from the image to that directory'],
+	];
+	for (const [pass, what] of checks) {
+		if (pass) ok(what);
+		else fail(what, 'missing from port/main.cpp or port/savestore.h, so that behaviour has been lost');
+	}
+}
+
 // ---- the port's defect page, and the route the quickstarts give ----
 // docs/port-defects.md exists to stop a bug list filling up with plausible bugs nobody saw, and its rule is
 // structural: an entry needs the observation that produced it, so a row with an empty observation cell is exactly

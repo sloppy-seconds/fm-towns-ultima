@@ -147,6 +147,48 @@ decompiled output would not resemble authored source.
 
 ---
 
+## How the port reads the disc at run time, and why it is needed only once
+
+The disc is not just something the port extracts files from before it starts. The game opens its own assets by DOS
+path while it runs (`Q:\GRAPH\MAP2_1.TIF`, `Q:\SOUND\MAP.EUP` and 35 more), so a machine with no disc mounted fails at
+its first asset open. That is why a port run needs a disc image at all.
+
+**What changed on 2026-11-02 is that it needs one only once.** Three things together:
+
+**The program and TBIOS come out of the image.** `ENCHANT.EXP` and `TBIOS.BIN` are files inside the ISO 9660 volume,
+and the toolkit already walks that volume, which this port has used since the kanji font was fixed to read
+`\UTFONT.FNT` from it. A player no longer needs `node tools/getfile.js` or `tbios.bin` on disk at all. The disc is
+opened lazily, only when one of the two is missing from the filesystem, so a tree that already has them pays nothing.
+
+**Everything read is kept.** Two layers, sharing one policy:
+
+| layer | what it covers | where it is asked |
+|---|---|---|
+| `on_disc_cached` | the program's own 37 asset opens | from `on_disc()` in the toolkit, the one place a guest path becomes a decision |
+| `disc_or_cache` | the port's own reads: `ENCHANT.EXP`, `TBIOS.BIN`, `\UTFONT.FNT` | in `port/main.cpp`, before the machine starts |
+
+The cache is `<media directory>/extracted/`, which is under `game/` and therefore gitignored. 24 files, 2.0 MB, for
+the early game. A later run with no image serves every one of them from there.
+
+**Measured, not assumed.** With the image present and then deleted, both runs produce a frame with the same sha256
+(`63ce2332f1c4b38330f401c0db45e614`), and both report `kanji font 188 glyphs`. The cache is behaviourally transparent,
+not merely close.
+
+### The cue the download ships is refused, on purpose
+
+An archive.org rip comes with a `.cue` that declares `PREGAP 00:02:00` on track 2. The reader refuses it rather than
+guess whether the rip already contains that gap, because accepting it would shift every later track by two seconds
+and read the wrong sectors silently. When the port finds a lone `.img` and no cue it writes a one-track cue beside the
+image, with a relative `FILE` line, which is the form the reader accepts. An absolute path there comes out doubled.
+
+### The crash that making the disc optional exposed
+
+`int 93h`'s table-of-contents case took `tracks().front()` and `.back()` without checking the list was non-empty, and
+an unopened disc leaves it empty. That is a host segfault, so the guest could not see an error and cope: it just died.
+It had always been there and nothing had reached it until a cache-only run went far enough into the game to ask for the
+TOC. It now answers `AH=2`, the error that the program's own CD probe already treats as "no CD" (measured at guest
+`0xe2440`-`0xe24d7`). Fixed in the toolkit, pin bumped.
+
 ---
 
 **[The colour palette](palette.md)** **[Assets and graphics](assets-and-graphics.md)**

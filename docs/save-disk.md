@@ -564,6 +564,53 @@ reliably reach, so it needs a human at the VNC session.
 
 ---
 
+## The port no longer needs a floppy, 2026-11-02
+
+Everything above is about the *original*: U2 formats its own disk, the image has to be bootable, and "A WRONG DISK"
+is what the game says when the drive holds nothing it recognises. None of that changed. What changed is that the port
+stopped using a floppy image to satisfy it.
+
+**Saves are ordinary files.** `game/saves/ROSTER1.UT2` holds the characters and `game/saves/WORLD1.UT2` to
+`WORLD4.UT2` the worlds, named exactly as the game names them. They can be copied, diffed and backed up like anything
+else, and there is no 1.26 MB image to create, format and then find again.
+
+### Why this was a small change
+
+The toolkit already asks four **port-defined** functions for the A: drive, so the storage behind them was always the
+port's business:
+
+```
+fm_floppy_attrs(name, attrib, size)    does it exist, and how big
+fm_floppy_read(name, bytes)            read it whole
+fm_floppy_writable(name)               may a write be attempted
+fm_floppy_write(name, bytes)           create or replace it
+```
+
+`port/floppy.h` answers them with a FAT12 image reader and writer, `u2floppy::Image`. `port/savestore.h` answers them
+with a directory, `u2floppy::Dir`. Nothing in the toolkit moved for this one. Both take the same 8.3 names through the
+same `normalise()`, so `A:\ROSTER1.UT2`, `a:/roster1.ut2` and `ROSTER1.UT2` reach one file.
+
+### Which one answers
+
+| run | A: drive is |
+|---|---|
+| no positional arguments, which is what a player does | the directory |
+| a named floppy path, which is what every tool and test here passes | the image, unchanged |
+
+A fresh directory is **seeded** from the image when one is around, so switching does not lose the three characters that
+ship with the project. Seeding never overwrites, so a directory that already has a character is left alone.
+
+### Measured
+
+**Reading:** with no positional arguments the title screen appears with no `WRONG DISK` error, so the start-up probe
+for `A:\ROSTER1.UT2` was satisfied through the directory.
+
+**Writing:** character creation driven over the control socket grew `ROSTER1.UT2` from **3701 to 3725 bytes** and
+created `WORLD4.UT2`. The write half is the same store as the read half, not a separate path.
+
+One cosmetic fix came with it: the `no floppy: A: will answer nothing` warning is suppressed when the directory store
+is answering, because it was reporting a failure that had not happened.
+
 ---
 
 **[Save files and the roster format](save-files.md)** **[Running the game, and reading the machine](playing-and-environment.md)**
