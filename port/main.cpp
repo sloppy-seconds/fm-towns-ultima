@@ -252,7 +252,10 @@ static bool file_exists(const std::string& p) {
 // an unpacked archive laid out beside the executable.
 static std::vector<std::string> media_dirs(const char* argv0) {
 	std::vector<std::string> dirs{"."};
-	for (const char* d : {"game", "original", "data"}) {
+	// assets/save-disk is where this archive ships the prepared floppy, once the reader unpacks it from
+	// assets/save-disk/userdisk.hdm.zip. Finding it there is the difference between the game starting and the game
+	// showing its own WRONG DISK prompt on the first run.
+	for (const char* d : {"game", "original", "data", "assets/save-disk"}) {
 		std::error_code ec;
 		if (fs::is_directory(d, ec)) dirs.push_back(d);
 	}
