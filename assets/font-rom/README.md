@@ -1,7 +1,9 @@
 # FMT_FNT.ROM, the one platform ROM this repository carries
 
 `FMT_FNT.ROM` is the FM Towns glyph ROM. The game fetches text through segment selector `0138`, whose base on a real
-machine is linear `0xC2100000`, and this file is what that window holds. Without it the port runs and draws no text at
+machine is linear `0xC2100000`, and this file is what that window holds. Without it the port runs and warns that every
+glyph will be blank. Measured 2026-11-02, and it corrects the first version of this page: the tested route still draws
+legible text without it, because the game fetches the other half of its glyphs from `\UTFONT.FNT` on the disc. So this
 all, which reads as a broken renderer rather than as a missing file.
 
 It is committed here, in git, as a deliberate exception to the rule that this repository never hosts platform ROMs.

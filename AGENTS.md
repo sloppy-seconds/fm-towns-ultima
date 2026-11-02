@@ -599,7 +599,9 @@ is commercial software still in copyright and the reader supplies it, from a cop
 non-commercial preservation and it does not distribute the thing it preserves.
 
 **One platform ROM is a named exception, decided 2026-11-02: `assets/font-rom/FMT_FNT.ROM`.** It is the FM Towns glyph
-ROM, and the port draws no text at all without it. It is committed because it is not Fujitsu code: pinterior's
+ROM, which the game reads text through. Without it the port warns that every glyph will be blank. Measured
+2026-11-02: the tested route still renders legible text, because the disc's own `\UTFONT.FNT` supplies the other half,
+so this file is the half that ships with us rather than the only source. It is committed because it is not Fujitsu code: pinterior's
 `16dot.py` generates it from Shinonome, a public-domain BDF font, and the FreeTOWNS set's own licence states that
 provenance. What is **not** established is written down rather than glossed, because neither upstream attaches an
 explicit licence grant to the generated file. See `assets/font-rom/README.md` for the whole of it.
