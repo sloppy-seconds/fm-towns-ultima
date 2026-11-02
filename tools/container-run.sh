@@ -102,8 +102,7 @@ cmd_start() {
 		# that keystrokes cannot navigate.
 		-e "TSUGARU_EXTRA=-BOOTKEY CD"
 	)
-	[ -f "$DISC_CCD" ] && args+=(-v "$DISC_CCD:/disc/game.ccd:ro,z" -e "CD_IMAGE=/disc/game.ccd")
-	[ -f "$DISC_IMG" ] && args+=(-v "$DISC_IMG:/disc/game.img:ro,z")
+	[ -f "$DISC_CCD" ] && args+=(-v "$DISC_CCD:/disc/game.ccd:ro,z" -e "CD_IMAGE=/disc/game.ccd")	[ -f "$DISC_IMG" ] && args+=(-v "$DISC_IMG:/disc/game.img:ro,z")
 	# The save floppy MUST be writable. U2 creates ROSTER1.UT2 and WORLD1-4.UT2
 	# on it at character creation, and a read-only mount makes the game report
 	# "A WRONG DISK" and refuse to manage saves. Copy the pristine image into
@@ -111,6 +110,14 @@ cmd_start() {
 	# root is never modified.
 	# NO_FD=1 boots with no floppy in drive A. Useful for testing whether a
 	# game complaint is about drive A at all.
+	# Opt-in audio capture. The emulator's SDL audio goes nowhere in a container with no sound device, so a question
+	# like "when does the original start its music" cannot be answered by listening to it from outside. SDL's disk
+	# driver writes the mixed output to a file instead, and /data is the mounted saves/ directory, so the capture
+	# appears on the host with nothing to copy out afterwards.
+	if [ "${AUDIO_CAPTURE:-0}" = "1" ]; then
+		args+=(-e "SDL_AUDIODRIVER=disk" -e "SDL_DISKAUDIOFILE=/data/sdlaudio.raw")
+	fi
+
 	if [ "${NO_FD:-0}" != "1" ] && [ -f "$USERDISK" ]; then
 		SAVEDISK="$ROOT/saves/userdisk.hdm"
 		[ -f "$SAVEDISK" ] || cp "$USERDISK" "$SAVEDISK"
