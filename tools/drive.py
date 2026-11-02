@@ -61,6 +61,7 @@ class Port:
              os.path.join(ROOT, 'build/port/disc.cue'), disk],
             stdout=subprocess.PIPE, stderr=open(errlog, 'wb'), text=True, env=env)
         bound = None
+        self.startup = []
         while True:
             line = self.proc.stdout.readline()
             if not line:
@@ -69,6 +70,9 @@ class Port:
             if m:
                 bound = m.group(1)
                 break
+            # Everything printed before the socket binds was being thrown away, which silently discarded the
+            # "stop      will stop at 0x..." banner that proves U2_STOP_AT was received at all.
+            self.startup.append(line.rstrip())
         host, port = bound.rsplit(':', 1)
         self.sock = socket.create_connection((host, int(port)), timeout=300)
         self.buf = b''
@@ -126,6 +130,13 @@ class Port:
             rest = self.proc.stdout.read() or ''
         except (OSError, ValueError):
             rest = ''
+        # Save the WHOLE stdout beside the log. Keeping only a tail cost a false negative once already: the
+        # stop-at proof is printed on stdout and a truncated copy silently discarded it.
+        self.stdout_path = self.errlog + '.stdout'
+        try:
+            open(self.stdout_path, 'w').write('\n'.join(self.startup) + '\n' + rest)
+        except OSError:
+            self.stdout_path = ''
         lines = rest.strip().splitlines() if rest.strip() else []
         self.final_stdout = lines[-6:]
         # U2_STOP_AT reports on stdout, and truncating to the last few lines would have thrown it away. Keep
@@ -219,6 +230,7 @@ def main():
     report['port_exit'] = getattr(port, 'returncode', None)
     report['port_final'] = getattr(port, 'final_stdout', [])
     report['port_stops'] = getattr(port, 'stops', [])
+    report['port_stdout_path'] = getattr(port, 'stdout_path', '')
 
     if args.json:
         print(json.dumps(report, indent=2))
@@ -226,6 +238,8 @@ def main():
         print(f'drive: shadow entries total {report["shadow_hits"]} '
               f'({report.get("shadow_hits_before_sweep", 0)} before the sweep)')
         print(f'  disk {disk_hash[:16]}  temp {work}')
+        if report.get('port_stdout_path'):
+            print(f"  port stdout: {report['port_stdout_path']}")
         for line in report['port_stops']:
             print('  ' + line)
         if report['port_final']:

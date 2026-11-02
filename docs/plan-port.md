@@ -268,6 +268,16 @@ disagree about behaviour.
 not in a state that can distinguish "not reached" from "not watching". A negative from a control that fails is not
 a weak negative, it is no measurement at all.
 
+**The control problem is now solved, and it invalidated the fast path.** `0xe4b8d` fires only under `--graphics=none`,
+where the guest sits in that loop, so it was never a gameplay control at all. The working control is the turn clock:
+with the same route, `--graphics=none` changes **nothing** over 600 idle frames and no key completes a turn, while
+`--graphics=sdl` rewrites about 14 KB per step and the clock walks 70 to 71 to 72. The `key` command needs the SDL
+host, which `docs/port-defects.md` now records.
+
+So the instrument works, the configuration has to be `sdl`, and the sweep's negatives must be taken there. That run is
+slow rather than hard: 61 frames/s, about eleven minutes for the alphabet with a 900-frame settle. **The dispatcher's
+reachability is still open** and this section must not be read as having answered it.
+
 **The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
 window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong
 paragraph. The dispatcher's reachability is the open question, and it stays open until a control fires under the
