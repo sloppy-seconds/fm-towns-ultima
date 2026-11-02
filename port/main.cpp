@@ -302,6 +302,15 @@ int main(int argc, char** argv) {
 	static const towns::Profile kU2Profile = {"u2", 2, PROGRAM_BASE, 0x76000, 0, 0x1FFFFF};
 	m.profile = &kU2Profile;
 	std::printf("machine   townsos profile, %u MB\n", m.profile->ram_mb);
+	// A FIXED CLOCK, because otherwise the guest can read the host's. DOS time (int 21h AH=2Ah/2Ch) answers the host
+	// clock unless `clock_start` is set, and the game takes a seed from it: two identical runs of the same route were
+	// measured differing in exactly one byte at 0x4cdc23, which is enough to flip a framebuffer hash and make any
+	// differential report a difference for every shadow, correct or not. `U2_CLOCK=<unix seconds>` pins it; the
+	// machine's own clock is added on top, so a run stays deterministic as well as replayable.
+	if (const char* cl = std::getenv("U2_CLOCK")) {
+		m.clock_start = std::strtoll(cl, nullptr, 10);
+		std::printf("clock     pinned to %lld + machine time\n", (long long)m.clock_start);
+	}
 	m.townsos();
 
 	// TBIOS. This disc does not carry the modular set that TBIOS.INI composes: it ships a finished

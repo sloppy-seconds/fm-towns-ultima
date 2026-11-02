@@ -45,7 +45,7 @@ ALPHABET = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ') + list('0123456789') + \
 class Port:
     """The port under a control socket, with its stderr kept so shadow entries can be counted."""
 
-    def __init__(self, binary, disk, errlog, shadow_off=False, frames=200000, graphics='none'):
+    def __init__(self, binary, disk, errlog, shadow_off=False, frames=200000, graphics='none', clock=None):
         env = dict(os.environ)
         env.update({'SDL_VIDEODRIVER': 'dummy', 'SDL_AUDIODRIVER': 'dummy',
                     'U2_FONT': os.path.join(ROOT, 'vendor/roms/FMT_FNT.ROM'),
@@ -54,6 +54,10 @@ class Port:
         env.pop('DISPLAY', None)
         if shadow_off:
             env['U2_SHADOW_OFF'] = '1'
+        if clock is not None:
+            # A pinned clock is what makes two runs comparable: the guest's DOS time otherwise comes from the
+            # host, and the game seeds itself from it.
+            env['U2_CLOCK'] = str(clock)
         self.errlog = errlog
         self.proc = subprocess.Popen(
             [binary, f'--graphics={graphics}', f'--frames={frames}', '--control=127.0.0.1:0',
@@ -161,6 +165,8 @@ def main():
     ap.add_argument('--shots', default='', help='directory for one PNG per step')
     ap.add_argument('--shadow-off', action='store_true')
     ap.add_argument('--graphics', default='', help="none (fast, default) or sdl (real time, needed for --shots)")
+    ap.add_argument('--clock', type=int, default=None,
+                    help='pin the guest DOS clock to this unix time, so a run is reproducible')
     ap.add_argument('--json', action='store_true')
     args = ap.parse_args()
 
@@ -183,7 +189,8 @@ def main():
     # `none` and 329.08 s with `sdl`, and both reported guest clocks 5333320012. So `none` is the default and
     # `sdl` is used only when a picture is wanted, because shots need the renderer.
     graphics = args.graphics or ('sdl' if args.shots else 'none')
-    port = Port(args.port, disk, errlog, args.shadow_off, graphics=graphics)
+    port = Port(args.port, disk, errlog, args.shadow_off, graphics=graphics,
+                clock=args.clock if args.clock is not None else None)
     try:
         try:
             port.step(args.boot)

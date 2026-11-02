@@ -321,6 +321,34 @@ the return address). The cost is a module regeneration, 331 files, and a lookup 
 **That is a decision rather than a detail**, because it rewrites every generated file and trades call speed for a
 working seam, so it is recorded here and not taken unilaterally.
 
+### The seam now works, and the differential is blocked on determinism, 2026-11-02
+
+Paul took option B and it is implemented. `x86_call_known(c, addr, fn)` consults an **overlay table** that is module 0
+by contract, so the port's native shadows win, and falls through to the translation. The emitter's three direct-call
+sites (`emit.py` lines 433, 449, 456) now emit it.
+
+| before | after |
+|---|---|
+| `push32(c, 0xe9e59u); f_000e9c2c(c); X86_RET(...)` | `push32(c, 0xe9e59u); x86_call_known(c, 0xe9e59u, f_000e9c2c); X86_RET(...)` |
+
+Measured: the **60-frame run is byte-identical** after the regeneration (`eip 0xe56f8`, guest clocks 15999975), and
+the create route now reports **722 shadow entries** where it reported 0. Adding a shadow no longer needs the module
+regenerated, because every known call site already comes through `x86_call_known`.
+
+**`tools/shadow-diff.py` exists and cannot pass yet.** It runs the same route twice, baseline with `U2_SHADOW_OFF` and
+then with the shadows live, hashing the 64 KB at `0x4c0000` (screen buffer, sprite area and character record) at five
+checkpoints plus the save disk, and it refuses to pass unless the shadow was entered.
+
+**Its control fails, which is why it is not trusted.** Comparing the baseline against *itself* differs, so the
+harness was measuring noise. The noise is exactly one byte, `0x4cdc23`, and its value advanced `0x8c` then `0x8d`
+then `0x8e` across this session, so it moves with real time between process starts: the guest reads a host clock
+somewhere that `Machine::clock_start` does not cover.
+
+Two things were tried and are **ruled out**: pinning the DOS clock with a new `U2_CLOCK` (the port now sets
+`m.clock_start`, and the banner confirms it took), and fixing the copied disk's mtime with `os.utime`. Neither moves
+the byte. So 11c's differential stays blocked on determinism, and the next step is to find what reads the host clock,
+with the one-byte measurement as the instrument for it.
+
 **The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
 window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong
 paragraph. The dispatcher's reachability is the open question, and it stays open until a control fires under the

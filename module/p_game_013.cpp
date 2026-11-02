@@ -80,11 +80,11 @@ void f_000f2110(X86Cpu& c) {
     { uint32_t v = 0x5u; push32(c, v); }
     // 0f214a  call 0xe1944
     X86_AT(c, 0xf214au);
-    push32(c, 0xf214fu); f_000e1944(c); X86_RET(c, 0xf214fu);
+    push32(c, 0xf214fu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf214fu);
     X86_TICK(c, 7);
     // 0f214f  call 0xf0c70
     X86_AT(c, 0xf214fu);
-    push32(c, 0xf2154u); f_000f0c70(c); X86_RET(c, 0xf2154u);
+    push32(c, 0xf2154u); x86_call_known(c, 0xf0c70u, f_000f0c70); X86_RET(c, 0xf2154u);
     X86_TICK(c, 2);
     // 0f2154  add esp, 4
     X86_AT(c, 0xf2154u);
@@ -96,7 +96,7 @@ L_f2157:
     { uint32_t v = 0xBu; push32(c, v); }
     // 0f2159  call 0xe5748
     X86_AT(c, 0xf2159u);
-    push32(c, 0xf215eu); f_000e5748(c); X86_RET(c, 0xf215eu);
+    push32(c, 0xf215eu); x86_call_known(c, 0xe5748u, f_000e5748); X86_RET(c, 0xf215eu);
     X86_TICK(c, 14);
     // 0f215e  add esp, 4
     X86_AT(c, 0xf215eu);
@@ -126,7 +126,7 @@ L_f217a:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f217c  call 0xe6cb0
     X86_AT(c, 0xf217cu);
-    push32(c, 0xf2181u); f_000e6cb0(c); X86_RET(c, 0xf2181u);
+    push32(c, 0xf2181u); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf2181u);
     X86_TICK(c, 11);
     // 0f2181  add esp, 8
     X86_AT(c, 0xf2181u);
@@ -136,7 +136,7 @@ L_f217a:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2186  call 0xe6c68
     X86_AT(c, 0xf2186u);
-    push32(c, 0xf218bu); f_000e6c68(c); X86_RET(c, 0xf218bu);
+    push32(c, 0xf218bu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf218bu);
     X86_TICK(c, 22);
     // 0f218b  add esp, 4
     X86_AT(c, 0xf218bu);
@@ -159,7 +159,7 @@ void f_000f21c4(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f21c6  call 0xe693c
     X86_AT(c, 0xf21c6u);
-    push32(c, 0xf21cbu); f_000e693c(c); X86_RET(c, 0xf21cbu);
+    push32(c, 0xf21cbu); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf21cbu);
     X86_TICK(c, 11);
     // 0f21cb  push 0x634c
     X86_AT(c, 0xf21cbu);
@@ -169,7 +169,7 @@ void f_000f21c4(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f21d2  call 0xe5654
     X86_AT(c, 0xf21d2u);
-    push32(c, 0xf21d7u); f_000e5654(c); X86_RET(c, 0xf21d7u);
+    push32(c, 0xf21d7u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf21d7u);
     X86_TICK(c, 26);
     // 0f21d7  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf21d7u);
@@ -209,7 +209,7 @@ L_f21fa:
     X86_TICK(c, 7);
     // 0f21fa  call 0xf2274
     X86_AT(c, 0xf21fau);
-    push32(c, 0xf21ffu); f_000f2274(c); X86_RET(c, 0xf21ffu);
+    push32(c, 0xf21ffu); x86_call_known(c, 0xf2274u, f_000f2274); X86_RET(c, 0xf21ffu);
     X86_TICK(c, 7);
     // 0f21ff  jmp 0xf2206
     X86_AT(c, 0xf21ffu);
@@ -218,7 +218,7 @@ L_f2201:
     X86_TICK(c, 7);
     // 0f2201  call 0xf2208
     X86_AT(c, 0xf2201u);
-    push32(c, 0xf2206u); f_000f2208(c); X86_RET(c, 0xf2206u);
+    push32(c, 0xf2206u); x86_call_known(c, 0xf2208u, f_000f2208); X86_RET(c, 0xf2206u);
 L_f2206:
     X86_TICK(c, 10);
     // 0f2206  ret 
@@ -236,7 +236,7 @@ void f_000f2208(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f220b  call 0xe693c
     X86_AT(c, 0xf220bu);
-    push32(c, 0xf2210u); f_000e693c(c); X86_RET(c, 0xf2210u);
+    push32(c, 0xf2210u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf2210u);
     X86_TICK(c, 30);
     // 0f2210  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2210u);
@@ -261,7 +261,7 @@ void f_000f2208(X86Cpu& c) {
     { uint32_t v = rd32((c.sbase[3] + (uint32_t)(c.r[2] + 0xCDF6Bu))); push32(c, v); }
     // 0f222c  call 0xef920
     X86_AT(c, 0xf222cu);
-    push32(c, 0xf2231u); f_000ef920(c); X86_RET(c, 0xf2231u);
+    push32(c, 0xf2231u); x86_call_known(c, 0xef920u, f_000ef920); X86_RET(c, 0xf2231u);
     X86_TICK(c, 12);
     // 0f2231  xchg edi, eax
     X86_AT(c, 0xf2231u);
@@ -278,7 +278,7 @@ void f_000f2208(X86Cpu& c) {
     X86_TICK(c, 7);
     // 0f223d  call 0xf2470
     X86_AT(c, 0xf223du);
-    push32(c, 0xf2242u); f_000f2470(c); X86_RET(c, 0xf2242u);
+    push32(c, 0xf2242u); x86_call_known(c, 0xf2470u, f_000f2470); X86_RET(c, 0xf2242u);
     X86_TICK(c, 7);
     // 0f2242  jmp 0xf2270
     X86_AT(c, 0xf2242u);
@@ -294,7 +294,7 @@ L_f2244:
     X86_TICK(c, 7);
     // 0f224c  call 0xf254c
     X86_AT(c, 0xf224cu);
-    push32(c, 0xf2251u); f_000f254c(c); X86_RET(c, 0xf2251u);
+    push32(c, 0xf2251u); x86_call_known(c, 0xf254cu, f_000f254c); X86_RET(c, 0xf2251u);
     X86_TICK(c, 7);
     // 0f2251  jmp 0xf2270
     X86_AT(c, 0xf2251u);
@@ -306,7 +306,7 @@ L_f2253:
     { uint32_t v = 0x1u; push32(c, v); }
     // 0f2255  call 0xe1944
     X86_AT(c, 0xf2255u);
-    push32(c, 0xf225au); f_000e1944(c); X86_RET(c, 0xf225au);
+    push32(c, 0xf225au); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf225au);
     X86_TICK(c, 11);
     // 0f225a  push 0x635c
     X86_AT(c, 0xf225au);
@@ -316,14 +316,14 @@ L_f2253:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2261  call 0xe5654
     X86_AT(c, 0xf2261u);
-    push32(c, 0xf2266u); f_000e5654(c); X86_RET(c, 0xf2266u);
+    push32(c, 0xf2266u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2266u);
     X86_TICK(c, 9);
     // 0f2266  push 7
     X86_AT(c, 0xf2266u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2268  call 0xe6c68
     X86_AT(c, 0xf2268u);
-    push32(c, 0xf226du); f_000e6c68(c); X86_RET(c, 0xf226du);
+    push32(c, 0xf226du); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf226du);
     X86_TICK(c, 2);
     // 0f226d  add esp, 0x10
     X86_AT(c, 0xf226du);
@@ -372,7 +372,7 @@ void f_000f2274(X86Cpu& c) {
     { uint32_t v = rd32((c.sbase[3] + (uint32_t)(0xD4A68u))); push32(c, v); }
     // 0f2298  call 0xfb21c
     X86_AT(c, 0xf2298u);
-    push32(c, 0xf229du); f_000fb21c(c); X86_RET(c, 0xf229du);
+    push32(c, 0xf229du); x86_call_known(c, 0xfb21cu, f_000fb21c); X86_RET(c, 0xf229du);
     X86_TICK(c, 12);
     // 0f229d  xchg edi, eax
     X86_AT(c, 0xf229du);
@@ -392,7 +392,7 @@ void f_000f2274(X86Cpu& c) {
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f22a8  call 0xe1944
     X86_AT(c, 0xf22a8u);
-    push32(c, 0xf22adu); f_000e1944(c); X86_RET(c, 0xf22adu);
+    push32(c, 0xf22adu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf22adu);
     X86_TICK(c, 11);
     // 0f22ad  push 0x6370
     X86_AT(c, 0xf22adu);
@@ -402,14 +402,14 @@ void f_000f2274(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f22b4  call 0xe5654
     X86_AT(c, 0xf22b4u);
-    push32(c, 0xf22b9u); f_000e5654(c); X86_RET(c, 0xf22b9u);
+    push32(c, 0xf22b9u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf22b9u);
     X86_TICK(c, 9);
     // 0f22b9  push 7
     X86_AT(c, 0xf22b9u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f22bb  call 0xe6c68
     X86_AT(c, 0xf22bbu);
-    push32(c, 0xf22c0u); f_000e6c68(c); X86_RET(c, 0xf22c0u);
+    push32(c, 0xf22c0u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf22c0u);
     X86_TICK(c, 9);
     // 0f22c0  add esp, 0x10
     X86_AT(c, 0xf22c0u);
@@ -448,7 +448,7 @@ L_f22c8:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f22ec  call 0xfb280
     X86_AT(c, 0xf22ecu);
-    push32(c, 0xf22f1u); f_000fb280(c); X86_RET(c, 0xf22f1u);
+    push32(c, 0xf22f1u); x86_call_known(c, 0xfb280u, f_000fb280); X86_RET(c, 0xf22f1u);
     X86_TICK(c, 37);
     // 0f22f1  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf22f1u);
@@ -479,7 +479,7 @@ L_f22c8:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f2315  call 0xfb29c
     X86_AT(c, 0xf2315u);
-    push32(c, 0xf231au); f_000fb29c(c); X86_RET(c, 0xf231au);
+    push32(c, 0xf231au); x86_call_known(c, 0xfb29cu, f_000fb29c); X86_RET(c, 0xf231au);
     X86_TICK(c, 11);
     // 0f231a  push 0x6388
     X86_AT(c, 0xf231au);
@@ -489,14 +489,14 @@ L_f22c8:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2321  call 0xe5654
     X86_AT(c, 0xf2321u);
-    push32(c, 0xf2326u); f_000e5654(c); X86_RET(c, 0xf2326u);
+    push32(c, 0xf2326u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2326u);
     X86_TICK(c, 9);
     // 0f2326  push 7
     X86_AT(c, 0xf2326u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2328  call 0xe6c68
     X86_AT(c, 0xf2328u);
-    push32(c, 0xf232du); f_000e6c68(c); X86_RET(c, 0xf232du);
+    push32(c, 0xf232du); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf232du);
     X86_TICK(c, 11);
     // 0f232d  push 0x63a4
     X86_AT(c, 0xf232du);
@@ -506,14 +506,14 @@ L_f22c8:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2334  call 0xe5654
     X86_AT(c, 0xf2334u);
-    push32(c, 0xf2339u); f_000e5654(c); X86_RET(c, 0xf2339u);
+    push32(c, 0xf2339u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2339u);
     X86_TICK(c, 9);
     // 0f2339  push 7
     X86_AT(c, 0xf2339u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f233b  call 0xe6c68
     X86_AT(c, 0xf233bu);
-    push32(c, 0xf2340u); f_000e6c68(c); X86_RET(c, 0xf2340u);
+    push32(c, 0xf2340u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2340u);
     X86_TICK(c, 14);
     // 0f2340  add esp, 0x38
     X86_AT(c, 0xf2340u);
@@ -527,7 +527,7 @@ L_f22c8:
     X86_TICK(c, 7);
     // 0f234c  call 0xf23d4
     X86_AT(c, 0xf234cu);
-    push32(c, 0xf2351u); f_000f23d4(c); X86_RET(c, 0xf2351u);
+    push32(c, 0xf2351u); x86_call_known(c, 0xf23d4u, f_000f23d4); X86_RET(c, 0xf2351u);
     X86_TICK(c, 7);
     // 0f2351  jmp 0xf23cf
     X86_AT(c, 0xf2351u);
@@ -539,7 +539,7 @@ L_f2356:
     { uint32_t v = 0xFu; push32(c, v); }
     // 0f2358  call 0xe1a7c
     X86_AT(c, 0xf2358u);
-    push32(c, 0xf235du); f_000e1a7c(c); X86_RET(c, 0xf235du);
+    push32(c, 0xf235du); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf235du);
     X86_TICK(c, 9);
     // 0f235d  add esp, 4
     X86_AT(c, 0xf235du);
@@ -553,7 +553,7 @@ L_f2356:
     X86_TICK(c, 7);
     // 0f2365  call 0xf244c
     X86_AT(c, 0xf2365u);
-    push32(c, 0xf236au); f_000f244c(c); X86_RET(c, 0xf236au);
+    push32(c, 0xf236au); x86_call_known(c, 0xf244cu, f_000f244c); X86_RET(c, 0xf236au);
     X86_TICK(c, 7);
     // 0f236a  jmp 0xf23cf
     X86_AT(c, 0xf236au);
@@ -565,7 +565,7 @@ L_f236c:
     { uint32_t v = 0xFu; push32(c, v); }
     // 0f236e  call 0xe1a7c
     X86_AT(c, 0xf236eu);
-    push32(c, 0xf2373u); f_000e1a7c(c); X86_RET(c, 0xf2373u);
+    push32(c, 0xf2373u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2373u);
     X86_TICK(c, 9);
     // 0f2373  add esp, 4
     X86_AT(c, 0xf2373u);
@@ -579,7 +579,7 @@ L_f236c:
     X86_TICK(c, 7);
     // 0f237b  call 0xf26c8
     X86_AT(c, 0xf237bu);
-    push32(c, 0xf2380u); f_000f26c8(c); X86_RET(c, 0xf2380u);
+    push32(c, 0xf2380u); x86_call_known(c, 0xf26c8u, f_000f26c8); X86_RET(c, 0xf2380u);
     X86_TICK(c, 7);
     // 0f2380  jmp 0xf23cf
     X86_AT(c, 0xf2380u);
@@ -597,7 +597,7 @@ L_f2382:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f238a  call 0xe1a7c
     X86_AT(c, 0xf238au);
-    push32(c, 0xf238fu); f_000e1a7c(c); X86_RET(c, 0xf238fu);
+    push32(c, 0xf238fu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf238fu);
     X86_TICK(c, 22);
     // 0f238f  add eax, 0x30
     X86_AT(c, 0xf238fu);
@@ -619,7 +619,7 @@ L_f2382:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f23a4  call 0xe5654
     X86_AT(c, 0xf23a4u);
-    push32(c, 0xf23a9u); f_000e5654(c); X86_RET(c, 0xf23a9u);
+    push32(c, 0xf23a9u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf23a9u);
     X86_TICK(c, 13);
     // 0f23a9  push 3
     X86_AT(c, 0xf23a9u);
@@ -632,7 +632,7 @@ L_f2382:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f23ae  call 0xe5630
     X86_AT(c, 0xf23aeu);
-    push32(c, 0xf23b3u); f_000e5630(c); X86_RET(c, 0xf23b3u);
+    push32(c, 0xf23b3u); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf23b3u);
     X86_TICK(c, 11);
     // 0f23b3  push 0x63e4
     X86_AT(c, 0xf23b3u);
@@ -642,21 +642,21 @@ L_f2382:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f23ba  call 0xe5654
     X86_AT(c, 0xf23bau);
-    push32(c, 0xf23bfu); f_000e5654(c); X86_RET(c, 0xf23bfu);
+    push32(c, 0xf23bfu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf23bfu);
     X86_TICK(c, 9);
     // 0f23bf  push 7
     X86_AT(c, 0xf23bfu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f23c1  call 0xe6c68
     X86_AT(c, 0xf23c1u);
-    push32(c, 0xf23c6u); f_000e6c68(c); X86_RET(c, 0xf23c6u);
+    push32(c, 0xf23c6u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf23c6u);
     X86_TICK(c, 9);
     // 0f23c6  push esi
     X86_AT(c, 0xf23c6u);
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f23c7  call 0xef07c
     X86_AT(c, 0xf23c7u);
-    push32(c, 0xf23ccu); f_000ef07c(c); X86_RET(c, 0xf23ccu);
+    push32(c, 0xf23ccu); x86_call_known(c, 0xef07cu, f_000ef07c); X86_RET(c, 0xf23ccu);
     X86_TICK(c, 2);
     // 0f23cc  add esp, 0x28
     X86_AT(c, 0xf23ccu);
@@ -694,14 +694,14 @@ void f_000f23d4(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f23d6  call 0xe693c
     X86_AT(c, 0xf23d6u);
-    push32(c, 0xf23dbu); f_000e693c(c); X86_RET(c, 0xf23dbu);
+    push32(c, 0xf23dbu); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf23dbu);
     X86_TICK(c, 9);
     // 0f23db  push 9
     X86_AT(c, 0xf23dbu);
     { uint32_t v = 0x9u; push32(c, v); }
     // 0f23dd  call 0xe1a7c
     X86_AT(c, 0xf23ddu);
-    push32(c, 0xf23e2u); f_000e1a7c(c); X86_RET(c, 0xf23e2u);
+    push32(c, 0xf23e2u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf23e2u);
     X86_TICK(c, 9);
     // 0f23e2  add esp, 8
     X86_AT(c, 0xf23e2u);
@@ -718,7 +718,7 @@ void f_000f23d4(X86Cpu& c) {
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f23ec  call 0xe1944
     X86_AT(c, 0xf23ecu);
-    push32(c, 0xf23f1u); f_000e1944(c); X86_RET(c, 0xf23f1u);
+    push32(c, 0xf23f1u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf23f1u);
     X86_TICK(c, 11);
     // 0f23f1  push 0x6408
     X86_AT(c, 0xf23f1u);
@@ -728,14 +728,14 @@ void f_000f23d4(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f23f8  call 0xe5654
     X86_AT(c, 0xf23f8u);
-    push32(c, 0xf23fdu); f_000e5654(c); X86_RET(c, 0xf23fdu);
+    push32(c, 0xf23fdu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf23fdu);
     X86_TICK(c, 9);
     // 0f23fd  push 7
     X86_AT(c, 0xf23fdu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f23ff  call 0xe6c68
     X86_AT(c, 0xf23ffu);
-    push32(c, 0xf2404u); f_000e6c68(c); X86_RET(c, 0xf2404u);
+    push32(c, 0xf2404u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2404u);
     X86_TICK(c, 9);
     // 0f2404  add esp, 0x10
     X86_AT(c, 0xf2404u);
@@ -753,7 +753,7 @@ L_f2409:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2410  call 0xe5654
     X86_AT(c, 0xf2410u);
-    push32(c, 0xf2415u); f_000e5654(c); X86_RET(c, 0xf2415u);
+    push32(c, 0xf2415u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2415u);
     X86_TICK(c, 33);
     // 0f2415  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2415u);
@@ -793,7 +793,7 @@ L_f2441:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2443  call 0xe6c68
     X86_AT(c, 0xf2443u);
-    push32(c, 0xf2448u); f_000e6c68(c); X86_RET(c, 0xf2448u);
+    push32(c, 0xf2448u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2448u);
     X86_TICK(c, 2);
     // 0f2448  add esp, 4
     X86_AT(c, 0xf2448u);
@@ -837,7 +837,7 @@ L_f245f:
     X86_TICK(c, 7);
     // 0f2463  call 0xf2770
     X86_AT(c, 0xf2463u);
-    push32(c, 0xf2468u); f_000f2770(c); X86_RET(c, 0xf2468u);
+    push32(c, 0xf2468u); x86_call_known(c, 0xf2770u, f_000f2770); X86_RET(c, 0xf2468u);
     X86_TICK(c, 7);
     // 0f2468  jmp 0xf246f
     X86_AT(c, 0xf2468u);
@@ -846,7 +846,7 @@ L_f246a:
     X86_TICK(c, 7);
     // 0f246a  call 0xf2628
     X86_AT(c, 0xf246au);
-    push32(c, 0xf246fu); f_000f2628(c); X86_RET(c, 0xf246fu);
+    push32(c, 0xf246fu); x86_call_known(c, 0xf2628u, f_000f2628); X86_RET(c, 0xf246fu);
 L_f246f:
     X86_TICK(c, 10);
     // 0f246f  ret 
@@ -876,7 +876,7 @@ void f_000f2470(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2478  call 0xe693c
     X86_AT(c, 0xf2478u);
-    push32(c, 0xf247du); f_000e693c(c); X86_RET(c, 0xf247du);
+    push32(c, 0xf247du); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf247du);
     X86_TICK(c, 11);
     // 0f247d  push 0x6474
     X86_AT(c, 0xf247du);
@@ -886,14 +886,14 @@ void f_000f2470(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2484  call 0xe5654
     X86_AT(c, 0xf2484u);
-    push32(c, 0xf2489u); f_000e5654(c); X86_RET(c, 0xf2489u);
+    push32(c, 0xf2489u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2489u);
     X86_TICK(c, 9);
     // 0f2489  push 7
     X86_AT(c, 0xf2489u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f248b  call 0xe6c68
     X86_AT(c, 0xf248bu);
-    push32(c, 0xf2490u); f_000e6c68(c); X86_RET(c, 0xf2490u);
+    push32(c, 0xf2490u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2490u);
     X86_TICK(c, 32);
     // 0f2490  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2490u);
@@ -921,7 +921,7 @@ void f_000f2470(X86Cpu& c) {
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f24ae  call 0xf3c24
     X86_AT(c, 0xf24aeu);
-    push32(c, 0xf24b3u); f_000f3c24(c); X86_RET(c, 0xf24b3u);
+    push32(c, 0xf24b3u); x86_call_known(c, 0xf3c24u, f_000f3c24); X86_RET(c, 0xf24b3u);
     X86_TICK(c, 11);
     // 0f24b3  mov byte ptr [ebp - 1], 0
     X86_AT(c, 0xf24b3u);
@@ -931,7 +931,7 @@ void f_000f2470(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f24b9  call 0xe1a7c
     X86_AT(c, 0xf24b9u);
-    push32(c, 0xf24beu); f_000e1a7c(c); X86_RET(c, 0xf24beu);
+    push32(c, 0xf24beu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf24beu);
     X86_TICK(c, 12);
     // 0f24be  xchg edi, eax
     X86_AT(c, 0xf24beu);
@@ -951,7 +951,7 @@ void f_000f2470(X86Cpu& c) {
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f24c8  call 0xe1944
     X86_AT(c, 0xf24c8u);
-    push32(c, 0xf24cdu); f_000e1944(c); X86_RET(c, 0xf24cdu);
+    push32(c, 0xf24cdu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf24cdu);
     X86_TICK(c, 11);
     // 0f24cd  push 0x648c
     X86_AT(c, 0xf24cdu);
@@ -961,14 +961,14 @@ void f_000f2470(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f24d4  call 0xe5654
     X86_AT(c, 0xf24d4u);
-    push32(c, 0xf24d9u); f_000e5654(c); X86_RET(c, 0xf24d9u);
+    push32(c, 0xf24d9u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf24d9u);
     X86_TICK(c, 9);
     // 0f24d9  push 7
     X86_AT(c, 0xf24d9u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f24db  call 0xe6c68
     X86_AT(c, 0xf24dbu);
-    push32(c, 0xf24e0u); f_000e6c68(c); X86_RET(c, 0xf24e0u);
+    push32(c, 0xf24e0u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf24e0u);
     X86_TICK(c, 9);
     // 0f24e0  add esp, 0x10
     X86_AT(c, 0xf24e0u);
@@ -1001,7 +1001,7 @@ L_f24e5:
     { uint32_t v = 0xCFBE8u; push32(c, v); }
     // 0f24f6  call 0xe53e0
     X86_AT(c, 0xf24f6u);
-    push32(c, 0xf24fbu); f_000e53e0(c); X86_RET(c, 0xf24fbu);
+    push32(c, 0xf24fbu); x86_call_known(c, 0xe53e0u, f_000e53e0); X86_RET(c, 0xf24fbu);
     X86_TICK(c, 11);
     // 0f24fb  push eax
     X86_AT(c, 0xf24fbu);
@@ -1011,7 +1011,7 @@ L_f24e5:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f24fe  call 0xe6cb0
     X86_AT(c, 0xf24feu);
-    push32(c, 0xf2503u); f_000e6cb0(c); X86_RET(c, 0xf2503u);
+    push32(c, 0xf2503u); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf2503u);
     X86_TICK(c, 11);
     // 0f2503  push 0x64ac
     X86_AT(c, 0xf2503u);
@@ -1021,7 +1021,7 @@ L_f24e5:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f250a  call 0xe5654
     X86_AT(c, 0xf250au);
-    push32(c, 0xf250fu); f_000e5654(c); X86_RET(c, 0xf250fu);
+    push32(c, 0xf250fu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf250fu);
     X86_TICK(c, 33);
     // 0f250f  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf250fu);
@@ -1061,7 +1061,7 @@ L_f253e:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2540  call 0xe6c68
     X86_AT(c, 0xf2540u);
-    push32(c, 0xf2545u); f_000e6c68(c); X86_RET(c, 0xf2545u);
+    push32(c, 0xf2545u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2545u);
     X86_TICK(c, 2);
     // 0f2545  add esp, 4
     X86_AT(c, 0xf2545u);
@@ -1104,7 +1104,7 @@ void f_000f254c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2554  call 0xe693c
     X86_AT(c, 0xf2554u);
-    push32(c, 0xf2559u); f_000e693c(c); X86_RET(c, 0xf2559u);
+    push32(c, 0xf2559u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf2559u);
     X86_TICK(c, 11);
     // 0f2559  push 0x64b8
     X86_AT(c, 0xf2559u);
@@ -1114,14 +1114,14 @@ void f_000f254c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2560  call 0xe5654
     X86_AT(c, 0xf2560u);
-    push32(c, 0xf2565u); f_000e5654(c); X86_RET(c, 0xf2565u);
+    push32(c, 0xf2565u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2565u);
     X86_TICK(c, 9);
     // 0f2565  push 7
     X86_AT(c, 0xf2565u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2567  call 0xe6c68
     X86_AT(c, 0xf2567u);
-    push32(c, 0xf256cu); f_000e6c68(c); X86_RET(c, 0xf256cu);
+    push32(c, 0xf256cu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf256cu);
     X86_TICK(c, 32);
     // 0f256c  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf256cu);
@@ -1149,7 +1149,7 @@ void f_000f254c(X86Cpu& c) {
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f258a  call 0xf3c24
     X86_AT(c, 0xf258au);
-    push32(c, 0xf258fu); f_000f3c24(c); X86_RET(c, 0xf258fu);
+    push32(c, 0xf258fu); x86_call_known(c, 0xf3c24u, f_000f3c24); X86_RET(c, 0xf258fu);
     X86_TICK(c, 11);
     // 0f258f  mov byte ptr [ebp - 1], 0
     X86_AT(c, 0xf258fu);
@@ -1159,7 +1159,7 @@ void f_000f254c(X86Cpu& c) {
     { uint32_t v = 0x4u; push32(c, v); }
     // 0f2595  call 0xe1a7c
     X86_AT(c, 0xf2595u);
-    push32(c, 0xf259au); f_000e1a7c(c); X86_RET(c, 0xf259au);
+    push32(c, 0xf259au); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf259au);
     X86_TICK(c, 12);
     // 0f259a  xchg edi, eax
     X86_AT(c, 0xf259au);
@@ -1179,7 +1179,7 @@ void f_000f254c(X86Cpu& c) {
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f25a4  call 0xe1944
     X86_AT(c, 0xf25a4u);
-    push32(c, 0xf25a9u); f_000e1944(c); X86_RET(c, 0xf25a9u);
+    push32(c, 0xf25a9u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf25a9u);
     X86_TICK(c, 11);
     // 0f25a9  push 0x64d0
     X86_AT(c, 0xf25a9u);
@@ -1189,14 +1189,14 @@ void f_000f254c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f25b0  call 0xe5654
     X86_AT(c, 0xf25b0u);
-    push32(c, 0xf25b5u); f_000e5654(c); X86_RET(c, 0xf25b5u);
+    push32(c, 0xf25b5u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf25b5u);
     X86_TICK(c, 9);
     // 0f25b5  push 7
     X86_AT(c, 0xf25b5u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f25b7  call 0xe6c68
     X86_AT(c, 0xf25b7u);
-    push32(c, 0xf25bcu); f_000e6c68(c); X86_RET(c, 0xf25bcu);
+    push32(c, 0xf25bcu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf25bcu);
     X86_TICK(c, 9);
     // 0f25bc  add esp, 0x10
     X86_AT(c, 0xf25bcu);
@@ -1229,7 +1229,7 @@ L_f25c1:
     { uint32_t v = 0xCF84Cu; push32(c, v); }
     // 0f25d2  call 0xe53e0
     X86_AT(c, 0xf25d2u);
-    push32(c, 0xf25d7u); f_000e53e0(c); X86_RET(c, 0xf25d7u);
+    push32(c, 0xf25d7u); x86_call_known(c, 0xe53e0u, f_000e53e0); X86_RET(c, 0xf25d7u);
     X86_TICK(c, 11);
     // 0f25d7  push eax
     X86_AT(c, 0xf25d7u);
@@ -1239,7 +1239,7 @@ L_f25c1:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f25da  call 0xe6cb0
     X86_AT(c, 0xf25dau);
-    push32(c, 0xf25dfu); f_000e6cb0(c); X86_RET(c, 0xf25dfu);
+    push32(c, 0xf25dfu); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf25dfu);
     X86_TICK(c, 11);
     // 0f25df  push 0x64f0
     X86_AT(c, 0xf25dfu);
@@ -1249,7 +1249,7 @@ L_f25c1:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f25e6  call 0xe5654
     X86_AT(c, 0xf25e6u);
-    push32(c, 0xf25ebu); f_000e5654(c); X86_RET(c, 0xf25ebu);
+    push32(c, 0xf25ebu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf25ebu);
     X86_TICK(c, 33);
     // 0f25eb  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf25ebu);
@@ -1289,7 +1289,7 @@ L_f261a:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f261c  call 0xe6c68
     X86_AT(c, 0xf261cu);
-    push32(c, 0xf2621u); f_000e6c68(c); X86_RET(c, 0xf2621u);
+    push32(c, 0xf2621u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2621u);
     X86_TICK(c, 2);
     // 0f2621  add esp, 4
     X86_AT(c, 0xf2621u);
@@ -1335,7 +1335,7 @@ void f_000f2628(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2634  call 0xe1a7c
     X86_AT(c, 0xf2634u);
-    push32(c, 0xf2639u); f_000e1a7c(c); X86_RET(c, 0xf2639u);
+    push32(c, 0xf2639u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2639u);
     X86_TICK(c, 12);
     // 0f2639  xchg edi, eax
     X86_AT(c, 0xf2639u);
@@ -1355,7 +1355,7 @@ void f_000f2628(X86Cpu& c) {
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f2643  call 0xe1944
     X86_AT(c, 0xf2643u);
-    push32(c, 0xf2648u); f_000e1944(c); X86_RET(c, 0xf2648u);
+    push32(c, 0xf2648u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf2648u);
     X86_TICK(c, 11);
     // 0f2648  push 0x64fc
     X86_AT(c, 0xf2648u);
@@ -1365,14 +1365,14 @@ void f_000f2628(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f264f  call 0xe5654
     X86_AT(c, 0xf264fu);
-    push32(c, 0xf2654u); f_000e5654(c); X86_RET(c, 0xf2654u);
+    push32(c, 0xf2654u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2654u);
     X86_TICK(c, 9);
     // 0f2654  push 7
     X86_AT(c, 0xf2654u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2656  call 0xe6c68
     X86_AT(c, 0xf2656u);
-    push32(c, 0xf265bu); f_000e6c68(c); X86_RET(c, 0xf265bu);
+    push32(c, 0xf265bu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf265bu);
     X86_TICK(c, 9);
     // 0f265b  add esp, 0x10
     X86_AT(c, 0xf265bu);
@@ -1405,7 +1405,7 @@ L_f2660:
     { uint32_t v = 0xCFBE8u; push32(c, v); }
     // 0f2671  call 0xe53e0
     X86_AT(c, 0xf2671u);
-    push32(c, 0xf2676u); f_000e53e0(c); X86_RET(c, 0xf2676u);
+    push32(c, 0xf2676u); x86_call_known(c, 0xe53e0u, f_000e53e0); X86_RET(c, 0xf2676u);
     X86_TICK(c, 11);
     // 0f2676  push eax
     X86_AT(c, 0xf2676u);
@@ -1415,7 +1415,7 @@ L_f2660:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2679  call 0xe6cb0
     X86_AT(c, 0xf2679u);
-    push32(c, 0xf267eu); f_000e6cb0(c); X86_RET(c, 0xf267eu);
+    push32(c, 0xf267eu); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf267eu);
     X86_TICK(c, 11);
     // 0f267e  push 0x651c
     X86_AT(c, 0xf267eu);
@@ -1425,7 +1425,7 @@ L_f2660:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2685  call 0xe5654
     X86_AT(c, 0xf2685u);
-    push32(c, 0xf268au); f_000e5654(c); X86_RET(c, 0xf268au);
+    push32(c, 0xf268au); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf268au);
     X86_TICK(c, 33);
     // 0f268a  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf268au);
@@ -1465,7 +1465,7 @@ L_f26b9:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f26bb  call 0xe6c68
     X86_AT(c, 0xf26bbu);
-    push32(c, 0xf26c0u); f_000e6c68(c); X86_RET(c, 0xf26c0u);
+    push32(c, 0xf26c0u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf26c0u);
     X86_TICK(c, 2);
     // 0f26c0  add esp, 4
     X86_AT(c, 0xf26c0u);
@@ -1511,7 +1511,7 @@ void f_000f26c8(X86Cpu& c) {
     { uint32_t v = 0xEu; push32(c, v); }
     // 0f26d4  call 0xe1a7c
     X86_AT(c, 0xf26d4u);
-    push32(c, 0xf26d9u); f_000e1a7c(c); X86_RET(c, 0xf26d9u);
+    push32(c, 0xf26d9u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf26d9u);
     X86_TICK(c, 12);
     // 0f26d9  xchg edi, eax
     X86_AT(c, 0xf26d9u);
@@ -1521,7 +1521,7 @@ void f_000f26c8(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f26dc  call 0xe693c
     X86_AT(c, 0xf26dcu);
-    push32(c, 0xf26e1u); f_000e693c(c); X86_RET(c, 0xf26e1u);
+    push32(c, 0xf26e1u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf26e1u);
     X86_TICK(c, 9);
     // 0f26e1  add esp, 8
     X86_AT(c, 0xf26e1u);
@@ -1538,7 +1538,7 @@ void f_000f26c8(X86Cpu& c) {
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f26ea  call 0xe1944
     X86_AT(c, 0xf26eau);
-    push32(c, 0xf26efu); f_000e1944(c); X86_RET(c, 0xf26efu);
+    push32(c, 0xf26efu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf26efu);
     X86_TICK(c, 11);
     // 0f26ef  push 0x6528
     X86_AT(c, 0xf26efu);
@@ -1548,14 +1548,14 @@ void f_000f26c8(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f26f6  call 0xe5654
     X86_AT(c, 0xf26f6u);
-    push32(c, 0xf26fbu); f_000e5654(c); X86_RET(c, 0xf26fbu);
+    push32(c, 0xf26fbu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf26fbu);
     X86_TICK(c, 9);
     // 0f26fb  push 7
     X86_AT(c, 0xf26fbu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f26fd  call 0xe6c68
     X86_AT(c, 0xf26fdu);
-    push32(c, 0xf2702u); f_000e6c68(c); X86_RET(c, 0xf2702u);
+    push32(c, 0xf2702u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2702u);
     X86_TICK(c, 9);
     // 0f2702  add esp, 0x10
     X86_AT(c, 0xf2702u);
@@ -1588,7 +1588,7 @@ L_f2707:
     { uint32_t v = 0xD0638u; push32(c, v); }
     // 0f2718  call 0xe53e0
     X86_AT(c, 0xf2718u);
-    push32(c, 0xf271du); f_000e53e0(c); X86_RET(c, 0xf271du);
+    push32(c, 0xf271du); x86_call_known(c, 0xe53e0u, f_000e53e0); X86_RET(c, 0xf271du);
     X86_TICK(c, 11);
     // 0f271d  push eax
     X86_AT(c, 0xf271du);
@@ -1598,7 +1598,7 @@ L_f2707:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2720  call 0xe6cb0
     X86_AT(c, 0xf2720u);
-    push32(c, 0xf2725u); f_000e6cb0(c); X86_RET(c, 0xf2725u);
+    push32(c, 0xf2725u); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf2725u);
     X86_TICK(c, 11);
     // 0f2725  push 0x6548
     X86_AT(c, 0xf2725u);
@@ -1608,7 +1608,7 @@ L_f2707:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f272c  call 0xe5654
     X86_AT(c, 0xf272cu);
-    push32(c, 0xf2731u); f_000e5654(c); X86_RET(c, 0xf2731u);
+    push32(c, 0xf2731u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2731u);
     X86_TICK(c, 34);
     // 0f2731  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2731u);
@@ -1648,7 +1648,7 @@ L_f2761:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2763  call 0xe6c68
     X86_AT(c, 0xf2763u);
-    push32(c, 0xf2768u); f_000e6c68(c); X86_RET(c, 0xf2768u);
+    push32(c, 0xf2768u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2768u);
     X86_TICK(c, 2);
     // 0f2768  add esp, 4
     X86_AT(c, 0xf2768u);
@@ -1694,7 +1694,7 @@ void f_000f2770(X86Cpu& c) {
     { uint32_t v = 0x4u; push32(c, v); }
     // 0f277c  call 0xe1a7c
     X86_AT(c, 0xf277cu);
-    push32(c, 0xf2781u); f_000e1a7c(c); X86_RET(c, 0xf2781u);
+    push32(c, 0xf2781u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2781u);
     X86_TICK(c, 12);
     // 0f2781  xchg edi, eax
     X86_AT(c, 0xf2781u);
@@ -1714,7 +1714,7 @@ void f_000f2770(X86Cpu& c) {
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f278b  call 0xe1944
     X86_AT(c, 0xf278bu);
-    push32(c, 0xf2790u); f_000e1944(c); X86_RET(c, 0xf2790u);
+    push32(c, 0xf2790u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf2790u);
     X86_TICK(c, 11);
     // 0f2790  push 0x6554
     X86_AT(c, 0xf2790u);
@@ -1724,14 +1724,14 @@ void f_000f2770(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2797  call 0xe5654
     X86_AT(c, 0xf2797u);
-    push32(c, 0xf279cu); f_000e5654(c); X86_RET(c, 0xf279cu);
+    push32(c, 0xf279cu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf279cu);
     X86_TICK(c, 9);
     // 0f279c  push 7
     X86_AT(c, 0xf279cu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f279e  call 0xe6c68
     X86_AT(c, 0xf279eu);
-    push32(c, 0xf27a3u); f_000e6c68(c); X86_RET(c, 0xf27a3u);
+    push32(c, 0xf27a3u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf27a3u);
     X86_TICK(c, 9);
     // 0f27a3  add esp, 0x10
     X86_AT(c, 0xf27a3u);
@@ -1764,7 +1764,7 @@ L_f27a8:
     { uint32_t v = 0xCF84Cu; push32(c, v); }
     // 0f27b9  call 0xe53e0
     X86_AT(c, 0xf27b9u);
-    push32(c, 0xf27beu); f_000e53e0(c); X86_RET(c, 0xf27beu);
+    push32(c, 0xf27beu); x86_call_known(c, 0xe53e0u, f_000e53e0); X86_RET(c, 0xf27beu);
     X86_TICK(c, 11);
     // 0f27be  push eax
     X86_AT(c, 0xf27beu);
@@ -1774,7 +1774,7 @@ L_f27a8:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f27c1  call 0xe6cb0
     X86_AT(c, 0xf27c1u);
-    push32(c, 0xf27c6u); f_000e6cb0(c); X86_RET(c, 0xf27c6u);
+    push32(c, 0xf27c6u); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf27c6u);
     X86_TICK(c, 11);
     // 0f27c6  push 0x6574
     X86_AT(c, 0xf27c6u);
@@ -1784,7 +1784,7 @@ L_f27a8:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f27cd  call 0xe5654
     X86_AT(c, 0xf27cdu);
-    push32(c, 0xf27d2u); f_000e5654(c); X86_RET(c, 0xf27d2u);
+    push32(c, 0xf27d2u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf27d2u);
     X86_TICK(c, 33);
     // 0f27d2  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf27d2u);
@@ -1824,7 +1824,7 @@ L_f2801:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2803  call 0xe6c68
     X86_AT(c, 0xf2803u);
-    push32(c, 0xf2808u); f_000e6c68(c); X86_RET(c, 0xf2808u);
+    push32(c, 0xf2808u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2808u);
     X86_TICK(c, 2);
     // 0f2808  add esp, 4
     X86_AT(c, 0xf2808u);
@@ -1867,7 +1867,7 @@ void f_000f2810(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f281a  call 0xe693c
     X86_AT(c, 0xf281au);
-    push32(c, 0xf281fu); f_000e693c(c); X86_RET(c, 0xf281fu);
+    push32(c, 0xf281fu); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf281fu);
     X86_TICK(c, 27);
     // 0f281f  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf281fu);
@@ -1902,18 +1902,18 @@ void f_000f2810(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2842  call 0xe5654
     X86_AT(c, 0xf2842u);
-    push32(c, 0xf2847u); f_000e5654(c); X86_RET(c, 0xf2847u);
+    push32(c, 0xf2847u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2847u);
     X86_TICK(c, 9);
     // 0f2847  push 7
     X86_AT(c, 0xf2847u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2849  call 0xe6c68
     X86_AT(c, 0xf2849u);
-    push32(c, 0xf284eu); f_000e6c68(c); X86_RET(c, 0xf284eu);
+    push32(c, 0xf284eu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf284eu);
     X86_TICK(c, 7);
     // 0f284e  call 0xfcd90
     X86_AT(c, 0xf284eu);
-    push32(c, 0xf2853u); f_000fcd90(c); X86_RET(c, 0xf2853u);
+    push32(c, 0xf2853u); x86_call_known(c, 0xfcd90u, f_000fcd90); X86_RET(c, 0xf2853u);
     X86_TICK(c, 9);
     // 0f2853  add esp, 0xc
     X86_AT(c, 0xf2853u);
@@ -1953,21 +1953,21 @@ L_f285b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f287b  call 0xe5654
     X86_AT(c, 0xf287bu);
-    push32(c, 0xf2880u); f_000e5654(c); X86_RET(c, 0xf2880u);
+    push32(c, 0xf2880u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2880u);
     X86_TICK(c, 9);
     // 0f2880  push 7
     X86_AT(c, 0xf2880u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2882  call 0xe6c68
     X86_AT(c, 0xf2882u);
-    push32(c, 0xf2887u); f_000e6c68(c); X86_RET(c, 0xf2887u);
+    push32(c, 0xf2887u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2887u);
     X86_TICK(c, 9);
     // 0f2887  push 3
     X86_AT(c, 0xf2887u);
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f2889  call 0xe1944
     X86_AT(c, 0xf2889u);
-    push32(c, 0xf288eu); f_000e1944(c); X86_RET(c, 0xf288eu);
+    push32(c, 0xf288eu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf288eu);
     X86_TICK(c, 11);
     // 0f288e  push 0x65b8
     X86_AT(c, 0xf288eu);
@@ -1977,14 +1977,14 @@ L_f285b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2895  call 0xe5654
     X86_AT(c, 0xf2895u);
-    push32(c, 0xf289au); f_000e5654(c); X86_RET(c, 0xf289au);
+    push32(c, 0xf289au); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf289au);
     X86_TICK(c, 9);
     // 0f289a  push 7
     X86_AT(c, 0xf289au);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f289c  call 0xe6c68
     X86_AT(c, 0xf289cu);
-    push32(c, 0xf28a1u); f_000e6c68(c); X86_RET(c, 0xf28a1u);
+    push32(c, 0xf28a1u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf28a1u);
     X86_TICK(c, 9);
     // 0f28a1  add esp, 0x1c
     X86_AT(c, 0xf28a1u);
@@ -2002,7 +2002,7 @@ L_f28a9:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f28b0  call 0xe5654
     X86_AT(c, 0xf28b0u);
-    push32(c, 0xf28b5u); f_000e5654(c); X86_RET(c, 0xf28b5u);
+    push32(c, 0xf28b5u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf28b5u);
     X86_TICK(c, 34);
     // 0f28b5  lea eax, [ebp - 9]
     X86_AT(c, 0xf28b5u);
@@ -2039,7 +2039,7 @@ L_f28a9:
     { uint32_t v = 0xCFBE8u; push32(c, v); }
     // 0f28d7  call 0xe53e0
     X86_AT(c, 0xf28d7u);
-    push32(c, 0xf28dcu); f_000e53e0(c); X86_RET(c, 0xf28dcu);
+    push32(c, 0xf28dcu); x86_call_known(c, 0xe53e0u, f_000e53e0); X86_RET(c, 0xf28dcu);
     X86_TICK(c, 11);
     // 0f28dc  push eax
     X86_AT(c, 0xf28dcu);
@@ -2049,7 +2049,7 @@ L_f28a9:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f28df  call 0xe6cb0
     X86_AT(c, 0xf28dfu);
-    push32(c, 0xf28e4u); f_000e6cb0(c); X86_RET(c, 0xf28e4u);
+    push32(c, 0xf28e4u); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf28e4u);
     X86_TICK(c, 11);
     // 0f28e4  push 0x6608
     X86_AT(c, 0xf28e4u);
@@ -2059,7 +2059,7 @@ L_f28a9:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f28eb  call 0xe5654
     X86_AT(c, 0xf28ebu);
-    push32(c, 0xf28f0u); f_000e5654(c); X86_RET(c, 0xf28f0u);
+    push32(c, 0xf28f0u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf28f0u);
     X86_TICK(c, 36);
     // 0f28f0  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf28f0u);
@@ -2096,7 +2096,7 @@ L_f28a9:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2914  call 0xef920
     X86_AT(c, 0xf2914u);
-    push32(c, 0xf2919u); f_000ef920(c); X86_RET(c, 0xf2919u);
+    push32(c, 0xf2919u); x86_call_known(c, 0xef920u, f_000ef920); X86_RET(c, 0xf2919u);
     X86_TICK(c, 9);
     // 0f2919  add esp, 0x30
     X86_AT(c, 0xf2919u);
@@ -2113,7 +2113,7 @@ L_f28a9:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2923  call 0xe6c68
     X86_AT(c, 0xf2923u);
-    push32(c, 0xf2928u); f_000e6c68(c); X86_RET(c, 0xf2928u);
+    push32(c, 0xf2928u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2928u);
     X86_TICK(c, 9);
     // 0f2928  add esp, 4
     X86_AT(c, 0xf2928u);
@@ -2128,7 +2128,7 @@ L_f292d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f292f  call 0xe26c8
     X86_AT(c, 0xf292fu);
-    push32(c, 0xf2934u); f_000e26c8(c); X86_RET(c, 0xf2934u);
+    push32(c, 0xf2934u); x86_call_known(c, 0xe26c8u, f_000e26c8); X86_RET(c, 0xf2934u);
     X86_TICK(c, 12);
     // 0f2934  xchg edi, eax
     X86_AT(c, 0xf2934u);
@@ -2145,14 +2145,14 @@ L_f292d:
     X86_TICK(c, 7);
     // 0f293d  call 0xf326c
     X86_AT(c, 0xf293du);
-    push32(c, 0xf2942u); f_000f326c(c); X86_RET(c, 0xf2942u);
+    push32(c, 0xf2942u); x86_call_known(c, 0xf326cu, f_000f326c); X86_RET(c, 0xf2942u);
     X86_TICK(c, 9);
     // 0f2942  push 7
     X86_AT(c, 0xf2942u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2944  call 0xe6c68
     X86_AT(c, 0xf2944u);
-    push32(c, 0xf2949u); f_000e6c68(c); X86_RET(c, 0xf2949u);
+    push32(c, 0xf2949u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2949u);
     X86_TICK(c, 7);
     // 0f2949  jmp 0xf29fb
     X86_AT(c, 0xf2949u);
@@ -2179,7 +2179,7 @@ L_f294e:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2959  call 0xeea58
     X86_AT(c, 0xf2959u);
-    push32(c, 0xf295eu); f_000eea58(c); X86_RET(c, 0xf295eu);
+    push32(c, 0xf295eu); x86_call_known(c, 0xeea58u, f_000eea58); X86_RET(c, 0xf295eu);
     X86_TICK(c, 2);
     // 0f295e  add esp, 0x10
     X86_AT(c, 0xf295eu);
@@ -2194,7 +2194,7 @@ L_f2961:
     { uint32_t v = rd32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFFCu))); push32(c, v); }
     // 0f2967  call 0xeeb6c
     X86_AT(c, 0xf2967u);
-    push32(c, 0xf296cu); f_000eeb6c(c); X86_RET(c, 0xf296cu);
+    push32(c, 0xf296cu); x86_call_known(c, 0xeeb6cu, f_000eeb6c); X86_RET(c, 0xf296cu);
     X86_TICK(c, 12);
     // 0f296c  xchg esi, eax
     X86_AT(c, 0xf296cu);
@@ -2214,7 +2214,7 @@ L_f2961:
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f2977  call 0xe1944
     X86_AT(c, 0xf2977u);
-    push32(c, 0xf297cu); f_000e1944(c); X86_RET(c, 0xf297cu);
+    push32(c, 0xf297cu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf297cu);
     X86_TICK(c, 9);
     // 0f297c  push 0x6618
     X86_AT(c, 0xf297cu);
@@ -2226,21 +2226,21 @@ L_f2983:
     X86_TICK(c, 7);
     // 0f2983  call 0xf3024
     X86_AT(c, 0xf2983u);
-    push32(c, 0xf2988u); f_000f3024(c); X86_RET(c, 0xf2988u);
+    push32(c, 0xf2988u); x86_call_known(c, 0xf3024u, f_000f3024); X86_RET(c, 0xf2988u);
     X86_TICK(c, 9);
     // 0f2988  push edi
     X86_AT(c, 0xf2988u);
     { uint32_t v = c.r[7]; push32(c, v); }
     // 0f2989  call 0xf309c
     X86_AT(c, 0xf2989u);
-    push32(c, 0xf298eu); f_000f309c(c); X86_RET(c, 0xf298eu);
+    push32(c, 0xf298eu); x86_call_known(c, 0xf309cu, f_000f309c); X86_RET(c, 0xf298eu);
     X86_TICK(c, 9);
     // 0f298e  push 0x80
     X86_AT(c, 0xf298eu);
     { uint32_t v = 0x80u; push32(c, v); }
     // 0f2993  call 0xe1a7c
     X86_AT(c, 0xf2993u);
-    push32(c, 0xf2998u); f_000e1a7c(c); X86_RET(c, 0xf2998u);
+    push32(c, 0xf2998u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2998u);
     X86_TICK(c, 28);
     // 0f2998  mov edx, dword ptr [0xceca0]
     X86_AT(c, 0xf2998u);
@@ -2278,7 +2278,7 @@ L_f2983:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f29bb  call 0xe1944
     X86_AT(c, 0xf29bbu);
-    push32(c, 0xf29c0u); f_000e1944(c); X86_RET(c, 0xf29c0u);
+    push32(c, 0xf29c0u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf29c0u);
     X86_TICK(c, 2);
     // 0f29c0  push 0x6648
     X86_AT(c, 0xf29c0u);
@@ -2290,14 +2290,14 @@ L_f29c5:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f29c7  call 0xe5654
     X86_AT(c, 0xf29c7u);
-    push32(c, 0xf29ccu); f_000e5654(c); X86_RET(c, 0xf29ccu);
+    push32(c, 0xf29ccu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf29ccu);
     X86_TICK(c, 9);
     // 0f29cc  push 7
     X86_AT(c, 0xf29ccu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f29ce  call 0xe6c68
     X86_AT(c, 0xf29ceu);
-    push32(c, 0xf29d3u); f_000e6c68(c); X86_RET(c, 0xf29d3u);
+    push32(c, 0xf29d3u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf29d3u);
     X86_TICK(c, 9);
     // 0f29d3  add esp, 0x10
     X86_AT(c, 0xf29d3u);
@@ -2312,7 +2312,7 @@ L_f29d8:
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f29d9  call 0xf2a04
     X86_AT(c, 0xf29d9u);
-    push32(c, 0xf29deu); f_000f2a04(c); X86_RET(c, 0xf29deu);
+    push32(c, 0xf29deu); x86_call_known(c, 0xf2a04u, f_000f2a04); X86_RET(c, 0xf29deu);
     X86_TICK(c, 9);
     // 0f29de  add esp, 4
     X86_AT(c, 0xf29deu);
@@ -2329,7 +2329,7 @@ L_f29d8:
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f29e5  call 0xf2ae0
     X86_AT(c, 0xf29e5u);
-    push32(c, 0xf29eau); f_000f2ae0(c); X86_RET(c, 0xf29eau);
+    push32(c, 0xf29eau); x86_call_known(c, 0xf2ae0u, f_000f2ae0); X86_RET(c, 0xf29eau);
     X86_TICK(c, 7);
     // 0f29ea  jmp 0xf29fb
     X86_AT(c, 0xf29eau);
@@ -2348,7 +2348,7 @@ L_f29ec:
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f29f6  call 0xf2f9c
     X86_AT(c, 0xf29f6u);
-    push32(c, 0xf29fbu); f_000f2f9c(c); X86_RET(c, 0xf29fbu);
+    push32(c, 0xf29fbu); x86_call_known(c, 0xf2f9cu, f_000f2f9c); X86_RET(c, 0xf29fbu);
 L_f29fb:
     X86_TICK(c, 2);
     // 0f29fb  add esp, 4
@@ -2432,7 +2432,7 @@ void f_000f2a04(X86Cpu& c) {
     c.r[3] = c.r[2];
     // 0f2a26  call 0xe1a7c
     X86_AT(c, 0xf2a26u);
-    push32(c, 0xf2a2bu); f_000e1a7c(c); X86_RET(c, 0xf2a2bu);
+    push32(c, 0xf2a2bu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2a2bu);
     X86_TICK(c, 56);
     // 0f2a2b  movzx edx, byte ptr [ebx + 0xcdebe]
     X86_AT(c, 0xf2a2bu);
@@ -2487,7 +2487,7 @@ void f_000f2a04(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2a5e  call 0xe5654
     X86_AT(c, 0xf2a5eu);
-    push32(c, 0xf2a63u); f_000e5654(c); X86_RET(c, 0xf2a63u);
+    push32(c, 0xf2a63u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2a63u);
     X86_TICK(c, 13);
     // 0f2a63  push 4
     X86_AT(c, 0xf2a63u);
@@ -2500,7 +2500,7 @@ void f_000f2a04(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2a68  call 0xe5630
     X86_AT(c, 0xf2a68u);
-    push32(c, 0xf2a6du); f_000e5630(c); X86_RET(c, 0xf2a6du);
+    push32(c, 0xf2a6du); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf2a6du);
     X86_TICK(c, 11);
     // 0f2a6d  push 0x6674
     X86_AT(c, 0xf2a6du);
@@ -2510,14 +2510,14 @@ void f_000f2a04(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2a74  call 0xe5654
     X86_AT(c, 0xf2a74u);
-    push32(c, 0xf2a79u); f_000e5654(c); X86_RET(c, 0xf2a79u);
+    push32(c, 0xf2a79u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2a79u);
     X86_TICK(c, 9);
     // 0f2a79  push 7
     X86_AT(c, 0xf2a79u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2a7b  call 0xe6c68
     X86_AT(c, 0xf2a7bu);
-    push32(c, 0xf2a80u); f_000e6c68(c); X86_RET(c, 0xf2a80u);
+    push32(c, 0xf2a80u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2a80u);
     X86_TICK(c, 23);
     // 0f2a80  mov eax, dword ptr [edi*4 + 0xce608]
     X86_AT(c, 0xf2a80u);
@@ -2556,7 +2556,7 @@ void f_000f2a04(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2a9f  call 0xe5630
     X86_AT(c, 0xf2a9fu);
-    push32(c, 0xf2aa4u); f_000e5630(c); X86_RET(c, 0xf2aa4u);
+    push32(c, 0xf2aa4u); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf2aa4u);
     X86_TICK(c, 11);
     // 0f2aa4  push 0x6690
     X86_AT(c, 0xf2aa4u);
@@ -2566,14 +2566,14 @@ void f_000f2a04(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2aab  call 0xe5654
     X86_AT(c, 0xf2aabu);
-    push32(c, 0xf2ab0u); f_000e5654(c); X86_RET(c, 0xf2ab0u);
+    push32(c, 0xf2ab0u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2ab0u);
     X86_TICK(c, 9);
     // 0f2ab0  push 7
     X86_AT(c, 0xf2ab0u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ab2  call 0xe6c68
     X86_AT(c, 0xf2ab2u);
-    push32(c, 0xf2ab7u); f_000e6c68(c); X86_RET(c, 0xf2ab7u);
+    push32(c, 0xf2ab7u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2ab7u);
     X86_TICK(c, 9);
     // 0f2ab7  add esp, 0x18
     X86_AT(c, 0xf2ab7u);
@@ -2591,14 +2591,14 @@ L_f2abc:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ac3  call 0xe5654
     X86_AT(c, 0xf2ac3u);
-    push32(c, 0xf2ac8u); f_000e5654(c); X86_RET(c, 0xf2ac8u);
+    push32(c, 0xf2ac8u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2ac8u);
     X86_TICK(c, 9);
     // 0f2ac8  push 7
     X86_AT(c, 0xf2ac8u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2aca  call 0xe6c68
     X86_AT(c, 0xf2acau);
-    push32(c, 0xf2acfu); f_000e6c68(c); X86_RET(c, 0xf2acfu);
+    push32(c, 0xf2acfu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2acfu);
     X86_TICK(c, 2);
     // 0f2acf  add esp, 0xc
     X86_AT(c, 0xf2acfu);
@@ -2656,49 +2656,49 @@ void f_000f2ae0(X86Cpu& c) {
     { uint32_t v = 0x8u; push32(c, v); }
     // 0f2aee  call 0xe1944
     X86_AT(c, 0xf2aeeu);
-    push32(c, 0xf2af3u); f_000e1944(c); X86_RET(c, 0xf2af3u);
+    push32(c, 0xf2af3u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf2af3u);
     X86_TICK(c, 9);
     // 0f2af3  push 2
     X86_AT(c, 0xf2af3u);
     { uint32_t v = 0x2u; push32(c, v); }
     // 0f2af5  call 0xe9740
     X86_AT(c, 0xf2af5u);
-    push32(c, 0xf2afau); f_000e9740(c); X86_RET(c, 0xf2afau);
+    push32(c, 0xf2afau); x86_call_known(c, 0xe9740u, f_000e9740); X86_RET(c, 0xf2afau);
     X86_TICK(c, 9);
     // 0f2afa  push 8
     X86_AT(c, 0xf2afau);
     { uint32_t v = 0x8u; push32(c, v); }
     // 0f2afc  call 0xe1944
     X86_AT(c, 0xf2afcu);
-    push32(c, 0xf2b01u); f_000e1944(c); X86_RET(c, 0xf2b01u);
+    push32(c, 0xf2b01u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf2b01u);
     X86_TICK(c, 9);
     // 0f2b01  push 2
     X86_AT(c, 0xf2b01u);
     { uint32_t v = 0x2u; push32(c, v); }
     // 0f2b03  call 0xe9740
     X86_AT(c, 0xf2b03u);
-    push32(c, 0xf2b08u); f_000e9740(c); X86_RET(c, 0xf2b08u);
+    push32(c, 0xf2b08u); x86_call_known(c, 0xe9740u, f_000e9740); X86_RET(c, 0xf2b08u);
     X86_TICK(c, 9);
     // 0f2b08  push 8
     X86_AT(c, 0xf2b08u);
     { uint32_t v = 0x8u; push32(c, v); }
     // 0f2b0a  call 0xe1944
     X86_AT(c, 0xf2b0au);
-    push32(c, 0xf2b0fu); f_000e1944(c); X86_RET(c, 0xf2b0fu);
+    push32(c, 0xf2b0fu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf2b0fu);
     X86_TICK(c, 9);
     // 0f2b0f  push 2
     X86_AT(c, 0xf2b0fu);
     { uint32_t v = 0x2u; push32(c, v); }
     // 0f2b11  call 0xe1a9c
     X86_AT(c, 0xf2b11u);
-    push32(c, 0xf2b16u); f_000e1a9c(c); X86_RET(c, 0xf2b16u);
+    push32(c, 0xf2b16u); x86_call_known(c, 0xe1a9cu, f_000e1a9c); X86_RET(c, 0xf2b16u);
     X86_TICK(c, 9);
     // 0f2b16  push 7
     X86_AT(c, 0xf2b16u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2b18  call 0xe693c
     X86_AT(c, 0xf2b18u);
-    push32(c, 0xf2b1du); f_000e693c(c); X86_RET(c, 0xf2b1du);
+    push32(c, 0xf2b1du); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf2b1du);
     X86_TICK(c, 14);
     // 0f2b1d  add esp, 0x1c
     X86_AT(c, 0xf2b1du);
@@ -2718,18 +2718,18 @@ void f_000f2ae0(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2b30  call 0xe5654
     X86_AT(c, 0xf2b30u);
-    push32(c, 0xf2b35u); f_000e5654(c); X86_RET(c, 0xf2b35u);
+    push32(c, 0xf2b35u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2b35u);
     X86_TICK(c, 9);
     // 0f2b35  push 7
     X86_AT(c, 0xf2b35u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2b37  call 0xe6c68
     X86_AT(c, 0xf2b37u);
-    push32(c, 0xf2b3cu); f_000e6c68(c); X86_RET(c, 0xf2b3cu);
+    push32(c, 0xf2b3cu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2b3cu);
     X86_TICK(c, 7);
     // 0f2b3c  call 0xf4944
     X86_AT(c, 0xf2b3cu);
-    push32(c, 0xf2b41u); f_000f4944(c); X86_RET(c, 0xf2b41u);
+    push32(c, 0xf2b41u); x86_call_known(c, 0xf4944u, f_000f4944); X86_RET(c, 0xf2b41u);
     X86_TICK(c, 9);
     // 0f2b41  add esp, 0xc
     X86_AT(c, 0xf2b41u);
@@ -2747,7 +2747,7 @@ L_f2b49:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2b50  call 0xe5654
     X86_AT(c, 0xf2b50u);
-    push32(c, 0xf2b55u); f_000e5654(c); X86_RET(c, 0xf2b55u);
+    push32(c, 0xf2b55u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2b55u);
     X86_TICK(c, 17);
     // 0f2b55  movzx eax, byte ptr [edi + 0xce3e8]
     X86_AT(c, 0xf2b55u);
@@ -2760,7 +2760,7 @@ L_f2b49:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2b5f  call 0xf4768
     X86_AT(c, 0xf2b5fu);
-    push32(c, 0xf2b64u); f_000f4768(c); X86_RET(c, 0xf2b64u);
+    push32(c, 0xf2b64u); x86_call_known(c, 0xf4768u, f_000f4768); X86_RET(c, 0xf2b64u);
     X86_TICK(c, 11);
     // 0f2b64  push 0x674c
     X86_AT(c, 0xf2b64u);
@@ -2770,14 +2770,14 @@ L_f2b49:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2b6b  call 0xe5654
     X86_AT(c, 0xf2b6bu);
-    push32(c, 0xf2b70u); f_000e5654(c); X86_RET(c, 0xf2b70u);
+    push32(c, 0xf2b70u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2b70u);
     X86_TICK(c, 9);
     // 0f2b70  push 7
     X86_AT(c, 0xf2b70u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2b72  call 0xe6c68
     X86_AT(c, 0xf2b72u);
-    push32(c, 0xf2b77u); f_000e6c68(c); X86_RET(c, 0xf2b77u);
+    push32(c, 0xf2b77u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2b77u);
     X86_TICK(c, 17);
     // 0f2b77  add esp, 0x1c
     X86_AT(c, 0xf2b77u);
@@ -2829,14 +2829,14 @@ L_f2bad:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2bb4  call 0xe5654
     X86_AT(c, 0xf2bb4u);
-    push32(c, 0xf2bb9u); f_000e5654(c); X86_RET(c, 0xf2bb9u);
+    push32(c, 0xf2bb9u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2bb9u);
     X86_TICK(c, 9);
     // 0f2bb9  push 7
     X86_AT(c, 0xf2bb9u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2bbb  call 0xe6c68
     X86_AT(c, 0xf2bbbu);
-    push32(c, 0xf2bc0u); f_000e6c68(c); X86_RET(c, 0xf2bc0u);
+    push32(c, 0xf2bc0u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2bc0u);
     X86_TICK(c, 34);
     // 0f2bc0  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2bc0u);
@@ -2879,7 +2879,7 @@ L_f2bf6:
     { uint32_t v = 0xFu; push32(c, v); }
     // 0f2bf8  call 0xe1a7c
     X86_AT(c, 0xf2bf8u);
-    push32(c, 0xf2bfdu); f_000e1a7c(c); X86_RET(c, 0xf2bfdu);
+    push32(c, 0xf2bfdu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2bfdu);
     X86_TICK(c, 9);
     // 0f2bfd  add esp, 4
     X86_AT(c, 0xf2bfdu);
@@ -2899,14 +2899,14 @@ L_f2bf6:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2c0c  call 0xe5654
     X86_AT(c, 0xf2c0cu);
-    push32(c, 0xf2c11u); f_000e5654(c); X86_RET(c, 0xf2c11u);
+    push32(c, 0xf2c11u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2c11u);
     X86_TICK(c, 9);
     // 0f2c11  push 7
     X86_AT(c, 0xf2c11u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2c13  call 0xe6c68
     X86_AT(c, 0xf2c13u);
-    push32(c, 0xf2c18u); f_000e6c68(c); X86_RET(c, 0xf2c18u);
+    push32(c, 0xf2c18u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2c18u);
     X86_TICK(c, 33);
     // 0f2c18  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2c18u);
@@ -2949,7 +2949,7 @@ L_f2c4d:
     { uint32_t v = 0xEu; push32(c, v); }
     // 0f2c4f  call 0xe1a7c
     X86_AT(c, 0xf2c4fu);
-    push32(c, 0xf2c54u); f_000e1a7c(c); X86_RET(c, 0xf2c54u);
+    push32(c, 0xf2c54u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2c54u);
     X86_TICK(c, 12);
     // 0f2c54  xchg esi, eax
     X86_AT(c, 0xf2c54u);
@@ -2987,7 +2987,7 @@ L_f2c4d:
     wr32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFF8u)), c.r[2]);
     // 0f2c75  call 0xe1a7c
     X86_AT(c, 0xf2c75u);
-    push32(c, 0xf2c7au); f_000e1a7c(c); X86_RET(c, 0xf2c7au);
+    push32(c, 0xf2c7au); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2c7au);
     X86_TICK(c, 36);
     // 0f2c7a  mov edx, dword ptr [0xceca0]
     X86_AT(c, 0xf2c7au);
@@ -3054,7 +3054,7 @@ L_f2cb2:
     { uint32_t v = 0xD0638u; push32(c, v); }
     // 0f2cc2  call 0xe53e0
     X86_AT(c, 0xf2cc2u);
-    push32(c, 0xf2cc7u); f_000e53e0(c); X86_RET(c, 0xf2cc7u);
+    push32(c, 0xf2cc7u); x86_call_known(c, 0xe53e0u, f_000e53e0); X86_RET(c, 0xf2cc7u);
     X86_TICK(c, 11);
     // 0f2cc7  push eax
     X86_AT(c, 0xf2cc7u);
@@ -3064,7 +3064,7 @@ L_f2cb2:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2cca  call 0xe6cb0
     X86_AT(c, 0xf2ccau);
-    push32(c, 0xf2ccfu); f_000e6cb0(c); X86_RET(c, 0xf2ccfu);
+    push32(c, 0xf2ccfu); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf2ccfu);
     X86_TICK(c, 11);
     // 0f2ccf  push 0x67b0
     X86_AT(c, 0xf2ccfu);
@@ -3074,14 +3074,14 @@ L_f2cb2:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2cd6  call 0xe5654
     X86_AT(c, 0xf2cd6u);
-    push32(c, 0xf2cdbu); f_000e5654(c); X86_RET(c, 0xf2cdbu);
+    push32(c, 0xf2cdbu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2cdbu);
     X86_TICK(c, 9);
     // 0f2cdb  push 7
     X86_AT(c, 0xf2cdbu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2cdd  call 0xe6c68
     X86_AT(c, 0xf2cddu);
-    push32(c, 0xf2ce2u); f_000e6c68(c); X86_RET(c, 0xf2ce2u);
+    push32(c, 0xf2ce2u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2ce2u);
     X86_TICK(c, 9);
     // 0f2ce2  add esp, 0x24
     X86_AT(c, 0xf2ce2u);
@@ -3096,7 +3096,7 @@ L_f2cea:
     { uint32_t v = 0xFu; push32(c, v); }
     // 0f2cec  call 0xe1a7c
     X86_AT(c, 0xf2cecu);
-    push32(c, 0xf2cf1u); f_000e1a7c(c); X86_RET(c, 0xf2cf1u);
+    push32(c, 0xf2cf1u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2cf1u);
     X86_TICK(c, 9);
     // 0f2cf1  add esp, 4
     X86_AT(c, 0xf2cf1u);
@@ -3116,14 +3116,14 @@ L_f2cea:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2d00  call 0xe5654
     X86_AT(c, 0xf2d00u);
-    push32(c, 0xf2d05u); f_000e5654(c); X86_RET(c, 0xf2d05u);
+    push32(c, 0xf2d05u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2d05u);
     X86_TICK(c, 9);
     // 0f2d05  push 7
     X86_AT(c, 0xf2d05u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2d07  call 0xe6c68
     X86_AT(c, 0xf2d07u);
-    push32(c, 0xf2d0cu); f_000e6c68(c); X86_RET(c, 0xf2d0cu);
+    push32(c, 0xf2d0cu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2d0cu);
     X86_TICK(c, 33);
     // 0f2d0c  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2d0cu);
@@ -3166,7 +3166,7 @@ L_f2d41:
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f2d43  call 0xe1a7c
     X86_AT(c, 0xf2d43u);
-    push32(c, 0xf2d48u); f_000e1a7c(c); X86_RET(c, 0xf2d48u);
+    push32(c, 0xf2d48u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2d48u);
     X86_TICK(c, 38);
     // 0f2d48  xchg esi, eax
     X86_AT(c, 0xf2d48u);
@@ -3203,7 +3203,7 @@ L_f2d41:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2d65  call 0xe5630
     X86_AT(c, 0xf2d65u);
-    push32(c, 0xf2d6au); f_000e5630(c); X86_RET(c, 0xf2d6au);
+    push32(c, 0xf2d6au); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf2d6au);
     X86_TICK(c, 11);
     // 0f2d6a  push 0x67ec
     X86_AT(c, 0xf2d6au);
@@ -3213,14 +3213,14 @@ L_f2d41:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2d71  call 0xe5654
     X86_AT(c, 0xf2d71u);
-    push32(c, 0xf2d76u); f_000e5654(c); X86_RET(c, 0xf2d76u);
+    push32(c, 0xf2d76u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2d76u);
     X86_TICK(c, 9);
     // 0f2d76  push 7
     X86_AT(c, 0xf2d76u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2d78  call 0xe6c68
     X86_AT(c, 0xf2d78u);
-    push32(c, 0xf2d7du); f_000e6c68(c); X86_RET(c, 0xf2d7du);
+    push32(c, 0xf2d7du); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2d7du);
     X86_TICK(c, 27);
     // 0f2d7d  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf2d7du);
@@ -3260,7 +3260,7 @@ L_f2daf:
     { uint32_t v = 0x9u; push32(c, v); }
     // 0f2db1  call 0xe1a7c
     X86_AT(c, 0xf2db1u);
-    push32(c, 0xf2db6u); f_000e1a7c(c); X86_RET(c, 0xf2db6u);
+    push32(c, 0xf2db6u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2db6u);
     X86_TICK(c, 9);
     // 0f2db6  add esp, 4
     X86_AT(c, 0xf2db6u);
@@ -3350,14 +3350,14 @@ L_f2e1c:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2e1e  call 0xe5654
     X86_AT(c, 0xf2e1eu);
-    push32(c, 0xf2e23u); f_000e5654(c); X86_RET(c, 0xf2e23u);
+    push32(c, 0xf2e23u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2e23u);
     X86_TICK(c, 9);
     // 0f2e23  push 7
     X86_AT(c, 0xf2e23u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2e25  call 0xe6c68
     X86_AT(c, 0xf2e25u);
-    push32(c, 0xf2e2au); f_000e6c68(c); X86_RET(c, 0xf2e2au);
+    push32(c, 0xf2e2au); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2e2au);
     X86_TICK(c, 2);
     // 0f2e2a  add esp, 0xc
     X86_AT(c, 0xf2e2au);
@@ -3394,7 +3394,7 @@ L_f2e2d:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2e4c  call 0xe35e0
     X86_AT(c, 0xf2e4cu);
-    push32(c, 0xf2e51u); f_000e35e0(c); X86_RET(c, 0xf2e51u);
+    push32(c, 0xf2e51u); x86_call_known(c, 0xe35e0u, f_000e35e0); X86_RET(c, 0xf2e51u);
     X86_TICK(c, 11);
     // 0f2e51  push 8
     X86_AT(c, 0xf2e51u);
@@ -3404,7 +3404,7 @@ L_f2e2d:
     wr32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFF8u)), c.r[0]);
     // 0f2e56  call 0xe1a7c
     X86_AT(c, 0xf2e56u);
-    push32(c, 0xf2e5bu); f_000e1a7c(c); X86_RET(c, 0xf2e5bu);
+    push32(c, 0xf2e5bu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2e5bu);
     X86_TICK(c, 35);
     // 0f2e5b  mov dword ptr [ebp - 0xc], eax
     X86_AT(c, 0xf2e5bu);
@@ -3452,7 +3452,7 @@ L_f2e75:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2e78  call 0xe35e0
     X86_AT(c, 0xf2e78u);
-    push32(c, 0xf2e7du); f_000e35e0(c); X86_RET(c, 0xf2e7du);
+    push32(c, 0xf2e7du); x86_call_known(c, 0xe35e0u, f_000e35e0); X86_RET(c, 0xf2e7du);
     X86_TICK(c, 11);
     // 0f2e7d  push 8
     X86_AT(c, 0xf2e7du);
@@ -3462,7 +3462,7 @@ L_f2e75:
     wr32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFF8u)), c.r[0]);
     // 0f2e82  call 0xe1a7c
     X86_AT(c, 0xf2e82u);
-    push32(c, 0xf2e87u); f_000e1a7c(c); X86_RET(c, 0xf2e87u);
+    push32(c, 0xf2e87u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2e87u);
     X86_TICK(c, 58);
     // 0f2e87  mov dword ptr [ebp - 0xc], eax
     X86_AT(c, 0xf2e87u);
@@ -3501,7 +3501,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ea7  call 0xe5654
     X86_AT(c, 0xf2ea7u);
-    push32(c, 0xf2eacu); f_000e5654(c); X86_RET(c, 0xf2eacu);
+    push32(c, 0xf2eacu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2eacu);
     X86_TICK(c, 13);
     // 0f2eac  push 3
     X86_AT(c, 0xf2eacu);
@@ -3514,7 +3514,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2eb1  call 0xe5630
     X86_AT(c, 0xf2eb1u);
-    push32(c, 0xf2eb6u); f_000e5630(c); X86_RET(c, 0xf2eb6u);
+    push32(c, 0xf2eb6u); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf2eb6u);
     X86_TICK(c, 11);
     // 0f2eb6  push 0x6870
     X86_AT(c, 0xf2eb6u);
@@ -3524,21 +3524,21 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ebd  call 0xe5654
     X86_AT(c, 0xf2ebdu);
-    push32(c, 0xf2ec2u); f_000e5654(c); X86_RET(c, 0xf2ec2u);
+    push32(c, 0xf2ec2u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2ec2u);
     X86_TICK(c, 9);
     // 0f2ec2  push 7
     X86_AT(c, 0xf2ec2u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ec4  call 0xe6c68
     X86_AT(c, 0xf2ec4u);
-    push32(c, 0xf2ec9u); f_000e6c68(c); X86_RET(c, 0xf2ec9u);
+    push32(c, 0xf2ec9u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2ec9u);
     X86_TICK(c, 9);
     // 0f2ec9  push esi
     X86_AT(c, 0xf2ec9u);
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f2eca  call 0xef07c
     X86_AT(c, 0xf2ecau);
-    push32(c, 0xf2ecfu); f_000ef07c(c); X86_RET(c, 0xf2ecfu);
+    push32(c, 0xf2ecfu); x86_call_known(c, 0xef07cu, f_000ef07c); X86_RET(c, 0xf2ecfu);
     X86_TICK(c, 11);
     // 0f2ecf  mov eax, ebx
     X86_AT(c, 0xf2ecfu);
@@ -3548,7 +3548,7 @@ L_f2e9d:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2ed2  call 0xe35e0
     X86_AT(c, 0xf2ed2u);
-    push32(c, 0xf2ed7u); f_000e35e0(c); X86_RET(c, 0xf2ed7u);
+    push32(c, 0xf2ed7u); x86_call_known(c, 0xe35e0u, f_000e35e0); X86_RET(c, 0xf2ed7u);
     X86_TICK(c, 11);
     // 0f2ed7  push 3
     X86_AT(c, 0xf2ed7u);
@@ -3558,7 +3558,7 @@ L_f2e9d:
     wr32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFF8u)), c.r[0]);
     // 0f2edc  call 0xe1a7c
     X86_AT(c, 0xf2edcu);
-    push32(c, 0xf2ee1u); f_000e1a7c(c); X86_RET(c, 0xf2ee1u);
+    push32(c, 0xf2ee1u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2ee1u);
     X86_TICK(c, 69);
     // 0f2ee1  mov dword ptr [ebp - 0xc], eax
     X86_AT(c, 0xf2ee1u);
@@ -3592,7 +3592,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2efc  call 0xe5654
     X86_AT(c, 0xf2efcu);
-    push32(c, 0xf2f01u); f_000e5654(c); X86_RET(c, 0xf2f01u);
+    push32(c, 0xf2f01u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2f01u);
     X86_TICK(c, 13);
     // 0f2f01  push 3
     X86_AT(c, 0xf2f01u);
@@ -3605,7 +3605,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2f06  call 0xe5630
     X86_AT(c, 0xf2f06u);
-    push32(c, 0xf2f0bu); f_000e5630(c); X86_RET(c, 0xf2f0bu);
+    push32(c, 0xf2f0bu); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf2f0bu);
     X86_TICK(c, 13);
     // 0f2f0b  add esp, 0x40
     X86_AT(c, 0xf2f0bu);
@@ -3618,21 +3618,21 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2f15  call 0xe5654
     X86_AT(c, 0xf2f15u);
-    push32(c, 0xf2f1au); f_000e5654(c); X86_RET(c, 0xf2f1au);
+    push32(c, 0xf2f1au); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2f1au);
     X86_TICK(c, 9);
     // 0f2f1a  push 7
     X86_AT(c, 0xf2f1au);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2f1c  call 0xe6c68
     X86_AT(c, 0xf2f1cu);
-    push32(c, 0xf2f21u); f_000e6c68(c); X86_RET(c, 0xf2f21u);
+    push32(c, 0xf2f21u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2f21u);
     X86_TICK(c, 9);
     // 0f2f21  push esi
     X86_AT(c, 0xf2f21u);
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f2f22  call 0xef048
     X86_AT(c, 0xf2f22u);
-    push32(c, 0xf2f27u); f_000ef048(c); X86_RET(c, 0xf2f27u);
+    push32(c, 0xf2f27u); x86_call_known(c, 0xef048u, f_000ef048); X86_RET(c, 0xf2f27u);
     X86_TICK(c, 4);
     // 0f2f27  sub esi, esi
     X86_AT(c, 0xf2f27u);
@@ -3694,7 +3694,7 @@ L_f2f66:
     X86_TICK(c, 7);
     // 0f2f66  call 0xf3c24
     X86_AT(c, 0xf2f66u);
-    push32(c, 0xf2f6bu); f_000f3c24(c); X86_RET(c, 0xf2f6bu);
+    push32(c, 0xf2f6bu); x86_call_known(c, 0xf3c24u, f_000f3c24); X86_RET(c, 0xf2f6bu);
     X86_TICK(c, 16);
     // 0f2f6b  add esp, 0xc
     X86_AT(c, 0xf2f6bu);
@@ -3771,7 +3771,7 @@ void f_000f2e2d(X86Cpu& c) {
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2e4c  call 0xe35e0
     X86_AT(c, 0xf2e4cu);
-    push32(c, 0xf2e51u); f_000e35e0(c); X86_RET(c, 0xf2e51u);
+    push32(c, 0xf2e51u); x86_call_known(c, 0xe35e0u, f_000e35e0); X86_RET(c, 0xf2e51u);
     X86_TICK(c, 11);
     // 0f2e51  push 8
     X86_AT(c, 0xf2e51u);
@@ -3781,7 +3781,7 @@ void f_000f2e2d(X86Cpu& c) {
     wr32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFF8u)), c.r[0]);
     // 0f2e56  call 0xe1a7c
     X86_AT(c, 0xf2e56u);
-    push32(c, 0xf2e5bu); f_000e1a7c(c); X86_RET(c, 0xf2e5bu);
+    push32(c, 0xf2e5bu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2e5bu);
     X86_TICK(c, 35);
     // 0f2e5b  mov dword ptr [ebp - 0xc], eax
     X86_AT(c, 0xf2e5bu);
@@ -3829,7 +3829,7 @@ L_f2e75:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2e78  call 0xe35e0
     X86_AT(c, 0xf2e78u);
-    push32(c, 0xf2e7du); f_000e35e0(c); X86_RET(c, 0xf2e7du);
+    push32(c, 0xf2e7du); x86_call_known(c, 0xe35e0u, f_000e35e0); X86_RET(c, 0xf2e7du);
     X86_TICK(c, 11);
     // 0f2e7d  push 8
     X86_AT(c, 0xf2e7du);
@@ -3839,7 +3839,7 @@ L_f2e75:
     wr32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFF8u)), c.r[0]);
     // 0f2e82  call 0xe1a7c
     X86_AT(c, 0xf2e82u);
-    push32(c, 0xf2e87u); f_000e1a7c(c); X86_RET(c, 0xf2e87u);
+    push32(c, 0xf2e87u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2e87u);
     X86_TICK(c, 58);
     // 0f2e87  mov dword ptr [ebp - 0xc], eax
     X86_AT(c, 0xf2e87u);
@@ -3878,7 +3878,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ea7  call 0xe5654
     X86_AT(c, 0xf2ea7u);
-    push32(c, 0xf2eacu); f_000e5654(c); X86_RET(c, 0xf2eacu);
+    push32(c, 0xf2eacu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2eacu);
     X86_TICK(c, 13);
     // 0f2eac  push 3
     X86_AT(c, 0xf2eacu);
@@ -3891,7 +3891,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2eb1  call 0xe5630
     X86_AT(c, 0xf2eb1u);
-    push32(c, 0xf2eb6u); f_000e5630(c); X86_RET(c, 0xf2eb6u);
+    push32(c, 0xf2eb6u); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf2eb6u);
     X86_TICK(c, 11);
     // 0f2eb6  push 0x6870
     X86_AT(c, 0xf2eb6u);
@@ -3901,21 +3901,21 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ebd  call 0xe5654
     X86_AT(c, 0xf2ebdu);
-    push32(c, 0xf2ec2u); f_000e5654(c); X86_RET(c, 0xf2ec2u);
+    push32(c, 0xf2ec2u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2ec2u);
     X86_TICK(c, 9);
     // 0f2ec2  push 7
     X86_AT(c, 0xf2ec2u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2ec4  call 0xe6c68
     X86_AT(c, 0xf2ec4u);
-    push32(c, 0xf2ec9u); f_000e6c68(c); X86_RET(c, 0xf2ec9u);
+    push32(c, 0xf2ec9u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2ec9u);
     X86_TICK(c, 9);
     // 0f2ec9  push esi
     X86_AT(c, 0xf2ec9u);
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f2eca  call 0xef07c
     X86_AT(c, 0xf2ecau);
-    push32(c, 0xf2ecfu); f_000ef07c(c); X86_RET(c, 0xf2ecfu);
+    push32(c, 0xf2ecfu); x86_call_known(c, 0xef07cu, f_000ef07c); X86_RET(c, 0xf2ecfu);
     X86_TICK(c, 11);
     // 0f2ecf  mov eax, ebx
     X86_AT(c, 0xf2ecfu);
@@ -3925,7 +3925,7 @@ L_f2e9d:
     { uint32_t v = c.r[0]; push32(c, v); }
     // 0f2ed2  call 0xe35e0
     X86_AT(c, 0xf2ed2u);
-    push32(c, 0xf2ed7u); f_000e35e0(c); X86_RET(c, 0xf2ed7u);
+    push32(c, 0xf2ed7u); x86_call_known(c, 0xe35e0u, f_000e35e0); X86_RET(c, 0xf2ed7u);
     X86_TICK(c, 11);
     // 0f2ed7  push 3
     X86_AT(c, 0xf2ed7u);
@@ -3935,7 +3935,7 @@ L_f2e9d:
     wr32((c.sbase[2] + (uint32_t)(c.r[5] + 0xFFFFFFF8u)), c.r[0]);
     // 0f2edc  call 0xe1a7c
     X86_AT(c, 0xf2edcu);
-    push32(c, 0xf2ee1u); f_000e1a7c(c); X86_RET(c, 0xf2ee1u);
+    push32(c, 0xf2ee1u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf2ee1u);
     X86_TICK(c, 69);
     // 0f2ee1  mov dword ptr [ebp - 0xc], eax
     X86_AT(c, 0xf2ee1u);
@@ -3969,7 +3969,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2efc  call 0xe5654
     X86_AT(c, 0xf2efcu);
-    push32(c, 0xf2f01u); f_000e5654(c); X86_RET(c, 0xf2f01u);
+    push32(c, 0xf2f01u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2f01u);
     X86_TICK(c, 13);
     // 0f2f01  push 3
     X86_AT(c, 0xf2f01u);
@@ -3982,7 +3982,7 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2f06  call 0xe5630
     X86_AT(c, 0xf2f06u);
-    push32(c, 0xf2f0bu); f_000e5630(c); X86_RET(c, 0xf2f0bu);
+    push32(c, 0xf2f0bu); x86_call_known(c, 0xe5630u, f_000e5630); X86_RET(c, 0xf2f0bu);
     X86_TICK(c, 13);
     // 0f2f0b  add esp, 0x40
     X86_AT(c, 0xf2f0bu);
@@ -3995,21 +3995,21 @@ L_f2e9d:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2f15  call 0xe5654
     X86_AT(c, 0xf2f15u);
-    push32(c, 0xf2f1au); f_000e5654(c); X86_RET(c, 0xf2f1au);
+    push32(c, 0xf2f1au); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf2f1au);
     X86_TICK(c, 9);
     // 0f2f1a  push 7
     X86_AT(c, 0xf2f1au);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f2f1c  call 0xe6c68
     X86_AT(c, 0xf2f1cu);
-    push32(c, 0xf2f21u); f_000e6c68(c); X86_RET(c, 0xf2f21u);
+    push32(c, 0xf2f21u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf2f21u);
     X86_TICK(c, 9);
     // 0f2f21  push esi
     X86_AT(c, 0xf2f21u);
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f2f22  call 0xef048
     X86_AT(c, 0xf2f22u);
-    push32(c, 0xf2f27u); f_000ef048(c); X86_RET(c, 0xf2f27u);
+    push32(c, 0xf2f27u); x86_call_known(c, 0xef048u, f_000ef048); X86_RET(c, 0xf2f27u);
     X86_TICK(c, 4);
     // 0f2f27  sub esi, esi
     X86_AT(c, 0xf2f27u);
@@ -4071,7 +4071,7 @@ L_f2f66:
     X86_TICK(c, 7);
     // 0f2f66  call 0xf3c24
     X86_AT(c, 0xf2f66u);
-    push32(c, 0xf2f6bu); f_000f3c24(c); X86_RET(c, 0xf2f6bu);
+    push32(c, 0xf2f6bu); x86_call_known(c, 0xf3c24u, f_000f3c24); X86_RET(c, 0xf2f6bu);
     X86_TICK(c, 44);
     // 0f2f6b  add esp, 0xc
     X86_AT(c, 0xf2f6bu);
@@ -4136,11 +4136,11 @@ void f_000f2f9c(X86Cpu& c) {
     { uint32_t v = 0x2u; push32(c, v); }
     // 0f2fa6  call 0xe1944
     X86_AT(c, 0xf2fa6u);
-    push32(c, 0xf2fabu); f_000e1944(c); X86_RET(c, 0xf2fabu);
+    push32(c, 0xf2fabu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf2fabu);
     X86_TICK(c, 7);
     // 0f2fab  call 0xf0c70
     X86_AT(c, 0xf2fabu);
-    push32(c, 0xf2fb0u); f_000f0c70(c); X86_RET(c, 0xf2fb0u);
+    push32(c, 0xf2fb0u); x86_call_known(c, 0xf0c70u, f_000f0c70); X86_RET(c, 0xf2fb0u);
     X86_TICK(c, 19);
     // 0f2fb0  push dword ptr [edi*4 + 0xce488]
     X86_AT(c, 0xf2fb0u);
@@ -4153,7 +4153,7 @@ void f_000f2f9c(X86Cpu& c) {
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f2fc0  call 0xf3c24
     X86_AT(c, 0xf2fc0u);
-    push32(c, 0xf2fc5u); f_000f3c24(c); X86_RET(c, 0xf2fc5u);
+    push32(c, 0xf2fc5u); x86_call_known(c, 0xf3c24u, f_000f3c24); X86_RET(c, 0xf2fc5u);
     X86_TICK(c, 25);
     // 0f2fc5  mov esi, dword ptr [edi*4 + 0xce408]
     X86_AT(c, 0xf2fc5u);
@@ -4178,7 +4178,7 @@ void f_000f2f9c(X86Cpu& c) {
     { uint32_t v = 0x58u; push32(c, v); }
     // 0f2fe5  call 0xf3c24
     X86_AT(c, 0xf2fe5u);
-    push32(c, 0xf2feau); f_000f3c24(c); X86_RET(c, 0xf2feau);
+    push32(c, 0xf2feau); x86_call_known(c, 0xf3c24u, f_000f3c24); X86_RET(c, 0xf2feau);
     X86_TICK(c, 11);
     // 0f2fea  mov dword ptr [edi*4 + 0xce508], 0
     X86_AT(c, 0xf2feau);
@@ -4188,18 +4188,18 @@ void f_000f2f9c(X86Cpu& c) {
     { uint32_t v = 0x2u; push32(c, v); }
     // 0f2ff7  call 0xe1a9c
     X86_AT(c, 0xf2ff7u);
-    push32(c, 0xf2ffcu); f_000e1a9c(c); X86_RET(c, 0xf2ffcu);
+    push32(c, 0xf2ffcu); x86_call_known(c, 0xe1a9cu, f_000e1a9c); X86_RET(c, 0xf2ffcu);
     X86_TICK(c, 7);
     // 0f2ffc  call 0xf0c70
     X86_AT(c, 0xf2ffcu);
-    push32(c, 0xf3001u); f_000f0c70(c); X86_RET(c, 0xf3001u);
+    push32(c, 0xf3001u); x86_call_known(c, 0xf0c70u, f_000f0c70); X86_RET(c, 0xf3001u);
     X86_TICK(c, 9);
     // 0f3001  push 7
     X86_AT(c, 0xf3001u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3003  call 0xe693c
     X86_AT(c, 0xf3003u);
-    push32(c, 0xf3008u); f_000e693c(c); X86_RET(c, 0xf3008u);
+    push32(c, 0xf3008u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf3008u);
     X86_TICK(c, 11);
     // 0f3008  push 0x68ac
     X86_AT(c, 0xf3008u);
@@ -4209,14 +4209,14 @@ void f_000f2f9c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f300f  call 0xe5654
     X86_AT(c, 0xf300fu);
-    push32(c, 0xf3014u); f_000e5654(c); X86_RET(c, 0xf3014u);
+    push32(c, 0xf3014u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf3014u);
     X86_TICK(c, 9);
     // 0f3014  push 7
     X86_AT(c, 0xf3014u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3016  call 0xe6c68
     X86_AT(c, 0xf3016u);
-    push32(c, 0xf301bu); f_000e6c68(c); X86_RET(c, 0xf301bu);
+    push32(c, 0xf301bu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf301bu);
     X86_TICK(c, 26);
     // 0f301b  add esp, 0x30
     X86_AT(c, 0xf301bu);
@@ -4307,14 +4307,14 @@ L_f3088:
     { uint32_t v = c.r[7]; push32(c, v); }
     // 0f3089  call 0xe1944
     X86_AT(c, 0xf3089u);
-    push32(c, 0xf308eu); f_000e1944(c); X86_RET(c, 0xf308eu);
+    push32(c, 0xf308eu); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf308eu);
     X86_TICK(c, 9);
     // 0f308e  push 4
     X86_AT(c, 0xf308eu);
     { uint32_t v = 0x4u; push32(c, v); }
     // 0f3090  call 0xe9740
     X86_AT(c, 0xf3090u);
-    push32(c, 0xf3095u); f_000e9740(c); X86_RET(c, 0xf3095u);
+    push32(c, 0xf3095u); x86_call_known(c, 0xe9740u, f_000e9740); X86_RET(c, 0xf3095u);
     X86_TICK(c, 16);
     // 0f3095  add esp, 8
     X86_AT(c, 0xf3095u);
@@ -4422,7 +4422,7 @@ L_f30fc:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f30fe  call 0xe693c
     X86_AT(c, 0xf30feu);
-    push32(c, 0xf3103u); f_000e693c(c); X86_RET(c, 0xf3103u);
+    push32(c, 0xf3103u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf3103u);
     X86_TICK(c, 15);
     // 0f3103  push 0xffffffff
     X86_AT(c, 0xf3103u);
@@ -4438,14 +4438,14 @@ L_f30fc:
     { uint32_t v = c.r[6]; push32(c, v); }
     // 0f310c  call 0xe2e10
     X86_AT(c, 0xf310cu);
-    push32(c, 0xf3111u); f_000e2e10(c); X86_RET(c, 0xf3111u);
+    push32(c, 0xf3111u); x86_call_known(c, 0xe2e10u, f_000e2e10); X86_RET(c, 0xf3111u);
     X86_TICK(c, 10);
     // 0f3111  xchg edi, eax
     X86_AT(c, 0xf3111u);
     { uint32_t t = c.r[7]; c.r[7] = c.r[0]; c.r[0] = t; }
     // 0f3112  call 0xe2ea0
     X86_AT(c, 0xf3112u);
-    push32(c, 0xf3117u); f_000e2ea0(c); X86_RET(c, 0xf3117u);
+    push32(c, 0xf3117u); x86_call_known(c, 0xe2ea0u, f_000e2ea0); X86_RET(c, 0xf3117u);
     X86_TICK(c, 32);
     // 0f3117  push 2
     X86_AT(c, 0xf3117u);
@@ -4473,18 +4473,18 @@ L_f30fc:
     { uint32_t v = rd32((c.sbase[3] + (uint32_t)(c.r[2] + 0xCDF6Bu))); push32(c, v); }
     // 0f3135  call 0xe7f60
     X86_AT(c, 0xf3135u);
-    push32(c, 0xf313au); f_000e7f60(c); X86_RET(c, 0xf313au);
+    push32(c, 0xf313au); x86_call_known(c, 0xe7f60u, f_000e7f60); X86_RET(c, 0xf313au);
     X86_TICK(c, 9);
     // 0f313a  push edi
     X86_AT(c, 0xf313au);
     { uint32_t v = c.r[7]; push32(c, v); }
     // 0f313b  call 0xe2df4
     X86_AT(c, 0xf313bu);
-    push32(c, 0xf3140u); f_000e2df4(c); X86_RET(c, 0xf3140u);
+    push32(c, 0xf3140u); x86_call_known(c, 0xe2df4u, f_000e2df4); X86_RET(c, 0xf3140u);
     X86_TICK(c, 7);
     // 0f3140  call 0xe2ea0
     X86_AT(c, 0xf3140u);
-    push32(c, 0xf3145u); f_000e2ea0(c); X86_RET(c, 0xf3145u);
+    push32(c, 0xf3145u); x86_call_known(c, 0xe2ea0u, f_000e2ea0); X86_RET(c, 0xf3145u);
     X86_TICK(c, 32);
     // 0f3145  push 2
     X86_AT(c, 0xf3145u);
@@ -4512,7 +4512,7 @@ L_f30fc:
     { uint32_t v = rd32((c.sbase[3] + (uint32_t)(c.r[2] + 0xCDF6Bu))); push32(c, v); }
     // 0f3163  call 0xe7f60
     X86_AT(c, 0xf3163u);
-    push32(c, 0xf3168u); f_000e7f60(c); X86_RET(c, 0xf3168u);
+    push32(c, 0xf3168u); x86_call_known(c, 0xe7f60u, f_000e7f60); X86_RET(c, 0xf3168u);
     X86_TICK(c, 2);
     // 0f3168  add esp, 0x30
     X86_AT(c, 0xf3168u);
@@ -4543,7 +4543,7 @@ void f_000f326c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f326e  call 0xe693c
     X86_AT(c, 0xf326eu);
-    push32(c, 0xf3273u); f_000e693c(c); X86_RET(c, 0xf3273u);
+    push32(c, 0xf3273u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf3273u);
     X86_TICK(c, 11);
     // 0f3273  push 0x6a1c
     X86_AT(c, 0xf3273u);
@@ -4553,14 +4553,14 @@ void f_000f326c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f327a  call 0xe5654
     X86_AT(c, 0xf327au);
-    push32(c, 0xf327fu); f_000e5654(c); X86_RET(c, 0xf327fu);
+    push32(c, 0xf327fu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf327fu);
     X86_TICK(c, 9);
     // 0f327f  push 7
     X86_AT(c, 0xf327fu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3281  call 0xe6c68
     X86_AT(c, 0xf3281u);
-    push32(c, 0xf3286u); f_000e6c68(c); X86_RET(c, 0xf3286u);
+    push32(c, 0xf3286u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3286u);
     X86_TICK(c, 12);
     // 0f3286  add esp, 0x10
     X86_AT(c, 0xf3286u);
@@ -4601,11 +4601,11 @@ void f_000f328c(X86Cpu& c) {
     { uint32_t t = c.r[3]; c.r[3] = c.r[0]; c.r[0] = t; }
     // 0f329c  call 0xe8470
     X86_AT(c, 0xf329cu);
-    push32(c, 0xf32a1u); f_000e8470(c); X86_RET(c, 0xf32a1u);
+    push32(c, 0xf32a1u); x86_call_known(c, 0xe8470u, f_000e8470); X86_RET(c, 0xf32a1u);
     X86_TICK(c, 7);
     // 0f32a1  call 0xe93c4
     X86_AT(c, 0xf32a1u);
-    push32(c, 0xf32a6u); f_000e93c4(c); X86_RET(c, 0xf32a6u);
+    push32(c, 0xf32a6u); x86_call_known(c, 0xe93c4u, f_000e93c4); X86_RET(c, 0xf32a6u);
     X86_TICK(c, 11);
     // 0f32a6  push 0x6a34
     X86_AT(c, 0xf32a6u);
@@ -4615,11 +4615,11 @@ void f_000f328c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f32ad  call 0xe5654
     X86_AT(c, 0xf32adu);
-    push32(c, 0xf32b2u); f_000e5654(c); X86_RET(c, 0xf32b2u);
+    push32(c, 0xf32b2u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf32b2u);
     X86_TICK(c, 7);
     // 0f32b2  call 0xf69f0
     X86_AT(c, 0xf32b2u);
-    push32(c, 0xf32b7u); f_000f69f0(c); X86_RET(c, 0xf32b7u);
+    push32(c, 0xf32b7u); x86_call_known(c, 0xf69f0u, f_000f69f0); X86_RET(c, 0xf32b7u);
     X86_TICK(c, 11);
     // 0f32b7  push 0x6a50
     X86_AT(c, 0xf32b7u);
@@ -4629,14 +4629,14 @@ void f_000f328c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f32be  call 0xe5654
     X86_AT(c, 0xf32beu);
-    push32(c, 0xf32c3u); f_000e5654(c); X86_RET(c, 0xf32c3u);
+    push32(c, 0xf32c3u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf32c3u);
     X86_TICK(c, 9);
     // 0f32c3  push 7
     X86_AT(c, 0xf32c3u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f32c5  call 0xe6c68
     X86_AT(c, 0xf32c5u);
-    push32(c, 0xf32cau); f_000e6c68(c); X86_RET(c, 0xf32cau);
+    push32(c, 0xf32cau); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf32cau);
     X86_TICK(c, 11);
     // 0f32ca  push 0x6a68
     X86_AT(c, 0xf32cau);
@@ -4646,14 +4646,14 @@ void f_000f328c(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f32d1  call 0xe5654
     X86_AT(c, 0xf32d1u);
-    push32(c, 0xf32d6u); f_000e5654(c); X86_RET(c, 0xf32d6u);
+    push32(c, 0xf32d6u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf32d6u);
     X86_TICK(c, 9);
     // 0f32d6  push 7
     X86_AT(c, 0xf32d6u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f32d8  call 0xe6c68
     X86_AT(c, 0xf32d8u);
-    push32(c, 0xf32ddu); f_000e6c68(c); X86_RET(c, 0xf32ddu);
+    push32(c, 0xf32ddu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf32ddu);
     X86_TICK(c, 26);
     // 0f32dd  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf32ddu);
@@ -4681,7 +4681,7 @@ void f_000f328c(X86Cpu& c) {
     wr32((c.sbase[3] + (uint32_t)(0xCDA6Cu)), c.r[0]);
     // 0f32fa  call 0xf3508
     X86_AT(c, 0xf32fau);
-    push32(c, 0xf32ffu); f_000f3508(c); X86_RET(c, 0xf32ffu);
+    push32(c, 0xf32ffu); x86_call_known(c, 0xf3508u, f_000f3508); X86_RET(c, 0xf32ffu);
     X86_TICK(c, 4);
     // 0f32ff  mov edi, 0x1f4
     X86_AT(c, 0xf32ffu);
@@ -4703,7 +4703,7 @@ L_f3307:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3313  call 0xe7618
     X86_AT(c, 0xf3313u);
-    push32(c, 0xf3318u); f_000e7618(c); X86_RET(c, 0xf3318u);
+    push32(c, 0xf3318u); x86_call_known(c, 0xe7618u, f_000e7618); X86_RET(c, 0xf3318u);
     X86_TICK(c, 2);
     // 0f3318  add esp, 4
     X86_AT(c, 0xf3318u);
@@ -4718,21 +4718,21 @@ L_f331b:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f331e  call 0xf3578
     X86_AT(c, 0xf331eu);
-    push32(c, 0xf3323u); f_000f3578(c); X86_RET(c, 0xf3323u);
+    push32(c, 0xf3323u); x86_call_known(c, 0xf3578u, f_000f3578); X86_RET(c, 0xf3323u);
     X86_TICK(c, 9);
     // 0f3323  push 7
     X86_AT(c, 0xf3323u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3325  call 0xe693c
     X86_AT(c, 0xf3325u);
-    push32(c, 0xf332au); f_000e693c(c); X86_RET(c, 0xf332au);
+    push32(c, 0xf332au); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf332au);
     X86_TICK(c, 9);
     // 0f332a  push 7
     X86_AT(c, 0xf332au);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f332c  call 0xe4748
     X86_AT(c, 0xf332cu);
-    push32(c, 0xf3331u); f_000e4748(c); X86_RET(c, 0xf3331u);
+    push32(c, 0xf3331u); x86_call_known(c, 0xe4748u, f_000e4748); X86_RET(c, 0xf3331u);
     X86_TICK(c, 12);
     // 0f3331  movzx esi, al
     X86_AT(c, 0xf3331u);
@@ -4806,11 +4806,11 @@ L_f3369:
     c.r[3] = 0xFFFFFFFFu;
     // 0f336e  call 0xe9264
     X86_AT(c, 0xf336eu);
-    push32(c, 0xf3373u); f_000e9264(c); X86_RET(c, 0xf3373u);
+    push32(c, 0xf3373u); x86_call_known(c, 0xe9264u, f_000e9264); X86_RET(c, 0xf3373u);
     X86_TICK(c, 7);
     // 0f3373  call 0xf36d4
     X86_AT(c, 0xf3373u);
-    push32(c, 0xf3378u); f_000f36d4(c); X86_RET(c, 0xf3378u);
+    push32(c, 0xf3378u); x86_call_known(c, 0xf36d4u, f_000f36d4); X86_RET(c, 0xf3378u);
     X86_TICK(c, 15);
     // 0f3378  xchg ebx, eax
     X86_AT(c, 0xf3378u);
@@ -4824,7 +4824,7 @@ L_f3369:
     X86_TICK(c, 7);
     // 0f3387  call 0xe9264
     X86_AT(c, 0xf3387u);
-    push32(c, 0xf338cu); f_000e9264(c); X86_RET(c, 0xf338cu);
+    push32(c, 0xf338cu); x86_call_known(c, 0xe9264u, f_000e9264); X86_RET(c, 0xf338cu);
     X86_TICK(c, 7);
     // 0f338c  cmp ebx, 0xffffffff
     X86_AT(c, 0xf338cu);
@@ -4841,11 +4841,11 @@ L_f3369:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f339c  call 0xe5654
     X86_AT(c, 0xf339cu);
-    push32(c, 0xf33a1u); f_000e5654(c); X86_RET(c, 0xf33a1u);
+    push32(c, 0xf33a1u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf33a1u);
     X86_TICK(c, 7);
     // 0f33a1  call 0xf69f0
     X86_AT(c, 0xf33a1u);
-    push32(c, 0xf33a6u); f_000f69f0(c); X86_RET(c, 0xf33a6u);
+    push32(c, 0xf33a6u); x86_call_known(c, 0xf69f0u, f_000f69f0); X86_RET(c, 0xf33a6u);
     X86_TICK(c, 11);
     // 0f33a6  push 0x6b04
     X86_AT(c, 0xf33a6u);
@@ -4855,14 +4855,14 @@ L_f3369:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f33ad  call 0xe5654
     X86_AT(c, 0xf33adu);
-    push32(c, 0xf33b2u); f_000e5654(c); X86_RET(c, 0xf33b2u);
+    push32(c, 0xf33b2u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf33b2u);
     X86_TICK(c, 9);
     // 0f33b2  push 7
     X86_AT(c, 0xf33b2u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f33b4  call 0xe6c68
     X86_AT(c, 0xf33b4u);
-    push32(c, 0xf33b9u); f_000e6c68(c); X86_RET(c, 0xf33b9u);
+    push32(c, 0xf33b9u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf33b9u);
     X86_TICK(c, 9);
     // 0f33b9  add esp, 0x14
     X86_AT(c, 0xf33b9u);
@@ -4880,14 +4880,14 @@ L_f33be:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f33c5  call 0xe5654
     X86_AT(c, 0xf33c5u);
-    push32(c, 0xf33cau); f_000e5654(c); X86_RET(c, 0xf33cau);
+    push32(c, 0xf33cau); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf33cau);
     X86_TICK(c, 9);
     // 0f33ca  push 7
     X86_AT(c, 0xf33cau);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f33cc  call 0xe6c68
     X86_AT(c, 0xf33ccu);
-    push32(c, 0xf33d1u); f_000e6c68(c); X86_RET(c, 0xf33d1u);
+    push32(c, 0xf33d1u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf33d1u);
     X86_TICK(c, 9);
     // 0f33d1  add esp, 0xc
     X86_AT(c, 0xf33d1u);
@@ -4904,7 +4904,7 @@ L_f33be:
     { uint32_t v = 0x3u; push32(c, v); }
     // 0f33db  call 0xe1944
     X86_AT(c, 0xf33dbu);
-    push32(c, 0xf33e0u); f_000e1944(c); X86_RET(c, 0xf33e0u);
+    push32(c, 0xf33e0u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf33e0u);
     X86_TICK(c, 11);
     // 0f33e0  push 0x6b50
     X86_AT(c, 0xf33e0u);
@@ -4914,14 +4914,14 @@ L_f33be:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f33e7  call 0xe5654
     X86_AT(c, 0xf33e7u);
-    push32(c, 0xf33ecu); f_000e5654(c); X86_RET(c, 0xf33ecu);
+    push32(c, 0xf33ecu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf33ecu);
     X86_TICK(c, 9);
     // 0f33ec  push 7
     X86_AT(c, 0xf33ecu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f33ee  call 0xe6c68
     X86_AT(c, 0xf33eeu);
-    push32(c, 0xf33f3u); f_000e6c68(c); X86_RET(c, 0xf33f3u);
+    push32(c, 0xf33f3u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf33f3u);
     X86_TICK(c, 9);
     // 0f33f3  add esp, 0x10
     X86_AT(c, 0xf33f3u);
@@ -4949,14 +4949,14 @@ L_f3406:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3408  call 0xe5654
     X86_AT(c, 0xf3408u);
-    push32(c, 0xf340du); f_000e5654(c); X86_RET(c, 0xf340du);
+    push32(c, 0xf340du); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf340du);
     X86_TICK(c, 9);
     // 0f340d  push 7
     X86_AT(c, 0xf340du);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f340f  call 0xe6c68
     X86_AT(c, 0xf340fu);
-    push32(c, 0xf3414u); f_000e6c68(c); X86_RET(c, 0xf3414u);
+    push32(c, 0xf3414u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3414u);
     X86_TICK(c, 2);
     // 0f3414  add esp, 0xc
     X86_AT(c, 0xf3414u);
@@ -5000,14 +5000,14 @@ L_f3417:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3445  call 0xe5654
     X86_AT(c, 0xf3445u);
-    push32(c, 0xf344au); f_000e5654(c); X86_RET(c, 0xf344au);
+    push32(c, 0xf344au); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf344au);
     X86_TICK(c, 9);
     // 0f344a  push 7
     X86_AT(c, 0xf344au);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f344c  call 0xe6c68
     X86_AT(c, 0xf344cu);
-    push32(c, 0xf3451u); f_000e6c68(c); X86_RET(c, 0xf3451u);
+    push32(c, 0xf3451u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3451u);
     X86_TICK(c, 9);
     // 0f3451  add esp, 0xc
     X86_AT(c, 0xf3451u);
@@ -5019,7 +5019,7 @@ L_f3459:
     X86_TICK(c, 7);
     // 0f3459  call 0xe8e90
     X86_AT(c, 0xf3459u);
-    push32(c, 0xf345eu); f_000e8e90(c); X86_RET(c, 0xf345eu);
+    push32(c, 0xf345eu); x86_call_known(c, 0xe8e90u, f_000e8e90); X86_RET(c, 0xf345eu);
 L_f345e:
     X86_TICK(c, 28);
     // 0f345e  pop edi
@@ -5061,7 +5061,7 @@ void f_000f3464(X86Cpu& c) {
     { uint32_t v = 0x1u; push32(c, v); }
     // 0f346e  call 0xe58cc
     X86_AT(c, 0xf346eu);
-    push32(c, 0xf3473u); f_000e58cc(c); X86_RET(c, 0xf3473u);
+    push32(c, 0xf3473u); x86_call_known(c, 0xe58ccu, f_000e58cc); X86_RET(c, 0xf3473u);
     X86_TICK(c, 18);
     // 0f3473  mov eax, edi
     X86_AT(c, 0xf3473u);
@@ -5084,7 +5084,7 @@ void f_000f3464(X86Cpu& c) {
     { uint32_t v = 0xFu; push32(c, v); }
     // 0f3486  call 0xe5748
     X86_AT(c, 0xf3486u);
-    push32(c, 0xf348bu); f_000e5748(c); X86_RET(c, 0xf348bu);
+    push32(c, 0xf348bu); x86_call_known(c, 0xe5748u, f_000e5748); X86_RET(c, 0xf348bu);
     X86_TICK(c, 4);
     // 0f348b  sub esi, esi
     X86_AT(c, 0xf348bu);
@@ -5129,7 +5129,7 @@ L_f34bc:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f34be  call 0xe5748
     X86_AT(c, 0xf34beu);
-    push32(c, 0xf34c3u); f_000e5748(c); X86_RET(c, 0xf34c3u);
+    push32(c, 0xf34c3u); x86_call_known(c, 0xe5748u, f_000e5748); X86_RET(c, 0xf34c3u);
     X86_TICK(c, 4);
     // 0f34c3  sub esi, esi
     X86_AT(c, 0xf34c3u);
@@ -5174,14 +5174,14 @@ L_f34ed:
     { uint32_t v = 0xD3914u; push32(c, v); }
     // 0f34f2  call 0xe5cc0
     X86_AT(c, 0xf34f2u);
-    push32(c, 0xf34f7u); f_000e5cc0(c); X86_RET(c, 0xf34f7u);
+    push32(c, 0xf34f7u); x86_call_known(c, 0xe5cc0u, f_000e5cc0); X86_RET(c, 0xf34f7u);
     X86_TICK(c, 9);
     // 0f34f7  push 0
     X86_AT(c, 0xf34f7u);
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f34f9  call 0xe58cc
     X86_AT(c, 0xf34f9u);
-    push32(c, 0xf34feu); f_000e58cc(c); X86_RET(c, 0xf34feu);
+    push32(c, 0xf34feu); x86_call_known(c, 0xe58ccu, f_000e58cc); X86_RET(c, 0xf34feu);
     X86_TICK(c, 26);
     // 0f34fe  add esp, 8
     X86_AT(c, 0xf34feu);
@@ -5222,7 +5222,7 @@ L_f350b:
     { uint32_t v = 0x120u; push32(c, v); }
     // 0f3515  call 0xe1a7c
     X86_AT(c, 0xf3515u);
-    push32(c, 0xf351au); f_000e1a7c(c); X86_RET(c, 0xf351au);
+    push32(c, 0xf351au); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf351au);
     X86_TICK(c, 13);
     // 0f351a  add eax, 0x60
     X86_AT(c, 0xf351au);
@@ -5235,7 +5235,7 @@ L_f350b:
     { uint32_t v = 0x120u; push32(c, v); }
     // 0f3529  call 0xe1a7c
     X86_AT(c, 0xf3529u);
-    push32(c, 0xf352eu); f_000e1a7c(c); X86_RET(c, 0xf352eu);
+    push32(c, 0xf352eu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf352eu);
     X86_TICK(c, 18);
     // 0f352e  add eax, 0x80
     X86_AT(c, 0xf352eu);
@@ -5285,7 +5285,7 @@ L_f356a:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f356e  call 0xf3464
     X86_AT(c, 0xf356eu);
-    push32(c, 0xf3573u); f_000f3464(c); X86_RET(c, 0xf3573u);
+    push32(c, 0xf3573u); x86_call_known(c, 0xf3464u, f_000f3464); X86_RET(c, 0xf3573u);
     X86_TICK(c, 16);
     // 0f3573  add esp, 8
     X86_AT(c, 0xf3573u);
@@ -5460,7 +5460,7 @@ L_f3614:
     { uint32_t v = 0xA0u; push32(c, v); }
     // 0f3619  call 0xe1a7c
     X86_AT(c, 0xf3619u);
-    push32(c, 0xf361eu); f_000e1a7c(c); X86_RET(c, 0xf361eu);
+    push32(c, 0xf361eu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf361eu);
     X86_TICK(c, 13);
     // 0f361e  add eax, 0xa0
     X86_AT(c, 0xf361eu);
@@ -5473,7 +5473,7 @@ L_f3614:
     { uint32_t v = 0xA0u; push32(c, v); }
     // 0f362f  call 0xe1a7c
     X86_AT(c, 0xf362fu);
-    push32(c, 0xf3634u); f_000e1a7c(c); X86_RET(c, 0xf3634u);
+    push32(c, 0xf3634u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf3634u);
     X86_TICK(c, 6);
     // 0f3634  add eax, 0xc0
     X86_AT(c, 0xf3634u);
@@ -5568,7 +5568,7 @@ L_f36a2:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f36a6  call 0xf3464
     X86_AT(c, 0xf36a6u);
-    push32(c, 0xf36abu); f_000f3464(c); X86_RET(c, 0xf36abu);
+    push32(c, 0xf36abu); x86_call_known(c, 0xf3464u, f_000f3464); X86_RET(c, 0xf36abu);
     X86_TICK(c, 14);
     // 0f36ab  add esp, 8
     X86_AT(c, 0xf36abu);
@@ -5588,7 +5588,7 @@ L_f36a2:
     { uint32_t v = 0x1u; push32(c, v); }
     // 0f36b8  call 0xf3464
     X86_AT(c, 0xf36b8u);
-    push32(c, 0xf36bdu); f_000f3464(c); X86_RET(c, 0xf36bdu);
+    push32(c, 0xf36bdu); x86_call_known(c, 0xf3464u, f_000f3464); X86_RET(c, 0xf36bdu);
     X86_TICK(c, 4);
     // 0f36bd  sub esi, esi
     X86_AT(c, 0xf36bdu);
@@ -5649,7 +5649,7 @@ void f_000f36d4(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f36d8  call 0xe693c
     X86_AT(c, 0xf36d8u);
-    push32(c, 0xf36ddu); f_000e693c(c); X86_RET(c, 0xf36ddu);
+    push32(c, 0xf36ddu); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf36ddu);
     X86_TICK(c, 11);
     // 0f36dd  push 0x6c30
     X86_AT(c, 0xf36ddu);
@@ -5659,14 +5659,14 @@ void f_000f36d4(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f36e4  call 0xe5654
     X86_AT(c, 0xf36e4u);
-    push32(c, 0xf36e9u); f_000e5654(c); X86_RET(c, 0xf36e9u);
+    push32(c, 0xf36e9u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf36e9u);
     X86_TICK(c, 9);
     // 0f36e9  push 7
     X86_AT(c, 0xf36e9u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f36eb  call 0xe6c68
     X86_AT(c, 0xf36ebu);
-    push32(c, 0xf36f0u); f_000e6c68(c); X86_RET(c, 0xf36f0u);
+    push32(c, 0xf36f0u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf36f0u);
     X86_TICK(c, 27);
     // 0f36f0  mov eax, dword ptr [0xceca0]
     X86_AT(c, 0xf36f0u);
@@ -5698,7 +5698,7 @@ void f_000f36d4(X86Cpu& c) {
     { uint32_t v = 0x1u; push32(c, v); }
     // 0f370e  call 0xe1944
     X86_AT(c, 0xf370eu);
-    push32(c, 0xf3713u); f_000e1944(c); X86_RET(c, 0xf3713u);
+    push32(c, 0xf3713u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf3713u);
     X86_TICK(c, 11);
     // 0f3713  push 0x6c68
     X86_AT(c, 0xf3713u);
@@ -5708,14 +5708,14 @@ void f_000f36d4(X86Cpu& c) {
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f371a  call 0xe5654
     X86_AT(c, 0xf371au);
-    push32(c, 0xf371fu); f_000e5654(c); X86_RET(c, 0xf371fu);
+    push32(c, 0xf371fu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf371fu);
     X86_TICK(c, 9);
     // 0f371f  push 7
     X86_AT(c, 0xf371fu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3721  call 0xe6c68
     X86_AT(c, 0xf3721u);
-    push32(c, 0xf3726u); f_000e6c68(c); X86_RET(c, 0xf3726u);
+    push32(c, 0xf3726u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3726u);
     X86_TICK(c, 11);
     // 0f3726  mov eax, 0xffffffff
     X86_AT(c, 0xf3726u);
@@ -5754,14 +5754,14 @@ L_f3733:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3750  call 0xe5654
     X86_AT(c, 0xf3750u);
-    push32(c, 0xf3755u); f_000e5654(c); X86_RET(c, 0xf3755u);
+    push32(c, 0xf3755u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf3755u);
     X86_TICK(c, 9);
     // 0f3755  push 7
     X86_AT(c, 0xf3755u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3757  call 0xe6c68
     X86_AT(c, 0xf3757u);
-    push32(c, 0xf375cu); f_000e6c68(c); X86_RET(c, 0xf375cu);
+    push32(c, 0xf375cu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf375cu);
     X86_TICK(c, 11);
     // 0f375c  push 0x6cc4
     X86_AT(c, 0xf375cu);
@@ -5771,14 +5771,14 @@ L_f3733:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3763  call 0xe6cb0
     X86_AT(c, 0xf3763u);
-    push32(c, 0xf3768u); f_000e6cb0(c); X86_RET(c, 0xf3768u);
+    push32(c, 0xf3768u); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf3768u);
     X86_TICK(c, 9);
     // 0f3768  push 7
     X86_AT(c, 0xf3768u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f376a  call 0xe1b10
     X86_AT(c, 0xf376au);
-    push32(c, 0xf376fu); f_000e1b10(c); X86_RET(c, 0xf376fu);
+    push32(c, 0xf376fu); x86_call_known(c, 0xe1b10u, f_000e1b10); X86_RET(c, 0xf376fu);
     X86_TICK(c, 11);
     // 0f376f  mov dword ptr [0xd3998], eax
     X86_AT(c, 0xf376fu);
@@ -5788,7 +5788,7 @@ L_f3733:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3776  call 0xe6c68
     X86_AT(c, 0xf3776u);
-    push32(c, 0xf377bu); f_000e6c68(c); X86_RET(c, 0xf377bu);
+    push32(c, 0xf377bu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf377bu);
     X86_TICK(c, 14);
     // 0f377b  add esp, 0x1c
     X86_AT(c, 0xf377bu);
@@ -5816,14 +5816,14 @@ L_f378e:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3795  call 0xe6cb0
     X86_AT(c, 0xf3795u);
-    push32(c, 0xf379au); f_000e6cb0(c); X86_RET(c, 0xf379au);
+    push32(c, 0xf379au); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf379au);
     X86_TICK(c, 9);
     // 0f379a  push 7
     X86_AT(c, 0xf379au);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f379c  call 0xe1b10
     X86_AT(c, 0xf379cu);
-    push32(c, 0xf37a1u); f_000e1b10(c); X86_RET(c, 0xf37a1u);
+    push32(c, 0xf37a1u); x86_call_known(c, 0xe1b10u, f_000e1b10); X86_RET(c, 0xf37a1u);
     X86_TICK(c, 11);
     // 0f37a1  mov dword ptr [0xd399c], eax
     X86_AT(c, 0xf37a1u);
@@ -5833,7 +5833,7 @@ L_f378e:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f37a8  call 0xe6c68
     X86_AT(c, 0xf37a8u);
-    push32(c, 0xf37adu); f_000e6c68(c); X86_RET(c, 0xf37adu);
+    push32(c, 0xf37adu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf37adu);
     X86_TICK(c, 14);
     // 0f37ad  add esp, 0x10
     X86_AT(c, 0xf37adu);
@@ -5861,14 +5861,14 @@ L_f37c0:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f37c7  call 0xe6cb0
     X86_AT(c, 0xf37c7u);
-    push32(c, 0xf37ccu); f_000e6cb0(c); X86_RET(c, 0xf37ccu);
+    push32(c, 0xf37ccu); x86_call_known(c, 0xe6cb0u, f_000e6cb0); X86_RET(c, 0xf37ccu);
     X86_TICK(c, 9);
     // 0f37cc  push 7
     X86_AT(c, 0xf37ccu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f37ce  call 0xe1b10
     X86_AT(c, 0xf37ceu);
-    push32(c, 0xf37d3u); f_000e1b10(c); X86_RET(c, 0xf37d3u);
+    push32(c, 0xf37d3u); x86_call_known(c, 0xe1b10u, f_000e1b10); X86_RET(c, 0xf37d3u);
     X86_TICK(c, 11);
     // 0f37d3  mov dword ptr [0xd39a0], eax
     X86_AT(c, 0xf37d3u);
@@ -5878,7 +5878,7 @@ L_f37c0:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f37da  call 0xe6c68
     X86_AT(c, 0xf37dau);
-    push32(c, 0xf37dfu); f_000e6c68(c); X86_RET(c, 0xf37dfu);
+    push32(c, 0xf37dfu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf37dfu);
     X86_TICK(c, 14);
     // 0f37df  add esp, 0x10
     X86_AT(c, 0xf37dfu);
@@ -5900,14 +5900,14 @@ L_f37f0:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f37f2  call 0xe5654
     X86_AT(c, 0xf37f2u);
-    push32(c, 0xf37f7u); f_000e5654(c); X86_RET(c, 0xf37f7u);
+    push32(c, 0xf37f7u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf37f7u);
     X86_TICK(c, 9);
     // 0f37f7  push 7
     X86_AT(c, 0xf37f7u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f37f9  call 0xe6c68
     X86_AT(c, 0xf37f9u);
-    push32(c, 0xf37feu); f_000e6c68(c); X86_RET(c, 0xf37feu);
+    push32(c, 0xf37feu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf37feu);
     X86_TICK(c, 11);
     // 0f37fe  mov eax, 0xffffffff
     X86_AT(c, 0xf37feu);
@@ -5925,7 +5925,7 @@ L_f380b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f380d  call 0xe693c
     X86_AT(c, 0xf380du);
-    push32(c, 0xf3812u); f_000e693c(c); X86_RET(c, 0xf3812u);
+    push32(c, 0xf3812u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf3812u);
     X86_TICK(c, 11);
     // 0f3812  push 0x6d54
     X86_AT(c, 0xf3812u);
@@ -5935,14 +5935,14 @@ L_f380b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3819  call 0xe5654
     X86_AT(c, 0xf3819u);
-    push32(c, 0xf381eu); f_000e5654(c); X86_RET(c, 0xf381eu);
+    push32(c, 0xf381eu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf381eu);
     X86_TICK(c, 9);
     // 0f381e  push 7
     X86_AT(c, 0xf381eu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3820  call 0xe6c68
     X86_AT(c, 0xf3820u);
-    push32(c, 0xf3825u); f_000e6c68(c); X86_RET(c, 0xf3825u);
+    push32(c, 0xf3825u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3825u);
     X86_TICK(c, 4);
     // 0f3825  mov edi, 0x1f4
     X86_AT(c, 0xf3825u);
@@ -5979,7 +5979,7 @@ L_f3833:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f383b  call 0xf3578
     X86_AT(c, 0xf383bu);
-    push32(c, 0xf3840u); f_000f3578(c); X86_RET(c, 0xf3840u);
+    push32(c, 0xf3840u); x86_call_known(c, 0xf3578u, f_000f3578); X86_RET(c, 0xf3840u);
     X86_TICK(c, 11);
     // 0f3840  inc esi
     X86_AT(c, 0xf3840u);
@@ -6005,14 +6005,14 @@ L_f384b:
     { uint32_t v = 0x4u; push32(c, v); }
     // 0f384d  call 0xe1944
     X86_AT(c, 0xf384du);
-    push32(c, 0xf3852u); f_000e1944(c); X86_RET(c, 0xf3852u);
+    push32(c, 0xf3852u); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf3852u);
     X86_TICK(c, 9);
     // 0f3852  push 7
     X86_AT(c, 0xf3852u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3854  call 0xe693c
     X86_AT(c, 0xf3854u);
-    push32(c, 0xf3859u); f_000e693c(c); X86_RET(c, 0xf3859u);
+    push32(c, 0xf3859u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf3859u);
     X86_TICK(c, 11);
     // 0f3859  push 0x6d9c
     X86_AT(c, 0xf3859u);
@@ -6022,14 +6022,14 @@ L_f384b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3860  call 0xe5654
     X86_AT(c, 0xf3860u);
-    push32(c, 0xf3865u); f_000e5654(c); X86_RET(c, 0xf3865u);
+    push32(c, 0xf3865u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf3865u);
     X86_TICK(c, 9);
     // 0f3865  push 7
     X86_AT(c, 0xf3865u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3867  call 0xe6c68
     X86_AT(c, 0xf3867u);
-    push32(c, 0xf386cu); f_000e6c68(c); X86_RET(c, 0xf386cu);
+    push32(c, 0xf386cu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf386cu);
     X86_TICK(c, 4);
     // 0f386c  sub esi, esi
     X86_AT(c, 0xf386cu);
@@ -6054,7 +6054,7 @@ L_f3871:
     { uint32_t v = 0x1u; push32(c, v); }
     // 0f387d  call 0xf3578
     X86_AT(c, 0xf387du);
-    push32(c, 0xf3882u); f_000f3578(c); X86_RET(c, 0xf3882u);
+    push32(c, 0xf3882u); x86_call_known(c, 0xf3578u, f_000f3578); X86_RET(c, 0xf3882u);
     X86_TICK(c, 11);
     // 0f3882  inc esi
     X86_AT(c, 0xf3882u);
@@ -6072,7 +6072,7 @@ L_f3888:
     { uint32_t v = 0x9u; push32(c, v); }
     // 0f388a  call 0xe1a7c
     X86_AT(c, 0xf388au);
-    push32(c, 0xf388fu); f_000e1a7c(c); X86_RET(c, 0xf388fu);
+    push32(c, 0xf388fu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf388fu);
     X86_TICK(c, 9);
     // 0f388f  add esp, 4
     X86_AT(c, 0xf388fu);
@@ -6089,7 +6089,7 @@ L_f3888:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3897  call 0xe693c
     X86_AT(c, 0xf3897u);
-    push32(c, 0xf389cu); f_000e693c(c); X86_RET(c, 0xf389cu);
+    push32(c, 0xf389cu); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf389cu);
     X86_TICK(c, 11);
     // 0f389c  push 0x6dd0
     X86_AT(c, 0xf389cu);
@@ -6099,21 +6099,21 @@ L_f3888:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f38a3  call 0xe5654
     X86_AT(c, 0xf38a3u);
-    push32(c, 0xf38a8u); f_000e5654(c); X86_RET(c, 0xf38a8u);
+    push32(c, 0xf38a8u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf38a8u);
     X86_TICK(c, 9);
     // 0f38a8  push 7
     X86_AT(c, 0xf38a8u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f38aa  call 0xe6c68
     X86_AT(c, 0xf38aau);
-    push32(c, 0xf38afu); f_000e6c68(c); X86_RET(c, 0xf38afu);
+    push32(c, 0xf38afu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf38afu);
     X86_TICK(c, 9);
     // 0f38af  push 9
     X86_AT(c, 0xf38afu);
     { uint32_t v = 0x9u; push32(c, v); }
     // 0f38b1  call 0xe1a7c
     X86_AT(c, 0xf38b1u);
-    push32(c, 0xf38b6u); f_000e1a7c(c); X86_RET(c, 0xf38b6u);
+    push32(c, 0xf38b6u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf38b6u);
     X86_TICK(c, 11);
     // 0f38b6  mov dword ptr [0xd3998], eax
     X86_AT(c, 0xf38b6u);
@@ -6123,7 +6123,7 @@ L_f3888:
     { uint32_t v = 0x9u; push32(c, v); }
     // 0f38bd  call 0xe1a7c
     X86_AT(c, 0xf38bdu);
-    push32(c, 0xf38c2u); f_000e1a7c(c); X86_RET(c, 0xf38c2u);
+    push32(c, 0xf38c2u); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf38c2u);
     X86_TICK(c, 11);
     // 0f38c2  mov dword ptr [0xd399c], eax
     X86_AT(c, 0xf38c2u);
@@ -6133,7 +6133,7 @@ L_f3888:
     { uint32_t v = 0x9u; push32(c, v); }
     // 0f38c9  call 0xe1a7c
     X86_AT(c, 0xf38c9u);
-    push32(c, 0xf38ceu); f_000e1a7c(c); X86_RET(c, 0xf38ceu);
+    push32(c, 0xf38ceu); x86_call_known(c, 0xe1a7cu, f_000e1a7c); X86_RET(c, 0xf38ceu);
     X86_TICK(c, 4);
     // 0f38ce  mov dword ptr [0xd39a0], eax
     X86_AT(c, 0xf38ceu);
@@ -6163,7 +6163,7 @@ L_f38d8:
     { uint32_t v = 0x1u; push32(c, v); }
     // 0f38e4  call 0xf3578
     X86_AT(c, 0xf38e4u);
-    push32(c, 0xf38e9u); f_000f3578(c); X86_RET(c, 0xf38e9u);
+    push32(c, 0xf38e9u); x86_call_known(c, 0xf3578u, f_000f3578); X86_RET(c, 0xf38e9u);
     X86_TICK(c, 11);
     // 0f38e9  inc esi
     X86_AT(c, 0xf38e9u);
@@ -6178,7 +6178,7 @@ L_f38ef:
     X86_TICK(c, 7);
     // 0f38ef  call 0xe8470
     X86_AT(c, 0xf38efu);
-    push32(c, 0xf38f4u); f_000e8470(c); X86_RET(c, 0xf38f4u);
+    push32(c, 0xf38f4u); x86_call_known(c, 0xe8470u, f_000e8470); X86_RET(c, 0xf38f4u);
     X86_TICK(c, 2);
     // 0f38f4  mov edi, 0xa
     X86_AT(c, 0xf38f4u);
@@ -6212,7 +6212,7 @@ L_f3903:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f390b  call 0xf3578
     X86_AT(c, 0xf390bu);
-    push32(c, 0xf3910u); f_000f3578(c); X86_RET(c, 0xf3910u);
+    push32(c, 0xf3910u); x86_call_known(c, 0xf3578u, f_000f3578); X86_RET(c, 0xf3910u);
     X86_TICK(c, 11);
     // 0f3910  inc esi
     X86_AT(c, 0xf3910u);
@@ -6238,7 +6238,7 @@ L_f391b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f391d  call 0xe693c
     X86_AT(c, 0xf391du);
-    push32(c, 0xf3922u); f_000e693c(c); X86_RET(c, 0xf3922u);
+    push32(c, 0xf3922u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf3922u);
     X86_TICK(c, 11);
     // 0f3922  push 0x6dfc
     X86_AT(c, 0xf3922u);
@@ -6248,14 +6248,14 @@ L_f391b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3929  call 0xe5654
     X86_AT(c, 0xf3929u);
-    push32(c, 0xf392eu); f_000e5654(c); X86_RET(c, 0xf392eu);
+    push32(c, 0xf392eu); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf392eu);
     X86_TICK(c, 9);
     // 0f392e  push 7
     X86_AT(c, 0xf392eu);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3930  call 0xe6c68
     X86_AT(c, 0xf3930u);
-    push32(c, 0xf3935u); f_000e6c68(c); X86_RET(c, 0xf3935u);
+    push32(c, 0xf3935u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3935u);
     X86_TICK(c, 14);
     // 0f3935  add esp, 0x10
     X86_AT(c, 0xf3935u);
@@ -6286,7 +6286,7 @@ L_f391b:
     { uint32_t v = 0x0u; push32(c, v); }
     // 0f3955  call 0xe1944
     X86_AT(c, 0xf3955u);
-    push32(c, 0xf395au); f_000e1944(c); X86_RET(c, 0xf395au);
+    push32(c, 0xf395au); x86_call_known(c, 0xe1944u, f_000e1944); X86_RET(c, 0xf395au);
     X86_TICK(c, 11);
     // 0f395a  push 0x6e58
     X86_AT(c, 0xf395au);
@@ -6296,14 +6296,14 @@ L_f391b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3961  call 0xe5654
     X86_AT(c, 0xf3961u);
-    push32(c, 0xf3966u); f_000e5654(c); X86_RET(c, 0xf3966u);
+    push32(c, 0xf3966u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf3966u);
     X86_TICK(c, 9);
     // 0f3966  push 7
     X86_AT(c, 0xf3966u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3968  call 0xe6c68
     X86_AT(c, 0xf3968u);
-    push32(c, 0xf396du); f_000e6c68(c); X86_RET(c, 0xf396du);
+    push32(c, 0xf396du); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf396du);
     X86_TICK(c, 11);
     // 0f396d  push 0x6e88
     X86_AT(c, 0xf396du);
@@ -6313,14 +6313,14 @@ L_f391b:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3974  call 0xe5654
     X86_AT(c, 0xf3974u);
-    push32(c, 0xf3979u); f_000e5654(c); X86_RET(c, 0xf3979u);
+    push32(c, 0xf3979u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf3979u);
     X86_TICK(c, 9);
     // 0f3979  push 7
     X86_AT(c, 0xf3979u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f397b  call 0xe6c68
     X86_AT(c, 0xf397bu);
-    push32(c, 0xf3980u); f_000e6c68(c); X86_RET(c, 0xf3980u);
+    push32(c, 0xf3980u); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3980u);
     X86_TICK(c, 11);
     // 0f3980  mov word ptr [0xcde48], 0
     X86_AT(c, 0xf3980u);
@@ -6330,7 +6330,7 @@ L_f391b:
     { uint32_t v = 0xFFFFFFFFu; push32(c, v); }
     // 0f398b  call 0xeff44
     X86_AT(c, 0xf398bu);
-    push32(c, 0xf3990u); f_000eff44(c); X86_RET(c, 0xf3990u);
+    push32(c, 0xf3990u); x86_call_known(c, 0xeff44u, f_000eff44); X86_RET(c, 0xf3990u);
     X86_TICK(c, 11);
     // 0f3990  mov eax, 0xffffffff
     X86_AT(c, 0xf3990u);
@@ -6793,14 +6793,14 @@ L_f3bdd:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3bdf  call 0xe693c
     X86_AT(c, 0xf3bdfu);
-    push32(c, 0xf3be4u); f_000e693c(c); X86_RET(c, 0xf3be4u);
+    push32(c, 0xf3be4u); x86_call_known(c, 0xe693cu, f_000e693c); X86_RET(c, 0xf3be4u);
     X86_TICK(c, 9);
     // 0f3be4  push 7
     X86_AT(c, 0xf3be4u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3be6  call 0xe6c68
     X86_AT(c, 0xf3be6u);
-    push32(c, 0xf3bebu); f_000e6c68(c); X86_RET(c, 0xf3bebu);
+    push32(c, 0xf3bebu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3bebu);
     X86_TICK(c, 11);
     // 0f3beb  push 0x6efc
     X86_AT(c, 0xf3bebu);
@@ -6810,14 +6810,14 @@ L_f3bdd:
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3bf2  call 0xe5654
     X86_AT(c, 0xf3bf2u);
-    push32(c, 0xf3bf7u); f_000e5654(c); X86_RET(c, 0xf3bf7u);
+    push32(c, 0xf3bf7u); x86_call_known(c, 0xe5654u, f_000e5654); X86_RET(c, 0xf3bf7u);
     X86_TICK(c, 9);
     // 0f3bf7  push 7
     X86_AT(c, 0xf3bf7u);
     { uint32_t v = 0x7u; push32(c, v); }
     // 0f3bf9  call 0xe6c68
     X86_AT(c, 0xf3bf9u);
-    push32(c, 0xf3bfeu); f_000e6c68(c); X86_RET(c, 0xf3bfeu);
+    push32(c, 0xf3bfeu); x86_call_known(c, 0xe6c68u, f_000e6c68); X86_RET(c, 0xf3bfeu);
     X86_TICK(c, 4);
     // 0f3bfe  mov eax, 0xffffffff
     X86_AT(c, 0xf3bfeu);
