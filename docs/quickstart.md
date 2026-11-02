@@ -159,7 +159,8 @@ if you have none. A published release ships the same binary already built, with 
 in and no compiler needed at all, and that binary takes no arguments: unpack it, put your copy
 of the disc image in `game/` beside it, and run `./u2port`. It reads the program, TBIOS and the
 game's graphics and sounds out of the image itself and keeps them under `game/extracted/`, so
-after the first run the image can be removed.
+after the first run the image can be removed. Characters are plain files in `game/saves/`, not a
+floppy image, so there is nothing to format before you can save one.
 
 **The port is early and buggy, and the route matters.** Character creation works, and the
 save disk is writable, so a character you make persists. The route that has actually been

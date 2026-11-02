@@ -68,6 +68,11 @@ itself, so there is nothing to extract and no Node.js to install. It keeps what 
 game/extracted/, and after that first run the image is optional: delete it and the game still
 starts from what was kept.
 
+Your saves are ordinary files in game/saves/: ROSTER1.UT2 holds the characters and WORLD1.UT2 to
+WORLD4.UT2 the worlds. There is no floppy image to create or look after, and a character you make
+is saved there the moment the game writes it. Back them up or copy them to another machine the
+same way as any other file.
+
 Ignore the .cue that came with the download. It declares a PREGAP on the audio tracks that a rip
 may or may not already contain, so the reader refuses it rather than read the wrong sectors, and
 the port writes a correct one-track cue itself.
@@ -112,7 +117,8 @@ What is in this archive
                              port does not need it: it reads what it needs from the image itself
   tools/cd.js                the ISO reader getfile.js uses
   tools/vendor.sh            fetches the emulator and the full FreeTOWNS ROM set, if you want them
-  assets/save-disk/          a save disk with three characters, so the tested route works
+  assets/save-disk/          a save disk with three characters, which seeds game/saves/ on the
+                             first run so the tested route has somebody to play
   assets/font-rom/           the glyph ROM the port needs for text, and a document saying where
                              it came from and what is and is not established about its licence
   LICENSE                    MIT, this project's own code and the recompiled translation

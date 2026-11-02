@@ -44,7 +44,8 @@ is fine.
 The release archive is simpler still: unpack it, drop your copy of the disc image in `game/`
 beside it, and run `./u2port` with no arguments. It reads the program, TBIOS and the game's own
 graphics and sounds out of that image, keeps what it reads under `game/extracted/`, and after
-the first run the image is optional.
+the first run the image is optional. Characters live as plain files in `game/saves/`, so there is
+no floppy image to create either.
 
 One command. It builds the port from the recompiled module that is committed in `module/`,
 so there is no recompile, no container and no toolkit needed, and it fetches the font ROM
