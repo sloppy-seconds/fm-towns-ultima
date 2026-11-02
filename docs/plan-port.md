@@ -233,34 +233,50 @@ moving**, which is a smaller and much more checkable question.
 **This also closes the census gap.** The hole was a real function with a real jump table and 14 callers, and the
 census missed all of it because it was never a `call` target.
 
-### The fast backend is not behaviour-neutral, so the sweep's negative is not trustworthy, 2026-11-02
+### Movement works, the record address was right, and the stop-at negatives are unverified, 2026-11-02
 
-Chasing "the player never moved" found something worse than a missing route.
+This section carried three wrong conclusions in a row. All three came from measurement mistakes rather than from the
+emulator, and the corrections matter more than the original claims did.
 
-Identical route, identical disk copy, both backends, reading 512 bytes at `14:cde00` (linear `0x4cde00`, and
-`resolve_addr` confirms seg 14 is the `0x400000` base) plus the turn clock the port itself reads at `0x4cdf53`:
+**The character record is exactly where `docs/live-fieldmap.md` says.** Scanning the mapped range for slot 0's
+signature, the six attributes at a 4-byte stride and then HP 382 followed by MHP 400, found it at `0x4cde62` and
+`0x4cde81`, and every field matches the roster file: STRENGTH 20, AGILITY 25, STAMINA 20, CHARISMA 10, WISDOM 10,
+INTELLIGENCE 10, RACE/PROFESSION/SEX `EFMA`, HP 382, MHP 400, EXPERIENCE 12, FOOD 38890, GOLD 141.
 
-| backend | bytes changed over 400 idle frames | after `Down` | turn clock |
-|---|---|---|---|
-| `--graphics=none` | **0** | 0 | 70, unmoved |
-| `--graphics=sdl` | 1 (`0xcdfec`) | 1 (`0xcdfec`) | 70, unmoved |
+The claim that it read as all zeros was **my own one-byte error**. Slot 0 is named `E`, a single character, and it
+sits at `0x4cde4d`. I read from `0x4cde4e`, which is the zero after it.
 
-So the two backends **do not** agree once a key route has been driven. The earlier claim that the backend "paces the
-run and changes nothing else" was measured on a **keyless** 20,000-frame run, where it holds. It does not hold after
-input, and the 43-key sweep plus every `stop-at` negative in this section were run with `none`.
+**The player does move.** Turn clock and a 64 KB diff, same route, over `0x4c0000..0x4d0000`:
 
-**Those negatives are therefore withdrawn rather than reinterpreted.** A sweep that reports no shadow entry from a
-guest whose memory is not moving has not tested the keys. Re-running it under `sdl` is the only way to make the
-claim, at 61 frames/s rather than 8,262, about eleven minutes for the alphabet.
+| phase | bytes changed | turn clock |
+|---|---|---|
+| 600 frames idle | 3,583 | 70 |
+| after `Down` | 14,075 | **71** |
+| after `Up` | 14,100 | **72** |
 
-**And movement does not happen even under `sdl`.** `Down` and `Right` change nothing beyond the ticking byte, and the
-turn clock stays at 70, so no command completes a turn. The keys are delivered, because the port counts them served,
-so the guest is receiving input and ignoring it at this screen.
+So commands complete turns and each step rewrites about 14 KB, which is the screen and map redraw. "The player never
+moved" is withdrawn, and so is the reason given for it: the earlier probe diffed 512 bytes over the *static*
+character record, and read the turn clock at `0x400cdf53` when the linear address is `0x4cdf53`.
 
-**One assumption of mine is now unverified and must be measured, not assumed.** The character record region starting
-`0xcde40` reads as **all zeros** while the on-screen status panel shows HP 400 and full statistics. So the live
-in-game record is not at the address `docs/live-fieldmap.md` gives for the creation screen, and every explanation
-that leaned on that address here is unsupported until the in-game record is located.
+**The backend question is narrower than it was stated.** The observation stands that a byte at `0xcdfec` ticks under
+`sdl` and not under `none` after a key route, but the earlier 512-byte window did not include a position field, so it
+could not have shown movement either way. What remains is one unexplained byte, not a finding that the backends
+disagree about behaviour.
+
+**And every `stop-at` negative in this section is now unverified, because the control stopped working.** Under
+`--graphics=sdl` with this route, `0xe4b8d` (the previous positive control) does **not** fire, so the instrument is
+not in a state that can distinguish "not reached" from "not watching". A negative from a control that fails is not
+a weak negative, it is no measurement at all.
+
+**The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
+window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong
+paragraph. The dispatcher's reachability is the open question, and it stays open until a control fires under the
+exact configuration that will be used to answer it.
+
+**What is not affected.** The static recovery stands, because it is read from the binary and involves no emulator: the
+hole is a 10-case jump-table dispatcher at `0xe3388`, every case draws twice and plays a sound through `0xe1970`, the
+index is the facing field `[player+0xcdf57]`, case 9 plays `BRIGHT1.EUP`, and the out-of-range default plays
+`MAP.EUP`.
 
 **Three instrument facts that each cost a wrong answer this session.** `U2_STOP_COUNT` is "stop at the N-th hit", so
 setting it high to "see every hit" suppresses all output and reports a false negative. `U2_STOP_AT` **ends the run**
