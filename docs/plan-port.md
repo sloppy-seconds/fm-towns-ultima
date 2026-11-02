@@ -133,20 +133,31 @@ services can read the machine's registers and stack.
 socket with the documented create route plus 80 movement presses, the port reaches none of this code: the shadow
 was entered **0 times** in 20,000 frames. The caller chain explains why.
 
-| address | who calls it |
-|---|---|
-| `0xe120c` | `0xe14fa` and `0xe150f`, both inside `0xe1438` |
-| `0xe1438` | `0xe1987`, inside `0xe1970` |
-| `0xe1970` | **nothing found** |
+| address | what it is | called from |
+|---|---|---|
+| `0xe140c` | `c-leaf`, 43 bytes, 2 callers | `0xe14fa` and `0xe150f`, both inside `0xe1438` |
+| `0xe1438` | `non-leaf`, 267 bytes, 1 caller | inside `0xe1970` |
+| `0xe1970` | `non-leaf`, 33 bytes, 1 caller | `0xe35cc` |
+| `0xe35cc` | **not in the corpus** | inside a 595-byte hole, `0xe3385..0xe35d8` |
 
-None of those three is a call target in `docs/corpus.json`, and none appears anywhere in the image as a stored
-32-bit pointer, so the chain is entered through a transfer the census never resolved. `tools/findcallers.py`
-searches only inside asserted function extents, so it cannot see a call from a region the census does not hold.
+The chain terminates at `0xe35cc` because that call sits in a region the census never asserted a function for. The
+block pushes `Q:\SOUND\MAP.EUP` three instructions before the call, and a sibling entry at `0xe359f` pushes
+`Q:\SOUND\BRIGHT1.EUP` before jumping to the same shared call with a 60-byte argument block. So the routine this
+shadow replaces is in the **sound path**, reached when one of those two effects plays, and the create route never
+plays either.
 
-That is the same shape as item 11a's defect 1, which was solved by finding the dispatching instruction and its
-index register. **The next step is that method on `0xe1970`**, and the differential cannot be written until the
-route is known. Recorded rather than guessed at, because a scripted route invented to make a gate pass is exactly
-the failure case this item names.
+**That is also why a route is now possible to construct** rather than guess: the trigger is a named sound, and a
+key sweep during gameplay either enters the shadow or records that it does not.
+
+**Two corrections this investigation forced, both from the guest-versus-file frame.**
+
+- `tools/findcallers.py` reports direct calls only from inside asserted extents, so it answered "0 callers" for
+  `0xe1970` when there is one at `0xe35cc`. That is a **false negative in a tool written the same session**, and the
+  lesson generalises: `findcallers.py` cannot be used to support a claim of absence about a caller.
+- The first pass of this analysis read guest addresses against `corpus.json`, which holds **file** offsets, and
+  double-added the 0x200. It therefore reported all three functions as internal labels of one larger function and
+  "not a call target". All three have their own records. The 0x200 difference has now cost four sessions and this
+  was the fifth, committed and then caught in the same session.
 
 **The scaffold is in place, 2026-11-02, before the first replacement so the gate exists before there is
 anything to protect.**
