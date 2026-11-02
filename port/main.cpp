@@ -201,10 +201,15 @@ void x86_trace(X86Cpu& c, uint32_t at) {
 #endif
 
 #include "floppy.h"
+#include "savestore.h"
 
 // The A: drive, as a real FAT12 reader and writer over the image the machine mounts. Opened by main, and read-only
 // unless the run allows save writes.
 static u2floppy::Image g_floppy;
+// The same four hooks, answered by a directory when there is no image. Which one is in use is decided once at start-up
+// and printed, so a run always says where a character it just saved has gone.
+static u2floppy::Dir g_saves;
+static bool g_saves_dir = false;
 
 // Hooks the vendored runtime calls (declared in towns_dos.cpp, which is where the DOS layer decides where a
 // name lives). They are defined here because the floppy is U2's save-disk format in practice, not a platform
@@ -212,21 +217,23 @@ static u2floppy::Image g_floppy;
 namespace towns {
 bool fm_floppy_attrs(const std::string& path, uint32_t& attrib, uint32_t& size) {
 	u2floppy::Entry e;
-	if (!g_floppy.find(path, e)) return false;
+	if (!(g_saves_dir ? g_saves.find(path, e) : g_floppy.find(path, e))) return false;
 	attrib = e.dos_attr();
 	size = e.size;
 	return true;
 }
 
-bool fm_floppy_read(const std::string& path, std::vector<uint8_t>& out) { return g_floppy.read(path, out); }
+bool fm_floppy_read(const std::string& path, std::vector<uint8_t>& out) {
+	return g_saves_dir ? g_saves.read(path, out) : g_floppy.read(path, out);
+}
 
 // The write policy, in one place. The save disk is the only writable image there is, and it is writable unless the
 // run asked not to be. The game disc is not reachable from here at all: it is a separate file served by the CD
 // path, so "never mutate the original media" needs no rule in this function because there is nothing to guard.
-bool fm_floppy_writable(const std::string& /*path*/) { return g_floppy.writable(); }
+bool fm_floppy_writable(const std::string& /*path*/) { return g_saves_dir ? g_saves.writable() : g_floppy.writable(); }
 
 bool fm_floppy_write(const std::string& path, const std::vector<uint8_t>& data) {
-	return g_floppy.write_file(path, data);
+	return g_saves_dir ? g_saves.write_file(path, data) : g_floppy.write_file(path, data);
 }
 }  // namespace towns
 
@@ -731,7 +738,26 @@ int main(int argc, char** argv) {
 
 	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is
 	// reported and survived rather than treated as fatal, so the port still runs when only the CD is present.
-	if (g_floppy.open(floppy_path, !read_only_disk)) {
+	// NO ARGUMENTS MEANS NO FLOPPY TO MANAGE. A player should not have to own, format and then find a 1.26 MB image to
+	// keep a character in, so a no-argument run keeps saves as ordinary files beside the disc cache. The image is still
+	// what a named floppy path means, which is what every tool and test in this repository passes, and it is also where
+	// a fresh directory's characters come from, so switching does not lose the three that ship with the project.
+	if (pos.empty()) {
+		const std::string save_root = (fs::path(cache_dir).parent_path() / "saves").string();
+		if (g_saves.open(save_root, !read_only_disk)) {
+			g_saves_dir = true;
+			std::printf("machine   saves as plain files in %s (%s)\n", save_root.c_str(),
+			            g_saves.writable() ? "writable" : "read-only");
+			if (!m_disk.empty()) {
+				u2floppy::Image shipped;
+				if (shipped.open(m_disk.c_str(), false)) {
+					const int seeded = g_saves.seed_from(shipped);
+					if (seeded) std::printf("machine   seeded %d save file(s) from %s\n", seeded, m_disk.c_str());
+				}
+			}
+		}
+	}
+	if (!g_saves_dir && g_floppy.open(floppy_path, !read_only_disk)) {
 		std::printf("machine   floppy opened from %s (%s)\n", floppy_path, read_only_disk ? "read-only" : "writable");
 		if (std::getenv("U2_FLOPPY_LS")) {
 			// Listing is not serving. The failure this option exists to rule out is a shim that answers the
@@ -761,7 +787,7 @@ int main(int argc, char** argv) {
 			return bad ? 1 : 0;
 		}
 	} else {
-		std::printf("machine   no floppy: A: will answer nothing and the program will ask for a disk\n");
+		if (!g_saves_dir) std::printf("machine   no floppy: A: will answer nothing and the program will ask for a disk\n");
 	}
 	towns::boot_towns(m, tbios);
 
@@ -1673,7 +1699,7 @@ int main(int argc, char** argv) {
 	}
 	// The disk is written once, here, and not per save. A run that dies part way leaves the image exactly as it was
 	// found, which is the property that matters when the image is the only copy of somebody's characters.
-	if (g_floppy.loaded() && !g_floppy.flush()) code = code ? code : 1;
+	if (!g_saves_dir && g_floppy.loaded() && !g_floppy.flush()) code = code ? code : 1;
 	std::printf("after     eax 0x%08x ecx 0x%08x edx 0x%08x ebx 0x%08x\n", c.r[0], c.r[1], c.r[2], c.r[3]);	std::printf("          esp 0x%08x ebp 0x%08x esi 0x%08x edi 0x%08x eip 0x%08x\n", c.r[4], c.r[5],
 	            c.r[6], c.r[7], c.eip);
 	std::printf("          machine frames %llu  guest clocks %llu\n", (unsigned long long)m.frame,
