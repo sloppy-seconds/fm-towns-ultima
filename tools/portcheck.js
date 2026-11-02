@@ -329,6 +329,7 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		[store !== null && store.includes('kSeed'), 'a fresh save directory is seeded from the disk that ships'],
 		[main.includes('g_saves_dir'), 'the port can switch the A: drive from the image to that directory'],
 		[main.includes('g_embedded_font_rom'), 'the port can take the glyph ROM from its own binary'],
+		[main.includes('.u2port.cue'), 'the cue it writes cannot collide with the one the download ships'],
 	];
 	for (const [pass, what] of checks) {
 		if (pass) ok(what);

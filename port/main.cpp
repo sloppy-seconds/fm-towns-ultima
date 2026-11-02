@@ -299,7 +299,12 @@ static std::string cue_from_image(const std::vector<std::string>& dirs) {
 		}
 		if (ec || images.size() != 1) continue;
 		const fs::path& img = images.front();
-		const fs::path cue = img.parent_path() / (img.stem().string() + ".cue");
+		// A NAME OF OUR OWN, because the obvious one is taken and wrong. The archive.org download ships
+		// "<image>.cue" beside "<image>.img", and that cue declares a PREGAP on the audio tracks that the reader
+		// refuses. Writing "<image>.cue" therefore either collides with the download's own file, in which case the
+		// first version of this returned it and the port refused to start on a perfectly good rip, or overwrites
+		// something the reader owns. Ours goes in a name the download cannot have.
+		const fs::path cue = img.parent_path() / (img.stem().string() + ".u2port.cue");
 		if (file_exists(cue.string())) return cue.string();
 		std::ofstream out(cue);
 		if (!out) continue;
