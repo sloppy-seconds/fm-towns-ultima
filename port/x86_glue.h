@@ -82,6 +82,7 @@ inline int32_t arg16(X86Cpu& c, int n) { return (int32_t)(int16_t)rd16(c.sbase[2
 inline uint8_t data8(X86Cpu& c, uint32_t at) { return rd8(c.sbase[3] + at); }
 inline uint32_t data32(X86Cpu& c, uint32_t at) { return rd32(c.sbase[3] + at); }
 inline void put32(X86Cpu& c, uint32_t at, uint32_t v) { wr32(c.sbase[3] + at, v); }
+inline void put16(X86Cpu& c, uint32_t at, uint16_t v) { wr16(c.sbase[3] + at, v); }
 
 namespace detail {
 // The common half of every call: push the arguments in reverse so the callee finds them at [esp+4] onwards, push the
@@ -115,6 +116,13 @@ inline bool call3(X86Cpu& c, uint32_t target, X86Func fn, uint32_t a1, uint32_t 
 	push32(c, a2);
 	push32(c, a1);
 	return detail::call_prepare_and_dispatch(c, target, fn, 3);
+}
+
+// For a call with more arguments than a rule wants to spell out: `args` is in declaration order, so args[0] becomes
+// the argument the callee reads at [esp+4].
+inline bool callN(X86Cpu& c, uint32_t target, X86Func fn, const uint32_t* args, int nargs) {
+	for (int i = nargs - 1; i >= 0; --i) push32(c, args[i]);
+	return detail::call_prepare_and_dispatch(c, target, fn, nargs);
 }
 
 // Put v in eax and pop the caller's return address, which is what `ret` does.

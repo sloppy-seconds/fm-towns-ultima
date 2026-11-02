@@ -180,6 +180,31 @@ void native_000e42d0(X86Cpu& c) {
 	ret(c, c.r[1]);
 }
 
+// 0xe5654 (38 bytes).
+//     void f(int a, char *s) { if (*(int *)0x7a6b4) s += strlen(s) + 1; g(a, s); }
+// A conditional "skip to the end of the string" before passing it on: when the flag at 0x7a6b4 is set, the pointer is
+// advanced past the terminator, so the callee receives the position after the text rather than its start. Ticks are 22
+// for the entry block, 14 per loop iteration, 14 for the call block and 22 for the epilogue, and the poll sits on the
+// backward jump as the twin has it.
+void native_000e5654(X86Cpu& c) {
+	if (delegate(0xE5654u)) { p_game::f_000e5654(c); return; }
+	tick(c, 22);
+	const uint32_t a = arg32(c, 0);
+	uint32_t s = arg32(c, 1);
+	if (data32(c, 0x7A6B4u) != 0) {
+		for (;;) {
+			tick(c, 14);
+			s += 1;
+			if (data8(c, s - 1u) == 0) break;
+			X86_POLL(c, 0xE5664u);
+		}
+	}
+	tick(c, 14);
+	if (!call2(c, 0xE6CB0u, p_game::f_000e6cb0, a, s)) return;
+	tick(c, 22);
+	ret(c, c.r[0]);
+}
+
 // 0xe5748, 0xe5760, 0xe5778, 0xe5790 (22 bytes each).
 //     int f(int x) { return g(0x7a7d8, N, x); }   with N = 0, 1, 2, 3
 // The display context at 0x7a7d8 is the first argument (see docs/display-context.md) and the address selects N, so
@@ -264,6 +289,33 @@ void native_000e58e0(X86Cpu& c) {
 	ret(c, c.r[0]);
 }
 
+// 0xe5a3c (57 bytes).
+//     void f(int which) -- two alternative settings of the display context, selected by the argument.
+//     which == 0:  g(0x7a7d8, 1, 0,    0)
+//     which == 1:  g(0x7a7d8, 1, 0x36, 0x31)
+// Both go to 0x14a with the context and three more arguments, so the routine is a two-way choice between two argument
+// sets. What the pairs select is not established.
+void native_000e5a3c(X86Cpu& c) {
+	if (delegate(0xE5A3Cu)) { p_game::f_000e5a3c(c); return; }
+	static const uint32_t kFirst[] = {0x7A7D8u, 1u, 0u, 0u};
+	static const uint32_t kSecond[] = {0x7A7D8u, 1u, 0x36u, 0x31u};
+	tick(c, 17);
+	const uint32_t which = arg32(c, 0);
+	if (which == 0) {
+		tick(c, 15);
+		if (!callN(c, 0x14Au, p_game::f_0000014a, kFirst, 4)) return;
+		tick(c, 2);
+	}
+	tick(c, 7);
+	if (which == 1) {
+		tick(c, 15);
+		if (!callN(c, 0x14Au, p_game::f_0000014a, kSecond, 4)) return;
+		tick(c, 2);
+	}
+	tick(c, 20);
+	ret(c, c.r[0]);
+}
+
 // 0xe5c6c (32 bytes).
 //     int f(int x) { tbios6(0x7a7d8, 1, x); return g(0x7a7d8); }
 // Set a display-context state through TBIOS service 6, then hand the context to 0x518. The pair is "change it, then
@@ -274,6 +326,24 @@ void native_000e5c6c(X86Cpu& c) {
 	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 1u, (uint32_t)arg16(c, 0))) return;
 	tick(c, 9);
 	if (!call1(c, 0x518u, p_game::f_00000518, 0x7A7D8u)) return;
+	tick(c, 16);
+	ret(c, c.r[0]);
+}
+
+// 0xe5cd4 (69 bytes).
+//     void f(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+//         fill a five-word structure at 0x7add8 with 2, a, b, c, d, then hand it to 0x809 with the display context.
+// A parameter block: the four arguments are packed as 16-bit fields and passed by address, so the callee reads a struct
+// rather than four stack arguments. What the fields mean is not established.
+void native_000e5cd4(X86Cpu& c) {
+	if (delegate(0xE5CD4u)) { p_game::f_000e5cd4(c); return; }
+	tick(c, 41);
+	put16(c, 0x7ADD8u, 2u);
+	put16(c, 0x7ADDAu, (uint16_t)arg16(c, 0));
+	put16(c, 0x7ADDCu, (uint16_t)arg16(c, 1));
+	put16(c, 0x7ADDEu, (uint16_t)arg16(c, 2));
+	put16(c, 0x7ADE0u, (uint16_t)arg16(c, 3));
+	if (!call2(c, 0x809u, p_game::f_00000809, 0x7A7D8u, 0x7ADD8u)) return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
@@ -296,6 +366,48 @@ void native_000e642c(X86Cpu& c) {
 	if (delegate(0xE642Cu)) { p_game::f_000e642c(c); return; }
 	tick(c, 20);
 	ret(c, (uint32_t)(int32_t)(int16_t)rd16(c.sbase[3] + arg32(c, 0) + 0x36u));
+}
+
+// 0xe6c68 (69 bytes).
+//     void f(int i) -- one entry of a 57-byte-stride table at 0x7aef9, counting to a limit.
+//     base = 0x7aef9 + 57 * i;  *(base+4) = 0;
+//     if (*(base+8) == *(base+0)) reset(i); else ++*(base+8);
+// The three leas that compute `i * 57` are the compiler's multiply: i*3, then *9, then *2 plus the original, which is
+// 57. A per-entry counter against a limit, with a callback when it reaches it. Whether the callback resets the counter
+// is in 0xe6bc8, not here.
+void native_000e6c68(X86Cpu& c) {
+	if (delegate(0xE6C68u)) { p_game::f_000e6c68(c); return; }
+	tick(c, 33);
+	const uint32_t i = arg32(c, 0);
+	const uint32_t base = 0x7AEF9u + 57u * i;
+	put32(c, base + 4u, 0u);
+	if (data32(c, base + 8u) == data32(c, base)) {
+		tick(c, 9);
+		if (!call1(c, 0xE6BC8u, p_game::f_000e6bc8, i)) return;
+		tick(c, 9);
+	} else {
+		tick(c, 12);
+		put32(c, base + 8u, data32(c, base + 8u) + 1u);
+	}
+	tick(c, 20);
+	ret(c, c.r[0]);
+}
+
+// 0xe75c4 (49 bytes).
+//     void f(void) -- one ten-argument setup call, then two one-argument calls with the same constant, 2.
+// All arguments are literals: 2, 0x10, 0x1b0, 0x260, 0x14, 0x4d, 0, 0xf, 0xf, 0xe, then 2 and 2. Nothing here is
+// computed, so the rule is the argument list and the order, and what those numbers mean is not established.
+void native_000e75c4(X86Cpu& c) {
+	if (delegate(0xE75C4u)) { p_game::f_000e75c4(c); return; }
+	static const uint32_t kSetup[] = {2u, 0x10u, 0x1B0u, 0x260u, 0x14u, 0x4Du, 0u, 0xFu, 0xFu, 0xEu};
+	tick(c, 27);
+	if (!callN(c, 0xE6858u, p_game::f_000e6858, kSetup, 10)) return;
+	tick(c, 9);
+	if (!call1(c, 0xE693Cu, p_game::f_000e693c, 2u)) return;
+	tick(c, 9);
+	if (!call1(c, 0xE699Cu, p_game::f_000e699c, 2u)) return;
+	tick(c, 12);
+	ret(c, c.r[0]);
 }
 
 // 0xe9c2c (21 bytes, 11c's first target, and the reason the target choice became a measurement).
@@ -331,6 +443,7 @@ const X86FuncEntry g_x86_shadows[] = {
 	{ 0xe23cc, native_000e23cc },
 	{ 0xe3530, native_000e3530 },
 	{ 0xe42d0, native_000e42d0 },
+	{ 0xe5654, native_000e5654 },
 	{ 0xe5748, native_000e5748 },
 	{ 0xe5760, native_000e5760 },
 	{ 0xe5778, native_000e5778 },
@@ -339,9 +452,13 @@ const X86FuncEntry g_x86_shadows[] = {
 	{ 0xe58b8, native_000e58b8 },
 	{ 0xe58cc, native_000e58cc },
 	{ 0xe58e0, native_000e58e0 },
+	{ 0xe5a3c, native_000e5a3c },
 	{ 0xe5c6c, native_000e5c6c },
+	{ 0xe5cd4, native_000e5cd4 },
 	{ 0xe63fc, native_000e63fc },
 	{ 0xe642c, native_000e642c },
+	{ 0xe6c68, native_000e6c68 },
+	{ 0xe75c4, native_000e75c4 },
 	{ 0xe9c2c, native_000e9c2c },
 };
 
