@@ -1,0 +1,21 @@
+# Lint for port/ ONLY, and deliberately a short list. The full cppcoreguidelines set would demand rewrites of things
+# that are deliberate here: a fixed-width unsigned type for guest values, explicit casts between guest and host
+# representations, and functions whose whole job is a side effect. What is worth catching is the class that has
+# actually bitten this repository: silent narrowing, a variable shadowing another, a branch that does nothing.
+#
+# Not run yet either, for the same reason as .clang-format, and it needs a compile_commands.json, which means
+# configuring with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON.
+Checks: >
+  -*,
+  bugprone-*,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  cppcoreguidelines-pro-type-vararg,
+  modernize-use-nullptr,
+  modernize-use-override,
+  readability-braces-around-statements,
+  readability-duplicate-include,
+  readability-misleading-indentation,
+  readability-redundant-declaration
+WarningsAsErrors: ''
+HeaderFilterRegex: 'port/.*'
+FormatStyle: file

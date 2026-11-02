@@ -1758,3 +1758,30 @@ non-leaf, and 24 have no corpus record at all, so they must be named before they
 surfaced while doing this and are fixed in the kit: `U2_TRACE_FN` hooked `find()` and so missed every call that now
 goes through `x86_call_known`, reporting one routine where dozens were entered, and `U2_WATCH_MAX` was only read inside
 the `U2_WATCH` block, so a traced enumeration stopped silently at 64 entries.
+
+### The rules are separated from the glue, 2026-11-02
+
+The first thirteen replacements were worthless and Paul named why in one line: they might as well have been assembly.
+They restated the recompiler's output one machine operation at a time, so the differential comparing them with that
+output was a tautology. It caught the inverted tab test in `0xe42d0` only because the copy was mis-typed, which makes
+it a typo checker rather than evidence of understanding.
+
+Two changes fix the class:
+
+- `port/x86_glue.h` holds the machine half: argument fetch, tick charge, call with its sentinel return, and return. It
+  states the contract in one place, including what a rule may assume and what is deliberately not reproduced, with the
+  reason each is invisible to a caller (the frame, callee-saved push/pop, flags from a comparison, the exact return
+  address).
+- `port/native_shadows.cpp` is now a list of rules. `0xe58e0` went from twenty-five lines to seven, and there is no
+  macro that hides a `return`, so every exit of a rule is visible in the rule.
+
+One constraint stays and is documented where it bites: **a rule containing a backward jump keeps its live values in the
+guest registers the twin expects**, because a poll can hand control back to the recompiled code at that jump, which
+reads those registers. Three rules say so at the point they do it.
+
+**Style and lint are wired but dormant.** `.clang-format` and `.clang-tidy` are pinned to the style `port/` already
+uses, scoped to `port/` and never `module/`, and `tools/cstyle.js` runs them when they exist. No clang tool is
+installed on any machine this project has been built on, so the check prints what it could not do and passes: a
+missing tool must not fail a suite that a stranger has to be able to run from the zip. Neither file has ever been run,
+so the first person to use them should commit any reformatting separately, where it shows up as whitespace rather than
+hiding inside a change of behaviour.

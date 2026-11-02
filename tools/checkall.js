@@ -700,6 +700,17 @@ if (!skipCheck('shadow differential')) {
 	record('shadow differential', problems);
 }
 
+// E7d. C++ style and lint, for port/ only, and only when the tools exist. It is a skip rather than a pass when they do
+// not: no clang-format or clang-tidy is installed on any machine this project has been built on, and this repository
+// promises that a stranger can run every check from the zip alone, so a missing tool must not fail the suite.
+{
+	// The name is FIXED. A check whose name carries a note about whether a tool was found breaks --only matching and the
+	// parallel driver's rule that each shard reports exactly one result for the name it was asked to run. cstyle.js
+	// prints the skip itself, where a person reading the output will see it.
+	const r = runNode('cstyle.js');
+	record('c++ style and lint', r.ok ? [] : (r.out || '').split('\n').filter((l) => /FAIL/.test(l)));
+}
+
 // E7c. A tool that launches the port and sets an instrument switch must pass --dev, because without the flag the port
 // removes those switches from the environment before reading them and reports them as dropped. "Instrument" is
 // derived from the port's own source: the variables it actually reads, minus the nine in kAlwaysHonoured that are

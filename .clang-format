@@ -1,0 +1,19 @@
+# Formatting for port/ ONLY. Never applied to module/, which is the recompiler's output and is compared byte for byte
+# by the preservation track; reformatting it would destroy that comparison.
+#
+# This file is written to match the style port/ already uses rather than to change it: tabs, 4-wide, braces attached,
+# 120 columns, trailing comments left aligned in their column. It has NOT yet been run, because no clang-format is
+# installed on the machine that wrote it. The first person to run it should do so in a commit of its own, so that any
+# reformatting it disagrees with is visible as whitespace rather than hidden inside a change of behaviour.
+BasedOnStyle: LLVM
+Language: Cpp
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 120
+BreakBeforeBraces: Attach
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 2
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: InlineOnly
+SortIncludes: false
