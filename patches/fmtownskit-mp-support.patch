@@ -779,7 +779,7 @@ index 4d13162..a91e9f7 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..26e1029 100644
+index 629a87e..bdcbef8 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,12 +35,43 @@ static int new_handle(Machine& m) {
@@ -932,9 +932,28 @@ index 629a87e..26e1029 100644
      case 0xFF:                                      // not DOS's (an extender's test, DX=78h):
          unknown("int 21h AX=%04X DX=%04X: none (as on the Towns)", c.r[0] & 0xFFFF, c.r[2] & 0xFFFF);
          return;                                     // RUN386 leaves every register as it was
-@@ -451,6 +556,34 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
-     if (trace_int) std::fprintf(stderr, "int 93h AX=%04X CX=%04X BX=%04X buffer %05x\n", eax & 0xFFFF, c.r[1] & 0xFFFF,
-                                 c.r[3] & 0xFFFF, buf);
+@@ -448,9 +553,51 @@ static uint32_t from_msf(const uint8_t* p) {
+ 
+ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+     uint8_t ah = (eax >> 8) & 0xFF, al = eax & 0xFF;
+-    if (trace_int) std::fprintf(stderr, "int 93h AX=%04X CX=%04X BX=%04X buffer %05x\n", eax & 0xFFFF, c.r[1] & 0xFFFF,
+-                                c.r[3] & 0xFFFF, buf);
++    if (trace_int) {
++        std::fprintf(stderr, "int 93h AX=%04X CX=%04X BX=%04X buffer %05x", eax & 0xFFFF, c.r[1] & 0xFFFF,
++                     c.r[3] & 0xFFFF, buf);
++        // The play request is six bytes: a from-MSF triple and a to-MSF triple. Which segment holds them is a real
++        // question rather than a detail: this port binds them to the caller's DS, and if the program puts them in ES
++        // instead then every play becomes "0 to 0" and the music never starts, with no error anywhere. Print both.
++        if (ah == 0x50) {
++            uint8_t qd[6] = {}, qe[6] = {};
++            read_block(buf, qd, 6);
++            read_block((uint32_t)c.sreg[0] * 16 + (c.r[3] & 0xFFFF), qe, 6);
++            std::fprintf(stderr, "  ES=%04X DS:+%02X%02X%02X/%02X%02X%02X ES:+%02X%02X%02X/%02X%02X%02X",
++                         c.sreg[0], qd[0], qd[1], qd[2], qd[3], qd[4], qd[5],
++                         qe[0], qe[1], qe[2], qe[3], qe[4], qe[5]);
++        }
++        std::fprintf(stderr, "\n");
++    }
      if (al != 0xC0) {
 +        // PATCH, this repository. AL is not always the CD-DA interface. The program's CD probe calls
 +        // int86(0x93) at guest 0xe2445 with AX=0x0220, then reads the returned AH from its outregs at
@@ -967,7 +986,7 @@ index 629a87e..26e1029 100644
          char why[64];
          std::snprintf(why, sizeof why, "int 93h AX=%04Xh: not the CD", eax & 0xFFFF);
          x86_fault(c, c.eip, why);
-@@ -503,6 +636,18 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -503,6 +650,18 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          return;
      case 0x54: {                                    // the table of contents
          const auto& t = disc.tracks();
@@ -986,7 +1005,7 @@ index 629a87e..26e1029 100644
          std::vector<uint8_t> o(6 + 3 * t.size());
          o[0] = 3;                                   // as RUN386's buffer held it (*not understood*)
          o[1] = (uint8_t)t.front().number;
-@@ -522,6 +667,14 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -522,6 +681,14 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      x86_fault(c, c.eip, why);
  }
  
@@ -1001,7 +1020,7 @@ index 629a87e..26e1029 100644
  // The keyboard BIOS, int 90h, as FORRBIOS.NSD answers it in protected mode (the program
  // pushes "DOSX" "BIOS" before each call): read on the oracle (tools/oracle.py --trace-calls at
  // each int and the instruction after it) with no key ever pressed -- AH 0 for every function,
-@@ -531,11 +684,35 @@ void Machine::int90(X86Cpu& c) {
+@@ -531,11 +698,35 @@ void Machine::int90(X86Cpu& c) {
      uint8_t ah = (c.r[0] >> 8) & 0xFF;
      if (trace_int) std::fprintf(stderr, "int 90h AX=%04X EBX=%08X ECX=%08X EDX=%08X\n", c.r[0] & 0xFFFF, c.r[3], c.r[1], c.r[2]);
      switch (ah) {
@@ -1041,10 +1060,35 @@ index 629a87e..26e1029 100644
      case 0x0A: {                                    // the key matrix
          static const uint8_t none[16] = {};
 diff --git a/runtime/towns_io.cpp b/runtime/towns_io.cpp
-index 039e526..6701f90 100644
+index 039e526..1a1c6ea 100644
 --- a/runtime/towns_io.cpp
 +++ b/runtime/towns_io.cpp
-@@ -342,8 +342,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -279,8 +279,24 @@ uint8_t Machine::in8(uint32_t port) {
+     }
+ }
+ 
++// When does the game start talking to the FM chip? Not "does it", and not "how many writes" -- but at what second,
++// counted from the machine's own frame clock, the chip traffic begins in earnest and whether it ever goes quiet again.
++// A register write is the only sign a note was asked for, so bucketing them by second answers the one question a
++// listener cannot answer from outside: whether the silence before the music is the program waiting or the port's mixer.
++static void fm_trace(uint64_t frame) {
++    static unsigned long long bucket = ~0ULL, hits = 0;
++    unsigned long long b = frame / 61;                   // the machine's VSYNC rate, so one bucket is one second
++    if (b != bucket) {
++        if (hits) std::fprintf(stderr, "  FM %llus %llu writes\n", bucket, hits);
++        bucket = b;
++        hits = 0;
++    }
++    ++hits;
++}
++
+ void Machine::out8(uint32_t port, uint8_t d) {
+     Video& v = video;
++    if (trace_int && port >= 0x4C0 && port <= 0x4FF) fm_trace(frame);
+     switch (port) {
+     case 0x00: pic_write(pic[0], 0, d); return;
+     case 0x02: pic_write(pic[0], 2, d); return;
+@@ -342,8 +358,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
          // palette chosen, after the other components went in with the 256-colour one.
          int k = port == 0xFD92 ? 2 : port == 0xFD94 ? 0 : 1;   // b r g
          v.pal_reg[v.pal_sel][k] = d;
@@ -1070,7 +1114,7 @@ index 039e526..6701f90 100644
          return;
      }
      case 0xFDA0: v.layer_ctrl = d; return;
-@@ -353,7 +368,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -353,7 +384,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
      default:
          if (port >= 0xFD98 && port <= 0xFD9F) { v.degipal[port - 0xFD98] = d; v.dpmd = true; return; }
          if (port >= 0x3000 && port < 0x5000) { unknown("CMOS write %04x", port); return; }
