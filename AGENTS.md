@@ -598,6 +598,17 @@ The originals are not readable. So what gets preserved is the C++.
 is commercial software still in copyright and the reader supplies it, from a copy they own. This repository is
 non-commercial preservation and it does not distribute the thing it preserves.
 
+**One platform ROM is a named exception, decided 2026-11-02: `assets/font-rom/FMT_FNT.ROM`.** It is the FM Towns glyph
+ROM, and the port draws no text at all without it. It is committed because it is not Fujitsu code: pinterior's
+`16dot.py` generates it from Shinonome, a public-domain BDF font, and the FreeTOWNS set's own licence states that
+provenance. What is **not** established is written down rather than glossed, because neither upstream attaches an
+explicit licence grant to the generated file. See `assets/font-rom/README.md` for the whole of it.
+
+The exception is one exact path in four places that must agree: `.gitignore` negates it, `tools/precommit-guard.sh`
+allows it by name, `tools/portcheck.js` pins its size and sha256 so a different ROM cannot be swapped in, and this
+paragraph is where the decision is recorded. The other four ROMs in that set stay fetched and gitignored, and none of
+them is read by the port.
+
 **The good-faith terms, which belong in the README and are not decoration:** derived from the original executable,
 intended for people who own the game, non-commercial, and a takedown contact is published. If a rights holder asks,
 the repository or the release comes down. That is the whole position and it is stated in

@@ -573,6 +573,10 @@ int main(int argc, char** argv) {
 		// roms/ directories a reader is likely to have. Without it the port runs and every glyph is blank, which reads as
 		// a broken renderer rather than as a missing file, so it is worth looking for.
 		std::vector<std::string> rom_dirs = m_dirs;
+		// assets/font-rom is where THIS repository carries the glyph ROM, as one named exception to the rule that
+		// platform ROMs are fetched rather than hosted. vendor/roms is the fetched set. Both are searched so a clone
+		// and a tree that ran vendor.sh behave the same.
+		rom_dirs.push_back("assets/font-rom");
 		rom_dirs.push_back("roms");
 		rom_dirs.push_back("vendor/roms");
 		const std::string found_font = std::getenv("U2_FONT") ? std::string() : find_media(rom_dirs, {"FMT_FNT.ROM"});

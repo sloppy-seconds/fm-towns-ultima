@@ -270,6 +270,51 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		);
 }
 
+// ---- the one tracked ROM, pinned by hash ----
+// assets/font-rom/FMT_FNT.ROM is the second and last named exception, added 2026-11-02. The port renders no text without
+// it, and it is not Fujitsu code: pinterior's 16dot.py generates it from Shinonome, a public-domain BDF font, which the
+// FreeTOWNS set's own licence states. What is NOT established is written in assets/font-rom/README.md: neither upstream
+// attaches an explicit grant to the generated file.
+//
+// The hash is the point. An exception by name that does not pin the bytes lets the file be swapped for any other 256 KB
+// of ROM, which is exactly what the deny-by-extension rule exists to stop. Size and sha256 together mean a different ROM
+// cannot pass, and a repacked or regenerated one is a deliberate edit to this line.
+{
+	const crypto = require('crypto');
+	const want = { size: 262144, sha256: 'b62399cd7ad504229baa17ebe7260e683da0fb515d6162564e889f705ab07431' };
+	const romPath = path.join(ROOT, 'assets', 'font-rom', 'FMT_FNT.ROM');
+	let got = null;
+	try {
+		const b = fs.readFileSync(romPath);
+		got = { size: b.length, sha256: crypto.createHash('sha256').update(b).digest('hex') };
+	} catch (e) {
+		fail('the tracked font ROM is present', e.message);
+	}
+	if (got) {
+		if (got.size === want.size && got.sha256 === want.sha256)
+			ok('the tracked font ROM is the FreeTOWNS generated font', got.size + ' bytes ' + got.sha256.slice(0, 16));
+		else
+			fail(
+				'the tracked font ROM is the FreeTOWNS generated font',
+				`got ${got.size} bytes ${got.sha256.slice(0, 16)}, expected ${want.size} bytes ${want.sha256.slice(0, 16)}` +
+					' (a different ROM is exactly what the deny-by-extension rule is for: update the numbers here, assets/font-rom/README.md and tools/precommit-guard.sh together, or do not commit it)'
+			);
+	}
+	const ignore = read('.gitignore') || '';
+	const keepsRomRules = /^\*\.[rR][oO][mM]$/m.test(ignore);
+	const namesRomException = /^!assets\/font-rom\/FMT_FNT\.ROM$/m.test(ignore);
+	if (keepsRomRules && namesRomException)
+		ok('the *.ROM rules still apply generally, with one named exception', '!assets/font-rom/FMT_FNT.ROM');
+	else
+		fail(
+			'the *.ROM rules still apply generally, with one named exception',
+			(keepsRomRules ? '' : 'the *.ROM rule is gone ') + (namesRomException ? '' : 'no named exception')
+		);
+	const guard = read('tools/precommit-guard.sh') || '';
+	if (/assets\/font-rom\/FMT_FNT\\\.ROM/.test(guard)) ok('the commit guard allows that one path by name', 'ALLOW_RE');
+	else fail('the commit guard allows that one path by name', 'assets/font-rom/FMT_FNT.ROM is not in ALLOW_RE, so the ROM cannot be committed');
+}
+
 // ---- the port's defect page, and the route the quickstarts give ----
 // docs/port-defects.md exists to stop a bug list filling up with plausible bugs nobody saw, and its rule is
 // structural: an entry needs the observation that produced it, so a row with an empty observation cell is exactly

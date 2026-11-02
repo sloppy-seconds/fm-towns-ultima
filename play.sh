@@ -97,21 +97,27 @@ CUE="$WORK/disc.cue"
 printf 'FILE "%s" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n' \
 	"$(realpath --relative-to="$WORK" "$(realpath "$DISC_IMG")")" >"$CUE"
 
-# 4. The font ROM. Without it the port runs and every glyph is blank, which reads as a broken renderer. Fetch it
-#    only when the tree is writable, because a read-only container mount must be told, not surprised.
-if [[ ! -f "$ROOT/vendor/roms/FMT_FNT.ROM" ]]; then
+# 4. The font ROM. Without it the port runs and every glyph is blank, which reads as a broken renderer.
+#    One ships in this repository since 2026-11-02, at assets/font-rom/FMT_FNT.ROM, so the common case needs no network
+#    at all and works on a read-only mount. vendor/roms/ is still honoured as a fallback for a tree that fetched the
+#    whole FreeTOWNS set before that, and fetching remains the last resort, only when the tree is writable, because a
+#    read-only container mount must be told rather than surprised. Reasoning: assets/font-rom/README.md.
+if [[ -f "$ROOT/assets/font-rom/FMT_FNT.ROM" ]]; then
+	export U2_FONT="$ROOT/assets/font-rom/FMT_FNT.ROM"
+	echo "roms      $U2_FONT (in this repository, nothing fetched)"
+elif [[ -f "$ROOT/vendor/roms/FMT_FNT.ROM" ]]; then
+	export U2_FONT="$ROOT/vendor/roms/FMT_FNT.ROM"
+else
 	if [[ -w "$ROOT" ]] && [[ -x "$ROOT/tools/vendor.sh" ]]; then
 		echo "roms      fetching the FreeTOWNS clean-room set with tools/vendor.sh"
 		"$ROOT/tools/vendor.sh" --roms >/dev/null
 	fi
-	if [[ ! -f "$ROOT/vendor/roms/FMT_FNT.ROM" ]]; then
-		echo "roms      no FMT_FNT.ROM under $ROOT/vendor/roms and this tree is not writable."
-		echo "          Run ./tools/vendor.sh on the host, or mount the ROMs. Text will be blank without it."
-	else
+	if [[ -f "$ROOT/vendor/roms/FMT_FNT.ROM" ]]; then
 		export U2_FONT="$ROOT/vendor/roms/FMT_FNT.ROM"
+	else
+		echo "roms      no FMT_FNT.ROM under $ROOT/assets/font-rom or $ROOT/vendor/roms and this tree is not writable."
+		echo "          Run ./tools/vendor.sh on the host, or mount the ROMs. Text will be blank without it."
 	fi
-else
-	export U2_FONT="$ROOT/vendor/roms/FMT_FNT.ROM"
 fi
 [[ -f "$ROOT/vendor/roms/FMT_F20.ROM" ]] && export U2_FONT20="$ROOT/vendor/roms/FMT_F20.ROM"
 

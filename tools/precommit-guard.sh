@@ -37,6 +37,18 @@ DENY_RE='\.(img|sub|cue|ccd|iso|mds|mdf|bin|nrg|hdm|d77|d88|hdf|vhd|fdi|2hd|zip|
 # something else without failing the gate. Decision and reasoning: assets/save-disk/README.md and plan item 9j.
 ALLOW_RE='^assets/save-disk/userdisk\.hdm\.zip$'
 
+# A SECOND PATH IS ALLOWED BY NAME, since 2026-11-02: assets/font-rom/FMT_FNT.ROM, the FM Towns glyph ROM. The port
+# renders no text at all without it, and it is not Fujitsu code: pinterior's 16dot.py generates it from Shinonome, a
+# public-domain BDF font, which the FreeTOWNS set's own licence states. The other four ROMs in that set stay denied by
+# extension and live under vendor/, gitignored.
+#
+# What is NOT established, and is written down rather than glossed: neither FreeTOWNS nor the generator attaches an
+# explicit licence grant to the generated file. The provenance is public domain and the output is a mechanical
+# transformation of it, which is strong evidence and is not a licence text. assets/font-rom/README.md says all of that,
+# and tools/portcheck.js pins the file's size and sha256 so it cannot be swapped for a different ROM without failing a
+# gate. This stays an exact path so the exception cannot widen by accident.
+ALLOW_RE='^(assets/save-disk/userdisk\.hdm\.zip|assets/font-rom/FMT_FNT\.ROM)$'
+
 # The size ceiling gets its own exception, and it is only a size exception. module/ holds the recompiled C++ that
 # policy now allows in git (decision 2026-10-30, docs/licensing.md and plan item 9f), and one of its files is
 # 2.7 MB of generated code. A .img, .rom or .EXP placed under module/ is still denied by extension above, because
