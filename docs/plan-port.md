@@ -1785,3 +1785,29 @@ installed on any machine this project has been built on, so the check prints wha
 missing tool must not fail a suite that a stranger has to be able to run from the zip. Neither file has ever been run,
 so the first person to use them should commit any reformatting separately, where it shows up as whitespace rather than
 hiding inside a change of behaviour.
+
+### The socket-driven differential is the weak instrument, 2026-11-02
+
+Item `0xe1344`, the hottest routine left on the create path at 132,826 entries, was written and refused. Chasing why
+settled two things.
+
+**The rule is genuinely wrong, and the socket was not to blame.** Driving the route with `U2_KEYS` at fixed frames and
+stopping on a `--frames` limit takes the driver out of the loop, so no wall-clock scheduling reaches the sample. That
+run is identical at 3,000, 6,000 and 12,000 frames with and without the rule, and then differs by **172 bytes between
+`0x51e808` and `0x51eaef`**: the rule writes an extra pointer, `0x00134905`, where the original has zeros, and the
+entries after it shift by one slot. A fill-length or fill-condition error, not a timing artefact.
+
+**And the differential's control cannot see the failure it most needs to.** It compares the baseline against itself, so
+both sides run at the same speed, which is exactly the condition under which a speed sensitivity would hide. A jitter
+variant was written to close that: the same config twice, the second reaching each frame by a different path. It passed
+four times and then failed once with no rule installed, and its own defect explains the inconsistency, because a pause
+between commands can let the machine pass a frame target, after which the scheduled key never fires and the route
+silently shortens. That control was removed rather than fixed, on the rule that an unreliable control is worse than
+none.
+
+So the reliable comparison is the socket-free one and `tools/shadow-diff.py` should be rebuilt on it. Until then every
+rule in this file is verified by an instrument whose insensitivity to speed is assumed rather than shown, and that is
+worth knowing before another fifty are added.
+
+One trap found by using it: `U2_MEM_DUMP` parses its length as **hex**, so `65536` means 414,518 bytes rather than
+65,536. The dump that found the 172 bytes covered a third of a megabyte because of it.
