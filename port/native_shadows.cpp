@@ -107,9 +107,51 @@ void native_000e120c_wrong(X86Cpu& c) {
 }
 #endif
 
+// ---- native_000e9c2c: guest 0xe9c2c, which is file 0xe9e2c -------------------------------
+//
+// The "=" scanner, 21 bytes, item 4f's byte-identical match and driver-verified. It walks from `p` while the byte
+// is neither '=' nor NUL and returns one past where it stopped:
+//
+//     char *f(char *p) { while (*p != '=' && *p != 0) p++; return p + 1; }
+//
+// Chosen as 11c's target because it is REACHABLE. `0xe120c` above never executes from play input, so a
+// differential over it would compare two runs in which the shadow did nothing. U2_STOP_AT across the create route
+// shows this one fires there. It also has no frame and no calls, so the state to reproduce is one register and
+// the flags.
+//
+// Ticks come from the twin: 4 on entry, 11 at the loop head, 7 for the zero test, 9 on the advance, 14 at the exit.
+// The cursor lives in ecx because the backward jump is a poll site and the twin resumes at 0xe9c30.
+
+void native_000e9c2c(X86Cpu& c) {
+	shadow_entered(0xE9C2Cu);
+	if (shadow_off()) { p_game::f_000e9c2c(c); return; }
+	X86_TICK(c, 4);
+	c.r[1] = rd32(c.sbase[2] + c.r[4] + 0x4u);          // ecx = p
+	for (;;) {
+		X86_TICK(c, 11);
+		s8(c, 0, rd8(c.sbase[3] + c.r[1]));                 // al = *p
+		(void)x86_sub(c, g8(c, 0), 0x3Du, 0, 1);            // cmp al, '='
+		if (x86_cc(c, 4)) break;
+		X86_TICK(c, 7);
+		{ uint32_t v = g8(c, 0); s8(c, 0, x86_logic(c, v & g8(c, 0), 1)); }   // and al, al
+		if (x86_cc(c, 4)) break;
+		X86_TICK(c, 9);
+		c.r[1] = x86_inc(c, c.r[1], 4);                     // inc ecx
+		X86_POLL(c, 0xE9C30u);
+	}
+	X86_TICK(c, 14);
+	c.r[1] = x86_inc(c, c.r[1], 4);                         // inc ecx, one past where it stopped
+	c.r[0] = c.r[1];                                        // mov eax, ecx
+#ifdef U2_SHADOW_WRONG
+	c.r[0] -= 1u;                                           // one byte short: the off-by-one this gate must catch
+#endif
+	c.eip = pop32(c);                                       // ret
+}
+
 // Ascending by address, because x86_lookup() binary-searches this table.
 const X86FuncEntry g_x86_shadows[] = {
 	{ 0xe120c, native_000e120c },
+	{ 0xe9c2c, native_000e9c2c },
 };
 
 const unsigned g_x86_nshadows = static_cast<unsigned>(sizeof(g_x86_shadows) / sizeof(g_x86_shadows[0]));

@@ -295,6 +295,32 @@ takes. The consequence for 11c is direct and does not depend on any remaining un
 from play input**, so no scripted gameplay route can differential-test it. A different target is needed, one whose
 caller chain is verified reachable by the same instrument rather than assumed reachable because it sits in the game.
 
+### A reachable target was found, and the shadow mechanism is inert, 2026-11-02
+
+Picking a better target worked: sweeping `U2_STOP_AT` over the ten byte-identical routines across the create route
+finds four that fire, and the smallest is `0xe9c2c` (guest; file `0xe9e2c`), the 21-byte `"="` scanner. `native_000e9c2c`
+is now written and `tools/portcheck.js` passes with **2 shadows**.
+
+**It never runs, and the reason is structural rather than a slip.** The recompiler emits a call to a known function as a
+direct C++ call:
+
+```
+push32(c, 0xe9e59u); f_000e9c2c(c); X86_RET(c, 0xe9e59u);
+```
+
+That bypasses `x86_lookup_cs` entirely, so `g_mod_native` is never consulted for a call that starts and ends inside
+the game module. Measured: the shadow table reports **0 entries** across the whole create route, while `U2_STOP_AT` on
+the same address fires there. Only indirect calls (through a register or memory, `fmtownskit/recomp/emit.py` line 458)
+reach the dispatcher today.
+
+So the dispatch seam the strangler assumed does not exist yet for the game's own functions. It is one emission rule
+away: `fmtownskit/recomp/emit.py` lines 433, 449 and 456 emit `f_%08x(c);` and `x86_call(c, 0x%08x);` is a drop-in
+syntactic replacement with identical semantics (`x86_call` does the lookup and calls, and the emitter already pushes
+the return address). The cost is a module regeneration, 331 files, and a lookup per call instead of a direct call.
+
+**That is a decision rather than a detail**, because it rewrites every generated file and trades call speed for a
+working seam, so it is recorded here and not taken unilaterally.
+
 **The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
 window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong
 paragraph. The dispatcher's reachability is the open question, and it stays open until a control fires under the

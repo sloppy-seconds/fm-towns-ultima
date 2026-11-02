@@ -32,6 +32,14 @@ if(U2_TRACE)
   message(STATUS "u2port: instruction tracing on")
 endif()
 
+# Compiles the shadows with a deliberate error, so tools/shadow-diff.py can prove its comparison has teeth. Never on
+# for a real build: a gate that has never been watched failing is a comment, and this is how it is watched.
+option(U2_SHADOW_WRONG "compile the native shadows with a deliberate error" OFF)
+if(U2_SHADOW_WRONG)
+  add_compile_definitions(U2_SHADOW_WRONG)
+  message(STATUS "u2port: native shadows are DELIBERATELY WRONG, for gate testing only")
+endif()
+
 # The module list is port/modules.cpp rather than ${RECOMP_DIR}/modules.cpp on purpose. x86_lookup_cs() walks the
 # list in order and takes the FIRST module with a function at an address, so a hand-written replacement shadows
 # the recompiled function only if its module comes first. The recompiler writes ${RECOMP_DIR}/modules.cpp from the
