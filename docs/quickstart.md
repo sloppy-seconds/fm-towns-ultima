@@ -156,7 +156,10 @@ It needs a C++20 compiler, and SDL3 from the distro or built from the pinned sou
 distro has none. It extracts what it needs from your disc into
 `build/play/`, fetches the font ROM, and unpacks a save disk with three characters on it
 if you have none. A published release ships the same binary already built, with SDL linked
-in and no compiler needed at all.
+in and no compiler needed at all, and that binary takes no arguments: unpack it, put your
+game files in `game/` beside it, and run `./u2port`. It searches `./`, `game/`, `original/`,
+`data/` and its own directory, prints what it found, and names the missing file and the
+command that produces it if something is not there.
 
 **The port is early and buggy, and the route matters.** Character creation works, and the
 save disk is writable, so a character you make persists. The route that has actually been

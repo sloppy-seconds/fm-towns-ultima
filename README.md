@@ -41,12 +41,16 @@ is fine.
 ./play.sh
 ```
 
+The release archive is simpler still: unpack it, drop your game files in `game/` beside it,
+and run `./u2port` with no arguments. It looks in `./`, `game/`, `original/` and `data/`, and
+in its own directory, prints what it found, and names the missing file and the command that
+produces it when something is not there.
+
 One command. It builds the port from the recompiled module that is committed in `module/`,
 so there is no recompile, no container and no toolkit needed, and it fetches the font ROM
 if you have not. At the game menu pick *Journey Onward* and a character that already
 exists, or *Generate Character* to make one, which works and persists to the save disk.
-`Ctrl-Q` or closing the window ends the run. Read **[what is broken](docs/port-defects.md)**
-first. From the zip to a built binary by hand: **[build the port from source](docs/port-from-source.md)**.
+`Ctrl-Q` or closing the window ends the run. Read **[what is broken](docs/port-defects.md)**first. From the zip to a built binary by hand: **[build the port from source](docs/port-from-source.md)**.
 
 ## Play the original, in a browser
 

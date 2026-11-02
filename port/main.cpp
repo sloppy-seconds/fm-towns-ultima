@@ -39,6 +39,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <algorithm>
 #include <string>
@@ -228,6 +230,106 @@ bool fm_floppy_write(const std::string& path, const std::vector<uint8_t>& data) 
 }
 }  // namespace towns
 
+// ---- finding the media when no arguments are given ------------------------------------------------------------
+//
+// A release binary that needs four paths on its command line is a binary most readers will not get running. With no
+// positional arguments the port looks where a person is likely to have put their own copy of the game, prints what it
+// picked, and says what it looked for when it cannot find it. The binary's own directory is one of the places it
+// looks, so a double-click on a desktop works from any current directory.
+//
+// It does NOT extract anything from the disc. Pulling ENCHANT.EXP and TBIOS.BIN out of the image is tools/getfile.js,
+// which is JavaScript and ships beside this binary, and duplicating an ISO reader in C++ to avoid one command would be
+// a large amount of code to get subtly wrong. A missing piece therefore names the command that produces it.
+namespace fs = std::filesystem;
+
+static bool file_exists(const std::string& p) {
+	std::error_code ec;
+	return fs::is_regular_file(p, ec);
+}
+
+// The places to look, nearest first. `.` is the current directory; `game`, `original` and `data` are the names a
+// reader is likely to have used; the binary's own directory covers a double-click, and its `game` subdirectory covers
+// an unpacked archive laid out beside the executable.
+static std::vector<std::string> media_dirs(const char* argv0) {
+	std::vector<std::string> dirs{"."};
+	for (const char* d : {"game", "original", "data"}) {
+		std::error_code ec;
+		if (fs::is_directory(d, ec)) dirs.push_back(d);
+	}
+	std::error_code ec;
+	const fs::path exe = fs::absolute(argv0 ? argv0 : "u2port", ec);
+	if (!ec) {
+		const fs::path dir = exe.parent_path();
+		dirs.push_back(dir.string());
+		dirs.push_back((dir / "game").string());
+	}
+	return dirs;
+}
+
+static std::string find_media(const std::vector<std::string>& dirs, std::initializer_list<const char*> names) {
+	for (const std::string& d : dirs)
+		for (const char* n : names) {
+			const std::string p = (d == ".") ? std::string(n) : d + "/" + n;
+			if (file_exists(p)) return p;
+		}
+	return std::string();
+}
+
+// The archive.org zip unpacks to an .img and a .ccd, and the disc reader wants a cue. Writing `<image>.cue` beside the
+// image is what play.sh does in its work directory, and doing it here means a reader with only the unzipped download
+// can still run. It is written once and only when there is exactly one image, so a directory holding several cannot
+// be guessed at wrongly.
+static std::string cue_from_image(const std::vector<std::string>& dirs) {
+	for (const std::string& d : dirs) {
+		std::error_code ec;
+		std::vector<fs::path> images;
+		for (const auto& e : fs::directory_iterator(d, ec)) {
+			const std::string ext = e.path().extension().string();
+			if (ext == ".img" || ext == ".IMG") images.push_back(e.path());
+		}
+		if (ec || images.size() != 1) continue;
+		const fs::path& img = images.front();
+		const fs::path cue = img.parent_path() / (img.stem().string() + ".cue");
+		if (file_exists(cue.string())) return cue.string();
+		std::ofstream out(cue);
+		if (!out) continue;
+		// Relative to the cue, because that is how the reader resolves it: an absolute path here comes out doubled.
+		out << "FILE \"" << img.filename().string() << "\" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n";
+		out.close();
+		if (file_exists(cue.string())) {
+			std::printf("media     wrote %s for the single disc image beside it\n", cue.string().c_str());
+			return cue.string();
+		}
+	}
+	return std::string();
+}
+
+// Say what was found and, when something is missing, what to do about it. Silence here is the failure mode this
+// repository keeps paying for: a run that found nothing looks exactly like a run that found the wrong thing.
+static void report_media(const std::string& program, const std::string& tbios, const std::string& cue,
+                         const std::string& disk, const std::vector<std::string>& dirs) {
+	if (!program.empty()) std::printf("media     program %s\n", program.c_str());
+	if (!tbios.empty()) std::printf("media     tbios   %s\n", tbios.c_str());
+	if (!cue.empty()) std::printf("media     disc    %s\n", cue.c_str());
+	if (!disk.empty()) std::printf("media     save    %s\n", disk.c_str());
+	if (!program.empty() && !tbios.empty() && !cue.empty()) return;
+
+	std::printf("media     looked in:");
+	for (const std::string& d : dirs) std::printf(" %s", d.c_str());
+	std::printf("\n");
+	if (program.empty()) std::printf("media     ENCHANT.EXP is not there\n");
+	if (tbios.empty()) std::printf("media     tbios.bin (or TBIOS.BIN) is not there\n");
+	if (cue.empty()) std::printf("media     no .cue and no single .img to write one for\n");
+	if (disk.empty()) std::printf("media     no save disk (.hdm); the game will ask for one\n");
+	std::printf("\n");
+	std::printf("Put your own copy of the game in ./game/ and use the tools beside this binary:\n");
+	std::printf("  node tools/getfile.js ENCHANT.EXP --disc game/<image>.img --out game\n");
+	std::printf("  node tools/getfile.js TBIOS.BIN   --disc game/<image>.img --out game\n");
+	std::printf("or pass the four paths yourself:\n");
+	std::printf("  u2port ENCHANT.EXP tbios.bin disc.cue userdisk.hdm\n");
+	std::printf("README.txt in this archive has the longer version.\n");
+}
+
 static std::vector<uint8_t> read_file(const char* path) {
 	std::vector<uint8_t> v;
 	FILE* f = std::fopen(path, "rb");
@@ -332,7 +434,21 @@ int main(int argc, char** argv) {
 		return 2;
 	}
 	bool use_sdl = graphics == "sdl";
-	const char* exp_path = pos.size() > 0 ? pos[0] : "ENCHANT.EXP";
+	// NO ARGUMENTS: find the media rather than refusing to start. See the block above for what is searched and why
+	// nothing is extracted here.
+	std::string m_program, m_tbios, m_cue, m_disk;
+	std::vector<std::string> m_dirs;
+	if (pos.empty()) {
+		m_dirs = media_dirs(argv[0]);
+		m_program = find_media(m_dirs, {"ENCHANT.EXP", "enchant.exp"});
+		m_tbios = find_media(m_dirs, {"tbios.bin", "TBIOS.BIN"});
+		m_cue = find_media(m_dirs, {"disc.cue", "game.cue", "u2.cue"});
+		m_disk = find_media(m_dirs, {"userdisk.hdm", "save.hdm", "disk.hdm"});
+		if (m_cue.empty()) m_cue = cue_from_image(m_dirs);
+		report_media(m_program, m_tbios, m_cue, m_disk, m_dirs);
+		if (m_program.empty() || m_tbios.empty() || m_cue.empty()) return 2;
+	}
+	const char* exp_path = pos.size() > 0 ? pos[0] : m_program.c_str();
 	// The second positional is a frame count only when it is one. It is optional, and when `--frames=N` already
 	// gave a count it is absent, so deciding by shape rather than by position keeps `ENCHANT.EXP 600 tbios cue`
 	// and `--frames=600 ENCHANT.EXP tbios cue` both meaning what they look like. A first version indexed
@@ -353,6 +469,13 @@ int main(int argc, char** argv) {
 	const char* tbios_path = pos.size() > next ? pos[next] : "build/port/tbios.bin";
 	const char* cue_path = pos.size() > next + 1 ? pos[next + 1] : "build/port/disc.cue";
 	const char* floppy_path = pos.size() > next + 2 ? pos[next + 2] : "saves/userdisk.hdm";
+	if (pos.empty()) {
+		tbios_path = m_tbios.c_str();
+		cue_path = m_cue.c_str();
+		// A missing save disk is not fatal: the A: probe fails and the program asks for a disk, which is what the
+		// original did when the drive was empty. Naming a path that does not exist is how that is expressed.
+		floppy_path = m_disk.empty() ? "userdisk.hdm" : m_disk.c_str();
+	}
 
 	std::vector<uint8_t> file = read_file(exp_path);
 	if (file.size() < 0x1000) {
@@ -443,7 +566,16 @@ int main(int argc, char** argv) {
 	// nothing: the copyright notice's box and bars appeared and its text did not. The ROM is vendored, not disc data
 	// (it ships with the emulator's ROM set), so this is a warning when absent rather than a hard failure.
 	{
-		const char* font_path = std::getenv("U2_FONT") ? std::getenv("U2_FONT") : "FMT_FNT.ROM";
+		// The font ROM, found the same way as the media when no path was given: beside the binary, in ./game, or in the
+		// roms/ directories a reader is likely to have. Without it the port runs and every glyph is blank, which reads as
+		// a broken renderer rather than as a missing file, so it is worth looking for.
+		std::vector<std::string> rom_dirs = m_dirs;
+		rom_dirs.push_back("roms");
+		rom_dirs.push_back("vendor/roms");
+		const std::string found_font = std::getenv("U2_FONT") ? std::string() : find_media(rom_dirs, {"FMT_FNT.ROM"});
+		const char* font_path = std::getenv("U2_FONT")
+		                            ? std::getenv("U2_FONT")
+		                            : (found_font.empty() ? "FMT_FNT.ROM" : found_font.c_str());
 		std::vector<uint8_t> glyphs = read_file(font_path);
 		if (glyphs.empty()) {
 			std::printf("machine   no font ROM at %s, so every glyph will be blank (set U2_FONT)\n", font_path);
@@ -456,7 +588,10 @@ int main(int argc, char** argv) {
 		}
 		// The 20-dot font, a second ROM in its own window at linear 0xC2180000. Separate from the ANK font, and a
 		// program drawing a title screen's large text may be using this one.
-		const char* font20_path = std::getenv("U2_FONT20") ? std::getenv("U2_FONT20") : "FMT_F20.ROM";
+		const std::string found_font20 = std::getenv("U2_FONT20") ? std::string() : find_media(rom_dirs, {"FMT_F20.ROM"});
+		const char* font20_path = std::getenv("U2_FONT20")
+		                              ? std::getenv("U2_FONT20")
+		                              : (found_font20.empty() ? "FMT_F20.ROM" : found_font20.c_str());
 		std::vector<uint8_t> glyphs20 = read_file(font20_path);
 		if (glyphs20.empty()) {
 			std::printf("machine   no 20-dot font ROM at %s (set U2_FONT20)\n", font20_path);

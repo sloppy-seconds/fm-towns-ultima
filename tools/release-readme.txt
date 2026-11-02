@@ -52,14 +52,23 @@ You need three things, and only the first two come from us.
    next to this file. The disc image is the part that matters, because the port opens the
    disc at run time for its artwork and its kanji font.
 
-Then:
+Then either of these:
 
-  ./play.sh
+  ./u2port                      finds your media itself, see below
+  ./play.sh                     the same, and it also unpacks the save disk for you
 
-At the game menu pick Journey Onward and a character that already exists. A disk with
-three of them is included at assets/save-disk/userdisk.hdm.zip and play.sh unpacks it
-into saves/ if you have not put one there. Character creation does not work yet, and Esc
-or Q ends the run: this is an early port, and what is broken is listed honestly at
+With no arguments the port looks for ENCHANT.EXP, tbios.bin, a .cue (or a single .img, for
+which it writes one beside the image) and a save disk. It searches ./ and game/, original/
+and data/, and its own directory, so unpacking this archive anywhere and starting the binary
+from anywhere both work. It prints what it found. When something is missing it says which
+file and the command that produces it.
+
+At the game menu pick Journey Onward for a character that already exists, or Generate
+Character to make one. A disk with three characters is included at
+assets/save-disk/userdisk.hdm.zip, and play.sh unpacks it to saves/ if you have not put one
+there. The port writes to that disk, so a character you create persists. Ctrl-Q or closing
+the window ends the run. Escape does not. This is an early port, and what is broken is listed
+honestly at
 https://github.com/sloppy-seconds/fm-towns-ultima/blob/main/docs/port-defects.md
 
 Options: --game DIR to point somewhere else, --disk FILE for a different floppy,
