@@ -95,6 +95,23 @@ void native_000e120c(X86Cpu& c) {
 	c.eip = pop32(c);
 }
 
+// 0xe1344 (55 bytes, entered 132,826 times on the create route: the hottest routine left).
+//     void f(void) -- when the level from 0xfe11f has passed a threshold, fill a buffer with 0xFF up to it.
+//     base = *(int *)0xe400; limit = *(int *)0xe414;
+//     if (limit == 0) return;
+//     if (call_0xfe11f() <= limit) return;            // unsigned
+//     for (p = base; p < limit; ++p) *p = 0xFF;
+//     *(int *)0xe414 = 0;
+// A buffer reset, and 0xFF is the fill the port's own notes describe for areas the game has not written yet.
+//
+// NOT REPLACED, 2026-11-02. The rule was written and the differential refused it. What was measured before giving up:
+// the guest clock at a fixed frame count is identical with and without it (1066682022 at 4,000 frames), and so are the
+// shadow-entry counts at 2,000, 4,000, 8,000 and 16,000 frames, so the arithmetic and the tick placement agree during
+// boot. Under the scripted route the two configurations then diverge, and the cause was not established. Two
+// candidates, both untested: that this routine's 132,826 executions make the two runs fast enough apart for the
+// driver to reach a frame late, or a real difference on a path boot does not take. Shipping a rule the differential
+// rejects would defeat the point of having a differential, so the routine stays recompiled.
+
 // 0xe1a54 (23 bytes).
 //     int f(int x) { *(int *)0x40e04 = system_a(); return system_b(x); }
 // One value recorded in a global on the way past, then the argument handed to a second system-layer call.
