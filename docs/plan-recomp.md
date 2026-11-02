@@ -1235,6 +1235,19 @@ The line exists because three false negatives in one session were all silent ins
 headlessly while the driver ignored the refusal, a `U2_STOP_COUNT` set high enough to suppress its own output, and a
 `U2_WATCH` read as "nothing happened" rather than "nothing was watched".
 
+**`--dev` decides whether the instruments exist at all.** Without it the port removes every instrument variable from
+the environment before anything reads it, at one place rather than at each of the reads, so plain gameplay cannot be
+changed by a stale switch in a shell. Nine variables are exempt because they are configuration or input scheduling,
+not instrumentation: `U2_FONT`, `U2_FONT20`, `U2_CLOCK`, `U2_ENTRY`, `U2_STACK`, `U2_KEYS`, `U2_PAD`, `U2_LAYER`,
+`U2_SHOT`. Everything else the port reads is an instrument and needs the flag.
+
+A dropped switch is named in the `instruments` line as `[dropped, pass --dev: ...]`, because silently ignoring one is
+the same defect in a new place. `tools/checkall.js` asserts the other half: a tool that launches the port and sets an
+instrument variable must pass `'--dev'`, where "instrument" is derived from what `port/main.cpp` and
+`native_shadows.cpp` actually read rather than from a second copy of the list. That derivation matters because the
+`U2_` prefix is shared namespace: two tools in this repository already use it for their own file and seed variables,
+and a prefix rule would demand the flag for variables the port has never heard of.
+
 | switch | what it does |
 |---|---|
 | `U2_TRACE` | **not an environment variable**: this is the CMake option, `-DU2_TRACE=ON`, that compiles the instruction trace in at all. Without it `U2_STOP_AT` and the rest of the trace switches have no code to reach, which is why the port's `instruments` line marks them `(IGNORED, needs -DU2_TRACE=ON)`. |

@@ -44,6 +44,8 @@ ROUTE = ["space", "Down", "Return", "Down", "Return", "4", "Return",
 CHECKPOINTS = {6: "entry accepted", 12: "attributes allocated", 18: "name typed",
                22: "creation confirmed", 25: "the register"}
 SCREEN_LO, SCREEN_LEN = 0x4c0000, 0x10000
+# The port is launched by tools/drive.py, which passes --dev: this comparison is instrumentation from end to end, and
+# without the flag the port drops U2_SHADOW_OFF and says so in its `instruments` line.
 # The guest's DOS clock is pinned, because without it the game seeds itself from the host time and two identical
 # runs differ by one byte, which is enough to make every comparison fail. The value is arbitrary and only has to
 # be the same in both runs.

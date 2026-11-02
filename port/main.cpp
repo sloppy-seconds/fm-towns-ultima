@@ -80,6 +80,9 @@ static void print_vram_hash(const towns::Machine& m) {
 // A switch set in a build that cannot honour it is marked, because an env var that is set and ignored looks exactly
 // like one that is set and working, which is the whole failure this function exists to remove.
 extern char** environ;
+// Instrument variables removed because --dev was not given. Declared here because the sweep that fills it runs in
+// main() and the line that reports it is printed later.
+static std::vector<std::string> g_instruments_dropped;
 static void print_instruments() {
 	struct Item {
 		std::string name, value;
@@ -105,6 +108,13 @@ static void print_instruments() {
 		for (const char* t : kTraceOnly)
 			if (it.name == t) std::printf("(IGNORED, needs -DU2_TRACE=ON)");
 #endif
+	}
+	// Dropped switches are named too. Without this the gate would silently ignore a switch, which is the same defect
+	// in a new place: an instrument that does nothing and says nothing about doing nothing.
+	if (!g_instruments_dropped.empty()) {
+		std::printf("  [dropped, pass --dev:");
+		for (const std::string& n : g_instruments_dropped) std::printf(" %s", n.c_str());
+		std::printf("]");
 	}
 	std::printf("\n");
 }
@@ -256,6 +266,9 @@ int main(int argc, char** argv) {
 	// across a turn (docs/port-defects.md). This flag turns it off, which keeps the old queueing behaviour
 	// available and is what a test uses to prove the clear is what changed.
 	bool key_queue_ok = false;
+	// The instrument switches are governed by this. Without it they are removed from the environment before anything
+	// reads them, so plain gameplay cannot be changed by a stale U2_STOP_AT in a shell.
+	bool dev = false;
 	std::vector<const char*> pos;
 	for (int i = 1; i < argc; ++i) {
 		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
@@ -265,7 +278,34 @@ int main(int argc, char** argv) {
 		else if (!std::strncmp(argv[i], "--control=", 10)) control_spec = argv[i] + 10;
 		else if (!std::strcmp(argv[i], "--read-only-disk")) read_only_disk = true;
 		else if (!std::strcmp(argv[i], "--allow-key-queue")) key_queue_ok = true;
+		else if (!std::strcmp(argv[i], "--dev")) dev = true;
 		else pos.push_back(argv[i]);
+	}
+
+	// THE HARNESS IS OFF UNLESS ASKED FOR. Instrument switches are removed from the environment here, before any of
+	// the 39 reads below, rather than being checked at each read: a rule enforced in one place cannot be forgotten at
+	// the fortieth. Configuration and input scheduling are NOT instruments and stay available, because a run that
+	// cannot find its font ROM is not a more honest run, it is a blank screen.
+	//
+	// What was dropped is reported by print_instruments(), because an instrument that vanishes without saying so is
+	// precisely the failure this mechanism exists to remove.
+	if (!dev) {
+		static const char* kAlwaysHonoured[] = {"U2_FONT", "U2_FONT20", "U2_CLOCK", "U2_ENTRY", "U2_STACK",
+		                                        "U2_KEYS", "U2_PAD", "U2_LAYER", "U2_SHOT"};
+		std::vector<std::string> drop;
+		for (char** e = environ; e && *e; ++e) {
+			std::string s(*e);
+			if (s.rfind("U2_", 0) != 0) continue;
+			std::string name = s.substr(0, s.find('='));
+			bool keep = false;
+			for (const char* a : kAlwaysHonoured)
+				if (name == a) keep = true;
+			if (!keep) drop.push_back(name);
+		}
+		for (const std::string& n : drop) {
+			unsetenv(n.c_str());
+			g_instruments_dropped.push_back(n);
+		}
 	}
 	if (graphics != "sdl" && graphics != "none") {
 		std::fprintf(stderr, "--graphics=%s: not a backend. This build has: sdl, none\n", graphics.c_str());

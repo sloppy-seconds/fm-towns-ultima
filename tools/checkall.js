@@ -673,6 +673,35 @@ if (skipCheck('attribution ledger')) { recordSkip('attribution ledger'); } else 
 	}
 }
 
+// E7c. A tool that launches the port and sets an instrument switch must pass --dev, because without the flag the port
+// removes those switches from the environment before reading them and reports them as dropped. "Instrument" is
+// derived from the port's own source: the variables it actually reads, minus the nine in kAlwaysHonoured that are
+// configuration and input scheduling. Keying on what the port reads matters, because the U2_ prefix is shared
+// namespace: controlsmoke.py names its own U2_BIN and U2_DISK, and port-build.sh its own U2_EXTRA_SEEDS, and a
+// prefix rule would demand --dev for variables the port has never heard of.
+{
+	const portSrc = ['main.cpp', 'native_shadows.cpp']
+		.map((f) => fs.readFileSync(path.join(ROOT, 'port', f), 'utf8')).join('\n');
+	const readByPort = new Set((portSrc.match(/getenv\("(U2_[A-Z_]+)"/g) || []).map((s) => s.slice(8, -1)));
+	const allowBlock = (portSrc.match(/kAlwaysHonoured\[\][\s\S]*?};/) || [''])[0];
+	const allow = new Set(allowBlock.match(/U2_[A-Z_]+/g) || []);
+	const instruments = [...readByPort].filter((n) => !allow.has(n));
+	const problems = [];
+	for (const f of fs.readdirSync(__dirname).filter((n) => /\.(py|js|sh)$/.test(n))) {
+		const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
+		if (!/u2port/.test(src)) continue;
+		const sets = instruments.filter((n) => src.includes(n));
+		// A QUOTED '--dev', and a tool that actually launches a process. An unquoted mention is prose, and the first
+		// version of this check passed on a comment that said "--dev, because ..." while the argument itself had been
+		// removed: a check that could not fail. Verified by deleting the argument and watching this go red.
+		const launches = /Popen\(|spawnSync|execFileSync|subprocess\.(run|Popen)/.test(src);
+		if (launches && sets.length && !/['"]--dev['"]/.test(src)) {
+			problems.push(`${f} sets ${sets.join(', ')} but never passes '--dev'`);
+		}
+	}
+	record('tools pass --dev for instruments', problems);
+}
+
 
 // E8. The calls the port was skipping. The recompiler stops each function at its terminating `ret` and never resumes
 // after the alignment padding that follows, so a function with no caller never enters the module and the calls inside

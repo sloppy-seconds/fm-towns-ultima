@@ -383,6 +383,17 @@ switch this build cannot honour marked `(IGNORED, needs -DU2_TRACE=ON)`. A clean
 `instruments none, plain gameplay`. The three false negatives in this section were all of one kind, an instrument that
 was silent about what it was doing, and this is the smallest change that removes the kind rather than the instances.
 
+**And `--dev` decides whether the instruments exist.** Without it the port strips every instrument variable from the
+environment before anything reads it, in one place rather than at each read, and names what it dropped. Nine are
+exempt as configuration or input: the fonts, the clock, the entry and stack overrides, keys, pad, layer, shot. A tool
+that launches the port and sets an instrument must pass `'--dev'`, and `tools/checkall.js` asserts that by deriving
+the instrument set from what the port reads.
+
+**The gate was verified by breaking it**, which is the only way to know it works: deleting `'--dev'` from `drive.py`
+turns it red and names the file and the three variables. The first version of the check passed with the argument
+removed, because an unquoted `--dev` in a comment matched it, so the test now requires a quoted argument and a tool
+that actually launches a process.
+
 **The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
 window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong
 paragraph. The dispatcher's reachability is the open question, and it stays open until a control fires under the
