@@ -377,6 +377,12 @@ failed on its own control, which is the correct behaviour for a flaky instrument
 suite that has to be green. The script stays, the check does not, and 11c stays OPEN until the hold makes the
 comparison exact.
 
+**The silent-instrument class is closed, 2026-11-02.** Every run now prints one `instruments` line listing the `U2_`
+variables that are set, derived from the environment so it cannot drift from the 39 switches the port reads, with any
+switch this build cannot honour marked `(IGNORED, needs -DU2_TRACE=ON)`. A clean run says
+`instruments none, plain gameplay`. The three false negatives in this section were all of one kind, an instrument that
+was silent about what it was doing, and this is the smallest change that removes the kind rather than the instances.
+
 **The lesson this session paid for three times: test the instrument before testing the thing.** A wrong address, a
 window that did not contain the quantity, and a control that stopped firing each produced a confident, fluent, wrong
 paragraph. The dispatcher's reachability is the open question, and it stays open until a control fires under the

@@ -71,6 +71,44 @@ static void print_vram_hash(const towns::Machine& m) {
 	std::printf("\n");
 }
 
+// WHAT IS SWITCHED ON, SAID OUT LOUD. Silent instruments are how three false negatives were produced in one session:
+// a key refused headlessly and the driver ignored the error, a stop count set high enough to suppress its own output,
+// and a watch read as "nothing happened" rather than "nothing was watched". The list is derived from the ENVIRONMENT
+// rather than from a hand-written table of switch names, so it cannot drift as switches are added, and it prints on
+// every run, so "no instruments" becomes a stated fact rather than an absence of evidence.
+//
+// A switch set in a build that cannot honour it is marked, because an env var that is set and ignored looks exactly
+// like one that is set and working, which is the whole failure this function exists to remove.
+extern char** environ;
+static void print_instruments() {
+	struct Item {
+		std::string name, value;
+	};
+	std::vector<Item> items;
+	for (char** e = environ; e && *e; ++e) {
+		std::string s(*e);
+		if (s.rfind("U2_", 0) != 0) continue;
+		size_t eq = s.find('=');
+		items.push_back({s.substr(0, eq), eq == std::string::npos ? std::string() : s.substr(eq + 1)});
+	}
+	std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.name < b.name; });
+	// The switches whose handling sits inside `#ifdef X86_TRACE_ON`, measured 2026-11-02 from the guard at line 531.
+	static const char* kTraceOnly[] = {"U2_STOP_AT", "U2_STOP_COUNT", "U2_STOP_DUMP", "U2_STOP_FRAME",
+	                                   "U2_TRACE_FILE", "U2_TRACE_LIMIT"};
+	std::printf("instruments");
+	if (items.empty()) std::printf(" none, plain gameplay");
+	for (const Item& it : items) {
+		std::string v = it.value;
+		if (v.size() > 60) v = v.substr(0, 60) + "...";
+		std::printf(" %s=%s", it.name.c_str(), v.c_str());
+#ifndef X86_TRACE_ON
+		for (const char* t : kTraceOnly)
+			if (it.name == t) std::printf("(IGNORED, needs -DU2_TRACE=ON)");
+#endif
+	}
+	std::printf("\n");
+}
+
 #ifdef X86_TRACE_ON
 static FILE* g_trace_file = nullptr;
 static unsigned long long g_trace_written = 0, g_trace_limit = 0;
@@ -523,6 +561,7 @@ int main(int argc, char** argv) {
 		std::printf("the module holds %u functions, keyed by runtime address\n", g_mod_p_game.nfuncs);
 		return 1;
 	}
+	print_instruments();
 
 	std::printf("entry     000C:%x  esp 0x%x  cs base 0x%x\n", ENTRY, STACK, PROGRAM_BASE);
 	// The VRAM access counters have to be on before the program runs, not after it has finished.

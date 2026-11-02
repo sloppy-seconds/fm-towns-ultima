@@ -1222,8 +1222,22 @@ third-party decoder. Confirm that before relying on it, rather than assuming.
 
 Set as environment variables. Each exists because something needed it and guessing was worse.
 
+**Every run prints one `instruments` line, and it is derived from the environment rather than from a hand-written
+list**, so it cannot drift as switches are added. `instruments none, plain gameplay` is what a clean run says, so "no
+instrument was active" is a stated fact and not an absence of evidence. A switch this build cannot honour is marked,
+because an env var that is set and ignored looks exactly like one that is set and working:
+
+```
+instruments U2_FONT=... U2_KEYS=60:3920 U2_STOP_AT=120c(IGNORED, needs -DU2_TRACE=ON) U2_WATCH=0x4cdc23:1
+```
+
+The line exists because three false negatives in one session were all silent instruments: a `key` command that refused
+headlessly while the driver ignored the refusal, a `U2_STOP_COUNT` set high enough to suppress its own output, and a
+`U2_WATCH` read as "nothing happened" rather than "nothing was watched".
+
 | switch | what it does |
 |---|---|
+| `U2_TRACE` | **not an environment variable**: this is the CMake option, `-DU2_TRACE=ON`, that compiles the instruction trace in at all. Without it `U2_STOP_AT` and the rest of the trace switches have no code to reach, which is why the port's `instruments` line marks them `(IGNORED, needs -DU2_TRACE=ON)`. |
 | `U2_TRACE_FILE=<path>` | build with `-DU2_TRACE=ON` first. Writes each address the first time it executes, so the file stays bounded. |
 | `U2_TRACE_LIMIT=<n>` | cap on those first executions, default 200000. |
 | `U2_STOP_AT=<guest hex>` | stop when that instruction runs, print registers, exit. Needs a trace build. |
