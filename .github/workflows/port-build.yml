@@ -33,6 +33,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          # Full history, and the submodule with it. The default shallow clone leaves the submodule with one commit, so
+          # patchcheck cannot see the base commit its mirror patch is measured from and cannot see origin/mp-support at
+          # all. Measured 2026-11-03: with depth 1 the same check that passes locally failed here on both counts, which
+          # is a green tick on a laptop and a red build on the thing that matters.
+          fetch-depth: 0
 
       # The kit's changes to upstream ride on the submodule's branch, and patches/ is the readable mirror of them.
       # This is the step a plain `submodule update` would skip, and it is the one that fails when the mirror drifts.
