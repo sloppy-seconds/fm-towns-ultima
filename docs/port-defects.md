@@ -16,7 +16,7 @@ quickstarts have to give the tested route rather than the one the game menu sugg
 | 3 | Character creation does not work | **Diagnosed 2026-11-01, two causes, both now closed.** The report itself was wrong: `Generate Character` is not a dead end, it is a sub-menu (Examine the Register / Create a Character / Terminate a Character / Main Menu / Look at a Character) and the headless route reaches it. What was dead was the digit. `Create a Character` asks `Create Entry (1-4) # 0` and wants a number, and the port could not deliver one. The second cause was that even a completed creation could not be saved | **fixed. Cause one pinned at kit `4028a76`, cause two by the FAT12 write path, and `tools/controlcreate.py` proves creation, persistence and play across two processes** |
 | 5 | The keyboard could not type a digit | **Found and fixed 2026-11-01, on the yell line.** Every digit key was dropped before it reached the guest, and the whole a-z 0-9 grid is now measured glyph by glyph. Recorded under defect 3 because that is where it was found | **fixed, pinned at kit `4028a76`, and gated by `tools/controlkeymap.py`** |
 | 4 | No sound library means no window | On a Debian trixie container with no SDL and no `libasound`, the port printed `graphics  sdl unavailable (Failed loading libasound.so.2: ... cannot open shared object file), falling back to none` and ran with no window at all. Installing `libasound2` gave a 640x480 window showing the title screen, on the same machine with still no SDL | open, cause known, not fixed |
-| 6 | The window resizes and the picture does not scale | **Reported 2026-11-03 by Paul**, dragging the window larger left the graphics the same size. Measured the same day against SDL 3.4.18 directly rather than by eye: a 640x480 canvas set to `SDL_LOGICAL_PRESENTATION_INTEGER_SCALE` renders 640x480 in a 960x720 window and only whole multiples grow it | **fixed at kit `e5503a9`**, whole multiples with the window snapped to match, `--letterbox` for anyone who prefers filling the window, and the frame at 700 is unchanged at `15d87bf0` |
+| 6 | The window resizes and the picture does not scale | **Reported 2026-11-03 by Paul**, dragging the window larger left the graphics the same size. Measured the same day against SDL 3.4.18 directly rather than by eye: a 640x480 canvas set to `SDL_LOGICAL_PRESENTATION_INTEGER_SCALE` renders 640x480 in a 960x720 window and only whole multiples grow it | **fixed at kit `c48d2f5`** and **confirmed 2026-11-03 by Paul on his test machine**, whole multiples with the window snapped once a drag settles, `--letterbox` for anyone who prefers filling the window, and the frame at 700 is unchanged at `15d87bf0` |
 
 Defects 1 and 2 are play observations reported on 2026-10-30, when the tree was at `51ca6e5`. They are not traces.
 No backtrace has been captured for either, and neither has been re-tested since the report.
@@ -483,6 +483,11 @@ from the machine these measurements run on.
 A resize now only marks the window unsettled. The snap runs when no mouse button is held and the window has not moved
 for 150 ms, so neither a drag nor a keyboard or window-manager resize is fought, and then it settles on the nearest
 whole multiple.
+
+**Confirmed on the machine that could test it.** Paul ran it on his own desktop the same day and the window resizes
+normally. That matters more than any measurement from here, because a drag is the one thing this machine cannot
+perform: there is no Xvfb, and the Xwayland socket answers `Authorization required`. Both versions of this defect were
+found by the same person on the same machine, one reported as broken and the other as fixed.
 
 **And it is presentation only.** The frame the machine draws is untouched: at 700 frames the screenshot is still
 `15d87bf049cf011a3081038e016f3020`, the same digest the Linux and Windows builds produce.
