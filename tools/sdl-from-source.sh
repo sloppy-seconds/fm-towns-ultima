@@ -32,12 +32,20 @@ PIN="$ROOT/tools/sdl-pin.txt"
 CACHE="${SDL3_CACHE:-$ROOT/build/sdl3}"
 PREFIX="$CACHE/prefix"
 MODE="build"
+TARGET="host"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--print-prefix) MODE="print" ;;
 	--check) MODE="check" ;;
 	--force) MODE="force" ;;
+	# Cross-build for Windows with mingw-w64, into its own cache and prefix. It goes through this script rather than a
+	# second one so the pin, the download, the hash check and the refusal on a swapped artefact stay in one place.
+	--windows)
+		TARGET="windows"
+		CACHE="${SDL3_CACHE:-$ROOT/build/sdl3-win}"
+		PREFIX="$CACHE/prefix"
+		;;
 	--prefix)
 		shift
 		PREFIX="${1:?--prefix needs a directory}"
@@ -167,15 +175,27 @@ fi
 #   no tests, no examples  they are not this project's build to make.
 log "configuring (this takes a few minutes the first time)"
 BUILD="$CACHE/build"
+# The option list, per target. The host set is the one documented above. A Windows build takes SDL's own defaults for
+# video and sound (GDI and Direct3D, WASAPI and DirectSound) and none of the Linux backends, which are not even compiled
+# there; what it does share is static-only, no tests, no examples, and the install.
+if [[ "$TARGET" == "windows" ]]; then
+	CROSS=(-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc
+	       -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++)
+	BACKENDS=()
+else
+	CROSS=()
+	BACKENDS=(-DSDL_X11=ON -DSDL_WAYLAND=ON
+	          -DSDL_ALSA=ON -DSDL_PULSEAUDIO=ON -DSDL_PIPEWIRE=ON
+	          -DSDL_JACK=OFF -DSDL_OSS=OFF -DSDL_SNDIO=OFF
+	          -DSDL_KMSDRM=OFF -DSDL_HIDAPI_LIBUSB=OFF -DSDL_LIBUDEV=ON
+	          -DSDL_WAYLAND_LIBDECOR=OFF)
+fi
 cmake -S "$SRC" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX="$PREFIX" \
+	"${CROSS[@]}" \
 	-DSDL_SHARED=OFF -DSDL_STATIC=ON \
 	-DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
-	-DSDL_X11=ON -DSDL_WAYLAND=ON \
-	-DSDL_ALSA=ON -DSDL_PULSEAUDIO=ON -DSDL_PIPEWIRE=ON \
-	-DSDL_JACK=OFF -DSDL_OSS=OFF -DSDL_SNDIO=OFF \
-	-DSDL_KMSDRM=OFF -DSDL_HIDAPI_LIBUSB=OFF -DSDL_LIBUDEV=ON \
-	-DSDL_WAYLAND_LIBDECOR=OFF \
+	"${BACKENDS[@]}" \
 	-DSDL_VULKAN=OFF -DSDL_RENDER_VULKAN=OFF \
 	>"$CACHE/configure.log" 2>&1 || {
 	echo "SDL configure failed. Last lines of $CACHE/configure.log:" >&2

@@ -296,7 +296,22 @@ const runNode = (script, args = []) => {
 // capture and does need the machine.
 {
 	const r = runNode('portcheck.js');
-	record('port constants', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
+	// E5. A release publishes binaries and nothing else. Decided 2026-11-03 after Paul asked why the archive carried eleven
+// files when one played: it had accumulated a play.sh, three tools, a save disk and three licence texts, each of which
+// was needed when it was added and none of which was removed when it stopped being. The rule is that a download is a
+// file somebody runs. This fails if an archive creeps back into the workflow, if either binary disappears from it, or if
+// the step that refuses a third asset is removed, because those are the three ways the rule can rot silently.
+{
+	const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+	const bad = [];
+	if (/\.tar\.gz|tar -czf|tar --create/.test(wf)) bad.push('the workflow makes or ships a tarball');
+	for (const asset of ['u2port-linux-x86_64', 'u2port-windows-x86_64.exe'])
+		if (!wf.includes(asset)) bad.push(`${asset} is not built and published by the workflow`);
+	if (!/is not one of the two binaries/.test(wf)) bad.push('the step that refuses a third release asset is gone');
+	record('a release publishes binaries only', bad);
+}
+
+record('port constants', r.ok ? [] : r.out.split('\n').filter((l) => /^\s+FAIL/.test(l)));
 }
 
 // E4. The kit submodule's invariants. `fmtownskit` is a submodule of the fork `paulczar/fmtownskit` on branch

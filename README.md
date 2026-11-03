@@ -41,11 +41,13 @@ is fine.
 ./play.sh
 ```
 
-The release archive is simpler still: unpack it, drop your copy of the disc image in `game/`
-beside it, and run `./u2port` with no arguments. It reads the program, TBIOS and the game's own
-graphics and sounds out of that image, keeps what it reads under `game/extracted/`, and after
-the first run the image is optional. Characters live as plain files in `game/saves/`, so there is
-no floppy image to create either.
+The release is one file, not an archive: `u2port-linux-x86_64` or, on Windows,
+`u2port-windows-x86_64.exe`. Put your copy of the disc image beside it and run it. It reads
+the program, TBIOS and the game's own graphics and sounds out of that image, keeps what it
+reads under `extracted/`, and after the first run the image is optional. Characters live as
+plain files in `saves/`, so there is no floppy image to create either. Nothing else is
+required: SDL and the glyph ROM are inside the binary, and `--licences` prints every notice
+compiled into it.
 
 One command. It builds the port from the recompiled module that is committed in `module/`,
 so there is no recompile, no container and no toolkit needed, and it fetches the font ROM

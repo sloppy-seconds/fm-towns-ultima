@@ -97,19 +97,77 @@ jobs:
     outputs:
       sha256: ${{ steps.sum.outputs.sha256 }}
 
+  windows:
+    name: Build the Windows binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # mingw rather than a Windows runner, because the artefact is a static cross build and nothing about it needs
+      # Windows to produce. The Windows runner would cost a different toolchain for the same bytes, and this job then
+      # has one thing to install.
+      - name: Install the cross toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends mingw-w64 cmake
+
+      # SDL for Windows from the same pin and the same hash check as the Linux build, compiled once per pin.
+      - name: Cache SDL3 built for Windows
+        uses: actions/cache@v4
+        with:
+          path: build/sdl3-win
+          key: sdl3-win-${{ hashFiles('tools/sdl-pin.txt') }}
+
+      - name: Build and package
+        run: ./tools/release-package-windows.sh
+
+      - name: Record the digest
+        id: sum
+        run: echo "sha256=$(sha256sum dist/u2port-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: u2port-windows-x86_64.exe
+          path: dist/u2port-windows-x86_64.exe
+
+    outputs:
+      sha256: ${{ steps.sum.outputs.sha256 }}
+
   release:
     name: Publish the release
     if: github.ref_type == 'tag'
-    needs: [image, host]
+    needs: [image, host, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: u2port-linux-x86_64
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: u2port-windows-x86_64.exe
+
+      # Two binaries and nothing else. The rule this step enforces: a release publishes files a player runs, not
+      # archives they have to unpack, and not a support kit beside it. If a third asset ever appears here it is either
+      # a mistake or a decision, and this makes it a decision.
+      - name: Confirm the release is binaries only
+        run: |
+          set -eu
+          ls -l
+          for f in *; do
+            case "$f" in
+              u2port-linux-x86_64 | u2port-windows-x86_64.exe) ;;
+              *) echo "refusing to publish: $f is not one of the two binaries" >&2; exit 1 ;;
+            esac
+          done
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: u2port-linux-x86_64
+          files: |
+            u2port-linux-x86_64
+            u2port-windows-x86_64.exe
           body: |
             Early, and honest about it. The port reaches the title screen, the game menu and the overworld. Character
             creation does not work, `Esc` or `Q` ends the run, and what is broken is listed with the observation that
@@ -122,7 +180,7 @@ jobs:
             non-commercial preservation effort aimed at people who already own it. If you hold rights to it and want
             this taken down, open an issue and it happens.
 
-            ## The host binary
+            ## The binaries
 
             `u2port-linux-x86_64`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** One file, no archive
             to unpack: put your own copy of the disc image beside it and run it. It reads `ENCHANT.EXP`, TBIOS, the
@@ -132,8 +190,17 @@ jobs:
             every licence and provenance notice compiled into it. SDL is linked statically from the pinned upstream release, so there is
             no `libSDL3` to install and nothing to apt first: the binary's whole dynamic list is libc, libstdc++, libm
             and libgcc. What SDL loads at run time is the desktop's own (X11 or Wayland, GL, and one of ALSA, Pulse or
-            PipeWire), and the archive was checked on a bare Debian trixie container with no SDL installed at all,
-            where it mapped a 640x480 window and drew the title screen. It has not been run on Windows or macOS.
+            PipeWire), and the binary was checked on a bare Debian trixie container with no SDL installed at all,
+            where it mapped a 640x480 window and drew the title screen.
+
+            `u2port-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256 }}`. The same program for Windows,
+            cross-built with mingw-w64 and statically linked, so its import table is Windows' own libraries and no DLL
+            travels with it. It runs under Wine with frames byte-identical to the Linux build's at every point both
+            have been measured. Windows support is new: if it does not start on your machine, that is the most useful
+            thing you can report.
+
+            Neither file is an archive, and nothing else is published here: the licence texts and the glyph ROM's
+            provenance are compiled into both binaries, and `--licences` prints them.
 
             ## The image
 
