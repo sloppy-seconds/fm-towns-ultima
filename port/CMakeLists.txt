@@ -63,7 +63,29 @@ add_custom_command(
           ${CMAKE_CURRENT_SOURCE_DIR}/../tools/embed.js
   COMMENT "embedding the glyph ROM")
 
-add_executable(u2port main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM})
+# The licence texts, embedded for the same reason and with a sharper edge. SDL3 and fmtownskit are linked statically into
+# this binary, and both of their licences require the notice to travel with the copy. Shipping them as files beside the
+# binary works until somebody copies only the binary, which is exactly what a single-file release invites. Embedded, the
+# notice cannot be separated from the thing it applies to, and `u2port --licences` prints it. Same generator, so there is
+# one way of turning a file into a compiled-in array rather than two.
+set(EMBEDDED_LICENCES "")
+foreach(pair "LICENSE:g_licence_mit" "fmtownskit/LICENSE:g_licence_fmtownskit" "LICENSE.SDL3:g_licence_sdl3")
+  string(REPLACE ":" ";" parts "${pair}")
+  list(GET parts 0 licence_file)
+  list(GET parts 1 licence_symbol)
+  set(out ${CMAKE_CURRENT_BINARY_DIR}/licence_${licence_symbol}.cpp)
+  add_custom_command(
+    OUTPUT ${out}
+    COMMAND node ${CMAKE_CURRENT_SOURCE_DIR}/../tools/embed.js
+            ${CMAKE_CURRENT_SOURCE_DIR}/../${licence_file}
+            ${out} ${licence_symbol}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../${licence_file}
+            ${CMAKE_CURRENT_SOURCE_DIR}/../tools/embed.js
+    COMMENT "embedding ${licence_file}")
+  list(APPEND EMBEDDED_LICENCES ${out})
+endforeach()
+
+add_executable(u2port main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM} ${EMBEDDED_LICENCES})
 # RECOMP_DIR is on the include path for p_game_funcs.h, which native_shadows.cpp needs to name the recompiled
 # twin when U2_SHADOW_OFF gives the baseline. It is a generated header, but the module is always linked, so the
 # symbol always exists; tools/portcheck.js asserts the address is still declared there.

@@ -71,6 +71,12 @@ rather than a legal argument:
 - **No warranty.** This repository's own work is MIT licensed and provided as-is, with the
   usual disclaimer of merchantability and fitness. The port is early and its defects are
   [listed](port-defects.md) rather than hidden.
+- **The notices travel inside the binary.** SDL3 (zlib) and fmtownskit (MIT, Samuele Voltan's
+  upstream text) are linked statically into the port, and MIT and zlib both require the notice
+  to accompany the copy. So all three texts are compiled in with `tools/embed.js` and printed
+  by `u2port --licences`, because a notice that can be separated from the binary is one that
+  gets separated. `LICENSE.SDL3` at the root is the source of truth for the text, and
+  `tools/release-package.sh` refuses to build an archive whose copy differs from it.
 - **A published takedown route.** A rights holder who wants this down opens an issue at
   <https://github.com/sloppy-seconds/fm-towns-ultima/issues> or uses the contact on
   <https://github.com/sloppy-seconds>, and it comes down. No licence argument is raised in response, because the

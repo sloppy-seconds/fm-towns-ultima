@@ -28,7 +28,9 @@ or approved by any of them, and all original game content remains their property
 
 What is distributed here is a translation of machine code into source code, plus the
 scripts and documentation that make it run. That part is MIT licensed (see LICENSE in this
-archive) and comes with no warranty of any kind, as the licence says. The port is early:
+archive) and comes with no warranty of any kind, as the licence says. SDL3 and fmtownskit
+are compiled into the binary, so their notices are compiled in too: run `u2port --licences`
+and it prints all three, whether or not you kept the text files beside it. The port is early:
 character creation does not work and Esc or Q ends the run, and the full list is linked
 below rather than buried.
 

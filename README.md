@@ -92,7 +92,9 @@ The reason for the split is that the legible thing worth keeping is the translat
 machine code into C++, and a binary preserves nothing. The module is measured rather than
 assumed to be code and not media, and the measurement is a gate. This repository's own work
 is under the **MIT licence** in `LICENSE`, which covers the scripts, the docs, the port
-front-end and the translation, and covers nothing else.
+front-end and the translation, and covers nothing else. SDL3 and fmtownskit are linked into
+the binary, so their notices are compiled in as well, and `u2port --licences` prints all
+three from the executable itself.
 
 **Trademarks.** *Ultima* is a trademark and copyright of its respective owners (Origin
 Systems, now Electronic Arts). *FM Towns* is Fujitsu. Naming them here is description, not a

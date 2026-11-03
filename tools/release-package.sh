@@ -52,9 +52,20 @@ if [[ -z "${SDL3_PREFIX:-}" ]]; then
 else
 	echo "sdl3      using the prefix the caller supplied: $SDL3_PREFIX"
 fi
-if [[ ! -f "$SDL3_PREFIX/LICENSE.SDL3" ]]; then
-	echo "no LICENSE.SDL3 in $SDL3_PREFIX, and the archive has to carry SDL's licence text." >&2
-	echo "Let tools/sdl-from-source.sh build the prefix, or put the upstream LICENSE.txt there as LICENSE.SDL3." >&2
+# SDL's licence text is embedded in the binary now, so the file the archive carries and the text the program prints
+# have to be the same bytes. The repository copy is the source of truth, because a build does not need the SDL prefix to
+# exist to compile the notice in, and a prefix regenerated from a newer tarball cannot silently disagree with it.
+SDL_LICENSE="$ROOT/LICENSE.SDL3"
+if [[ -f "$SDL_LICENSE" && -f "$SDL3_PREFIX/LICENSE.SDL3" ]] && ! cmp -s "$SDL_LICENSE" "$SDL3_PREFIX/LICENSE.SDL3"; then
+	echo "LICENSE.SDL3 at the root differs from $SDL3_PREFIX/LICENSE.SDL3." >&2
+	echo "The archive would then carry a different notice from the one compiled into the binary. If SDL was updated," >&2
+	echo "copy the new text into LICENSE.SDL3 so both come from one source." >&2
+	exit 2
+fi
+[[ -f "$SDL_LICENSE" ]] || SDL_LICENSE="$SDL3_PREFIX/LICENSE.SDL3"
+if [[ ! -f "$SDL_LICENSE" ]]; then
+	echo "no SDL licence text: neither LICENSE.SDL3 at the root nor $SDL3_PREFIX/LICENSE.SDL3 exists." >&2
+	echo "The binary embeds SDL's notice and the archive has to carry the same text." >&2
 	exit 2
 fi
 BUILD="$OUT/build-host"
@@ -103,7 +114,7 @@ mkdir -p "$STAGE/assets/font-rom"
 cp "$ROOT/assets/font-rom/FMT_FNT.ROM" "$ROOT/assets/font-rom/README.md" "$STAGE/assets/font-rom/"
 cp "$ROOT/LICENSE" "$STAGE/LICENSE"
 cp "$ROOT/fmtownskit/LICENSE" "$STAGE/LICENSE.fmtownskit"
-cp "$SDL3_PREFIX/LICENSE.SDL3" "$STAGE/LICENSE.SDL3"
+cp "$SDL_LICENSE" "$STAGE/LICENSE.SDL3"
 cp "$ROOT/tools/release-readme.txt" "$STAGE/README.txt"
 chmod 0755 "$STAGE/u2port" "$STAGE/play.sh" "$STAGE/tools/vendor.sh"
 

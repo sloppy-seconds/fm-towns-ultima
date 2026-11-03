@@ -381,6 +381,15 @@ static bool cache_store(const std::string& dir, const std::string& rel, const st
 // assets/font-rom/FMT_FNT.ROM. Declared here rather than in a header because nothing else needs it.
 extern const unsigned char g_embedded_font_rom[];
 extern const unsigned long g_embedded_font_rom_size;
+// The licence texts, embedded by port/CMakeLists.txt through tools/embed.js. SDL3 and fmtownskit are static inside this
+// binary, so their notices have to travel with it, and a notice that cannot be separated from the binary is the only
+// version that survives somebody copying just the binary.
+extern const unsigned char g_licence_mit[];
+extern const unsigned long g_licence_mit_size;
+extern const unsigned char g_licence_fmtownskit[];
+extern const unsigned long g_licence_fmtownskit_size;
+extern const unsigned char g_licence_sdl3[];
+extern const unsigned long g_licence_sdl3_size;
 
 static std::vector<uint8_t> read_file(const char* path) {
 	std::vector<uint8_t> v;
@@ -452,6 +461,9 @@ int main(int argc, char** argv) {
 	// The instrument switches are governed by this. Without it they are removed from the environment before anything
 	// reads them, so plain gameplay cannot be changed by a stale U2_STOP_AT in a shell.
 	bool dev = false;
+	// Not a mode: a 5-line answer to "what am I allowed to do with this", because the licences are compiled into the
+	// binary rather than only shipped beside it.
+	bool show_licences = false;
 	std::vector<const char*> pos;
 	for (int i = 1; i < argc; ++i) {
 		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
@@ -463,11 +475,28 @@ int main(int argc, char** argv) {
 		else if (!std::strcmp(argv[i], "--read-only-disk")) read_only_disk = true;
 		else if (!std::strcmp(argv[i], "--allow-key-queue")) key_queue_ok = true;
 		else if (!std::strcmp(argv[i], "--dev")) dev = true;
+		else if (!std::strcmp(argv[i], "--licences") || !std::strcmp(argv[i], "--licenses")) show_licences = true;
 		else pos.push_back(argv[i]);
 	}
 
-	// THE HARNESS IS OFF UNLESS ASKED FOR. Instrument switches are removed from the environment here, before any of
-	// the 39 reads below, rather than being checked at each read: a rule enforced in one place cannot be forgotten at
+	if (show_licences) {
+		auto emit = [](const char* who, const unsigned char* text, unsigned long size) {
+			std::printf("\n===== %s =====\n\n%.*s", who, (int)size, (const char*)text);
+			if (size && text[size - 1] != '\n') std::printf("\n");
+		};
+		std::printf("Ultima II on FM Towns, recompiled. Three pieces of software are inside this file, and this is what each\n"
+		            "of them permits. None of it is game data: the game comes from a disc image you supply.\n");
+		emit("this port's own code, MIT licence", g_licence_mit, g_licence_mit_size);
+		emit("fmtownskit, the runtime the recompiled code is linked onto, MIT licence", g_licence_fmtownskit,
+		     g_licence_fmtownskit_size);
+		emit("SDL3, statically linked, used for the window, keyboard, gamepad and sound, zlib licence", g_licence_sdl3,
+		     g_licence_sdl3_size);
+		std::printf("\nThe game itself is not distributed with this program and is covered by none of the above. If you own a\n"
+		            "copy of the FM Towns Ultima Trilogy, this runs from your own disc image.\n");
+		return 0;
+	}
+
+	// THE HARNESS IS OFF UNLESS ASKED FOR. Instrument switches are removed from the environment here, before any of	// the 39 reads below, rather than being checked at each read: a rule enforced in one place cannot be forgotten at
 	// the fortieth. Configuration and input scheduling are NOT instruments and stay available, because a run that
 	// cannot find its font ROM is not a more honest run, it is a blank screen.
 	//
