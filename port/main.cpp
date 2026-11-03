@@ -344,7 +344,7 @@ static void report_media(const std::string& program, const std::string& tbios, c
 	if (!cue.empty()) {
 		if (program.empty()) std::printf("media     program will be read from the disc (\\ENCHANT.EXP)\n");
 		if (tbios.empty()) std::printf("media     TBIOS will be read from the disc (\\TBIOS.BIN)\n");
-		if (disk.empty()) std::printf("media     no save disk (.hdm); the game will ask for one\n");
+		if (disk.empty()) std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
 		return;
 	}
 	// No disc, but an earlier run kept what the disc was for. That is a success, and it must not print the block below,
@@ -352,7 +352,7 @@ static void report_media(const std::string& program, const std::string& tbios, c
 	if (!cache_dir.empty() && file_exists(cache_dir + "/ENCHANT.EXP")) {
 		std::printf("media     no disc, running from the cache at %s (put a disc image back to refresh it)\n",
 		            cache_dir.c_str());
-		if (disk.empty()) std::printf("media     no save disk (.hdm); the game will ask for one\n");
+		if (disk.empty()) std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
 		return;
 	}
 
@@ -362,7 +362,7 @@ static void report_media(const std::string& program, const std::string& tbios, c
 	if (program.empty()) std::printf("media     ENCHANT.EXP is not there\n");
 	if (tbios.empty()) std::printf("media     tbios.bin (or TBIOS.BIN) is not there\n");
 	if (cue.empty()) std::printf("media     no .cue and no single .img to write one for\n");
-	if (disk.empty()) std::printf("media     no save disk (.hdm); the game will ask for one\n");
+	if (disk.empty()) std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
 	std::printf("\n");
 	std::printf("Put your own copy of the game in ./game/ and use the tools beside this binary:\n");
 	std::printf("  node tools/getfile.js ENCHANT.EXP --disc game/<image>.img --out game\n");

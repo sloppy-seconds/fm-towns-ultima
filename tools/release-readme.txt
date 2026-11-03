@@ -46,9 +46,9 @@ Playing from this archive
 
 You need two things, and only the first comes from us.
 
-1. This archive, unpacked anywhere you like. It carries the port, a save disk with three
-   characters on it, and the glyph ROM, so there is nothing to install and nothing to
-   download.
+1. This archive, unpacked anywhere you like. It carries the port and the glyph ROM, so there
+   is nothing to install and nothing to download. Saves live in a `saves/` directory it
+   creates for you.
 2. Your own copy of the game, which means three files out of it: the program, TBIOS, and
    the disc image itself, because the port opens the disc while it runs for its artwork
    and its kanji font.
@@ -79,19 +79,19 @@ Ignore the .cue that came with the download. It declares a PREGAP on the audio t
 may or may not already contain, so the reader refuses it rather than read the wrong sectors, and
 the port writes a correct one-track cue itself.
 
-./play.sh does the same thing, and also unpacks the save disk if you would rather have it do the
-whole setup.
+./play.sh does the same thing and passes the paths for you, or leaves them out so the port
+finds them itself.
 
-With no arguments the port looks for a disc image (or a .cue) and a save disk, and for a cache
-of what an earlier run kept. It searches ./ and game/, original/ and data/, and its own
-directory, so unpacking this archive anywhere and starting the binary from anywhere both work.
+With no arguments the port looks for a disc image (or a .cue), for an optional save disk to
+seed from, and for a cache of what an earlier run kept. It searches ./ and game/, original/
+and data/, and its own directory, so unpacking this archive anywhere and starting the binary
+from anywhere both work.
 It prints what it found and what it took from where. A tree with neither a disc image nor a
 cache says so rather than starting and failing later.
 
 At the game menu pick Journey Onward for a character that already exists, or Generate
-Character to make one. A disk with three characters is included at
-assets/save-disk/userdisk.hdm.zip, and play.sh unpacks it to saves/ if you have not put one
-there. The port writes to that disk, so a character you create persists. Ctrl-Q or closing
+Character to make one. Saves are plain files in `saves/`, which the port creates on first run
+and writes to, so a character you create persists. Ctrl-Q or closing
 the window ends the run. Escape does not. This is an early port, and what is broken is listed
 honestly at
 https://github.com/sloppy-seconds/fm-towns-ultima/blob/main/docs/port-defects.md
@@ -119,8 +119,6 @@ What is in this archive
                              port does not need it: it reads what it needs from the image itself
   tools/cd.js                the ISO reader getfile.js uses
   tools/vendor.sh            fetches the emulator and the full FreeTOWNS ROM set, if you want them
-  assets/save-disk/          a save disk with three characters, which seeds game/saves/ on the
-                             first run so the tested route has somebody to play
   assets/font-rom/           the glyph ROM the port needs for text, and a document saying where
                              it came from and what is and is not established about its licence
   LICENSE                    MIT, this project's own code and the recompiled translation

@@ -125,19 +125,17 @@ fi
 #    an image a run can actually save onto. It is unpacked from the repository's own copy rather than fetched, and it
 #    goes beside $DISK, which is under build/play when the tree is read-only. A missing image is not fatal: the A:
 #    probe fails and the program shows its insert-a-disk prompt instead of the title.
-if [[ ! -f "$DISK" ]]; then
-	DISK_DIR="$(dirname "$DISK")"
-	mkdir -p "$DISK_DIR"
-	# unzip is absent from the small container image, and one zip holding one file does not justify enlarging it.
-	if command -v unzip >/dev/null 2>&1; then
-		unzip -o -q "$ROOT/assets/save-disk/userdisk.hdm.zip" -d "$DISK_DIR"
-	else
-		python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
-			"$ROOT/assets/save-disk/userdisk.hdm.zip" "$DISK_DIR"
-	fi
-	echo "save disk unpacked to $DISK (in-game slot 1 is E)"
+# The save disk is optional. The port keeps saves as plain files in saves/ and mounts that directory as the floppy,
+# creating it if it is not there, so a missing image is not a prompt any more. The four positional paths are passed
+# only when there is an image to pass: naming a path that does not exist takes the explicit-files route, which is the
+# one that does not create the directory, so "pass a missing disk" would be worse than "pass none".
+if [[ -f "$DISK" ]]; then
+	DISK_ARGS=("$PROG" "$TB" "$CUE" "$DISK")
+	echo "save disk $DISK"
+else
+	DISK_ARGS=()
+	echo "saves     the port creates ./saves on first run, and no image was found to seed it from"
 fi
-echo "save disk $DISK"
 
 # 6. The binary. A release tarball ships u2port next to this script, and then there is nothing to build: that is
 #    the whole point of the release. A clone has no u2port at the root, so it builds one from module/ with cmake,
@@ -198,10 +196,10 @@ if [[ $HEADLESS -eq 1 ]]; then
 	SHOT="${SHOT:-$WORK/shot.png}"
 	echo "running   $FRAMES frames headless, shot to $SHOT"
 	# shellcheck disable=SC2086
-	U2_SHOT="$SHOT" exec "$PORT_BIN" --graphics=none --frames="$FRAMES" ${U2_ARGS:-} "$PROG" "$TB" "$CUE" "$DISK"
+	U2_SHOT="$SHOT" exec "$PORT_BIN" --graphics=none --frames="$FRAMES" ${U2_ARGS:-} "${DISK_ARGS[@]}"
 fi
 echo "playing   at the game menu pick Journey Onward, or Generate Character to make one."
-echo "          The save disk at $DISK is writable, so a created character persists."
+echo "          Saves live in $ROOT/saves as plain files, writable, so a created character persists."
 echo "          Ctrl-Q or closing the window ends the run. Known bugs: docs/port-defects.md"
 # shellcheck disable=SC2086
-exec "$PORT_BIN" --graphics=sdl ${U2_ARGS:-} "$PROG" "$TB" "$CUE" "$DISK"
+exec "$PORT_BIN" --graphics=sdl ${U2_ARGS:-} "${DISK_ARGS[@]}"

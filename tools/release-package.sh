@@ -41,7 +41,7 @@ if [[ ! -f "$ROOT/module/modules.cpp" ]]; then
 fi
 
 rm -rf "$STAGE"
-mkdir -p "$STAGE/tools" "$STAGE/assets/save-disk"
+mkdir -p "$STAGE/tools"
 
 # Build the playable binary from the committed module. No recompiler, no disc, no game byte read.
 # SDL comes from the pinned source build unless the caller says otherwise, because a distro package for it is the
@@ -101,13 +101,11 @@ fi
 # tools/ and assets/ beside it is the layout it expects.
 cp "$ROOT/play.sh" "$STAGE/play.sh"
 cp "$ROOT/tools/getfile.js" "$ROOT/tools/cd.js" "$ROOT/tools/vendor.sh" "$STAGE/tools/"
-cp "$ROOT/assets/save-disk/userdisk.hdm.zip" "$STAGE/assets/save-disk/"
-# ...and EXPANDED as well, only in the archive. git keeps the zip because the disk is 1.26 MB of almost pure zero
-# fill, but a reader should not have to unzip something to play: the no-argument search in the port looks for a
-# .hdm and cannot open a zip, so shipping only the zip means the first run reaches the game's own WRONG DISK
-# prompt. Compressed in git, expanded in the artefact. Guarded by its own named exception below.
-python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
-	"$ROOT/assets/save-disk/userdisk.hdm.zip" "$STAGE/assets/save-disk"
+# Nothing to seed a save disk from, decided 2026-11-03. The port keeps saves as plain files and creates the directory
+# itself, so the archive ships no floppy. The 1.26 MB image in git carries three characters, which is a convenience for
+# whoever has it in the repository and not a requirement for playing: a fresh run starts with an empty save store and
+# Generate Character writes into it. Shipping it also made "is there a save disk" a question a player had to answer
+# before they could start.
 # The one platform ROM this project carries, with the provenance document beside it. It is the glyph ROM and
 # the port renders no text without it, and it is not Fujitsu code: see assets/font-rom/README.md.
 mkdir -p "$STAGE/assets/font-rom"
@@ -118,12 +116,10 @@ cp "$SDL_LICENSE" "$STAGE/LICENSE.SDL3"
 cp "$ROOT/tools/release-readme.txt" "$STAGE/README.txt"
 chmod 0755 "$STAGE/u2port" "$STAGE/play.sh" "$STAGE/tools/vendor.sh"
 
-# The assertion that decides whether this may be published at all. The save disk is allowed by exact name because
-# it is what the tested route picks a character from; everything else game-shaped is refused.
+# The assertion that decides whether this may be published at all. Nothing game-shaped goes in, and the glyph ROM is
+# allowed by exact name because it is not Fujitsu code.
 LEAKY=$(find "$STAGE" -type f \
-	-not -path "*/assets/save-disk/userdisk.hdm.zip" \
 	-not -path "*/assets/font-rom/FMT_FNT.ROM" \
-	-not -path "*/assets/save-disk/userdisk.hdm" \
 	\( -iname '*.exp' -o -iname '*.img' -o -iname '*.ccd' -o -iname '*.cue' -o -iname '*.sub' \
 	-o -iname '*.hdm' -o -iname '*.rom' -o -iname '*.fnt' -o -iname '*.snd' -o -iname '*.eup' \
 	-o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.mp3' -o -iname '*.dg3' -o -iname '*.dat' \) -print)
