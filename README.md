@@ -49,6 +49,9 @@ plain files in `saves/`, so there is no floppy image to create either. Nothing e
 required: SDL and the glyph ROM are inside the binary, and `--licences` prints every notice
 compiled into it.
 
+The Linux binary is the tested one. The Windows build is checked under Wine only, because
+this project has no Windows machine, so it is an untested build rather than a supported one.
+
 One command. It builds the port from the recompiled module that is committed in `module/`,
 so there is no recompile, no container and no toolkit needed, and it fetches the font ROM
 if you have not. At the game menu pick *Journey Onward* and a character that already

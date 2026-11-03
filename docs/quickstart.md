@@ -8,7 +8,7 @@ Three routes. Pick the one that matches where you are.
 |---|---|
 | I own the game and want the recompiled port on this machine | [The port, native](#the-port-natively) |
 | I have a Linux or macOS desktop | [Native](#route-1-native-emulator) |
-| I have Windows | [Container](#route-2-container-browser-play), or native with a bash shell. Both untested. |
+| I have Windows | [The port, native](#the-port-natively) with `u2port-windows-x86_64.exe`, checked under Wine only. For the emulator: [Container](#route-2-container-browser-play), or native with a bash shell, both untested |
 | The machine is headless or remote, or I want to play in a browser | [Container](#route-2-container-browser-play) |
 | I want a save disk, or to fix one, with nothing installed | [Editor alone](#route-3-the-editor-with-no-emulator) |
 

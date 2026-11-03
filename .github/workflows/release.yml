@@ -195,9 +195,11 @@ jobs:
 
             `u2port-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256 }}`. The same program for Windows,
             cross-built with mingw-w64 and statically linked, so its import table is Windows' own libraries and no DLL
-            travels with it. It runs under Wine with frames byte-identical to the Linux build's at every point both
-            have been measured. Windows support is new: if it does not start on your machine, that is the most useful
-            thing you can report.
+            travels with it. **It has never been run on a real Windows machine**, because this project has no access to
+            one. Every check it has is from Wine: it starts there, prints its licences, and draws frames byte-identical
+            to the Linux build's at 700 and at 5,800 frames. Wine is a proxy and not the thing itself, so treat this as
+            an untested build that is likely to work rather than a supported one, and a failure on real hardware is the
+            most useful report you can send.
 
             Neither file is an archive, and nothing else is published here: the licence texts and the glyph ROM's
             provenance are compiled into both binaries, and `--licences` prints them.
