@@ -700,8 +700,20 @@ if (!skipCheck('shadow differential')) {
 	const binary = path.join(ROOT, 'build', 'port', 'b', 'u2port');
 	const py = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
 		? path.join(__dirname, '.venv', 'bin', 'python3') : 'python3';
-	if (!fs.existsSync(binary)) {
+	// CI cannot run this and never will: the check builds against a module generated from zero fill and has no game
+	// media anywhere, which is the thing it exists to prove. Failing there would mean a permanently red build for a
+	// check that is doing its job, and a permanently red build is a check nobody reads. So the absence of media is a
+	// recorded skip with the reason attached, while a machine that HAS the media and no binary still fails, because
+	// that combination means somebody forgot to build.
+	const media = ['ENCHANT.EXP', 'game/ENCHANT.EXP', 'Ultima Trilogy 1-3 (1990)(Origins)(Jp-En).img'].some((p) =>
+		fs.existsSync(path.join(ROOT, p)),
+	);
+	if (!media) {
+		recordSkip('shadow differential');
+		console.log('skip  shadow differential (no game media in this tree: it needs a built port and a disc)');
+	} else if (!fs.existsSync(binary)) {
 		problems.push('build/port/b/u2port is missing, so the differential was not run (./tools/port-build.sh)');
+		record('shadow differential', problems);
 	} else {
 		for (const [label, extra] of [['differential', []], ['control', ['--control']]]) {
 			const r = spawnSync(py, [path.join(__dirname, 'shadow-diff.py'), ...extra],
@@ -711,8 +723,8 @@ if (!skipCheck('shadow differential')) {
 				problems.push(`${label}: ` + (lines.slice(0, 2).join(' | ') || 'exited ' + r.status));
 			}
 		}
+		record('shadow differential', problems);
 	}
-	record('shadow differential', problems);
 }
 
 // E7d. C++ style and lint, for port/ only, and only when the tools exist. It is a skip rather than a pass when they do
