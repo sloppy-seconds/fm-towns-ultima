@@ -1214,10 +1214,26 @@ index 7fd99da..71f4c01 100644
      unknown("read of linear %08x (no device)", a & ~0xFFFu);
      return 0;
 diff --git a/runtime/towns_sdl.cpp b/runtime/towns_sdl.cpp
-index 3328d10..0faf318 100644
+index 3328d10..28873b7 100644
 --- a/runtime/towns_sdl.cpp
 +++ b/runtime/towns_sdl.cpp
-@@ -87,6 +87,94 @@ static unsigned held_pad(SDL_Gamepad* g) {
+@@ -20,6 +20,7 @@ struct SdlHost::Impl {
+     std::vector<int16_t> sound;
+     uint64_t next_ns = 0;                   // the pace without sound: the next frame's time
+     std::string title;
++    bool letterbox = false;                 // fill the window instead of snapping it to whole multiples
+     int shown_rate = 0;                     // the CPU's rate the title shows
+     float mx = 0, my = 0;                   // the host mouse's movement not yet given, in frame pixels
+     ~Impl() {
+@@ -39,6 +40,7 @@ bool SdlHost::open(const SdlOptions& o, std::string& err) {
+     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD)) { err = SDL_GetError(); return false; }
+     p_ = std::make_unique<Impl>();
+     p_->title = o.title;
++    p_->letterbox = o.letterbox;
+     int w = 640, h = 480, scale = o.scale;
+     if (scale <= 0) {
+         SDL_Rect r;
+@@ -87,6 +89,94 @@ static unsigned held_pad(SDL_Gamepad* g) {
      return v;
  }
  
@@ -1312,7 +1328,7 @@ index 3328d10..0faf318 100644
  void SdlHost::vsync(Machine& m) {
      Impl& s = *p_;
      SDL_Event e;
-@@ -95,12 +183,25 @@ void SdlHost::vsync(Machine& m) {
+@@ -95,12 +185,25 @@ void SdlHost::vsync(Machine& m) {
          case SDL_EVENT_QUIT: throw Stop{0};
          case SDL_EVENT_KEY_DOWN:
              if (e.key.repeat) break;
@@ -1339,35 +1355,77 @@ index 3328d10..0faf318 100644
              break;
          case SDL_EVENT_MOUSE_MOTION:
              // the frame's pixels moved, as the mouse in the second port's counts
-@@ -152,7 +253,14 @@ void SdlHost::vsync(Machine& m) {
+@@ -148,11 +251,33 @@ void SdlHost::vsync(Machine& m) {
+     m.render(s.rgb, fw, fh);
+     m.display_area(x, y, w, h);
+     int cw = std::max(w, 640), ch = std::max(h, 480);
++    // Whole-pixel scaling, with the window following the scale rather than the other way round. INTEGER_SCALE on its
++    // own does nothing between one whole multiple and the next, which is what "the graphics do not scale" was: a
++    // 640x480 picture sitting unchanged in a 960x720 window with black around it. Snapping means a drag to 1000x700
++    // lands on 1280x960, so the picture always moves and every source pixel is the same size on screen. `letterbox`
++    // is the other answer, for anyone who would rather fill the window and accept uneven pixels.
++    if (!s.letterbox) {
++        int ww = 0, wh = 0;
++        SDL_GetWindowSize(s.win, &ww, &wh);
++        // Each axis rounded to its nearest whole multiple, and the larger of the two taken, so dragging bigger grows
++        // the picture instead of dropping it back down a step. Clamped to the desktop, so a small screen cannot ask
++        // for a window that will not fit.
++        int k = sdl_snap_scale(ww, wh, cw, ch);
++        SDL_Rect ub;
++        if (SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(s.win), &ub)) {
++            int cap = std::min(ub.w / cw, ub.h / ch);
++            if (cap >= 1 && k > cap) k = cap;
++        }
++        if (ww != cw * k || wh != ch * k) SDL_SetWindowSize(s.win, cw * k, ch * k);
++    }
+     if (w != s.tw || h != s.th) {
          if (s.tex) SDL_DestroyTexture(s.tex);
          s.tex = SDL_CreateTexture(s.ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
          SDL_SetTextureScaleMode(s.tex, SDL_SCALEMODE_NEAREST);
 -        SDL_SetRenderLogicalPresentation(s.ren, cw, ch, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
-+        // Letterbox rather than integer scale, decided 2026-11-03. INTEGER_SCALE only ever scales by whole numbers,
-+        // measured with this SDL build: a 640x480 canvas in a 960x720 window stays 640x480 and gains black borders,
-+        // and only 1280x960 makes it grow. That reads as "the window resizes and the picture does not", which is
-+        // exactly how it was reported. Letterbox tracks the window at any size and keeps the aspect ratio, so
-+        // 1000x700 draws 933x700. The cost is uneven pixels at non-integer scales, which NEAREST filtering keeps hard
-+        // edged rather than blurry. Integer scaling is the right answer for someone who wants whole pixels, so if it
-+        // is ever wanted back it belongs behind an option rather than as the default.
-+        SDL_SetRenderLogicalPresentation(s.ren, cw, ch, SDL_LOGICAL_PRESENTATION_LETTERBOX);
++        // The mode follows the option: whole multiples by default, letterbox when asked for. The window snapping above
++        // keeps an integer-scaled picture filling its window, so this only has to pick the mode.
++        SDL_SetRenderLogicalPresentation(s.ren, cw, ch, s.letterbox ? SDL_LOGICAL_PRESENTATION_LETTERBOX
++                                                                  : SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
          s.tw = w; s.th = h;
      }
      SDL_UpdateTexture(s.tex, nullptr, s.rgb.data() + (size_t)y * fw + x, fw * 4);
 diff --git a/runtime/towns_sdl.h b/runtime/towns_sdl.h
-index 2a0e2eb..7c7e0e4 100644
+index 2a0e2eb..fd40ebb 100644
 --- a/runtime/towns_sdl.h
 +++ b/runtime/towns_sdl.h
-@@ -17,6 +17,7 @@
+@@ -17,6 +17,8 @@
  //             right buttons), the host's pointer hidden over the window
  #pragma once
  #include "towns.h"
++#include <algorithm>
 +#include <functional>
  #include <memory>
  #include <string>
  
-@@ -34,6 +35,11 @@ public:
+@@ -26,14 +28,33 @@ struct SdlOptions {
+     std::string title = "FM Towns";
+     int scale = 0;                  // 0: the largest whole scale the desktop has room for
+     bool fullscreen = false;
++    // Whole multiples by default, with the window snapped to match, so a drag always moves the picture and every
++    // source pixel is the same size on screen. Letterbox fills whatever the window is and keeps the aspect ratio,
++    // which trades even pixels for a full window.
++    bool letterbox = false;
+ };
+ 
++// The whole-multiple scale a window of this size rounds to, for the default presentation. Integer scaling on its own
++// does nothing between one multiple and the next, so the window is asked to follow the scale instead. Each axis takes
++// its nearest whole multiple and the larger of the two wins, so dragging bigger grows the picture rather than dropping
++// it back a step: 1000x700 over a 640x480 canvas gives 2, and a 1280x960 window. It lives here rather than inside the
++// renderer so a test can call it with no display at all.
++inline int sdl_snap_scale(int ww, int wh, int cw, int ch) {
++    if (cw <= 0 || ch <= 0) return 1;
++    return std::max(1, std::max((ww + cw / 2) / cw, (wh + ch / 2) / ch));
++}
++
+ class SdlHost {
+ public:
+     SdlHost();
      ~SdlHost();
      bool open(const SdlOptions& o, std::string& err);
      void vsync(Machine& m);         // throws Stop{0} when the window is closed

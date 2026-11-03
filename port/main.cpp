@@ -437,6 +437,9 @@ int main(int argc, char** argv) {
 	std::string graphics = "sdl";
 	bool fullscreen = false;
 	int scale = 0;
+	// Whole multiples with the window snapped to match is the default, because a window that resizes while the picture
+	// does not was a real report. This flag is the other answer: fill the window and keep the aspect ratio.
+	bool letterbox = false;
 	long frames_flag = -1;
 	std::string control_spec;
 	// The save disk takes writes by default, because a created character that cannot be saved does not exist. The
@@ -453,6 +456,7 @@ int main(int argc, char** argv) {
 	for (int i = 1; i < argc; ++i) {
 		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
 		else if (!std::strcmp(argv[i], "--fullscreen")) fullscreen = true;
+		else if (!std::strcmp(argv[i], "--letterbox")) letterbox = true;
 		else if (!std::strncmp(argv[i], "--scale=", 8)) scale = std::atoi(argv[i] + 8);
 		else if (!std::strncmp(argv[i], "--frames=", 9)) frames_flag = std::atol(argv[i] + 9);
 		else if (!std::strncmp(argv[i], "--control=", 10)) control_spec = argv[i] + 10;
@@ -1107,6 +1111,7 @@ int main(int argc, char** argv) {
 		o.title = "Ultima II - FM Towns, recompiled";
 		o.scale = scale;
 		o.fullscreen = fullscreen;
+		o.letterbox = letterbox;
 		std::string err;
 		if (host.open(o, err)) {
 			host.on_key = [&m](uint8_t scan, uint8_t ascii) { m.press_key(scan, ascii); };
