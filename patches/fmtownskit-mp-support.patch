@@ -520,7 +520,7 @@ index 08029b9..7d3ce30 100644
 +
  }  // namespace towns
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..e938273 100644
+index 75d5dad..ecfe26b 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
 @@ -10,9 +10,21 @@
@@ -666,24 +666,7 @@ index 75d5dad..e938273 100644
  void x86_jump(X86Cpu& c, uint32_t target) {
      X86Func f = find(c, c.sreg[1], target, target);
      f(c);
-@@ -97,17 +201,29 @@ bool x86_lsl(X86Cpu&, uint32_t sel, uint32_t& limit) {
- uint32_t x86_in(X86Cpu& c, uint32_t port, int n) {
-     g_towns->advance(g_towns->machine_time(c.clocks));
-     if (g_towns->count_access) { ++g_towns->access.io_r; if ((port & ~3u) == 0x4D0) ++g_towns->access.pad_r; }
-+    // Hardware interrupts are delivered here, at the point time actually moves. The guest's clock only advances on I/O in
-+    // this port, so an I/O access is the only safe instruction boundary at which a pending interrupt can be taken without
-+    // inventing a time base. Before this, nothing called the poll at all: no hardware interrupt had ever been delivered,
-+    // and the sound driver's end-of-sample handler had never run, which is why a sample could loop for ever.
-+    x86_poll(c);
-     return g_towns->in(port, n);
- }
- 
- void x86_out(X86Cpu& c, uint32_t port, int n, uint32_t v) {
-     g_towns->advance(g_towns->machine_time(c.clocks));
-     if (g_towns->count_access) { ++g_towns->access.io_w; if (port == 0x6C) ++g_towns->access.wait_w; }
-+    x86_poll(c);
-     g_towns->out(port, n, v);
- }
+@@ -108,6 +212,12 @@ void x86_out(X86Cpu& c, uint32_t port, int n, uint32_t v) {
  
  // Take an interrupt now: the handler runs as a call, its iretd returns here.
  static void take(X86Cpu& c, int vec) {
@@ -696,53 +679,7 @@ index 75d5dad..e938273 100644
      const towns::IntVector& iv = g_towns->pm_vector[vec];
      uint32_t resume = c.eip;
      push32(c, c.fl);
-@@ -120,8 +236,26 @@ static void take(X86Cpu& c, int vec) {
-     if (c.eip != resume) x86_fault(c, resume, "an interrupt handler returned elsewhere");
- }
- 
-+// Guards against a handler's own I/O re-entering the poll: taking an interrupt runs guest code, that code touches ports,
-+// and the poll would then try to take another interrupt inside the first one's delivery.
-+static bool in_poll = false;
-+
- void x86_poll(X86Cpu& c) {
-     towns::Machine& m = *g_towns;
-+    // Once per run, after the machine has settled: is the poll reached at all, and with what interrupt flag? If this never
-+    // appears, nothing calls the poll; if it appears with IF=0, the guest is running with interrupts disabled and no
-+    // delivery mechanism can matter.
-+    static bool told = false;
-+    if (!told && m.frame > 400) {
-+        told = true;
-+        std::fprintf(stderr, "  poll at frame %llu: IF=%d, sound pcm_irq=%d, vectors:", (unsigned long long)m.frame,
-+                     (c.fl & X86_IF) ? 1 : 0, m.sound.pcm_irq ? 1 : 0);
-+        for (int i = 0; i < 256; ++i)
-+            if (m.pm_vector[i].set) std::fprintf(stderr, " %02X", i);
-+        std::fprintf(stderr, "\n");
-+    }
-+    if (in_poll) return;
-+    in_poll = true;
-     m.advance(m.machine_time(c.clocks));
-     while (c.fl & X86_IF) {
-         int vec = m.pending_irq();
-@@ -129,7 +263,10 @@ void x86_poll(X86Cpu& c) {
-         take(c, vec);
-         m.advance(m.machine_time(c.clocks));
-     }
-+    in_poll = false;
-+    in_poll = false;
-     while (c.fl & X86_IF) {             // the timer BIOS's callbacks (int 97h), as its interrupt calls them
-+        in_poll = true;
-         int n = m.t97_due();
-         if (n < 0) break;
-         const towns::Machine::Timer97& t = m.t97[n];
-@@ -148,6 +285,7 @@ void x86_poll(X86Cpu& c) {
-         for (int k = 0; k < 6; ++k) x86_load_seg(c, k, s[k]);
-         c.fl = fl;
-         m.advance(m.machine_time(c.clocks));
-+        in_poll = false;
-     }
-     uint64_t next = m.next_event();
-     int64_t left = (int64_t)(m.cpu_time(next) - c.clocks);
-@@ -158,6 +296,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
+@@ -158,6 +268,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
      towns::Machine& m = *g_towns;
      m.advance(m.machine_time(c.clocks));
      c.eip = next;
@@ -1136,71 +1073,10 @@ index 629a87e..bdcbef8 100644
      case 0x0A: {                                    // the key matrix
          static const uint8_t none[16] = {};
 diff --git a/runtime/towns_io.cpp b/runtime/towns_io.cpp
-index 039e526..8e783bb 100644
+index 039e526..1a1c6ea 100644
 --- a/runtime/towns_io.cpp
 +++ b/runtime/towns_io.cpp
-@@ -8,11 +8,15 @@
- // YM3438's timers), which also answers the sound's ports.
- #include "towns.h"
- #include <algorithm>
-+#include <cstdio>
- #include <cstring>
- 
- namespace towns {
- 
- // ---- the 8259s ----------------------------------------------------------------------------
-+// Counts the dropped-interrupt diagnostics so a session cannot flood the log with them. File scope: it is a property of
-+// the instrument, not of the machine.
-+static unsigned irq_notes = 0;
- static void pic_write(Pic& p, int a, uint8_t v) {
-     if (a == 0) {
-         if (v & 0x10) {                         // ICW1
-@@ -57,6 +61,16 @@ void Machine::raise_irq(int irq, bool level) {
- int Machine::pending_irq() {
-     Pic& m = pic[0];
-     Pic& s = pic[1];
-+    // Once per run, what the program has actually installed. It answers whether the sound line has a handler at all, which
-+    // decides between an interrupt-wiring fault and a missing handler, and it costs one line.
-+    static bool dumped = false;
-+    if (trace_int && !dumped && frame > 400) {
-+        dumped = true;
-+        std::fprintf(stderr, "  IRQ vectors installed (master base %02X, slave base %02X):", m.base & 0xFF, s.base & 0xFF);
-+        for (int i = 0; i < 256; ++i)
-+            if (pm_vector[i].set) std::fprintf(stderr, " %02X", i);
-+        std::fprintf(stderr, "\n");
-+    }
-     int sirq = -1;
-     for (int i = 0; i < 8; ++i) {
-         if (s.isr & (1 << i)) break;
-@@ -68,7 +82,26 @@ int Machine::pending_irq() {
-         if (req && !(m.imr & (1 << i))) { mirq = i; break; }
-         if ((m.isr & (1 << i)) && i != 7) break;
-     }
--    if (mirq < 0) return -1;
-+    if (mirq < 0) {
-+        // The PCM line is IRQ13, which is the slave's IRQ5. If it is asking and we are returning -1, the request is being
-+        // dropped, and the two reasons look identical from the driver's side: the line is masked, or no protected-mode
-+        // handler was ever installed for its vector, which this runtime treats as masked. Saying which is the difference
-+        // between fixing the interrupt wiring and fixing the driver.
-+        if (trace_int && (s.irr & 0x20) && irq_notes++ < 40) {
-+            if (s.imr & 0x20)
-+                std::fprintf(stderr, "  PCM irq dropped: slave IRQ5 masked at frame %llu\n", (unsigned long long)frame);
-+            else if (!pm_vector[s.base + 5].set)
-+                std::fprintf(stderr, "  PCM irq dropped: no protected-mode handler for vector %02X at frame %llu\n",
-+                             (s.base + 5) & 0xFF, (unsigned long long)frame);
-+            else if ((m.imr & 0x02) || (m.isr & 0x02))
-+                std::fprintf(stderr, "  PCM irq dropped: master IRQ1 masked or in service at frame %llu\n",
-+                             (unsigned long long)frame);
-+            else
-+                std::fprintf(stderr, "  PCM irq dropped: cascaded line not taken at frame %llu\n",
-+                             (unsigned long long)frame);
-+        }
-+        return -1;
-+    }
-     m.isr |= (uint8_t)(1 << mirq);
-     if (mirq == 7) { s.isr |= (uint8_t)(1 << sirq); return s.base + sirq; }
-     return m.base + mirq;
-@@ -279,8 +312,24 @@ uint8_t Machine::in8(uint32_t port) {
+@@ -279,8 +279,24 @@ uint8_t Machine::in8(uint32_t port) {
      }
  }
  
@@ -1225,7 +1101,7 @@ index 039e526..8e783bb 100644
      switch (port) {
      case 0x00: pic_write(pic[0], 0, d); return;
      case 0x02: pic_write(pic[0], 2, d); return;
-@@ -342,8 +391,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -342,8 +358,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
          // palette chosen, after the other components went in with the 256-colour one.
          int k = port == 0xFD92 ? 2 : port == 0xFD94 ? 0 : 1;   // b r g
          v.pal_reg[v.pal_sel][k] = d;
@@ -1251,7 +1127,7 @@ index 039e526..8e783bb 100644
          return;
      }
      case 0xFDA0: v.layer_ctrl = d; return;
-@@ -353,7 +417,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -353,7 +384,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
      default:
          if (port >= 0xFD98 && port <= 0xFD9F) { v.degipal[port - 0xFD98] = d; v.dpmd = true; return; }
          if (port >= 0x3000 && port < 0x5000) { unknown("CMOS write %04x", port); return; }
