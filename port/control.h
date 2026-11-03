@@ -21,17 +21,17 @@ struct Command {
 };
 
 class Channel {
-public:
-	bool open(const std::string&, std::string& err) {
+  public:
+	bool open(const std::string &, std::string &err) {
 		err = "this build has no control socket: it is POSIX only and the Windows build does not port it";
 		return false;
 	}
-	const std::string& bound() const { return empty_; }
+	const std::string &bound() const { return empty_; }
 	void poll() {}
-	void send(const std::string&) {}
-	int next(Command&, std::string&) { return -1; }
+	void send(const std::string &) {}
+	int next(Command &, std::string &) { return -1; }
 
-private:
+  private:
 	std::string empty_;
 };
 
@@ -91,9 +91,11 @@ struct Command {
 
 // The version of the protocol, not of the port. A caller that sends `hello` gets this back and can refuse to
 // guess. It goes up when a command is added or a field changes meaning, which is the only way a protocol stays honest.
-inline const char* version() { return "1"; }
+inline const char *version() {
+	return "1";
+}
 
-inline void escape(const std::string& s, std::string& out) {
+inline void escape(const std::string &s, std::string &out) {
 	for (char c : s) {
 		if (c == '"' || c == '\\') {
 			out.push_back('\\');
@@ -110,37 +112,42 @@ inline void escape(const std::string& s, std::string& out) {
 	}
 }
 
-inline std::string error_reply(long id, const std::string& what) {
+inline std::string error_reply(long id, const std::string &what) {
 	std::string out = "{\"id\":" + std::to_string(id) + ",\"ok\":false,\"error\":\"";
 	escape(what, out);
 	out += "\"}\n";
 	return out;
 }
 
-inline std::string ok_reply(long id, const std::string& fields) {
+inline std::string ok_reply(long id, const std::string &fields) {
 	std::string out = "{\"id\":" + std::to_string(id) + ",\"ok\":true";
-	if (!fields.empty()) out += "," + fields;
+	if (!fields.empty())
+		out += "," + fields;
 	out += "}\n";
 	return out;
 }
 
 // Parse one flat JSON object of scalars. Anything fancier is refused with a reason rather than half-accepted,
 // because a half-accepted command is a command that did something else.
-inline bool parse_line(const std::string& line, Command& out, std::string& err) {
+inline bool parse_line(const std::string &line, Command &out, std::string &err) {
 	size_t i = 0;
 	auto ws = [&]() {
-		while (i < line.size() && (line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '\n')) ++i;
+		while (i < line.size() && (line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '\n'))
+			++i;
 	};
-	auto literal = [&](std::string& v) {
+	auto literal = [&](std::string &v) {
 		if (i < line.size() && line[i] == '"') {
 			++i;
 			v.clear();
 			while (i < line.size() && line[i] != '"') {
 				if (line[i] == '\\' && i + 1 < line.size()) {
 					char n = line[i + 1];
-					if (n == 'n') v.push_back('\n');
-					else if (n == 't') v.push_back('\t');
-					else v.push_back(n);
+					if (n == 'n')
+						v.push_back('\n');
+					else if (n == 't')
+						v.push_back('\t');
+					else
+						v.push_back(n);
 					i += 2;
 					continue;
 				}
@@ -154,9 +161,11 @@ inline bool parse_line(const std::string& line, Command& out, std::string& err) 
 			return true;
 		}
 		size_t start = i;
-		while (i < line.size() && line[i] != ',' && line[i] != '}') ++i;
+		while (i < line.size() && line[i] != ',' && line[i] != '}')
+			++i;
 		v = line.substr(start, i - start);
-		while (!v.empty() && (v.back() == ' ' || v.back() == '\t')) v.pop_back();
+		while (!v.empty() && (v.back() == ' ' || v.back() == '\t'))
+			v.pop_back();
 		if (v.empty()) {
 			err = "empty value";
 			return false;
@@ -177,7 +186,8 @@ inline bool parse_line(const std::string& line, Command& out, std::string& err) 
 			break;
 		}
 		std::string key;
-		if (!literal(key)) return false;
+		if (!literal(key))
+			return false;
 		ws();
 		if (i >= line.size() || line[i] != ':') {
 			err = "no colon after " + key;
@@ -186,7 +196,8 @@ inline bool parse_line(const std::string& line, Command& out, std::string& err) 
 		++i;
 		ws();
 		std::string val;
-		if (!literal(val)) return false;
+		if (!literal(val))
+			return false;
 		if (key == "id") {
 			out.id = std::strtol(val.c_str(), nullptr, 10);
 		} else if (key == "cmd" || key == "command") {
@@ -216,14 +227,16 @@ inline bool parse_line(const std::string& line, Command& out, std::string& err) 
 // Base64, because `shot` returns a PNG over a text protocol and the alternative is a second transport for one
 // command. Standard alphabet, no line breaks: a reply is one line, and a folded base64 field is a parsing bug
 // waiting for a caller that forgot to unfold.
-inline std::string b64(const std::vector<uint8_t>& in) {
-	static const char* tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+inline std::string b64(const std::vector<uint8_t> &in) {
+	static const char *tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	std::string out;
 	out.reserve(((in.size() + 2) / 3) * 4);
 	for (size_t i = 0; i < in.size(); i += 3) {
 		uint32_t v = (uint32_t)in[i] << 16;
-		if (i + 1 < in.size()) v |= (uint32_t)in[i + 1] << 8;
-		if (i + 2 < in.size()) v |= in[i + 2];
+		if (i + 1 < in.size())
+			v |= (uint32_t)in[i + 1] << 8;
+		if (i + 2 < in.size())
+			v |= in[i + 2];
 		out.push_back(tbl[(v >> 18) & 63]);
 		out.push_back(tbl[(v >> 12) & 63]);
 		out.push_back(i + 1 < in.size() ? tbl[(v >> 6) & 63] : '=');
@@ -233,9 +246,10 @@ inline std::string b64(const std::vector<uint8_t>& in) {
 }
 
 // Read a whole file, or return false. Used by `shot` to hand back the PNG the kit just wrote.
-inline bool read_file(const std::string& path, std::vector<uint8_t>& out) {
-	FILE* f = std::fopen(path.c_str(), "rb");
-	if (!f) return false;
+inline bool read_file(const std::string &path, std::vector<uint8_t> &out) {
+	FILE *f = std::fopen(path.c_str(), "rb");
+	if (!f)
+		return false;
 	std::fseek(f, 0, SEEK_END);
 	long n = std::ftell(f);
 	std::fseek(f, 0, SEEK_SET);
@@ -246,22 +260,24 @@ inline bool read_file(const std::string& path, std::vector<uint8_t>& out) {
 }
 
 class Channel {
-public:
+  public:
 	~Channel() { close_all(); }
 
 	// A spec with a '/' is a Unix socket path, anything else is host:port. Port 0 is allowed and the bound port is
 	// read back, which is what lets a test grab an ephemeral port without a collision.
-	bool open(const std::string& spec, std::string& err) {
-		if (spec.find('/') != std::string::npos) return open_unix(spec, err);
+	bool open(const std::string &spec, std::string &err) {
+		if (spec.find('/') != std::string::npos)
+			return open_unix(spec, err);
 		return open_tcp(spec, err);
 	}
 
-	const std::string& bound() const { return bound_; }
+	const std::string &bound() const { return bound_; }
 
 	// Called from the frame hook. Never blocks: everything here is non-blocking and bounded by one accept and one
 	// read per frame, so a slow or silent client cannot stall the machine.
 	void poll() {
-		if (listen_fd_ < 0) return;
+		if (listen_fd_ < 0)
+			return;
 		struct pollfd pfd {};
 		pfd.fd = listen_fd_;
 		pfd.events = POLLIN;
@@ -272,7 +288,8 @@ public:
 				client_fd_ = fd;
 			}
 		}
-		if (client_fd_ < 0) return;
+		if (client_fd_ < 0)
+			return;
 		char buf[4096];
 		ssize_t n = ::recv(client_fd_, buf, sizeof buf, 0);
 		if (n == 0) {
@@ -290,7 +307,8 @@ public:
 		if (n > 0) {
 			for (ssize_t i = 0; i < n; ++i) {
 				if (buf[i] == '\n') {
-					if (!line_.empty()) queue_.push(line_);
+					if (!line_.empty())
+						queue_.push(line_);
 					line_.clear();
 				} else {
 					line_.push_back(buf[i]);
@@ -302,14 +320,16 @@ public:
 	// 0 = nothing queued, 1 = parsed into c, -1 = the line was not a command and err says why. A malformed line has
 	// to be distinguishable from an empty queue, because a caller that treats "bad" as "nothing yet" silently drops
 	// the command, which is exactly what the first version of this did and the protocol test caught.
-	int next(Command& c, std::string& err) {
+	int next(Command &c, std::string &err) {
 		std::string line;
-		if (!queue_.pop(line)) return 0;
+		if (!queue_.pop(line))
+			return 0;
 		return parse_line(line, c, err) ? 1 : -1;
 	}
 
-	void send(const std::string& json) {
-		if (client_fd_ < 0) return;
+	void send(const std::string &json) {
+		if (client_fd_ < 0)
+			return;
 		size_t off = 0;
 		while (off < json.size()) {
 			ssize_t n = ::send(client_fd_, json.data() + off, json.size() - off, 0);
@@ -331,15 +351,16 @@ public:
 	// the client is being accepted. It is flushed on the next poll.
 	bool has_client() const { return client_fd_ >= 0; }
 
-private:
+  private:
 	// A FIFO with an index, which is all a command queue needs and costs no new include in a port that links a
 	// recompiled game.
 	struct Queue {
 		std::vector<std::string> items;
 		size_t at = 0;
 		void push(std::string s) { items.push_back(std::move(s)); }
-		bool pop(std::string& out) {
-			if (at >= items.size()) return false;
+		bool pop(std::string &out) {
+			if (at >= items.size())
+				return false;
 			out = items[at++];
 			if (at == items.size()) {
 				items.clear();
@@ -351,17 +372,21 @@ private:
 
 	static void set_nonblock(int fd) {
 		int fl = ::fcntl(fd, F_GETFL, 0);
-		if (fl >= 0) ::fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+		if (fl >= 0)
+			::fcntl(fd, F_SETFL, fl | O_NONBLOCK);
 	}
 
 	void close_all() {
-		if (client_fd_ >= 0) ::close(client_fd_);
-		if (listen_fd_ >= 0) ::close(listen_fd_);
-		if (!bound_path_.empty()) ::unlink(bound_path_.c_str());
+		if (client_fd_ >= 0)
+			::close(client_fd_);
+		if (listen_fd_ >= 0)
+			::close(listen_fd_);
+		if (!bound_path_.empty())
+			::unlink(bound_path_.c_str());
 		client_fd_ = listen_fd_ = -1;
 	}
 
-	bool open_tcp(const std::string& spec, std::string& err) {
+	bool open_tcp(const std::string &spec, std::string &err) {
 		size_t colon = spec.rfind(':');
 		if (colon == std::string::npos) {
 			err = "--control wants host:port or /path/to.sock";
@@ -389,19 +414,19 @@ private:
 				return false;
 			}
 		}
-		if (::bind(listen_fd_, (struct sockaddr*)&a, sizeof a) != 0) {
+		if (::bind(listen_fd_, (struct sockaddr *)&a, sizeof a) != 0) {
 			err = std::string("bind: ") + std::strerror(errno);
 			return false;
 		}
 		socklen_t len = sizeof a;
-		::getsockname(listen_fd_, (struct sockaddr*)&a, &len);
+		::getsockname(listen_fd_, (struct sockaddr *)&a, &len);
 		char ip[INET_ADDRSTRLEN];
 		::inet_ntop(AF_INET, &a.sin_addr, ip, sizeof ip);
 		bound_ = std::string(ip) + ":" + std::to_string(ntohs(a.sin_port));
 		return finish(err);
 	}
 
-	bool open_unix(const std::string& path, std::string& err) {
+	bool open_unix(const std::string &path, std::string &err) {
 		// A stale socket file from a previous run is not an error worth failing a release on, but a live one is:
 		// bind() answers that question, so unlink only after proving nobody is listening.
 		int probe = ::socket(AF_UNIX, SOCK_STREAM, 0);
@@ -409,7 +434,7 @@ private:
 			struct sockaddr_un ua {};
 			ua.sun_family = AF_UNIX;
 			std::strncpy(ua.sun_path, path.c_str(), sizeof ua.sun_path - 1);
-			if (::connect(probe, (struct sockaddr*)&ua, sizeof ua) == 0) {
+			if (::connect(probe, (struct sockaddr *)&ua, sizeof ua) == 0) {
 				::close(probe);
 				err = "something is already listening on " + path;
 				return false;
@@ -425,7 +450,7 @@ private:
 		struct sockaddr_un ua {};
 		ua.sun_family = AF_UNIX;
 		std::strncpy(ua.sun_path, path.c_str(), sizeof ua.sun_path - 1);
-		if (::bind(listen_fd_, (struct sockaddr*)&ua, sizeof ua) != 0) {
+		if (::bind(listen_fd_, (struct sockaddr *)&ua, sizeof ua) != 0) {
 			err = std::string("bind: ") + std::strerror(errno);
 			return false;
 		}
@@ -434,7 +459,7 @@ private:
 		return finish(err);
 	}
 
-	bool finish(std::string& err) {
+	bool finish(std::string &err) {
 		if (::listen(listen_fd_, 1) != 0) {
 			err = std::string("listen: ") + std::strerror(errno);
 			return false;
@@ -453,4 +478,4 @@ private:
 
 }  // namespace u2ctl
 
-#endif  // !_WIN32
+#endif	// !_WIN32

@@ -2,9 +2,11 @@
 # by the preservation track; reformatting it would destroy that comparison.
 #
 # This file is written to match the style port/ already uses rather than to change it: tabs, 4-wide, braces attached,
-# 120 columns, trailing comments left aligned in their column. It has NOT yet been run, because no clang-format is
-# installed on the machine that wrote it. The first person to run it should do so in a commit of its own, so that any
-# reformatting it disagrees with is visible as whitespace rather than hidden inside a change of behaviour.
+# 120 columns, trailing comments left aligned in their column. It was first run on 2026-11-03, in a commit of its own as
+# this note asked, and version 18 is the one that counts: CI has clang-format 18 and 19 disagrees with it on
+# access-modifier indent and pointer alignment, so running a newer one reformats the tree into a state the gate rejects.
+# The pin is therefore the clang-format major, and `python3 -m venv` plus `pip install clang-format==18.1.8` is how to
+# get exactly it without a distro package manager deciding for you.
 BasedOnStyle: LLVM
 Language: Cpp
 UseTab: Always

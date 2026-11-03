@@ -59,7 +59,8 @@ inline bool shadow_off() {
 // U2_SHADOW_TRACE=1 reports entry, so a comparison that passes cannot be the vacuous kind where nothing ran.
 inline void shadow_entered(uint32_t addr) {
 	static const bool trace = std::getenv("U2_SHADOW_TRACE") != nullptr;
-	if (trace) std::fprintf(stderr, "shadow    entered 0x%x\n", addr);
+	if (trace)
+		std::fprintf(stderr, "shadow    entered 0x%x\n", addr);
 }
 
 // Report the entry, and answer whether the caller must run the recompiled twin instead.
@@ -69,49 +70,62 @@ inline bool delegate(uint32_t addr) {
 }
 
 // Charge n cycles of the guest's clock and interrupt budget.
-inline void tick(X86Cpu& c, int n) {
+inline void tick(X86Cpu &c, int n) {
 	c.budget -= n;
 	c.clocks += (uint64_t)n;
 }
 
 // An argument of the guest's stack frame: [esp+4] is argument 0 at the routine's entry.
-inline uint32_t arg32(X86Cpu& c, int n) { return rd32(c.sbase[2] + c.r[4] + 0x4u + 0x4u * (uint32_t)n); }
-inline int32_t arg16(X86Cpu& c, int n) { return (int32_t)(int16_t)rd16(c.sbase[2] + c.r[4] + 0x4u + 0x4u * (uint32_t)n); }
+inline uint32_t arg32(X86Cpu &c, int n) {
+	return rd32(c.sbase[2] + c.r[4] + 0x4u + 0x4u * (uint32_t)n);
+}
+inline int32_t arg16(X86Cpu &c, int n) {
+	return (int32_t)(int16_t)rd16(c.sbase[2] + c.r[4] + 0x4u + 0x4u * (uint32_t)n);
+}
 
 // The data segment, which is where every pointer these routines receive points.
-inline uint8_t data8(X86Cpu& c, uint32_t at) { return rd8(c.sbase[3] + at); }
-inline uint32_t data32(X86Cpu& c, uint32_t at) { return rd32(c.sbase[3] + at); }
-inline void put32(X86Cpu& c, uint32_t at, uint32_t v) { wr32(c.sbase[3] + at, v); }
-inline void put16(X86Cpu& c, uint32_t at, uint16_t v) { wr16(c.sbase[3] + at, v); }
+inline uint8_t data8(X86Cpu &c, uint32_t at) {
+	return rd8(c.sbase[3] + at);
+}
+inline uint32_t data32(X86Cpu &c, uint32_t at) {
+	return rd32(c.sbase[3] + at);
+}
+inline void put32(X86Cpu &c, uint32_t at, uint32_t v) {
+	wr32(c.sbase[3] + at, v);
+}
+inline void put16(X86Cpu &c, uint32_t at, uint16_t v) {
+	wr16(c.sbase[3] + at, v);
+}
 
 namespace detail {
 // The common half of every call: push the arguments in reverse so the callee finds them at [esp+4] onwards, push the
 // sentinel, dispatch. Returns false when the callee did not return to this call.
-inline bool call_prepare_and_dispatch(X86Cpu& c, uint32_t target, X86Func fn, int nargs) {
+inline bool call_prepare_and_dispatch(X86Cpu &c, uint32_t target, X86Func fn, int nargs) {
 	push32(c, kCallSentinel);
 	x86_call_known(c, target, fn);
-	if (c.eip != kCallSentinel) return false;
-	c.r[4] += 0x4u * (uint32_t)nargs;   // cdecl: the caller drops the arguments
+	if (c.eip != kCallSentinel)
+		return false;
+	c.r[4] += 0x4u * (uint32_t)nargs;  // cdecl: the caller drops the arguments
 	return true;
 }
 }  // namespace detail
 
-inline bool call0(X86Cpu& c, uint32_t target, X86Func fn) {
+inline bool call0(X86Cpu &c, uint32_t target, X86Func fn) {
 	return detail::call_prepare_and_dispatch(c, target, fn, 0);
 }
 
-inline bool call1(X86Cpu& c, uint32_t target, X86Func fn, uint32_t a1) {
+inline bool call1(X86Cpu &c, uint32_t target, X86Func fn, uint32_t a1) {
 	push32(c, a1);
 	return detail::call_prepare_and_dispatch(c, target, fn, 1);
 }
 
-inline bool call2(X86Cpu& c, uint32_t target, X86Func fn, uint32_t a1, uint32_t a2) {
+inline bool call2(X86Cpu &c, uint32_t target, X86Func fn, uint32_t a1, uint32_t a2) {
 	push32(c, a2);
 	push32(c, a1);
 	return detail::call_prepare_and_dispatch(c, target, fn, 2);
 }
 
-inline bool call3(X86Cpu& c, uint32_t target, X86Func fn, uint32_t a1, uint32_t a2, uint32_t a3) {
+inline bool call3(X86Cpu &c, uint32_t target, X86Func fn, uint32_t a1, uint32_t a2, uint32_t a3) {
 	push32(c, a3);
 	push32(c, a2);
 	push32(c, a1);
@@ -120,13 +134,14 @@ inline bool call3(X86Cpu& c, uint32_t target, X86Func fn, uint32_t a1, uint32_t 
 
 // For a call with more arguments than a rule wants to spell out: `args` is in declaration order, so args[0] becomes
 // the argument the callee reads at [esp+4].
-inline bool callN(X86Cpu& c, uint32_t target, X86Func fn, const uint32_t* args, int nargs) {
-	for (int i = nargs - 1; i >= 0; --i) push32(c, args[i]);
+inline bool callN(X86Cpu &c, uint32_t target, X86Func fn, const uint32_t *args, int nargs) {
+	for (int i = nargs - 1; i >= 0; --i)
+		push32(c, args[i]);
 	return detail::call_prepare_and_dispatch(c, target, fn, nargs);
 }
 
 // Put v in eax and pop the caller's return address, which is what `ret` does.
-inline void ret(X86Cpu& c, uint32_t v) {
+inline void ret(X86Cpu &c, uint32_t v) {
 	c.r[0] = v;
 	c.eip = pop32(c);
 }

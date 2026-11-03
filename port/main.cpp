@@ -60,9 +60,10 @@ extern const X86Module g_mod_p_game;
 // OUTSIDE the X86_TRACE_ON guard, unlike everything below it. It was inside, and the call at the end of a run is
 // not guarded, so a build without the trace failed to compile with "print_vram_hash was not declared in this
 // scope". VRAM hashing is an instrument in its own right (U2_VRAM_HASH) and does not need the trace to exist.
-static void print_vram_hash(const towns::Machine& m) {
-	auto fnv = [](const uint8_t* p, size_t n, uint32_t h) {
-		for (size_t i = 0; i < n; ++i) h = (h ^ p[i]) * 16777619u;
+static void print_vram_hash(const towns::Machine &m) {
+	auto fnv = [](const uint8_t *p, size_t n, uint32_t h) {
+		for (size_t i = 0; i < n; ++i)
+			h = (h ^ p[i]) * 16777619u;
 		return h;
 	};
 	std::printf("vramhash  %08x  %zu bytes\n", fnv(m.vram.data(), m.vram.size(), 2166136261u), m.vram.size());
@@ -86,12 +87,16 @@ static void print_vram_hash(const towns::Machine& m) {
 // its own documentation recommends instead. Nothing else in the port or the toolkit is POSIX: grepping for
 // unsetenv, setenv, environ, mmap, dlopen, pthread_ or /proc/ finds only these lines.
 #ifdef _WIN32
-extern "C" char** _environ;
+extern "C" char **_environ;
 #define environ _environ
-static void unset_env(const char* name) { _putenv_s(name, ""); }
+static void unset_env(const char *name) {
+	_putenv_s(name, "");
+}
 #else
-extern char** environ;
-static void unset_env(const char* name) { unsetenv(name); }
+extern char **environ;
+static void unset_env(const char *name) {
+	unsetenv(name);
+}
 #endif
 // Instrument variables removed because --dev was not given. Declared here because the sweep that fills it runs in
 // main() and the line that reports it is printed later.
@@ -101,41 +106,46 @@ static void print_instruments() {
 		std::string name, value;
 	};
 	std::vector<Item> items;
-	for (char** e = environ; e && *e; ++e) {
+	for (char **e = environ; e && *e; ++e) {
 		std::string s(*e);
-		if (s.rfind("U2_", 0) != 0) continue;
+		if (s.rfind("U2_", 0) != 0)
+			continue;
 		size_t eq = s.find('=');
 		items.push_back({s.substr(0, eq), eq == std::string::npos ? std::string() : s.substr(eq + 1)});
 	}
-	std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.name < b.name; });
+	std::sort(items.begin(), items.end(), [](const Item &a, const Item &b) { return a.name < b.name; });
 	// The switches whose handling sits inside `#ifdef X86_TRACE_ON`, measured 2026-11-02 from the guard at line 531.
-	static const char* kTraceOnly[] = {"U2_STOP_AT", "U2_STOP_COUNT", "U2_STOP_DUMP", "U2_STOP_FRAME",
-	                                   "U2_TRACE_FILE", "U2_TRACE_LIMIT"};
+	static const char *kTraceOnly[] = {"U2_STOP_AT",	"U2_STOP_COUNT", "U2_STOP_DUMP",
+									   "U2_STOP_FRAME", "U2_TRACE_FILE", "U2_TRACE_LIMIT"};
 	std::printf("instruments");
-	if (items.empty()) std::printf(" none, plain gameplay");
-	for (const Item& it : items) {
+	if (items.empty())
+		std::printf(" none, plain gameplay");
+	for (const Item &it : items) {
 		std::string v = it.value;
-		if (v.size() > 60) v = v.substr(0, 60) + "...";
+		if (v.size() > 60)
+			v = v.substr(0, 60) + "...";
 		std::printf(" %s=%s", it.name.c_str(), v.c_str());
 #ifndef X86_TRACE_ON
-		for (const char* t : kTraceOnly)
-			if (it.name == t) std::printf("(IGNORED, needs -DU2_TRACE=ON)");
+		for (const char *t : kTraceOnly)
+			if (it.name == t)
+				std::printf("(IGNORED, needs -DU2_TRACE=ON)");
 #endif
 	}
 	// Dropped switches are named too. Without this the gate would silently ignore a switch, which is the same defect
 	// in a new place: an instrument that does nothing and says nothing about doing nothing.
 	if (!g_instruments_dropped.empty()) {
 		std::printf("  [dropped, pass --dev:");
-		for (const std::string& n : g_instruments_dropped) std::printf(" %s", n.c_str());
+		for (const std::string &n : g_instruments_dropped)
+			std::printf(" %s", n.c_str());
 		std::printf("]");
 	}
 	std::printf("\n");
 }
 
 #ifdef X86_TRACE_ON
-static FILE* g_trace_file = nullptr;
+static FILE *g_trace_file = nullptr;
 static unsigned long long g_trace_written = 0, g_trace_limit = 0;
-static std::vector<uint8_t> g_trace_seen;     // one byte per 4 KB page of a 64 MB window, then bit set per byte
+static std::vector<uint8_t> g_trace_seen;  // one byte per 4 KB page of a 64 MB window, then bit set per byte
 static uint32_t g_stop_at = 0, g_stop_dump = 0, g_stop_len = 0;
 static unsigned long long g_stop_count = 0, g_stop_hits = 0;
 static unsigned long long g_stop_frame = 0;
@@ -152,27 +162,29 @@ static unsigned long long g_stop_frame = 0;
 // start-up and never at the operation under study: the first hit of TBIOS's text renderer is the copyright notice,
 // and the game menu's own call is 14 hits later. That is a comparison of the wrong moment, which reads exactly like
 // a real difference.
-void x86_trace(X86Cpu& c, uint32_t at) {
+void x86_trace(X86Cpu &c, uint32_t at) {
 	if (g_stop_at && at == g_stop_at) {
-		if (g_stop_frame && (!towns::g_towns || towns::g_towns->frame < g_stop_frame)) return;
-		if (++g_stop_hits < g_stop_count) return;      // U2_STOP_COUNT stops at the Nth hit, not the first
-		std::printf("stop      reached 0x%06x on hit %llu after %llu instructions\n", at, g_stop_hits,
-		            g_trace_written);
+		if (g_stop_frame && (!towns::g_towns || towns::g_towns->frame < g_stop_frame))
+			return;
+		if (++g_stop_hits < g_stop_count)
+			return;	 // U2_STOP_COUNT stops at the Nth hit, not the first
+		std::printf("stop      reached 0x%06x on hit %llu after %llu instructions\n", at, g_stop_hits, g_trace_written);
 		if (g_stop_dump && g_stop_len) {
 			std::vector<uint8_t> buf(g_stop_len);
 			towns::g_towns->read_block(g_stop_dump, buf.data(), (uint32_t)buf.size());
 			std::printf("memory    %08x:", g_stop_dump);
-			for (unsigned char ch : buf) std::printf(" %02x", ch);
+			for (unsigned char ch : buf)
+				std::printf(" %02x", ch);
 			std::printf("\n");
 		}
-		std::printf("regs      eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x esp %08x\n",
-		            c.r[0], c.r[3], c.r[1], c.r[2], c.r[6], c.r[7], c.r[5], c.r[4]);
+		std::printf("regs      eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x esp %08x\n", c.r[0],
+					c.r[3], c.r[1], c.r[2], c.r[6], c.r[7], c.r[5], c.r[4]);
 		// The segment registers and their bases, because a difference in a descriptor's base looks exactly like a
 		// difference in the data and the general registers cannot tell the two apart.
 		std::printf("segs      cs %04x/%08x ds %04x/%08x es %04x/%08x ss %04x/%08x fs %04x/%08x gs %04x/%08x\n",
-		            (unsigned)c.sreg[1], (unsigned)c.sbase[1], (unsigned)c.sreg[3], (unsigned)c.sbase[3],
-		            (unsigned)c.sreg[0], (unsigned)c.sbase[0], (unsigned)c.sreg[2], (unsigned)c.sbase[2],
-		            (unsigned)c.sreg[4], (unsigned)c.sbase[4], (unsigned)c.sreg[5], (unsigned)c.sbase[5]);
+					(unsigned)c.sreg[1], (unsigned)c.sbase[1], (unsigned)c.sreg[3], (unsigned)c.sbase[3],
+					(unsigned)c.sreg[0], (unsigned)c.sbase[0], (unsigned)c.sreg[2], (unsigned)c.sbase[2],
+					(unsigned)c.sreg[4], (unsigned)c.sbase[4], (unsigned)c.sreg[5], (unsigned)c.sbase[5]);
 		// The call stack, because a divergence this early is usually "the machine got here through a path that
 		// initialised something and the port got here through one that did not", and the return address names the
 		// path. The first dword is the return address; the rest is whatever the caller had pushed.
@@ -195,16 +207,21 @@ void x86_trace(X86Cpu& c, uint32_t at) {
 			std::memcpy(&ret, rb, 4);
 			std::printf(" ret %08x\n", ret);
 		}
-		if (g_trace_file) std::fclose(g_trace_file);
-		if (std::getenv("U2_VRAM_HASH")) print_vram_hash(*towns::g_towns);
+		if (g_trace_file)
+			std::fclose(g_trace_file);
+		if (std::getenv("U2_VRAM_HASH"))
+			print_vram_hash(*towns::g_towns);
 		std::exit(0);
 	}
-	if (!g_trace_file || g_trace_written >= g_trace_limit) return;
+	if (!g_trace_file || g_trace_written >= g_trace_limit)
+		return;
 	uint64_t key = ((uint64_t)(c.sreg[1] & 0xFFFF) << 32) | at;
-	if (g_trace_seen.empty()) g_trace_seen.assign((size_t)1 << 22, 0);   // 4 MB of bits covers 32 M addresses
+	if (g_trace_seen.empty())
+		g_trace_seen.assign((size_t)1 << 22, 0);  // 4 MB of bits covers 32 M addresses
 	size_t slot = (size_t)(key >> 3) & ((1u << 22) - 1);
 	uint8_t bit = (uint8_t)(1u << (key & 7));
-	if (g_trace_seen[slot] & bit) return;
+	if (g_trace_seen[slot] & bit)
+		return;
 	g_trace_seen[slot] |= bit;
 	std::fprintf(g_trace_file, "%04x:%08x\n", (unsigned)c.sreg[1], at);
 	++g_trace_written;
@@ -226,24 +243,27 @@ static bool g_saves_dir = false;
 // name lives). They are defined here because the floppy is U2's save-disk format in practice, not a platform
 // service the kit should own. The declaration there sits inside namespace towns, so these must too.
 namespace towns {
-bool fm_floppy_attrs(const std::string& path, uint32_t& attrib, uint32_t& size) {
+bool fm_floppy_attrs(const std::string &path, uint32_t &attrib, uint32_t &size) {
 	u2floppy::Entry e;
-	if (!(g_saves_dir ? g_saves.find(path, e) : g_floppy.find(path, e))) return false;
+	if (!(g_saves_dir ? g_saves.find(path, e) : g_floppy.find(path, e)))
+		return false;
 	attrib = e.dos_attr();
 	size = e.size;
 	return true;
 }
 
-bool fm_floppy_read(const std::string& path, std::vector<uint8_t>& out) {
+bool fm_floppy_read(const std::string &path, std::vector<uint8_t> &out) {
 	return g_saves_dir ? g_saves.read(path, out) : g_floppy.read(path, out);
 }
 
 // The write policy, in one place. The save disk is the only writable image there is, and it is writable unless the
 // run asked not to be. The game disc is not reachable from here at all: it is a separate file served by the CD
 // path, so "never mutate the original media" needs no rule in this function because there is nothing to guard.
-bool fm_floppy_writable(const std::string& /*path*/) { return g_saves_dir ? g_saves.writable() : g_floppy.writable(); }
+bool fm_floppy_writable(const std::string & /*path*/) {
+	return g_saves_dir ? g_saves.writable() : g_floppy.writable();
+}
 
-bool fm_floppy_write(const std::string& path, const std::vector<uint8_t>& data) {
+bool fm_floppy_write(const std::string &path, const std::vector<uint8_t> &data) {
 	return g_saves_dir ? g_saves.write_file(path, data) : g_floppy.write_file(path, data);
 }
 }  // namespace towns
@@ -260,7 +280,7 @@ bool fm_floppy_write(const std::string& path, const std::vector<uint8_t>& data) 
 // a large amount of code to get subtly wrong. A missing piece therefore names the command that produces it.
 namespace fs = std::filesystem;
 
-static bool file_exists(const std::string& p) {
+static bool file_exists(const std::string &p) {
 	std::error_code ec;
 	return fs::is_regular_file(p, ec);
 }
@@ -268,14 +288,15 @@ static bool file_exists(const std::string& p) {
 // The places to look, nearest first. `.` is the current directory; `game`, `original` and `data` are the names a
 // reader is likely to have used; the binary's own directory covers a double-click, and its `game` subdirectory covers
 // an unpacked archive laid out beside the executable.
-static std::vector<std::string> media_dirs(const char* argv0) {
+static std::vector<std::string> media_dirs(const char *argv0) {
 	std::vector<std::string> dirs{"."};
 	// assets/save-disk is where this archive ships the prepared floppy, once the reader unpacks it from
 	// assets/save-disk/userdisk.hdm.zip. Finding it there is the difference between the game starting and the game
 	// showing its own WRONG DISK prompt on the first run.
-	for (const char* d : {"game", "original", "data", "assets/save-disk"}) {
+	for (const char *d : {"game", "original", "data", "assets/save-disk"}) {
 		std::error_code ec;
-		if (fs::is_directory(d, ec)) dirs.push_back(d);
+		if (fs::is_directory(d, ec))
+			dirs.push_back(d);
 	}
 	std::error_code ec;
 	const fs::path exe = fs::absolute(argv0 ? argv0 : "u2port", ec);
@@ -287,11 +308,12 @@ static std::vector<std::string> media_dirs(const char* argv0) {
 	return dirs;
 }
 
-static std::string find_media(const std::vector<std::string>& dirs, std::initializer_list<const char*> names) {
-	for (const std::string& d : dirs)
-		for (const char* n : names) {
+static std::string find_media(const std::vector<std::string> &dirs, std::initializer_list<const char *> names) {
+	for (const std::string &d : dirs)
+		for (const char *n : names) {
 			const std::string p = (d == ".") ? std::string(n) : d + "/" + n;
-			if (file_exists(p)) return p;
+			if (file_exists(p))
+				return p;
 		}
 	return std::string();
 }
@@ -300,25 +322,29 @@ static std::string find_media(const std::vector<std::string>& dirs, std::initial
 // image is what play.sh does in its work directory, and doing it here means a reader with only the unzipped download
 // can still run. It is written once and only when there is exactly one image, so a directory holding several cannot
 // be guessed at wrongly.
-static std::string cue_from_image(const std::vector<std::string>& dirs) {
-	for (const std::string& d : dirs) {
+static std::string cue_from_image(const std::vector<std::string> &dirs) {
+	for (const std::string &d : dirs) {
 		std::error_code ec;
 		std::vector<fs::path> images;
-		for (const auto& e : fs::directory_iterator(d, ec)) {
+		for (const auto &e : fs::directory_iterator(d, ec)) {
 			const std::string ext = e.path().extension().string();
-			if (ext == ".img" || ext == ".IMG") images.push_back(e.path());
+			if (ext == ".img" || ext == ".IMG")
+				images.push_back(e.path());
 		}
-		if (ec || images.size() != 1) continue;
-		const fs::path& img = images.front();
+		if (ec || images.size() != 1)
+			continue;
+		const fs::path &img = images.front();
 		// A NAME OF OUR OWN, because the obvious one is taken and wrong. The archive.org download ships
 		// "<image>.cue" beside "<image>.img", and that cue declares a PREGAP on the audio tracks that the reader
 		// refuses. Writing "<image>.cue" therefore either collides with the download's own file, in which case the
 		// first version of this returned it and the port refused to start on a perfectly good rip, or overwrites
 		// something the reader owns. Ours goes in a name the download cannot have.
 		const fs::path cue = img.parent_path() / (img.stem().string() + ".u2port.cue");
-		if (file_exists(cue.string())) return cue.string();
+		if (file_exists(cue.string()))
+			return cue.string();
 		std::ofstream out(cue);
-		if (!out) continue;
+		if (!out)
+			continue;
 		// Relative to the cue, because that is how the reader resolves it: an absolute path here comes out doubled.
 		out << "FILE \"" << img.filename().string() << "\" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n";
 		out.close();
@@ -332,37 +358,49 @@ static std::string cue_from_image(const std::vector<std::string>& dirs) {
 
 // Say what was found and, when something is missing, what to do about it. Silence here is the failure mode this
 // repository keeps paying for: a run that found nothing looks exactly like a run that found the wrong thing.
-static void report_media(const std::string& program, const std::string& tbios, const std::string& cue,
-                         const std::string& disk, const std::vector<std::string>& dirs,
-                         const std::string& cache_dir) {
-	if (!program.empty()) std::printf("media     program %s\n", program.c_str());
-	if (!tbios.empty()) std::printf("media     tbios   %s\n", tbios.c_str());
-	if (!cue.empty()) std::printf("media     disc    %s\n", cue.c_str());
-	if (!disk.empty()) std::printf("media     save    %s\n", disk.c_str());
+static void report_media(const std::string &program, const std::string &tbios, const std::string &cue,
+						 const std::string &disk, const std::vector<std::string> &dirs, const std::string &cache_dir) {
+	if (!program.empty())
+		std::printf("media     program %s\n", program.c_str());
+	if (!tbios.empty())
+		std::printf("media     tbios   %s\n", tbios.c_str());
+	if (!cue.empty())
+		std::printf("media     disc    %s\n", cue.c_str());
+	if (!disk.empty())
+		std::printf("media     save    %s\n", disk.c_str());
 	// A disc image is enough on its own: the program and TBIOS are inside its ISO 9660 volume and are read from there
 	// when they are not on disk. So the only thing that can be missing fatally here is the disc itself.
 	if (!cue.empty()) {
-		if (program.empty()) std::printf("media     program will be read from the disc (\\ENCHANT.EXP)\n");
-		if (tbios.empty()) std::printf("media     TBIOS will be read from the disc (\\TBIOS.BIN)\n");
-		if (disk.empty()) std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
+		if (program.empty())
+			std::printf("media     program will be read from the disc (\\ENCHANT.EXP)\n");
+		if (tbios.empty())
+			std::printf("media     TBIOS will be read from the disc (\\TBIOS.BIN)\n");
+		if (disk.empty())
+			std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
 		return;
 	}
 	// No disc, but an earlier run kept what the disc was for. That is a success, and it must not print the block below,
 	// which reads as a failure.
 	if (!cache_dir.empty() && file_exists(cache_dir + "/ENCHANT.EXP")) {
 		std::printf("media     no disc, running from the cache at %s (put a disc image back to refresh it)\n",
-		            cache_dir.c_str());
-		if (disk.empty()) std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
+					cache_dir.c_str());
+		if (disk.empty())
+			std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
 		return;
 	}
 
 	std::printf("media     looked in:");
-	for (const std::string& d : dirs) std::printf(" %s", d.c_str());
+	for (const std::string &d : dirs)
+		std::printf(" %s", d.c_str());
 	std::printf("\n");
-	if (program.empty()) std::printf("media     ENCHANT.EXP is not there\n");
-	if (tbios.empty()) std::printf("media     tbios.bin (or TBIOS.BIN) is not there\n");
-	if (cue.empty()) std::printf("media     no .cue and no single .img to write one for\n");
-	if (disk.empty()) std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
+	if (program.empty())
+		std::printf("media     ENCHANT.EXP is not there\n");
+	if (tbios.empty())
+		std::printf("media     tbios.bin (or TBIOS.BIN) is not there\n");
+	if (cue.empty())
+		std::printf("media     no .cue and no single .img to write one for\n");
+	if (disk.empty())
+		std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
 	std::printf("\n");
 	std::printf("Put your own copy of the game in ./game/ and use the tools beside this binary:\n");
 	std::printf("  node tools/getfile.js ENCHANT.EXP --disc game/<image>.img --out game\n");
@@ -375,7 +413,7 @@ static void report_media(const std::string& program, const std::string& tbios, c
 // Write a file taken from the disc into the cache, creating the directories it needs. False on any failure, so a
 // caller can leave the read on the disc rather than serve a path that is not there. A read-only tree is the ordinary
 // case for that: the game still runs, it just keeps reading the disc.
-static bool cache_store(const std::string& dir, const std::string& rel, const std::vector<uint8_t>& bytes);
+static bool cache_store(const std::string &dir, const std::string &rel, const std::vector<uint8_t> &bytes);
 
 // The glyph ROM as a table in this binary, generated at build time by tools/embed.js from
 // assets/font-rom/FMT_FNT.ROM. Declared here rather than in a header because nothing else needs it.
@@ -396,24 +434,27 @@ extern const unsigned long g_licence_sdl3_size;
 extern const unsigned char g_licence_font_rom[];
 extern const unsigned long g_licence_font_rom_size;
 
-static std::vector<uint8_t> read_file(const char* path) {
+static std::vector<uint8_t> read_file(const char *path) {
 	std::vector<uint8_t> v;
-	FILE* f = std::fopen(path, "rb");
-	if (!f) return v;
+	FILE *f = std::fopen(path, "rb");
+	if (!f)
+		return v;
 	std::fseek(f, 0, SEEK_END);
 	long n = std::ftell(f);
 	std::fseek(f, 0, SEEK_SET);
 	if (n > 0) {
 		v.resize((size_t)n);
-		if (std::fread(v.data(), 1, v.size(), f) != v.size()) v.clear();
+		if (std::fread(v.data(), 1, v.size(), f) != v.size())
+			v.clear();
 	}
 	std::fclose(f);
 	return v;
 }
 
 // Read a block and render it as hex. Shared by the immediate and the parked `mem` replies so the two cannot drift
-// apart in formatting, and so the parked one is the same read at a different moment rather than a second implementation.
-static std::string mem_hex(towns::Machine& m, uint32_t linear, uint32_t len) {
+// apart in formatting, and so the parked one is the same read at a different moment rather than a second
+// implementation.
+static std::string mem_hex(towns::Machine &m, uint32_t linear, uint32_t len) {
 	std::vector<uint8_t> bytes(len, 0);
 	m.read_block(linear, bytes.data(), len);
 	std::string hex;
@@ -426,18 +467,20 @@ static std::string mem_hex(towns::Machine& m, uint32_t linear, uint32_t len) {
 	return hex;
 }
 
-static bool cache_store(const std::string& dir, const std::string& rel, const std::vector<uint8_t>& bytes) {
-	if (dir.empty() || rel.empty() || bytes.empty()) return false;
+static bool cache_store(const std::string &dir, const std::string &rel, const std::vector<uint8_t> &bytes) {
+	if (dir.empty() || rel.empty() || bytes.empty())
+		return false;
 	std::error_code ec;
 	const fs::path out(dir + "/" + rel);
 	fs::create_directories(out.parent_path(), ec);
 	std::ofstream f(out, std::ios::binary);
-	if (!f) return false;
-	f.write(reinterpret_cast<const char*>(bytes.data()), (std::streamsize)bytes.size());
+	if (!f)
+		return false;
+	f.write(reinterpret_cast<const char *>(bytes.data()), (std::streamsize)bytes.size());
 	return f.good();
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 	// Flags first, then the positional arguments the port has always taken. `--sdl` opens the kit's window
 	// (fmtownskit's SdlHost) and runs unpaced until the window is closed, and it changes NOTHING else: the
 	// trace, the stop-at, the keys, the frame limit and the shot all still apply, because the window is
@@ -469,60 +512,78 @@ int main(int argc, char** argv) {
 	// Not a mode: a 5-line answer to "what am I allowed to do with this", because the licences are compiled into the
 	// binary rather than only shipped beside it.
 	bool show_licences = false;
-	std::vector<const char*> pos;
+	std::vector<const char *> pos;
 	for (int i = 1; i < argc; ++i) {
-		if (!std::strncmp(argv[i], "--graphics=", 11)) graphics = argv[i] + 11;
-		else if (!std::strcmp(argv[i], "--fullscreen")) fullscreen = true;
-		else if (!std::strcmp(argv[i], "--letterbox")) letterbox = true;
-		else if (!std::strncmp(argv[i], "--scale=", 8)) scale = std::atoi(argv[i] + 8);
-		else if (!std::strncmp(argv[i], "--frames=", 9)) frames_flag = std::atol(argv[i] + 9);
-		else if (!std::strncmp(argv[i], "--control=", 10)) control_spec = argv[i] + 10;
-		else if (!std::strcmp(argv[i], "--read-only-disk")) read_only_disk = true;
-		else if (!std::strcmp(argv[i], "--allow-key-queue")) key_queue_ok = true;
-		else if (!std::strcmp(argv[i], "--dev")) dev = true;
-		else if (!std::strcmp(argv[i], "--licences") || !std::strcmp(argv[i], "--licenses")) show_licences = true;
-		else pos.push_back(argv[i]);
+		if (!std::strncmp(argv[i], "--graphics=", 11))
+			graphics = argv[i] + 11;
+		else if (!std::strcmp(argv[i], "--fullscreen"))
+			fullscreen = true;
+		else if (!std::strcmp(argv[i], "--letterbox"))
+			letterbox = true;
+		else if (!std::strncmp(argv[i], "--scale=", 8))
+			scale = std::atoi(argv[i] + 8);
+		else if (!std::strncmp(argv[i], "--frames=", 9))
+			frames_flag = std::atol(argv[i] + 9);
+		else if (!std::strncmp(argv[i], "--control=", 10))
+			control_spec = argv[i] + 10;
+		else if (!std::strcmp(argv[i], "--read-only-disk"))
+			read_only_disk = true;
+		else if (!std::strcmp(argv[i], "--allow-key-queue"))
+			key_queue_ok = true;
+		else if (!std::strcmp(argv[i], "--dev"))
+			dev = true;
+		else if (!std::strcmp(argv[i], "--licences") || !std::strcmp(argv[i], "--licenses"))
+			show_licences = true;
+		else
+			pos.push_back(argv[i]);
 	}
 
 	if (show_licences) {
-		auto emit = [](const char* who, const unsigned char* text, unsigned long size) {
-			std::printf("\n===== %s =====\n\n%.*s", who, (int)size, (const char*)text);
-			if (size && text[size - 1] != '\n') std::printf("\n");
+		auto emit = [](const char *who, const unsigned char *text, unsigned long size) {
+			std::printf("\n===== %s =====\n\n%.*s", who, (int)size, (const char *)text);
+			if (size && text[size - 1] != '\n')
+				std::printf("\n");
 		};
-		std::printf("Ultima II on FM Towns, recompiled. Three pieces of software are inside this file, and this is what each\n"
-		            "of them permits. None of it is game data: the game comes from a disc image you supply.\n");
+		std::printf(
+			"Ultima II on FM Towns, recompiled. Three pieces of software are inside this file, and this is what each\n"
+			"of them permits. None of it is game data: the game comes from a disc image you supply.\n");
 		emit("this port's own code, MIT licence", g_licence_mit, g_licence_mit_size);
 		emit("fmtownskit, the runtime the recompiled code is linked onto, MIT licence", g_licence_fmtownskit,
-		     g_licence_fmtownskit_size);
+			 g_licence_fmtownskit_size);
 		emit("SDL3, statically linked, used for the window, keyboard, gamepad and sound, zlib licence", g_licence_sdl3,
-		     g_licence_sdl3_size);
+			 g_licence_sdl3_size);
 		emit("the glyph ROM embedded in this binary, and what is and is not established about it", g_licence_font_rom,
-		     g_licence_font_rom_size);
-		std::printf("\nThe game itself is not distributed with this program and is covered by none of the above. If you own a\n"
-		            "copy of the FM Towns Ultima Trilogy, this runs from your own disc image.\n");
+			 g_licence_font_rom_size);
+		std::printf(
+			"\nThe game itself is not distributed with this program and is covered by none of the above. If you own a\n"
+			"copy of the FM Towns Ultima Trilogy, this runs from your own disc image.\n");
 		return 0;
 	}
 
-	// THE HARNESS IS OFF UNLESS ASKED FOR. Instrument switches are removed from the environment here, before any of	// the 39 reads below, rather than being checked at each read: a rule enforced in one place cannot be forgotten at
-	// the fortieth. Configuration and input scheduling are NOT instruments and stay available, because a run that
+	// THE HARNESS IS OFF UNLESS ASKED FOR. Instrument switches are removed from the environment here, before any of
+	// // the 39 reads below, rather than being checked at each read: a rule enforced in one place cannot be forgotten
+	// at the fortieth. Configuration and input scheduling are NOT instruments and stay available, because a run that
 	// cannot find its font ROM is not a more honest run, it is a blank screen.
 	//
 	// What was dropped is reported by print_instruments(), because an instrument that vanishes without saying so is
 	// precisely the failure this mechanism exists to remove.
 	if (!dev) {
-		static const char* kAlwaysHonoured[] = {"U2_FONT", "U2_FONT20", "U2_CLOCK", "U2_ENTRY", "U2_STACK",
-		                                        "U2_KEYS", "U2_PAD", "U2_LAYER", "U2_SHOT"};
+		static const char *kAlwaysHonoured[] = {"U2_FONT", "U2_FONT20", "U2_CLOCK", "U2_ENTRY", "U2_STACK",
+												"U2_KEYS", "U2_PAD",	"U2_LAYER", "U2_SHOT"};
 		std::vector<std::string> drop;
-		for (char** e = environ; e && *e; ++e) {
+		for (char **e = environ; e && *e; ++e) {
 			std::string s(*e);
-			if (s.rfind("U2_", 0) != 0) continue;
+			if (s.rfind("U2_", 0) != 0)
+				continue;
 			std::string name = s.substr(0, s.find('='));
 			bool keep = false;
-			for (const char* a : kAlwaysHonoured)
-				if (name == a) keep = true;
-			if (!keep) drop.push_back(name);
+			for (const char *a : kAlwaysHonoured)
+				if (name == a)
+					keep = true;
+			if (!keep)
+				drop.push_back(name);
 		}
-		for (const std::string& n : drop) {
+		for (const std::string &n : drop) {
 			unset_env(n.c_str());
 			g_instruments_dropped.push_back(n);
 		}
@@ -531,9 +592,10 @@ int main(int argc, char** argv) {
 		std::fprintf(stderr, "--graphics=%s: not a backend. This build has: sdl, none\n", graphics.c_str());
 		return 2;
 	}
-	if (!control_spec.empty() && control_spec.find(':') == std::string::npos && control_spec.find('/') == std::string::npos) {
+	if (!control_spec.empty() && control_spec.find(':') == std::string::npos &&
+		control_spec.find('/') == std::string::npos) {
 		std::fprintf(stderr, "--control=%s: want host:port (for example 127.0.0.1:8765) or /path/to.sock\n",
-		              control_spec.c_str());
+					 control_spec.c_str());
 		return 2;
 	}
 	bool use_sdl = graphics == "sdl";
@@ -551,24 +613,28 @@ int main(int argc, char** argv) {
 		m_tbios = find_media(m_dirs, {"tbios.bin", "TBIOS.BIN"});
 		m_cue = find_media(m_dirs, {"disc.cue", "game.cue", "u2.cue"});
 		m_disk = find_media(m_dirs, {"userdisk.hdm", "save.hdm", "disk.hdm"});
-		if (m_cue.empty()) m_cue = cue_from_image(m_dirs);
+		if (m_cue.empty())
+			m_cue = cue_from_image(m_dirs);
 		// cache_dir has to be known before the report, because the report has to say whether a missing disc is a
 		// failure or a tree that already has what it needs.
 		{
 			std::error_code ec;
-			if (!m_cue.empty()) cache_dir = (fs::path(m_cue).parent_path() / "extracted").string();
-			else if (fs::is_directory("game", ec)) cache_dir = "game/extracted";
-			else cache_dir = "extracted";
+			if (!m_cue.empty())
+				cache_dir = (fs::path(m_cue).parent_path() / "extracted").string();
+			else if (fs::is_directory("game", ec))
+				cache_dir = "game/extracted";
+			else
+				cache_dir = "extracted";
 		}
 		report_media(m_program, m_tbios, m_cue, m_disk, m_dirs, cache_dir);
-		// NO DISC IS NOT FATAL IF THE CACHE ALREADY HOLDS WHAT THE DISC WAS FOR. That is the whole point of caching: run
-		// once with your own disc, and from then on the image is optional.
+		// NO DISC IS NOT FATAL IF THE CACHE ALREADY HOLDS WHAT THE DISC WAS FOR. That is the whole point of caching:
+		// run once with your own disc, and from then on the image is optional.
 		if (m_cue.empty() && !file_exists(cache_dir + "/ENCHANT.EXP")) {
 			std::printf("media     no disc image, and no cached copy at %s/ENCHANT.EXP\n", cache_dir.c_str());
 			return 2;
 		}
 	}
-	const char* exp_path = pos.size() > 0 ? pos[0] : m_program.c_str();
+	const char *exp_path = pos.size() > 0 ? pos[0] : m_program.c_str();
 	// The second positional is a frame count only when it is one. It is optional, and when `--frames=N` already
 	// gave a count it is absent, so deciding by shape rather than by position keeps `ENCHANT.EXP 600 tbios cue`
 	// and `--frames=600 ENCHANT.EXP tbios cue` both meaning what they look like. A first version indexed
@@ -577,18 +643,19 @@ int main(int argc, char** argv) {
 	size_t next = 1;
 	long frames = frames_flag >= 0 ? frames_flag : 0;
 	if (frames_flag < 0 && pos.size() > 1) {
-		const char* a = pos[1];
+		const char *a = pos[1];
 		bool digits = *a != 0;
-		for (const char* q = a; *q; ++q)
-			if (*q < '0' || *q > '9') digits = false;
+		for (const char *q = a; *q; ++q)
+			if (*q < '0' || *q > '9')
+				digits = false;
 		if (digits) {
 			frames = std::atol(a);
 			next = 2;
 		}
 	}
-	const char* tbios_path = pos.size() > next ? pos[next] : "build/port/tbios.bin";
-	const char* cue_path = pos.size() > next + 1 ? pos[next + 1] : "build/port/disc.cue";
-	const char* floppy_path = pos.size() > next + 2 ? pos[next + 2] : "saves/userdisk.hdm";
+	const char *tbios_path = pos.size() > next ? pos[next] : "build/port/tbios.bin";
+	const char *cue_path = pos.size() > next + 1 ? pos[next + 1] : "build/port/disc.cue";
+	const char *floppy_path = pos.size() > next + 2 ? pos[next + 2] : "saves/userdisk.hdm";
 	if (pos.empty()) {
 		tbios_path = m_tbios.c_str();
 		cue_path = m_cue.c_str();
@@ -611,27 +678,32 @@ int main(int argc, char** argv) {
 	// kept. The program's own opens go through the on_disc_cached hook with the same policy, so the two cannot drift
 	// into disagreeing about what is cached. \\UTFONT.FNT is why this exists: it was read straight off the disc, so a
 	// cache-only tree had no kanji font and drew nothing for two-byte characters.
-	auto disc_or_cache = [&](const char* iso_path, std::vector<uint8_t>& out) -> bool {
+	auto disc_or_cache = [&](const char *iso_path, std::vector<uint8_t> &out) -> bool {
 		std::string rel = iso_path;
-		while (!rel.empty() && (rel[0] == '\\' || rel[0] == '/')) rel.erase(0, 1);
-		for (char& ch : rel)
-			if (ch == '\\') ch = '/';
+		while (!rel.empty() && (rel[0] == '\\' || rel[0] == '/'))
+			rel.erase(0, 1);
+		for (char &ch : rel)
+			if (ch == '\\')
+				ch = '/';
 		out.clear();
 		if (!cache_dir.empty()) {
 			const std::string cached = cache_dir + "/" + rel;
 			std::error_code ec;
 			if (fs::is_regular_file(cached, ec)) {
 				out = read_file(cached.c_str());
-				if (!out.empty()) return true;
+				if (!out.empty())
+					return true;
 			}
 		}
 		if (!unpack_tried) {
 			unpack_tried = true;
-			if (!cue_path[0]) return false;
+			if (!cue_path[0])
+				return false;
 			unpack.open(cue_path, unpack_err);
 		}
 		std::vector<uint8_t> bytes;
-		if (!unpack.file(iso_path, bytes) || bytes.empty()) return false;
+		if (!unpack.file(iso_path, bytes) || bytes.empty())
+			return false;
 		if (!cache_dir.empty() && cache_store(cache_dir, rel, bytes))
 			std::printf("disc      cached %s (%zu bytes)\n", rel.c_str(), bytes.size());
 		out = std::move(bytes);
@@ -643,7 +715,7 @@ int main(int argc, char** argv) {
 		std::printf("media     program \\ENCHANT.EXP read from the disc or its cache (%zu bytes)\n", file.size());
 	if (file.size() < 0x1000) {
 		std::fprintf(stderr, "%s: cannot read the executable, and \\ENCHANT.EXP is not on the disc\n",
-		             exp_path[0] ? exp_path : "ENCHANT.EXP");
+					 exp_path[0] ? exp_path : "ENCHANT.EXP");
 		return 2;
 	}
 
@@ -654,24 +726,24 @@ int main(int argc, char** argv) {
 		std::fprintf(stderr, "%s: not an MP image\n", exp_path);
 		return 2;
 	}
-	const uint8_t* image = file.data() + HEADER;
+	const uint8_t *image = file.data() + HEADER;
 	const uint32_t image_size = (uint32_t)(file.size() - HEADER);
 
-	const uint32_t PROGRAM_BASE = 0x400000;  // measured: CS 000C and DS 0014 both sit here
+	const uint32_t PROGRAM_BASE = 0x400000;	 // measured: CS 000C and DS 0014 both sit here
 	// The entry is the header's own address field, which is an offset into the image (item 8b), so the port
 	// reads it instead of naming it. For ENCHANT.EXP that field is 0x101A20, which is what was hardcoded here
 	// and what the loader's IRETD was measured to deliver, so this is the same number arrived at generally.
 	// It is what lets a second MP program be run without editing the port: BRITISH.EXP's field is 0x54094.
 	const uint32_t ENTRY_FROM_HEADER = (uint32_t)file[0x14] | ((uint32_t)file[0x15] << 8) |
-									((uint32_t)file[0x16] << 16) | ((uint32_t)file[0x17] << 24);
-	const uint32_t ENTRY = std::getenv("U2_ENTRY") ? (uint32_t)std::strtoul(std::getenv("U2_ENTRY"), nullptr, 16)
-											 : ENTRY_FROM_HEADER;
+									   ((uint32_t)file[0x16] << 16) | ((uint32_t)file[0x17] << 24);
+	const uint32_t ENTRY =
+		std::getenv("U2_ENTRY") ? (uint32_t)std::strtoul(std::getenv("U2_ENTRY"), nullptr, 16) : ENTRY_FROM_HEADER;
 	// ESP at the entry, measured twice and corrected once. 0x11EB10 is what STA reports when a breakpoint on
 	// 000C:101A20 fires, and the program's own heap base (DS:0xDFD08) is that same number, so it is the value
 	// the loader hands over. The older 0x11EAC8 was 0x48 lower, which put the heap base and every pointer it
 	// returned 0x48 below the machine's, and the allocator then failed on its 28th allocation.
-	const uint32_t STACK = std::getenv("U2_STACK") ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16)
-										  : 0x11EB10;
+	const uint32_t STACK =
+		std::getenv("U2_STACK") ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16) : 0x11EB10;
 
 	towns::Machine m;
 	// The profile's program base and physical base are the kit's own ports: 0x200000 linear and 0x49000
@@ -687,7 +759,7 @@ int main(int argc, char** argv) {
 	// measured differing in exactly one byte at 0x4cdc23, which is enough to flip a framebuffer hash and make any
 	// differential report a difference for every shadow, correct or not. `U2_CLOCK=<unix seconds>` pins it; the
 	// machine's own clock is added on top, so a run stays deterministic as well as replayable.
-	if (const char* cl = std::getenv("U2_CLOCK")) {
+	if (const char *cl = std::getenv("U2_CLOCK")) {
 		m.clock_start = std::strtoll(cl, nullptr, 10);
 		std::printf("clock     pinned to %lld + machine time\n", (long long)m.clock_start);
 	}
@@ -702,22 +774,25 @@ int main(int argc, char** argv) {
 	const bool tbios_from_disc = tbios.empty() && disc_or_cache("\\TBIOS.BIN", tbios);
 	if (tbios.empty()) {
 		std::fprintf(stderr, "TBIOS: cannot read %s, and \\TBIOS.BIN is not on the disc\n",
-		             tbios_path[0] ? tbios_path : "tbios.bin");
+					 tbios_path[0] ? tbios_path : "tbios.bin");
 		return 2;
 	}
 	std::printf("machine   TBIOS %zu bytes from %s, low 768 KB mapped by boot_towns\n", tbios.size(),
-	            tbios_from_disc ? "\\TBIOS.BIN on the disc or in its cache" : tbios_path);
+				tbios_from_disc ? "\\TBIOS.BIN on the disc or in its cache" : tbios_path);
 	// SERVE THE DISC'S FILES FROM THE CACHE, which is what makes the image needed once rather than always. The program
 	// asks for Q:\GRAPH\MAP2_1.TIF and its friends; the first time that is a disc read and the bytes are kept, and from
 	// then on it is a local file, whether or not the disc is still there. The hook is asked from on_disc() in the kit,
 	// the one place a guest path stops being a string and becomes a decision.
 	if (!cache_dir.empty()) {
-		m.on_disc_cached = [&m, cache_dir](const std::string& disc_path, std::string& host) -> bool {
+		m.on_disc_cached = [&m, cache_dir](const std::string &disc_path, std::string &host) -> bool {
 			std::string rel = disc_path;
-			while (!rel.empty() && (rel[0] == '\\' || rel[0] == '/')) rel.erase(0, 1);
-			for (char& ch : rel)
-				if (ch == '\\') ch = '/';
-			if (rel.empty() || rel.find("..") != std::string::npos) return false;   // never write outside the cache
+			while (!rel.empty() && (rel[0] == '\\' || rel[0] == '/'))
+				rel.erase(0, 1);
+			for (char &ch : rel)
+				if (ch == '\\')
+					ch = '/';
+			if (rel.empty() || rel.find("..") != std::string::npos)
+				return false;  // never write outside the cache
 			const std::string cached = cache_dir + "/" + rel;
 			std::error_code ec;
 			if (fs::is_regular_file(cached, ec)) {
@@ -725,8 +800,10 @@ int main(int argc, char** argv) {
 				return true;
 			}
 			std::vector<uint8_t> bytes;
-			if (!m.disc.file(disc_path, bytes) || bytes.empty()) return false;
-			if (!cache_store(cache_dir, rel, bytes)) return false;   // cannot keep it, so read it off the disc as before
+			if (!m.disc.file(disc_path, bytes) || bytes.empty())
+				return false;
+			if (!cache_store(cache_dir, rel, bytes))
+				return false;  // cannot keep it, so read it off the disc as before
 			std::printf("disc      cached %s (%zu bytes)\n", rel.c_str(), bytes.size());
 			host = cached;
 			return true;
@@ -736,7 +813,8 @@ int main(int argc, char** argv) {
 	// U2_TRACE_INT=1 records every BIOS call the program makes. The kit's int90() implements the
 	// services its own recordings saw, and this program asks for one they never did, so the list of
 	// what it asks for is the evidence needed to decide what to add.
-	if (std::getenv("U2_TRACE_INT")) m.trace_int = true;
+	if (std::getenv("U2_TRACE_INT"))
+		m.trace_int = true;
 
 	// The program opens its assets by DOS path (Q:\GRAPH\MAP2_1.TIF and friends), so the machine needs a
 	// disc to read them from. Without one, the first int 21h open segfaults inside Disc::handle, which is
@@ -759,8 +837,8 @@ int main(int argc, char** argv) {
 	// (it ships with the emulator's ROM set), so this is a warning when absent rather than a hard failure.
 	{
 		// The font ROM, found the same way as the media when no path was given: beside the binary, in ./game, or in the
-		// roms/ directories a reader is likely to have. Without it the port runs and every glyph is blank, which reads as
-		// a broken renderer rather than as a missing file, so it is worth looking for.
+		// roms/ directories a reader is likely to have. Without it the port runs and every glyph is blank, which reads
+		// as a broken renderer rather than as a missing file, so it is worth looking for.
 		std::vector<std::string> rom_dirs = m_dirs;
 		// assets/font-rom is where THIS repository carries the glyph ROM, as one named exception to the rule that
 		// platform ROMs are fetched rather than hosted. vendor/roms is the fetched set. Both are searched so a clone
@@ -769,16 +847,16 @@ int main(int argc, char** argv) {
 		rom_dirs.push_back("roms");
 		rom_dirs.push_back("vendor/roms");
 		const std::string found_font = std::getenv("U2_FONT") ? std::string() : find_media(rom_dirs, {"FMT_FNT.ROM"});
-		const char* font_path = std::getenv("U2_FONT")
-		                            ? std::getenv("U2_FONT")
-		                            : (found_font.empty() ? "FMT_FNT.ROM" : found_font.c_str());
+		const char *font_path =
+			std::getenv("U2_FONT") ? std::getenv("U2_FONT") : (found_font.empty() ? "FMT_FNT.ROM" : found_font.c_str());
 		std::vector<uint8_t> glyphs = read_file(font_path);
 		// THE COPY INSIDE THIS BINARY, used when there is no file. The ROM is generated from a public-domain font and
 		// committed as assets/font-rom/FMT_FNT.ROM, and tools/embed.js turns it into a table at build time, so the port
 		// does not need the file beside it. An external copy still wins, because a reader with a real FM Towns dump
 		// should be able to use it.
 		const bool embedded = glyphs.empty();
-		if (embedded) glyphs.assign(g_embedded_font_rom, g_embedded_font_rom + g_embedded_font_rom_size);
+		if (embedded)
+			glyphs.assign(g_embedded_font_rom, g_embedded_font_rom + g_embedded_font_rom_size);
 		if (glyphs.empty()) {
 			std::printf("machine   no font ROM at %s, so every glyph will be blank (set U2_FONT)\n", font_path);
 		} else {
@@ -788,16 +866,17 @@ int main(int argc, char** argv) {
 			m.unmap_font_window();
 			if (embedded)
 				std::printf("machine   font ROM %zu bytes, embedded in this binary (no %s beside it)\n", m.font.size(),
-				            font_path);
+							font_path);
 			else
 				std::printf("machine   font ROM %zu bytes from %s\n", m.font.size(), font_path);
 		}
 		// The 20-dot font, a second ROM in its own window at linear 0xC2180000. Separate from the ANK font, and a
 		// program drawing a title screen's large text may be using this one.
-		const std::string found_font20 = std::getenv("U2_FONT20") ? std::string() : find_media(rom_dirs, {"FMT_F20.ROM"});
-		const char* font20_path = std::getenv("U2_FONT20")
-		                              ? std::getenv("U2_FONT20")
-		                              : (found_font20.empty() ? "FMT_F20.ROM" : found_font20.c_str());
+		const std::string found_font20 =
+			std::getenv("U2_FONT20") ? std::string() : find_media(rom_dirs, {"FMT_F20.ROM"});
+		const char *font20_path = std::getenv("U2_FONT20")
+									  ? std::getenv("U2_FONT20")
+									  : (found_font20.empty() ? "FMT_F20.ROM" : found_font20.c_str());
 		std::vector<uint8_t> glyphs20 = read_file(font20_path);
 		if (glyphs20.empty()) {
 			std::printf("machine   no 20-dot font ROM at %s (set U2_FONT20)\n", font20_path);
@@ -807,23 +886,25 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is
-	// reported and survived rather than treated as fatal, so the port still runs when only the CD is present.
-	// NO ARGUMENTS MEANS NO FLOPPY TO MANAGE. A player should not have to own, format and then find a 1.26 MB image to
-	// keep a character in, so a no-argument run keeps saves as ordinary files beside the disc cache. The image is still
-	// what a named floppy path means, which is what every tool and test in this repository passes, and it is also where
-	// a fresh directory's characters come from, so switching does not lose the three that ship with the project.
+	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the	//
+	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is reported
+	// and survived rather than treated as fatal, so the port still runs when only the CD is present. NO ARGUMENTS MEANS
+	// NO FLOPPY TO MANAGE. A player should not have to own, format and then find a 1.26 MB image to keep a character
+	// in, so a no-argument run keeps saves as ordinary files beside the disc cache. The image is still what a named
+	// floppy path means, which is what every tool and test in this repository passes, and it is also where a fresh
+	// directory's characters come from, so switching does not lose the three that ship with the project.
 	if (pos.empty()) {
 		const std::string save_root = (fs::path(cache_dir).parent_path() / "saves").string();
 		if (g_saves.open(save_root, !read_only_disk)) {
 			g_saves_dir = true;
 			std::printf("machine   saves as plain files in %s (%s)\n", save_root.c_str(),
-			            g_saves.writable() ? "writable" : "read-only");
+						g_saves.writable() ? "writable" : "read-only");
 			if (!m_disk.empty()) {
 				u2floppy::Image shipped;
 				if (shipped.open(m_disk.c_str(), false)) {
 					const int seeded = g_saves.seed_from(shipped);
-					if (seeded) std::printf("machine   seeded %d save file(s) from %s\n", seeded, m_disk.c_str());
+					if (seeded)
+						std::printf("machine   seeded %d save file(s) from %s\n", seeded, m_disk.c_str());
 				}
 			}
 		}
@@ -836,7 +917,7 @@ int main(int argc, char** argv) {
 			// and looks like a program fault. So each file is read in full and reported with a checksum, and a
 			// short read is a failure of the run rather than a note.
 			int bad = 0;
-			for (const auto& e : g_floppy.list()) {
+			for (const auto &e : g_floppy.list()) {
 				std::printf("floppy    %-14s %6u bytes%s", e.name.c_str(), e.size, e.is_dir() ? "  (dir)" : "");
 				std::vector<uint8_t> data;
 				if (e.is_dir()) {
@@ -849,16 +930,19 @@ int main(int argc, char** argv) {
 					continue;
 				}
 				uint32_t h = 2166136261u;
-				for (uint8_t ch : data) h = (h ^ ch) * 16777619u;   // FNV-1a, so two runs can be compared
+				for (uint8_t ch : data)
+					h = (h ^ ch) * 16777619u;  // FNV-1a, so two runs can be compared
 				std::printf("  read %u, fnv %08x%s\n", (unsigned)data.size(), h,
-				            data.size() == e.size ? "" : "  SHORT");
-				if (data.size() != e.size) ++bad;
+							data.size() == e.size ? "" : "  SHORT");
+				if (data.size() != e.size)
+					++bad;
 			}
 			std::printf("floppy    %d of the files read short or not at all\n", bad);
 			return bad ? 1 : 0;
 		}
 	} else {
-		if (!g_saves_dir) std::printf("machine   no floppy: A: will answer nothing and the program will ask for a disk\n");
+		if (!g_saves_dir)
+			std::printf("machine   no floppy: A: will answer nothing and the program will ask for a disk\n");
 	}
 	towns::boot_towns(m, tbios);
 
@@ -871,11 +955,11 @@ int main(int argc, char** argv) {
 	// machine's. Mapping has to cover it, because the heap grows up from the stack pointer inside this segment.
 	m.map_ram(0x500000, 0x300000);
 	m.write_block(PROGRAM_BASE, image, image_size);
-	std::printf("program   %u bytes at linear 0x%x, %u KB of clear space after it\n", image_size,
-	            PROGRAM_BASE, 0x40000 / 1024);
+	std::printf("program   %u bytes at linear 0x%x, %u KB of clear space after it\n", image_size, PROGRAM_BASE,
+				0x40000 / 1024);
 
 	// The two selectors, as measured. 000C is the code segment, 0014 the data one, same base.
-	m.set_desc(0x000C, PROGRAM_BASE, 0x377FFF);	// the machine's DS/CS limit, measured with LSL
+	m.set_desc(0x000C, PROGRAM_BASE, 0x377FFF);	 // the machine's DS/CS limit, measured with LSL
 	m.set_desc(0x0014, PROGRAM_BASE, 0x377FFF);
 	// 0110 is the TBIOS code segment. Live STA reported CS=0110 at linear 0x19EF4, and boot_towns puts
 	// the TBIOS image at 0x100000, so the segment's base is 0x100000 and 0x19EF4 is its offset 0x9EF4.
@@ -906,8 +990,8 @@ int main(int argc, char** argv) {
 	//
 	// 0138 is the one that matters here. The copyright notice's text is fetched from the font ROM through it, and the
 	// kit already maps 0xC2100000 onto Machine::font -- but nothing loaded the ROM, so every read returned zero and the
-	// glyphs were drawn as nothing. That is the whole of the empty box: the box is layer art and appeared, the text is a
-	// font fetch and was zeroes. The load itself is below, next to the other files this port opens.
+	// glyphs were drawn as nothing. That is the whole of the empty box: the box is layer art and appeared, the text is
+	// a font fetch and was zeroes. The load itself is below, next to the other files this port opens.
 	m.set_desc(0x0128, 0x80100000, 0x7FFFF);
 	m.set_desc(0x0130, 0x81000000, 0x1FFFF);
 	m.set_desc(0x0138, 0xC2100000, 0x41FFF);
@@ -940,11 +1024,11 @@ int main(int argc, char** argv) {
 	{
 		std::vector<uint8_t> utf;
 		const uint32_t FONT_BASE = 0x3B7E1;
-		const uint32_t BANK = 94 * 48;            // one bank of records as stored, header included
+		const uint32_t BANK = 94 * 48;	// one bank of records as stored, header included
 		if (!disc_or_cache("\\UTFONT.FNT", utf) || utf.size() < 2 * BANK) {
 			std::printf("machine   no kanji font (\\UTFONT.FNT, %zu bytes) on the disc: two-byte characters will draw "
-			            "nothing\n",
-			            utf.size());
+						"nothing\n",
+						utf.size());
 		} else {
 			std::vector<uint8_t> packed(188 * 32);
 			for (int n = 0; n < 188; ++n) {
@@ -952,11 +1036,15 @@ int main(int argc, char** argv) {
 				std::memcpy(packed.data() + (size_t)n * 32, utf.data() + rec + 5, 32);
 			}
 			m.write_block(FONT_BASE, packed.data(), (uint32_t)packed.size());
-			uint8_t ptr[6] = {(uint8_t)(FONT_BASE), (uint8_t)(FONT_BASE >> 8), (uint8_t)(FONT_BASE >> 16),
-			                  (uint8_t)(FONT_BASE >> 24), 0x40, 0x00};
+			uint8_t ptr[6] = {(uint8_t)(FONT_BASE),
+							  (uint8_t)(FONT_BASE >> 8),
+							  (uint8_t)(FONT_BASE >> 16),
+							  (uint8_t)(FONT_BASE >> 24),
+							  0x40,
+							  0x00};
 			m.write_block(0x100000 + 0x1E8, ptr, sizeof ptr);
 			std::printf("machine   kanji font %zu glyphs at 0x%x, from \\UTFONT.FNT (%zu bytes)\n", packed.size() / 32,
-			            FONT_BASE, utf.size());
+						FONT_BASE, utf.size());
 		}
 	}
 
@@ -964,10 +1052,12 @@ int main(int argc, char** argv) {
 	std::memset(&c, 0, sizeof c);
 	c.r[4] = STACK;
 	c.fl = 0x202;
-	for (int i = 0; i < 6; ++i) c.sbase[i] = PROGRAM_BASE;
-	c.sreg[1] = 0x000C;  // cs
 	for (int i = 0; i < 6; ++i)
-		if (i != 1) c.sreg[i] = 0x0014;
+		c.sbase[i] = PROGRAM_BASE;
+	c.sreg[1] = 0x000C;	 // cs
+	for (int i = 0; i < 6; ++i)
+		if (i != 1)
+			c.sreg[i] = 0x0014;
 	c.budget = 1 << 30;
 
 	X86Func entry = x86_lookup_cs(0x000C, ENTRY);
@@ -983,28 +1073,33 @@ int main(int argc, char** argv) {
 	// U2_TRACE_FILE=<path> writes the instruction trace, and U2_TRACE_LIMIT caps it (default two million
 	// instructions, which is a few hundred MB of text at worst and enough to cover start-up).
 #ifdef X86_TRACE_ON
-	if (const char* tf = std::getenv("U2_TRACE_FILE")) {
+	if (const char *tf = std::getenv("U2_TRACE_FILE")) {
 		g_trace_file = std::fopen(tf, "w");
 		if (!g_trace_file) {
 			std::fprintf(stderr, "trace: cannot write %s\n", tf);
 			return 2;
 		}
-		const char* lim = std::getenv("U2_TRACE_LIMIT");
+		const char *lim = std::getenv("U2_TRACE_LIMIT");
 		g_trace_limit = lim ? std::strtoull(lim, nullptr, 10) : 200000ull;	// first executions, not instructions
 		std::printf("trace     %s, first executions up to %llu\n", tf, g_trace_limit);
 	} else {
-		g_trace_limit = 0;						// no trace file, but stop-at can still be used
+		g_trace_limit = 0;	// no trace file, but stop-at can still be used
 	}
-	if (const char* sa = std::getenv("U2_STOP_AT")) {
+	if (const char *sa = std::getenv("U2_STOP_AT")) {
 		g_stop_at = (uint32_t)std::strtoul(sa, nullptr, 16);
-		if (const char* sd = std::getenv("U2_STOP_DUMP")) g_stop_dump = (uint32_t)std::strtoul(sd, nullptr, 16);
-		if (const char* sc = std::getenv("U2_STOP_COUNT")) g_stop_count = std::strtoull(sc, nullptr, 10);
-		if (const char* sf = std::getenv("U2_STOP_FRAME")) g_stop_frame = std::strtoull(sf, nullptr, 10);
-		if (!g_stop_count) g_stop_count = 1;
+		if (const char *sd = std::getenv("U2_STOP_DUMP"))
+			g_stop_dump = (uint32_t)std::strtoul(sd, nullptr, 16);
+		if (const char *sc = std::getenv("U2_STOP_COUNT"))
+			g_stop_count = std::strtoull(sc, nullptr, 10);
+		if (const char *sf = std::getenv("U2_STOP_FRAME"))
+			g_stop_frame = std::strtoull(sf, nullptr, 10);
+		if (!g_stop_count)
+			g_stop_count = 1;
 		g_stop_len = 64;
 		std::printf("stop      will stop at 0x%06x on hit %llu%s\n", g_stop_at, g_stop_hits + g_stop_count,
-		            g_stop_dump ? "" : " (no U2_STOP_DUMP, registers only)");
-		if (g_stop_frame) std::printf("stop      ignoring hits before frame %llu\n", g_stop_frame);
+					g_stop_dump ? "" : " (no U2_STOP_DUMP, registers only)");
+		if (g_stop_frame)
+			std::printf("stop      ignoring hits before frame %llu\n", g_stop_frame);
 	}
 #endif
 	// U2_KEYS=<frame>:<scan><ascii>,... presses keys on given frames, which is how the port is driven past a
@@ -1012,9 +1107,12 @@ int main(int argc, char** argv) {
 	// press the key whose scan code is 0x1E and whose ASCII is 0x61", which is what 'a' measured as on the
 	// machine at 000C:000000B6. Two digits each is not a limitation but a safeguard: a scan code is 8 bits and
 	// so is the ASCII, and a longer field would silently mean a different key.
-	struct KeyPress { long frame; uint8_t scan, ascii; };
+	struct KeyPress {
+		long frame;
+		uint8_t scan, ascii;
+	};
 	std::vector<KeyPress> keypresses;
-	if (const char* ks = std::getenv("U2_KEYS")) {
+	if (const char *ks = std::getenv("U2_KEYS")) {
 		std::string spec(ks);
 		size_t at = 0;
 		while (at < spec.size()) {
@@ -1033,7 +1131,8 @@ int main(int argc, char** argv) {
 			keypresses.push_back(k);
 		}
 		std::printf("keys      %zu presses: ", keypresses.size());
-		for (const KeyPress& k : keypresses) std::printf("%ld:%02x%02x ", k.frame, k.scan, k.ascii);
+		for (const KeyPress &k : keypresses)
+			std::printf("%ld:%02x%02x ", k.frame, k.scan, k.ascii);
 		std::printf("\n");
 	}
 	// U2_PAD=<frame>:<bits>[:<hold>],... presses the Towns' game pad on given frames, which is the only way to
@@ -1041,9 +1140,13 @@ int main(int argc, char** argv) {
 	// so a menu that navigates on the pad cannot be reached by U2_KEYS. `bits` is decimal against the kit's kPad*
 	// enum, so up is 1, down 2, left 4, right 8, A 16, B 32, and `hold` defaults to 8 frames (about a seventh of a
 	// second) because a one-frame press can fall between two polls of the game port.
-	struct PadPress { long frame; unsigned bits; long hold; };
+	struct PadPress {
+		long frame;
+		unsigned bits;
+		long hold;
+	};
 	std::vector<PadPress> padpresses;
-	if (const char* ps = std::getenv("U2_PAD")) {
+	if (const char *ps = std::getenv("U2_PAD")) {
 		std::string spec(ps);
 		size_t at = 0;
 		while (at < spec.size()) {
@@ -1058,21 +1161,23 @@ int main(int argc, char** argv) {
 			}
 			PadPress p{};
 			p.frame = std::strtol(item.substr(0, c1).c_str(), nullptr, 10);
-			p.bits = (unsigned)std::strtoul(item.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1).c_str(), nullptr, 10);
+			p.bits = (unsigned)std::strtoul(
+				item.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1).c_str(), nullptr, 10);
 			p.hold = c2 == std::string::npos ? 8 : std::strtol(item.substr(c2 + 1).c_str(), nullptr, 10);
 			padpresses.push_back(p);
 		}
 		std::printf("pad       %zu presses: ", padpresses.size());
-		for (const PadPress& p : padpresses) std::printf("%ld:%u(%ld) ", p.frame, p.bits, p.hold);
+		for (const PadPress &p : padpresses)
+			std::printf("%ld:%u(%ld) ", p.frame, p.bits, p.hold);
 		std::printf("\n");
 	}
 	// U2_RDWATCH=<linear>[:<length>] counts reads inside one linear range and prints the total at the end. The
 	// counterpart to U2_WATCH, which can only see writes: a routine that looks a glyph up and then declines to draw
 	// writes nothing, and this is what separates that from a routine that never ran.
-	if (const char* r = std::getenv("U2_RDWATCH")) {
+	if (const char *r = std::getenv("U2_RDWATCH")) {
 		char buf[64];
 		std::snprintf(buf, sizeof buf, "%s", r);
-		char* colon = std::strchr(buf, ':');
+		char *colon = std::strchr(buf, ':');
 		uint32_t len = 1;
 		if (colon) {
 			*colon = 0;
@@ -1085,7 +1190,7 @@ int main(int argc, char** argv) {
 	// U2_TRACE_FN=<cs>:<lo>:<hi> logs every entry into one code-selector address range, deduped by (target, site).
 	// A port whose functions are C++ calls has no instruction fetches to watch, so "does the program ever reach this
 	// routine" cannot be answered by a read watch: this is the instrument for it.
-	if (const char* fspec = std::getenv("U2_TRACE_FN")) {
+	if (const char *fspec = std::getenv("U2_TRACE_FN")) {
 		std::string s(fspec);
 		size_t c1 = s.find(':'), c2 = c1 == std::string::npos ? std::string::npos : s.find(':', c1 + 1);
 		if (c1 == std::string::npos || c2 == std::string::npos) {
@@ -1099,7 +1204,7 @@ int main(int argc, char** argv) {
 	}
 	// U2_FN_DUMP=<off>:<len>:<path> writes that many bytes at gs:ebp+off the first time a traced entry fires, so the
 	// port's snapshot is taken inside the same call as the machine's breakpoint rather than after the frame.
-	if (const char* d = std::getenv("U2_FN_DUMP")) {
+	if (const char *d = std::getenv("U2_FN_DUMP")) {
 		std::string s(d);
 		size_t c1 = s.find(':'), c2 = c1 == std::string::npos ? std::string::npos : s.find(':', c1 + 1);
 		if (c1 == std::string::npos || c2 == std::string::npos) {
@@ -1112,12 +1217,14 @@ int main(int argc, char** argv) {
 			g_trace_fn_dump_path = path_storage.c_str();
 			// U2_FN_DUMP_AT=<frame> holds the dump back until that frame, so both sides can be made to fire on the same
 			// glyph: reach the menu, press a key, and dump on the first entry of the redraw.
-			if (const char* at = std::getenv("U2_FN_DUMP_AT")) g_trace_fn_dump_frame = (uint32_t)std::strtoul(at, nullptr, 10);
+			if (const char *at = std::getenv("U2_FN_DUMP_AT"))
+				g_trace_fn_dump_frame = (uint32_t)std::strtoul(at, nullptr, 10);
 			std::printf("trace     state dump %u bytes at gs:ebp+%x -> %s\n", g_trace_fn_dump_len, g_trace_fn_dump_off,
-			            g_trace_fn_dump_path);
+						g_trace_fn_dump_path);
 		}
 	}
-	if (std::getenv("U2_VRAM")) m.set_count_access(true);
+	if (std::getenv("U2_VRAM"))
+		m.set_count_access(true);
 	// U2_TRACE_FAR=1 prints every distinct far call site into the TBIOS selector 0110, one line per site, with the
 	// caller's CS:EIP. The program does not reach its system layer with constant-selector `9a` instructions and stores
 	// no far pointer to it, so the callers exist only at run time. This is the measurement that names them.
@@ -1126,14 +1233,15 @@ int main(int argc, char** argv) {
 		// U2_TRACE_FAR_ALL=<n> prints the first n transfers individually instead of one line per call site, and every
 		// watched write carries the EAX of the transfer in flight. A dispatcher takes its function number as an
 		// argument, so pairing the two is the only way to say which request produced which write.
-		if (const char* n = std::getenv("U2_TRACE_FAR_ALL")) g_trace_far_all = (uint32_t)std::strtoul(n, nullptr, 10);
+		if (const char *n = std::getenv("U2_TRACE_FAR_ALL"))
+			g_trace_far_all = (uint32_t)std::strtoul(n, nullptr, 10);
 		std::printf("trace     far calls into selector 0110, %s\n",
-		            g_trace_far_all ? "every call" : "one line per call site");
+					g_trace_far_all ? "every call" : "one line per call site");
 	}
 	// U2_SHOT=<path> writes the frame the machine is showing when the run ends, with the kit's own renderer, so
 	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this
 	// (it is how its own ports save frames at a VSYNC).
-	const char* shot_path = std::getenv("U2_SHOT");
+	const char *shot_path = std::getenv("U2_SHOT");
 	// U2_PALETTE=1 prints the palette the machine holds when the run ends, in the same `RRGGBB` form the emulator's
 	// `PRI PALETTE` prints, one line per layer. Item 4e wants the running game's palette recorded and compared, and
 	// two tables in the same notation can be compared by eye and by diff; a rendered picture cannot.
@@ -1185,11 +1293,12 @@ int main(int argc, char** argv) {
 	// is shared: it also bounds `U2_TRACE_FN`, which logs every routine entry in a range. Read only inside the U2_WATCH
 	// block, a traced enumeration silently stopped at 64 entries and looked complete, which is exactly the kind of
 	// quiet truncation that reads as a finding. Measured 2026-11-02 on the create route.
-	if (const char* mx = std::getenv("U2_WATCH_MAX")) g_watch_max = (uint32_t)std::strtoul(mx, nullptr, 10);
-	if (const char* w = std::getenv("U2_WATCH")) {
+	if (const char *mx = std::getenv("U2_WATCH_MAX"))
+		g_watch_max = (uint32_t)std::strtoul(mx, nullptr, 10);
+	if (const char *w = std::getenv("U2_WATCH")) {
 		char buf[64];
 		std::snprintf(buf, sizeof buf, "%s", w);
-		char* colon = std::strchr(buf, ':');
+		char *colon = std::strchr(buf, ':');
 		uint32_t len = 1;
 		if (colon) {
 			*colon = 0;
@@ -1198,17 +1307,17 @@ int main(int argc, char** argv) {
 		g_watch_lo = (uint32_t)std::strtoul(buf, nullptr, 16);
 		g_watch_hi = g_watch_lo + (len ? len : 1);
 		// U2_WATCH_AT=<frame> arms it at that frame instead of at start-up. It exists for one reason: the interesting
-		// writes to a screen come after the fills that clear it, and a watch armed at start-up spends its whole budget on
-		// the fills. Measured before the knob: four watches over different ranges all reported exactly 64 lines, all the
-		// same start-up fill, which read as "nothing else writes there".
-		if (const char* at = std::getenv("U2_WATCH_AT")) {
+		// writes to a screen come after the fills that clear it, and a watch armed at start-up spends its whole budget
+		// on the fills. Measured before the knob: four watches over different ranges all reported exactly 64 lines, all
+		// the same start-up fill, which read as "nothing else writes there".
+		if (const char *at = std::getenv("U2_WATCH_AT")) {
 			watch_at = std::strtol(at, nullptr, 10);
 			watch_lo_arm = g_watch_lo;
 			watch_hi_arm = g_watch_hi;
 			g_watch_lo = g_watch_hi = 0;
 		}
-		std::printf("watch     [%08x,%08x) max %u%s" , watch_lo_arm ? watch_lo_arm : g_watch_lo,
-		            watch_lo_arm ? watch_hi_arm : g_watch_hi, g_watch_max, watch_at >= 0 ? " armed later\n" : "\n");
+		std::printf("watch     [%08x,%08x) max %u%s", watch_lo_arm ? watch_lo_arm : g_watch_lo,
+					watch_lo_arm ? watch_hi_arm : g_watch_hi, g_watch_max, watch_at >= 0 ? " armed later\n" : "\n");
 	}
 	// The running cpu, always, not only for the watch: an unknown I/O port is reported with the instruction that
 	// wrote it, and a port number with no caller is a lead that has to be found again by watching.
@@ -1218,19 +1327,19 @@ int main(int argc, char** argv) {
 	// the hook services them. One pending frame step and one pending wait at a time: a driver that sends two is
 	// told so rather than silently having one dropped.
 	struct CtlPending {
-		long frame_id = -1;      // the id of a waiting `frame` command
-		long frame_target = 0;   // the machine frame it is answered at
-		long frame_from = 0;     // the machine frame it was received on
-		long wait_id = -1;       // the id of a waiting `wait` command
+		long frame_id = -1;		// the id of a waiting `frame` command
+		long frame_target = 0;	// the machine frame it is answered at
+		long frame_from = 0;	// the machine frame it was received on
+		long wait_id = -1;		// the id of a waiting `wait` command
 		long wait_deadline = 0;
 		bool wait_screen = false;
-		uint32_t wait_hash = 0;  // for screen waits, the sampled checksum at issue
+		uint32_t wait_hash = 0;	 // for screen waits, the sampled checksum at issue
 		uint32_t wait_linear = 0;
 		uint32_t wait_len = 1;
 		std::vector<uint8_t> wait_bytes;
-		long shot_id = -1;       // the id of a `shot` parked until a frame
-		long shot_at = 0;        // the frame it renders on, so the picture is frame-exact and comparable
-		std::string shot_path;   // empty means inline the PNG as base64
+		long shot_id = -1;		// the id of a `shot` parked until a frame
+		long shot_at = 0;		// the frame it renders on, so the picture is frame-exact and comparable
+		std::string shot_path;	// empty means inline the PNG as base64
 		// A `mem` parked until a frame, for the same reason a shot is: the reply is what a differential samples, and a
 		// reply serviced "a frame or two later, whenever" is what made two identical runs disagree. Measured before
 		// this existed: wanted frame 6200, read at 6201, and 13400 read at 13402, varying per run.
@@ -1259,7 +1368,7 @@ int main(int argc, char** argv) {
 	// what docs/live-fieldmap.md records: DS's base is the image base, so a file address is the offset. A segment
 	// value the CPU is not using is refused with the list rather than guessed at, because a wrong base reads as a
 	// wrong game state and not as an error.
-	auto resolve_addr = [&c](const std::string& spec, uint32_t& linear, std::string& err) {
+	auto resolve_addr = [&c](const std::string &spec, uint32_t &linear, std::string &err) {
 		size_t colon = spec.find(':');
 		if (colon == std::string::npos) {
 			linear = (uint32_t)std::strtoul(spec.c_str(), nullptr, 16);
@@ -1284,26 +1393,28 @@ int main(int argc, char** argv) {
 		return false;
 	};
 
-#ifndef _WIN32   // the control channel, which the Windows build does not port: see port/control.h
+#ifndef _WIN32	// the control channel, which the Windows build does not port: see port/control.h
 	// Build a `shot` reply: render is already done, this writes the PNG and either names the file or inlines it as
 	// base64. Shared by the immediate command and the parked one so the two cannot drift apart.
-	auto shot_reply = [](const std::string& want_path, long id, const std::vector<uint32_t>& rgb, int w, int h,
-	                     long frame) {
+	auto shot_reply = [](const std::string &want_path, long id, const std::vector<uint32_t> &rgb, int w, int h,
+						 long frame) {
 		std::string where = want_path;
 		bool temp = where.empty();
 		if (temp) {
-			const char* tmpdir = std::getenv("TMPDIR");
+			const char *tmpdir = std::getenv("TMPDIR");
 			// glibc's mkstemps wants **six** X's before the suffix, not four, and returns EINVAL for anything less.
 			// The first version used XXXX and every inline shot failed with "Invalid argument", which the test caught
 			// and a manual run would have blamed on the renderer.
 			char tmpl[512];
 			std::snprintf(tmpl, sizeof tmpl, "%s/u2port-shot-XXXXXX.png", tmpdir && *tmpdir ? tmpdir : "/tmp");
 			int fd = ::mkstemps(tmpl, 4);
-			if (fd < 0) return u2ctl::error_reply(id, std::string("mkstemps: ") + std::strerror(errno));
+			if (fd < 0)
+				return u2ctl::error_reply(id, std::string("mkstemps: ") + std::strerror(errno));
 			::close(fd);
 			where = tmpl;
 		}
-		if (!towns::write_png(where, rgb, w, h)) return u2ctl::error_reply(id, "write_png failed for " + where);
+		if (!towns::write_png(where, rgb, w, h))
+			return u2ctl::error_reply(id, "write_png failed for " + where);
 		const std::string fr = "\"frame\":" + std::to_string((long long)frame);
 		if (!temp) {
 			std::string wh;
@@ -1317,9 +1428,9 @@ int main(int argc, char** argv) {
 		}
 		::unlink(where.c_str());
 		return u2ctl::ok_reply(id, "\"width\":" + std::to_string(w) + ",\"height\":" + std::to_string(h) +
-		                              ",\"png\":\"" + u2ctl::b64(png) + "\"," + fr);
+									   ",\"png\":\"" + u2ctl::b64(png) + "\"," + fr);
 	};
-#endif  // !_WIN32
+#endif	// !_WIN32
 
 	if (frames || use_sdl || !keypresses.empty() || !padpresses.empty() || ctl) {
 		// The last value of the turn clock at 0xcdf53, and whether it has been read yet.
@@ -1342,63 +1453,68 @@ int main(int argc, char** argv) {
 		// not moved when the direction arrives and both keys are used.
 		m.before_key_served = [&]() {
 			uint32_t turn_now = 0;
-			m.read_block(0x400000u + 0xCDF53u, reinterpret_cast<uint8_t*>(&turn_now), 4);
-			if (turn_clock_seen && turn_now != turn_clock_last && !key_queue_ok) m.clear_keys();
+			m.read_block(0x400000u + 0xCDF53u, reinterpret_cast<uint8_t *>(&turn_now), 4);
+			if (turn_clock_seen && turn_now != turn_clock_last && !key_queue_ok)
+				m.clear_keys();
 			turn_clock_last = turn_now;
 			turn_clock_seen = true;
 		};
 		// The callback is installed when ANY of these needs it. It used to be installed only under a frame limit,
 		// which would have left `--sdl` with no limit showing a frozen window, because the hook that draws it is
 		// this one.
-		m.on_vsync = [&](towns::Machine& mm) {
+		m.on_vsync = [&](towns::Machine &mm) {
 			// The window first, because it is what paces the run and what throws Stop{0} when it is closed. Then
 			// everything the headless runs do, in the same order as before, so `--sdl` adds a picture rather than
 			// changing a measurement.
-			if (use_sdl) host.vsync(mm);
-			if (frames && (long)mm.frame >= frames) throw towns::Stop{0};
+			if (use_sdl)
+				host.vsync(mm);
+			if (frames && (long)mm.frame >= frames)
+				throw towns::Stop{0};
 			if (watch_at >= 0 && (long)mm.frame == watch_at) {
 				g_watch_lo = watch_lo_arm;
 				g_watch_hi = watch_hi_arm;
 				std::printf("watch     armed at frame %ld: [%08x,%08x)\n", watch_at, g_watch_lo, g_watch_hi);
 			}
-			for (const KeyPress& k : keypresses)
-				if (k.frame == (long)mm.frame) mm.press_key(k.scan, k.ascii);
+			for (const KeyPress &k : keypresses)
+				if (k.frame == (long)mm.frame)
+					mm.press_key(k.scan, k.ascii);
 			// THE TURN BOUNDARY is handled in the on_key_served hook below, at the moment the guest asks for a
 			// key, because a vsync-rate check is one frame late and lets a second command through.
 			// The pad is level-sensitive rather than a queue: it is set for the frames asked for and cleared after
 			// the hold, because a held direction is what the game polls and a press that never clears reads as a
 			// direction held down for ever.
-			for (const PadPress& p : padpresses) {
-				if (p.frame == (long)mm.frame) mm.set_pad(0, p.bits);
-				if (p.frame + p.hold == (long)mm.frame) mm.set_pad(0, 0);
+			for (const PadPress &p : padpresses) {
+				if (p.frame == (long)mm.frame)
+					mm.set_pad(0, p.bits);
+				if (p.frame + p.hold == (long)mm.frame)
+					mm.set_pad(0, 0);
 			}
 			// Control commands, answered between frames. `frame` in every reply is the machine's own counter, so a
 			// caller can tell that two commands were served in the same frame rather than assuming it.
-#ifndef _WIN32   // the control channel, which the Windows build does not port: see port/control.h
+#ifndef _WIN32	// the control channel, which the Windows build does not port: see port/control.h
 			if (ctl) {
-				// Parked commands first, so a `frame` that became due this frame is answered before new commands are read.
+				// Parked commands first, so a `frame` that became due this frame is answered before new commands are
+				// read.
 				if (ctlpend.frame_id >= 0 && (long)mm.frame >= ctlpend.frame_target) {
 					// `from` is the frame the command was received on, not the frame the earlier reply was sent on, so
-					// "exactly N" is checkable without knowing that commands are read once per frame. Without it a caller
-					// measuring reply to reply sees N+1 and has to guess whether that is a bug or the transport.
-					ctl->send(u2ctl::ok_reply(ctlpend.frame_id,
-					                            "\"frame\":" + std::to_string((unsigned long long)mm.frame) +
-					                                    ",\"from\":" + std::to_string((long long)ctlpend.frame_from) +
-					                                    ",\"stepped\":true"));
+					// "exactly N" is checkable without knowing that commands are read once per frame. Without it a
+					// caller measuring reply to reply sees N+1 and has to guess whether that is a bug or the transport.
+					ctl->send(u2ctl::ok_reply(
+						ctlpend.frame_id, "\"frame\":" + std::to_string((unsigned long long)mm.frame) + ",\"from\":" +
+											  std::to_string((long long)ctlpend.frame_from) + ",\"stepped\":true"));
 					ctlpend.frame_id = -1;
 				}
-				// A parked `mem` is answered on exactly the frame it asked for, like a shot. This is what makes a sample a
-				// property of the run rather than of when the driver's previous command happened to be read.
+				// A parked `mem` is answered on exactly the frame it asked for, like a shot. This is what makes a
+				// sample a property of the run rather than of when the driver's previous command happened to be read.
 				if (ctlpend.mem_id >= 0 && (long)mm.frame >= ctlpend.mem_at) {
 					const long mid = ctlpend.mem_id;
 					const uint32_t ml = ctlpend.mem_linear, mn = ctlpend.mem_len;
 					ctlpend.mem_id = -1;
 					char linh[16];
 					std::snprintf(linh, sizeof linh, "0x%08x", ml);
-					ctl->send(u2ctl::ok_reply(mid,
-					                            std::string("\"linear\":\"") + linh + "\",\"n\":" + std::to_string(mn) +
-					                                    ",\"hex\":\"" + mem_hex(m, ml, mn) + "\",\"frame\":" +
-					                                    std::to_string((unsigned long long)mm.frame)));
+					ctl->send(u2ctl::ok_reply(
+						mid, std::string("\"linear\":\"") + linh + "\",\"n\":" + std::to_string(mn) + ",\"hex\":\"" +
+								 mem_hex(m, ml, mn) + "\",\"frame\":" + std::to_string((unsigned long long)mm.frame)));
 				}
 				if (ctlpend.shot_id >= 0 && (long)mm.frame >= ctlpend.shot_at) {
 					// A parked shot renders on exactly the frame it asked for, which is what makes it comparable with
@@ -1408,8 +1524,10 @@ int main(int argc, char** argv) {
 					std::vector<uint32_t> rgb;
 					int w = 0, h = 0;
 					m.render(rgb, w, h);
-					if (w > 0 && h > 0) ctl->send(shot_reply(ctlpend.shot_path, sid, rgb, w, h, (long)mm.frame));
-					else ctl->send(u2ctl::error_reply(sid, "the machine has no frame to render"));
+					if (w > 0 && h > 0)
+						ctl->send(shot_reply(ctlpend.shot_path, sid, rgb, w, h, (long)mm.frame));
+					else
+						ctl->send(u2ctl::error_reply(sid, "the machine has no frame to render"));
 				}
 				if (ctlpend.wait_id >= 0) {
 					bool changed = false;
@@ -1429,8 +1547,10 @@ int main(int argc, char** argv) {
 						}
 					}
 					if (changed) {
-						std::string fields = "\"frame\":" + std::to_string((unsigned long long)mm.frame) + ",\"changed\":true";
-						if (!value.empty()) fields += ",\"value\":\"" + value + "\"";
+						std::string fields =
+							"\"frame\":" + std::to_string((unsigned long long)mm.frame) + ",\"changed\":true";
+						if (!value.empty())
+							fields += ",\"value\":\"" + value + "\"";
 						ctl->send(u2ctl::ok_reply(ctlpend.wait_id, fields));
 						ctlpend.wait_id = -1;
 					} else if ((long)mm.frame >= ctlpend.wait_deadline) {
@@ -1444,24 +1564,28 @@ int main(int argc, char** argv) {
 				for (;;) {
 					perr.clear();
 					int st = ctl->next(cc, perr);
-					if (st == 0) break;
+					if (st == 0)
+						break;
 					if (st < 0) {
 						ctl->send(u2ctl::error_reply(cc.id, perr));
 						continue;
 					}
 					const std::string fr = "\"frame\":" + std::to_string((unsigned long long)mm.frame);
 					if (cc.cmd == "hello") {
-						ctl->send(u2ctl::ok_reply(cc.id, "\"version\":\"" + std::string(u2ctl::version()) + "\"," + fr));
+						ctl->send(
+							u2ctl::ok_reply(cc.id, "\"version\":\"" + std::string(u2ctl::version()) + "\"," + fr));
 					} else if (cc.cmd == "ping") {
 						// `keys` is how many queued presses KYB_read has taken. It exists because "the game is
 						// ignoring this key" and "the game is not reading the keyboard" look identical from the
 						// screen, and only one of them is an input-path bug.
-						ctl->send(u2ctl::ok_reply(cc.id, fr + ",\"keys\":" + std::to_string((unsigned long long)m.keys_served) +
-						                                              ",\"queued\":" + std::to_string((unsigned long long)m.keys.size())));
+						ctl->send(u2ctl::ok_reply(
+							cc.id, fr + ",\"keys\":" + std::to_string((unsigned long long)m.keys_served) +
+									   ",\"queued\":" + std::to_string((unsigned long long)m.keys.size())));
 					} else if (cc.cmd == "echo") {
 						std::string fields;
-						for (const auto& kv : cc.args) {
-							if (!fields.empty()) fields += ",";
+						for (const auto &kv : cc.args) {
+							if (!fields.empty())
+								fields += ",";
 							std::string k, v;
 							u2ctl::escape(kv.first, k);
 							u2ctl::escape(kv.second, v);
@@ -1475,7 +1599,8 @@ int main(int argc, char** argv) {
 						// the key.
 						auto k = cc.args.find("key");
 						if (k == cc.args.end()) {
-							ctl->send(u2ctl::error_reply(cc.id, "key wants a key field, for example \"key\":\"Return\""));
+							ctl->send(
+								u2ctl::error_reply(cc.id, "key wants a key field, for example \"key\":\"Return\""));
 							continue;
 						}
 						SDL_Keycode sym = SDL_GetKeyFromName(k->second.c_str());
@@ -1483,46 +1608,53 @@ int main(int argc, char** argv) {
 							ctl->send(u2ctl::error_reply(cc.id, "not a key name SDL knows: " + k->second));
 							continue;
 						}
-						// `at` schedules the press on a FRAME, through the same list U2_KEYS fills. A key delivered "now"
-						// lands wherever scheduling put the machine, which is enough to make two runs of one route differ;
-						// a differential needs the keystroke itself to be at a fixed frame, not merely the sample after it.
+						// `at` schedules the press on a FRAME, through the same list U2_KEYS fills. A key delivered
+						// "now" lands wherever scheduling put the machine, which is enough to make two runs of one
+						// route differ; a differential needs the keystroke itself to be at a fixed frame, not merely
+						// the sample after it.
 						if (auto it = cc.args.find("at"); it != cc.args.end()) {
 							long at = std::strtol(it->second.c_str(), nullptr, 10);
 							uint8_t scan = 0, ascii = 0;
-							if (!towns::towns_key_scancode((int)SDL_GetScancodeFromKey(sym, nullptr), (int)sym, scan, ascii)) {
-								ctl->send(u2ctl::error_reply(cc.id, "the Towns keyboard has no code for: " + k->second));
+							if (!towns::towns_key_scancode((int)SDL_GetScancodeFromKey(sym, nullptr), (int)sym, scan,
+														   ascii)) {
+								ctl->send(
+									u2ctl::error_reply(cc.id, "the Towns keyboard has no code for: " + k->second));
 								continue;
 							}
 							keypresses.push_back(KeyPress{at, scan, ascii});
 							std::string kn;
 							u2ctl::escape(k->second, kn);
 							ctl->send(u2ctl::ok_reply(cc.id, "\"key\":\"" + kn + "\",\"at\":" + std::to_string(at) +
-							                                   ",\"scan\":" + std::to_string(scan) + ",\"ascii\":" +
-							                                   std::to_string(ascii) + "," + fr));
+																 ",\"scan\":" + std::to_string(scan) +
+																 ",\"ascii\":" + std::to_string(ascii) + "," + fr));
 							continue;
 						}
-						// HEADLESS. There is no window, so there is no SDL event to push, but the guest does not care where a
-						// keystroke came from. What the window's path uniquely supplies is the PC-to-Towns translation, so ask
-						// for exactly that and press the result. Refusing here instead is what made a 43-key sweep report that
-						// nothing reached the code under test, when in truth no key ever reached the guest.
+						// HEADLESS. There is no window, so there is no SDL event to push, but the guest does not care
+						// where a keystroke came from. What the window's path uniquely supplies is the PC-to-Towns
+						// translation, so ask for exactly that and press the result. Refusing here instead is what made
+						// a 43-key sweep report that nothing reached the code under test, when in truth no key ever
+						// reached the guest.
 						if (!use_sdl) {
 							uint8_t scan = 0, ascii = 0;
-							if (!towns::towns_key_scancode((int)SDL_GetScancodeFromKey(sym, nullptr), (int)sym, scan, ascii)) {
-								ctl->send(u2ctl::error_reply(cc.id, "the Towns keyboard has no code for: " + k->second));
+							if (!towns::towns_key_scancode((int)SDL_GetScancodeFromKey(sym, nullptr), (int)sym, scan,
+														   ascii)) {
+								ctl->send(
+									u2ctl::error_reply(cc.id, "the Towns keyboard has no code for: " + k->second));
 								continue;
 							}
 							m.press_key(scan, ascii);
 							std::string kn;
 							u2ctl::escape(k->second, kn);
 							ctl->send(u2ctl::ok_reply(cc.id, "\"key\":\"" + kn + "\",\"scan\":" + std::to_string(scan) +
-							                                   ",\"ascii\":" + std::to_string(ascii) + "," + fr));
+																 ",\"ascii\":" + std::to_string(ascii) + "," + fr));
 							continue;
 						}
-						SDL_Event ev {};
+						SDL_Event ev{};
 						ev.type = SDL_EVENT_KEY_DOWN;
 						ev.common.timestamp = 0;
-						// windowID left zero on purpose: SdlHost does not expose the window, and the front-end's handler
-						// dispatches on event type and scancode, so a zero id still travels the same road as a physical key.
+						// windowID left zero on purpose: SdlHost does not expose the window, and the front-end's
+						// handler dispatches on event type and scancode, so a zero id still travels the same road as a
+						// physical key.
 						ev.key.scancode = SDL_GetScancodeFromKey(sym, nullptr);
 						ev.key.key = sym;
 						ev.key.mod = 0;
@@ -1542,16 +1674,18 @@ int main(int argc, char** argv) {
 							continue;
 						}
 						long n = 1;
-						if (auto it = cc.args.find("n"); it != cc.args.end()) n = std::strtol(it->second.c_str(), nullptr, 10);
+						if (auto it = cc.args.find("n"); it != cc.args.end())
+							n = std::strtol(it->second.c_str(), nullptr, 10);
 						if (n < 1 || n > 1000000) {
 							ctl->send(u2ctl::error_reply(cc.id, "frame n must be between 1 and 1000000"));
 							continue;
 						}
-						// `at` makes the step ABSOLUTE, which is what a differential needs. With relative steps a caller
-						// that asks the frame and then asks to step lands somewhere that depends on how many frames ran
-						// between the two commands, so two runs of the same route sit at different frames and their state
-						// differs for reasons unrelated to the code under test. Measured: frame 60 against frame 1. `at` is
-						// idempotent, because being already there is the state the caller asked for, not an error.
+						// `at` makes the step ABSOLUTE, which is what a differential needs. With relative steps a
+						// caller that asks the frame and then asks to step lands somewhere that depends on how many
+						// frames ran between the two commands, so two runs of the same route sit at different frames
+						// and their state differs for reasons unrelated to the code under test. Measured: frame 60
+						// against frame 1. `at` is idempotent, because being already there is the state the caller
+						// asked for, not an error.
 						if (auto it = cc.args.find("at"); it != cc.args.end()) {
 							long at = std::strtol(it->second.c_str(), nullptr, 10);
 							if (at < 0) {
@@ -1634,8 +1768,9 @@ int main(int argc, char** argv) {
 							ctl->send(u2ctl::error_reply(cc.id, "mem n must be between 1 and 65536"));
 							continue;
 						}
-						// `at` parks the read until that frame, so the sample is a property of the run and not of when this
-						// command happened to be read. Idempotent like `frame at`: a frame already gone is answered now.
+						// `at` parks the read until that frame, so the sample is a property of the run and not of when
+						// this command happened to be read. Idempotent like `frame at`: a frame already gone is
+						// answered now.
 						if (auto it = cc.args.find("at"); it != cc.args.end()) {
 							long at = std::strtol(it->second.c_str(), nullptr, 10);
 							if (at < 0) {
@@ -1656,18 +1791,20 @@ int main(int argc, char** argv) {
 						}
 						char lin[16];
 						std::snprintf(lin, sizeof lin, "0x%08x", linear);
-						ctl->send(u2ctl::ok_reply(cc.id,
-						                            std::string("\"linear\":\"") + lin + "\",\"n\":" + std::to_string(len) +
-						                                    ",\"hex\":\"" + mem_hex(m, linear, len) + "\"," + fr));
+						ctl->send(u2ctl::ok_reply(cc.id, std::string("\"linear\":\"") + lin +
+															 "\",\"n\":" + std::to_string(len) + ",\"hex\":\"" +
+															 mem_hex(m, linear, len) + "\"," + fr));
 					} else if (cc.cmd == "shot") {
 						// The same renderer U2_SHOT uses, so "the socket's picture" and "the file's picture" are the
 						// same bytes and that is checkable rather than plausible. Inline as base64 by default; a `path`
-						// writes the file instead, and an `at` parks the shot until that exact frame, which is what makes
-						// it comparable with a run that ended on that frame.
+						// writes the file instead, and an `at` parks the shot until that exact frame, which is what
+						// makes it comparable with a run that ended on that frame.
 						std::string want_path;
-						if (auto it2 = cc.args.find("path"); it2 != cc.args.end() && !it2->second.empty()) want_path = it2->second;
+						if (auto it2 = cc.args.find("path"); it2 != cc.args.end() && !it2->second.empty())
+							want_path = it2->second;
 						long at = -1;
-						if (auto it2 = cc.args.find("at"); it2 != cc.args.end()) at = std::strtol(it2->second.c_str(), nullptr, 10);
+						if (auto it2 = cc.args.find("at"); it2 != cc.args.end())
+							at = std::strtol(it2->second.c_str(), nullptr, 10);
 						if (at > (long)mm.frame) {
 							if (ctlpend.shot_id >= 0) {
 								ctl->send(u2ctl::error_reply(cc.id, "a parked shot is already pending"));
@@ -1692,18 +1829,21 @@ int main(int argc, char** argv) {
 						// tools/savedisk.js: in-game slot 1 is the roster's "(0)", and the test asserts the two agree
 						// field for field so neither parser can drift alone.
 						long slot = 0;
-						if (auto it2 = cc.args.find("slot"); it2 != cc.args.end()) slot = std::strtol(it2->second.c_str(), nullptr, 10);
+						if (auto it2 = cc.args.find("slot"); it2 != cc.args.end())
+							slot = std::strtol(it2->second.c_str(), nullptr, 10);
 						// Read the live image, not the file. The guest's writes land in memory and reach the file only
 						// at exit, so a reader that re-opened the path would report the disk as it was found and a
 						// caller could not tell a failed save from a save that has not been flushed yet.
 						if (!g_floppy.loaded()) {
-							ctl->send(u2ctl::error_reply(cc.id, std::string("cannot open the floppy image ") + floppy_path));
+							ctl->send(
+								u2ctl::error_reply(cc.id, std::string("cannot open the floppy image ") + floppy_path));
 							continue;
 						}
-						u2floppy::Image& disk = g_floppy;
+						u2floppy::Image &disk = g_floppy;
 						std::vector<uint8_t> raw;
 						if (!disk.read("ROSTER1.UT2", raw) || raw.empty()) {
-							ctl->send(u2ctl::error_reply(cc.id, "no ROSTER1.UT2 on the floppy, so there is no party to report"));
+							ctl->send(u2ctl::error_reply(
+								cc.id, "no ROSTER1.UT2 on the floppy, so there is no party to report"));
 							continue;
 						}
 						if (slot < 0 || slot > 3) {
@@ -1714,17 +1854,21 @@ int main(int argc, char** argv) {
 						const std::string tag = "(" + std::to_string(slot) + ")NAME=";
 						size_t at = text.find(tag);
 						if (at == std::string::npos) {
-							ctl->send(u2ctl::error_reply(cc.id, "slot " + std::to_string(slot) + " is not in the roster"));
+							ctl->send(
+								u2ctl::error_reply(cc.id, "slot " + std::to_string(slot) + " is not in the roster"));
 							continue;
 						}
 						size_t end = text.find("(NAME=", at + 1);
 						for (size_t k = 0; k < 4; ++k) {
 							std::string nxt = "(" + std::to_string(k) + ")NAME=";
-							if (k == (size_t)slot) continue;
+							if (k == (size_t)slot)
+								continue;
 							size_t p = text.find(nxt, at + 1);
-							if (p != std::string::npos && (end == std::string::npos || p < end)) end = p;
+							if (p != std::string::npos && (end == std::string::npos || p < end))
+								end = p;
 						}
-						if (end == std::string::npos) end = text.size();
+						if (end == std::string::npos)
+							end = text.size();
 						std::string body = text.substr(at, end - at);
 						// The slot's fields, split on CR or LF, kept in file order so a reader sees the roster's own
 						// arrangement rather than an alphabetical one.
@@ -1736,23 +1880,25 @@ int main(int argc, char** argv) {
 							std::string line = body.substr(i, nl == std::string::npos ? std::string::npos : nl - i);
 							i = (nl == std::string::npos) ? body.size() : nl + 1;
 							size_t eq = line.find('=');
-							if (eq == std::string::npos) continue;
+							if (eq == std::string::npos)
+								continue;
 							std::string key = line.substr(0, eq), val = line.substr(eq + 1);
 							if (!key.compare(0, 1, "(")) {
 								size_t close = key.find(')');
-								if (close != std::string::npos) key = key.substr(close + 1);
+								if (close != std::string::npos)
+									key = key.substr(close + 1);
 							}
-							if (key.empty()) continue;
+							if (key.empty())
+								continue;
 							std::string ek, ev;
 							u2ctl::escape(key, ek);
 							u2ctl::escape(val, ev);
 							out += std::string(first ? "" : ",") + "\"" + ek + "\":\"" + ev + "\"";
 							first = false;
 						}
-						ctl->send(u2ctl::ok_reply(cc.id,
-						                            "\"slot\":" + std::to_string(slot) + ",\"disk\":"
-						                                    + std::to_string((unsigned long long)raw.size()) + "," + out + ","
-						                                    + fr));
+						ctl->send(u2ctl::ok_reply(cc.id, "\"slot\":" + std::to_string(slot) + ",\"disk\":" +
+															 std::to_string((unsigned long long)raw.size()) + "," +
+															 out + "," + fr));
 					} else if (cc.cmd == "quit") {
 						ctl->send(u2ctl::ok_reply(cc.id, fr));
 						throw towns::Stop{0};
@@ -1761,7 +1907,7 @@ int main(int argc, char** argv) {
 					}
 				}
 			}
-#endif  // !_WIN32
+#endif	// !_WIN32
 		};
 	}
 
@@ -1769,17 +1915,19 @@ int main(int argc, char** argv) {
 	try {
 		entry(c);
 		std::printf("the program returned from its entry\n");
-	} catch (const towns::Stop& s) {
+	} catch (const towns::Stop &s) {
 		code = s.code;
 		std::printf("stopped\n");
 	}
 	// The disk is written once, here, and not per save. A run that dies part way leaves the image exactly as it was
 	// found, which is the property that matters when the image is the only copy of somebody's characters.
-	if (!g_saves_dir && g_floppy.loaded() && !g_floppy.flush()) code = code ? code : 1;
-	std::printf("after     eax 0x%08x ecx 0x%08x edx 0x%08x ebx 0x%08x\n", c.r[0], c.r[1], c.r[2], c.r[3]);	std::printf("          esp 0x%08x ebp 0x%08x esi 0x%08x edi 0x%08x eip 0x%08x\n", c.r[4], c.r[5],
-	            c.r[6], c.r[7], c.eip);
+	if (!g_saves_dir && g_floppy.loaded() && !g_floppy.flush())
+		code = code ? code : 1;
+	std::printf("after     eax 0x%08x ecx 0x%08x edx 0x%08x ebx 0x%08x\n", c.r[0], c.r[1], c.r[2], c.r[3]);
+	std::printf("          esp 0x%08x ebp 0x%08x esi 0x%08x edi 0x%08x eip 0x%08x\n", c.r[4], c.r[5], c.r[6], c.r[7],
+				c.eip);
 	std::printf("          machine frames %llu  guest clocks %llu\n", (unsigned long long)m.frame,
-	            (unsigned long long)c.clocks);
+				(unsigned long long)c.clocks);
 #ifdef X86_TRACE_ON
 	if (g_trace_file) {
 		std::printf("trace     %llu instructions written\n", g_trace_written);
@@ -1799,17 +1947,21 @@ int main(int argc, char** argv) {
 	// its own zero-filled data, and a patched instruction is lost in that.
 	if (std::getenv("U2_DIFF_CODE")) {
 		std::vector<char> is_insn(image_size, 0);
-		if (const char* cov = std::getenv("U2_COVERAGE")) {
+		if (const char *cov = std::getenv("U2_COVERAGE")) {
 			std::vector<uint8_t> text = read_file(cov);
 			std::string line;
 			uint32_t marked = 0;
 			for (size_t k = 0; k <= text.size(); ++k) {
-				if (k < text.size() && text[k] != '\n') { line += (char)text[k]; continue; }
+				if (k < text.size() && text[k] != '\n') {
+					line += (char)text[k];
+					continue;
+				}
 				if (!line.empty() && line[0] != '#') {
 					unsigned addr = 0, size = 0;
 					if (std::sscanf(line.c_str(), "%x %u", &addr, &size) == 2)
 						for (unsigned b = 0; b < size && addr + b < image_size; ++b) {
-							if (!is_insn[addr + b]) is_insn[addr + b] = 1, ++marked;
+							if (!is_insn[addr + b])
+								is_insn[addr + b] = 1, ++marked;
 						}
 				}
 				line.clear();
@@ -1822,9 +1974,11 @@ int main(int argc, char** argv) {
 		m.read_block(PROGRAM_BASE, now.data(), image_size);
 		uint32_t diff = 0, in_code = 0;
 		for (uint32_t k = 0; k < image_size; ++k) {
-			if (now[k] == image[k]) continue;
+			if (now[k] == image[k])
+				continue;
 			++diff;
-			if (!is_insn[k]) continue;
+			if (!is_insn[k])
+				continue;
 			++in_code;
 			std::printf("patched   guest 0x%06x  %02x -> %02x\n", k, image[k], now[k]);
 		}
@@ -1834,22 +1988,24 @@ int main(int argc, char** argv) {
 	// of item 7a: if it is empty, the picture is missing because nothing is mapped to it, not because the
 	// program drew nothing, and the two are indistinguishable from a frame count.
 	if (std::getenv("U2_VRAM")) {
-		m.set_count_access(false);                              // just in case, before the counters are read
+		m.set_count_access(false);	// just in case, before the counters are read
 		uint64_t nonzero = 0;
 		long first = -1;
 		for (size_t k = 0; k < m.vram.size(); ++k) {
-			if (!m.vram[k]) continue;
+			if (!m.vram[k])
+				continue;
 			++nonzero;
-			if (first < 0) first = (long)k;
+			if (first < 0)
+				first = (long)k;
 		}
 		std::printf("vram      %llu of %zu bytes are non-zero, first at %ld\n", (unsigned long long)nonzero,
-		            m.vram.size(), first);
+					m.vram.size(), first);
 		// The access counters answer the next question a dump cannot: did the program touch VRAM at all, or did
 		// it write somewhere this machine does not call VRAM. "Drew nothing" and "never tried" look identical in
 		// a memory snapshot.
 		std::printf("vram      %llu writes and %llu reads to it, %llu sprite writes\n",
-		            (unsigned long long)m.access.vram_w, (unsigned long long)m.access.vram_r,
-		            (unsigned long long)m.access.spr_w);
+					(unsigned long long)m.access.vram_w, (unsigned long long)m.access.vram_r,
+					(unsigned long long)m.access.spr_w);
 		if (first >= 0) {
 			std::printf("vram      from %#lx:", (unsigned long)first);
 			for (long k = first; k < first + 32 && k < (long)m.vram.size(); ++k)
@@ -1872,21 +2028,23 @@ int main(int argc, char** argv) {
 		// it. A composed frame cannot say whether the pixels are missing from VRAM or hidden under the other
 		// layer's opaque pixels, and that difference decides whether the fault is in the program or in the
 		// composition. Not a permanent feature of the kit: it is the port masking one register for one shot.
-		if (const char* only = std::getenv("U2_LAYER")) {
+		if (const char *only = std::getenv("U2_LAYER")) {
 			const int n = std::atoi(only);
 			m.video.layer_ctrl = n == 0 ? (uint8_t)(m.video.layer_ctrl & 0x0C) : (uint8_t)(m.video.layer_ctrl & 0x03);
 			std::printf("shot      rendering layer %d alone, layer_ctrl masked to %02x\n", n, m.video.layer_ctrl);
 		}
 		m.render(rgb, w, h);
-		if (w > 0 && h > 0 && towns::write_png(shot_path, rgb, w, h)) std::printf("shot      %s (%dx%d)\n", shot_path, w, h);
-		else std::printf("shot      %s: the machine has no frame to render\n", shot_path);
+		if (w > 0 && h > 0 && towns::write_png(shot_path, rgb, w, h))
+			std::printf("shot      %s (%dx%d)\n", shot_path, w, h);
+		else
+			std::printf("shot      %s: the machine has no frame to render\n", shot_path);
 	}
 	if (show_palette) {
 		for (int layer = 0; layer < 2; ++layer) {
 			std::printf("palette   page%d:", layer);
 			for (int i = 0; i < 16; ++i)
 				std::printf(" %02x%02x%02x", m.video.pal16[layer][i][0], m.video.pal16[layer][i][1],
-				            m.video.pal16[layer][i][2]);
+							m.video.pal16[layer][i][2]);
 			std::printf("\n");
 		}
 	}
@@ -1898,28 +2056,31 @@ int main(int argc, char** argv) {
 	if (std::getenv("U2_VRAM_HASH")) {
 		print_vram_hash(m);
 	}
-	// U2_VIDEO=1 prints the display state that decides what is on screen: the CRTC registers, the layer control byte and
-	// the sprite controller's registers. This exists because the copyright notice's box is drawn while the text is not,
-	// and the question is whether the second layer is enabled and where it points: a page that is drawn but not enabled
-	// and a page that is enabled but never drawn look identical in a screenshot and different here.
+	// U2_VIDEO=1 prints the display state that decides what is on screen: the CRTC registers, the layer control byte
+	// and the sprite controller's registers. This exists because the copyright notice's box is drawn while the text is
+	// not, and the question is whether the second layer is enabled and where it points: a page that is drawn but not
+	// enabled and a page that is enabled but never drawn look identical in a screenshot and different here.
 	if (std::getenv("U2_VIDEO")) {
 		std::printf("video     crtc:");
-		for (int i = 0; i < 29; ++i) std::printf(" %04x", m.video.crtc[i]);
+		for (int i = 0; i < 29; ++i)
+			std::printf(" %04x", m.video.crtc[i]);
 		std::printf("\nvideo     vreg:");
-		// vreg is 2 bytes (0x448/0x44A). A first version of this looped to 16 and printed whatever followed it in memory,
-		// which was the environment strings, so the bound is stated here rather than assumed.
-		for (int i = 0; i < 2; ++i) std::printf(" %02x", m.video.vreg[i]);
+		// vreg is 2 bytes (0x448/0x44A). A first version of this looped to 16 and printed whatever followed it in
+		// memory, which was the environment strings, so the bound is stated here rather than assumed.
+		for (int i = 0; i < 2; ++i)
+			std::printf(" %02x", m.video.vreg[i]);
 		std::printf("\nvideo     layer_ctrl %02x  display_page %d  sprite page %d busy %d regs", m.video.layer_ctrl,
-		            (int)m.video.display_page, (int)m.sprite.page, (int)m.sprite.busy);
-		for (int i = 0; i < 8; ++i) std::printf(" %02x", m.sprite.reg[i]);
+					(int)m.video.display_page, (int)m.sprite.page, (int)m.sprite.busy);
+		for (int i = 0; i < 8; ++i)
+			std::printf(" %02x", m.sprite.reg[i]);
 		std::printf("\n");
 	}
 	// U2_VRAM_DUMP=<path> writes the whole VRAM array raw, so two frames can be diffed to find WHERE a drawing went
 	// rather than whether the picture looks right. This exists because the text in the copyright notice is missing
 	// from the port and the picture cannot say whether that is a renderer gap or the program never writing it: a byte
 	// diff between the frame before the notice and the frame during it answers that directly.
-	if (const char* vd = std::getenv("U2_VRAM_DUMP")) {
-		if (FILE* f = std::fopen(vd, "wb")) {
+	if (const char *vd = std::getenv("U2_VRAM_DUMP")) {
+		if (FILE *f = std::fopen(vd, "wb")) {
 			std::fwrite(m.vram.data(), 1, m.vram.size(), f);
 			std::fclose(f);
 			std::printf("vramdump  %s (%zu bytes)\n", vd, m.vram.size());
@@ -1935,7 +2096,7 @@ int main(int argc, char** argv) {
 		std::vector<uint32_t> rgb;
 		int w = 0, h = 0;
 		m.render(rgb, w, h);
-		static const char* ramp = " .:-=+*#%@";
+		static const char *ramp = " .:-=+*#%@";
 		const int cols = 100;
 		const int cellW = std::max(1, w / cols), cellH = cellW * 2;
 		const int rows = h / cellH;
@@ -1954,23 +2115,25 @@ int main(int argc, char** argv) {
 				const double v = sum / std::max(1, n);
 				line += ramp[std::min<int>(9, (int)std::floor((v / 256.0) * 10))];
 			}
-			while (!line.empty() && line.back() == ' ') line.pop_back();
+			while (!line.empty() && line.back() == ' ')
+				line.pop_back();
 			std::printf("screen    %s\n", line.c_str());
 		}
 	}
-	if (const char* dump = std::getenv("U2_DUMP")) {
+	if (const char *dump = std::getenv("U2_DUMP")) {
 		uint32_t at = (uint32_t)std::strtoul(dump, nullptr, 16);
 		uint8_t buf[32];
 		m.read_block(at, buf, sizeof buf);
 		std::printf("memory    %08x:", at);
-		for (unsigned char ch : buf) std::printf(" %02x", ch);
+		for (unsigned char ch : buf)
+			std::printf(" %02x", ch);
 		std::printf("\n");
 	}
 	// U2_MEM_DUMP=<lo>:<len>:<path> writes a range of guest memory to a file so it can be diffed against the same
 	// range read off the machine with `MD 0:<linear>`. Thirty-two bytes at a time is enough to check one buffer and
 	// useless for finding an empty table, and the difference between a machine that draws text and a port that does
 	// not has to be in the data, because the code path is the same call from the same site.
-	if (const char* spec = std::getenv("U2_MEM_DUMP")) {
+	if (const char *spec = std::getenv("U2_MEM_DUMP")) {
 		std::string s(spec);
 		size_t c1 = s.find(':'), c2 = c1 == std::string::npos ? std::string::npos : s.find(':', c1 + 1);
 		if (c1 == std::string::npos || c2 == std::string::npos) {
@@ -1981,7 +2144,7 @@ int main(int argc, char** argv) {
 			const std::string path = s.substr(c2 + 1);
 			std::vector<uint8_t> buf(len);
 			m.read_block(lo, buf.data(), len);
-			FILE* f = std::fopen(path.c_str(), "wb");
+			FILE *f = std::fopen(path.c_str(), "wb");
 			if (!f) {
 				std::fprintf(stderr, "U2_MEM_DUMP: cannot write %s\n", path.c_str());
 			} else {

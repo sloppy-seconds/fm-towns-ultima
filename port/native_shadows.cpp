@@ -1,7 +1,7 @@
 #include "native_shadows.h"
 #include "x86_glue.h"
 #ifndef U2_NO_SHADOWS
-#include "p_game_funcs.h"   // the recompiled twin, for the U2_SHADOW_OFF baseline
+#include "p_game_funcs.h"  // the recompiled twin, for the U2_SHADOW_OFF baseline
 #endif
 
 #ifndef U2_NO_SHADOWS
@@ -32,8 +32,11 @@ using namespace u2glue;
 // Not a number but a countdown: the low byte steps down through 0..73, borrows into the middle byte, which borrows into
 // the high byte. Something reads it as a position in a 74-step cycle; whether that cycle is a timer or a phase is not
 // established, so the rule stops at the arithmetic.
-void native_000e05e8(X86Cpu& c) {
-	if (delegate(0xE05E8u)) { p_game::f_000e05e8(c); return; }
+void native_000e05e8(X86Cpu &c) {
+	if (delegate(0xE05E8u)) {
+		p_game::f_000e05e8(c);
+		return;
+	}
 	tick(c, 37);
 	const uint32_t p = arg32(c, 0);
 	uint8_t high = data8(c, p);
@@ -42,7 +45,7 @@ void native_000e05e8(X86Cpu& c) {
 	low = (uint8_t)(low - 1u);
 	if ((int8_t)low < 0) {
 		tick(c, 20);
-		low = 0x4Au;                       // the cycle length, 74
+		low = 0x4Au;  // the cycle length, 74
 		mid = (uint8_t)(mid - 1u);
 		if ((int8_t)mid < 0) {
 			tick(c, 6);
@@ -63,8 +66,11 @@ void native_000e05e8(X86Cpu& c) {
 //     char *f(char *p, int n) -- walk a 6-byte-stride array, and return the element after the n-th 0xf2 marker.
 // Kept in explicit form on purpose: it has never been observed running, so a readable rule for it would be a guess
 // dressed as documentation. Everything here is checked against the twin instead.
-void native_000e120c(X86Cpu& c) {
-	if (delegate(0xE120Cu)) { p_game::f_000e120c(c); return; }
+void native_000e120c(X86Cpu &c) {
+	if (delegate(0xE120Cu)) {
+		p_game::f_000e120c(c);
+		return;
+	}
 	tick(c, 23);
 	push32(c, c.r[5]);
 	c.r[5] = c.r[4];
@@ -119,13 +125,18 @@ void native_000e120c(X86Cpu& c) {
 // 0xe1a54 (23 bytes).
 //     int f(int x) { *(int *)0x40e04 = system_a(); return system_b(x); }
 // One value recorded in a global on the way past, then the argument handed to a second system-layer call.
-void native_000e1a54(X86Cpu& c) {
-	if (delegate(0xE1A54u)) { p_game::f_000e1a54(c); return; }
+void native_000e1a54(X86Cpu &c) {
+	if (delegate(0xE1A54u)) {
+		p_game::f_000e1a54(c);
+		return;
+	}
 	tick(c, 11);
-	if (!call0(c, 0xFDCB6u, p_game::f_000fdcb6)) return;
+	if (!call0(c, 0xFDCB6u, p_game::f_000fdcb6))
+		return;
 	put32(c, 0x40E04u, c.r[0]);
 	tick(c, 14);
-	if (!call1(c, 0xFDCA0u, p_game::f_000fdca0, arg32(c, 0))) return;
+	if (!call1(c, 0xFDCA0u, p_game::f_000fdca0, arg32(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
@@ -134,15 +145,19 @@ void native_000e1a54(X86Cpu& c) {
 //     int f(void *p) { return system_0x102317(p, 0) != 0 ? -1 : 0; }
 // A boolean flattened to the game's two answer values, which is the shape a predicate takes when the caller tests it
 // with a comparison against zero in several places.
-void native_000e23cc(X86Cpu& c) {
-	if (delegate(0xE23CCu)) { p_game::f_000e23cc(c); return; }
+void native_000e23cc(X86Cpu &c) {
+	if (delegate(0xE23CCu)) {
+		p_game::f_000e23cc(c);
+		return;
+	}
 	tick(c, 18);
-	if (!call2(c, 0x102317u, p_game::f_00102317, arg32(c, 0), 0u)) return;
+	if (!call2(c, 0x102317u, p_game::f_00102317, arg32(c, 0), 0u))
+		return;
 	tick(c, 7);
 	uint32_t answer;
 	if (c.r[0] != 0) {
 		tick(c, 9);
-		answer = 0xFFFFFFFFu;              // -1: the call reported true
+		answer = 0xFFFFFFFFu;  // -1: the call reported true
 	} else {
 		tick(c, 2);
 		answer = 0u;
@@ -155,11 +170,15 @@ void native_000e23cc(X86Cpu& c) {
 //     int f(int i) { return g(table_7a5d8[i], -1); }
 // The argument indexes a table of pointers and the entry is passed on with a constant -1, which is the shape of a
 // dispatch through a table of handlers where the constant selects an operation.
-void native_000e3530(X86Cpu& c) {
-	if (delegate(0xE3530u)) { p_game::f_000e3530(c); return; }
+void native_000e3530(X86Cpu &c) {
+	if (delegate(0xE3530u)) {
+		p_game::f_000e3530(c);
+		return;
+	}
 	tick(c, 22);
 	const uint32_t entry = data32(c, 0x7A5D8u + 4u * arg32(c, 0));
-	if (!call2(c, 0xE07C8u, p_game::f_000e07c8, entry, 0xFFFFFFFFu)) return;
+	if (!call2(c, 0xE07C8u, p_game::f_000e07c8, entry, 0xFFFFFFFFu))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
@@ -170,28 +189,34 @@ void native_000e3530(X86Cpu& c) {
 //
 // A LOOP RULE: the cursor lives in edx and the accumulator in ecx, because the two backward jumps are places the
 // runtime can resume in the recompiled twin, which reads those registers.
-void native_000e42d0(X86Cpu& c) {
-	if (delegate(0xE42D0u)) { p_game::f_000e42d0(c); return; }
+void native_000e42d0(X86Cpu &c) {
+	if (delegate(0xE42D0u)) {
+		p_game::f_000e42d0(c);
+		return;
+	}
 	tick(c, 6);
-	c.r[2] = arg32(c, 0);   // edx: the cursor
-	c.r[1] = 0;             // ecx: the number so far
-	for (;;) {              // skip blanks
+	c.r[2] = arg32(c, 0);  // edx: the cursor
+	c.r[1] = 0;			   // ecx: the number so far
+	for (;;) {			   // skip blanks
 		tick(c, 11);
 		const uint8_t ch = data8(c, c.r[2]);
 		if (ch != ' ') {
 			tick(c, 7);
-			if (ch != '\t') break;
+			if (ch != '\t')
+				break;
 		}
 		tick(c, 9);
 		c.r[2] += 1;
 		X86_POLL(c, 0xE42D6u);
 	}
-	for (;;) {              // accumulate digits
+	for (;;) {	// accumulate digits
 		tick(c, 11);
 		const uint8_t ch = data8(c, c.r[2]);
-		if (ch < '0') break;
+		if (ch < '0')
+			break;
 		tick(c, 7);
-		if (ch > '9') break;
+		if (ch > '9')
+			break;
 		tick(c, 23);
 		c.r[1] = c.r[1] * 10u + (uint32_t)(ch - '0');
 		c.r[2] += 1;
@@ -207,8 +232,11 @@ void native_000e42d0(X86Cpu& c) {
 // advanced past the terminator, so the callee receives the position after the text rather than its start. Ticks are 22
 // for the entry block, 14 per loop iteration, 14 for the call block and 22 for the epilogue, and the poll sits on the
 // backward jump as the twin has it.
-void native_000e5654(X86Cpu& c) {
-	if (delegate(0xE5654u)) { p_game::f_000e5654(c); return; }
+void native_000e5654(X86Cpu &c) {
+	if (delegate(0xE5654u)) {
+		p_game::f_000e5654(c);
+		return;
+	}
 	tick(c, 22);
 	const uint32_t a = arg32(c, 0);
 	uint32_t s = arg32(c, 1);
@@ -216,12 +244,14 @@ void native_000e5654(X86Cpu& c) {
 		for (;;) {
 			tick(c, 14);
 			s += 1;
-			if (data8(c, s - 1u) == 0) break;
+			if (data8(c, s - 1u) == 0)
+				break;
 			X86_POLL(c, 0xE5664u);
 		}
 	}
 	tick(c, 14);
-	if (!call2(c, 0xE6CB0u, p_game::f_000e6cb0, a, s)) return;
+	if (!call2(c, 0xE6CB0u, p_game::f_000e6cb0, a, s))
+		return;
 	tick(c, 22);
 	ret(c, c.r[0]);
 }
@@ -231,34 +261,50 @@ void native_000e5654(X86Cpu& c) {
 // The display context at 0x7a7d8 is the first argument (see docs/display-context.md) and the address selects N, so
 // four addresses are one shape with a different constant. Written out rather than generated by a macro so that each
 // rule is visible and so tools/portcheck.js can see the symbol the table names.
-void native_000e5748(X86Cpu& c) {
-	if (delegate(0xE5748u)) { p_game::f_000e5748(c); return; }
+void native_000e5748(X86Cpu &c) {
+	if (delegate(0xE5748u)) {
+		p_game::f_000e5748(c);
+		return;
+	}
 	tick(c, 23);
-	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 0u, (uint32_t)arg16(c, 0))) return;
+	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 0u, (uint32_t)arg16(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
 
-void native_000e5760(X86Cpu& c) {
-	if (delegate(0xE5760u)) { p_game::f_000e5760(c); return; }
+void native_000e5760(X86Cpu &c) {
+	if (delegate(0xE5760u)) {
+		p_game::f_000e5760(c);
+		return;
+	}
 	tick(c, 23);
-	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 1u, (uint32_t)arg16(c, 0))) return;
+	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 1u, (uint32_t)arg16(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
 
-void native_000e5778(X86Cpu& c) {
-	if (delegate(0xE5778u)) { p_game::f_000e5778(c); return; }
+void native_000e5778(X86Cpu &c) {
+	if (delegate(0xE5778u)) {
+		p_game::f_000e5778(c);
+		return;
+	}
 	tick(c, 23);
-	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 2u, (uint32_t)arg16(c, 0))) return;
+	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 2u, (uint32_t)arg16(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
 
-void native_000e5790(X86Cpu& c) {
-	if (delegate(0xE5790u)) { p_game::f_000e5790(c); return; }
+void native_000e5790(X86Cpu &c) {
+	if (delegate(0xE5790u)) {
+		p_game::f_000e5790(c);
+		return;
+	}
 	tick(c, 23);
-	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 3u, (uint32_t)arg16(c, 0))) return;
+	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 3u, (uint32_t)arg16(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
@@ -267,26 +313,38 @@ void native_000e5790(X86Cpu& c) {
 //     int f(int x) { return g(0x7a7d8, x); }   with g at 0x4b1, 0x27d and 0x1c4
 // The same shape as the four above but without the extra constant, and the argument arrives as a dword rather than
 // sign-extended from a word.
-void native_000e5810(X86Cpu& c) {
-	if (delegate(0xE5810u)) { p_game::f_000e5810(c); return; }
+void native_000e5810(X86Cpu &c) {
+	if (delegate(0xE5810u)) {
+		p_game::f_000e5810(c);
+		return;
+	}
 	tick(c, 18);
-	if (!call2(c, 0x4B1u, p_game::f_000004b1, 0x7A7D8u, arg32(c, 0))) return;
+	if (!call2(c, 0x4B1u, p_game::f_000004b1, 0x7A7D8u, arg32(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
 
-void native_000e58b8(X86Cpu& c) {
-	if (delegate(0xE58B8u)) { p_game::f_000e58b8(c); return; }
+void native_000e58b8(X86Cpu &c) {
+	if (delegate(0xE58B8u)) {
+		p_game::f_000e58b8(c);
+		return;
+	}
 	tick(c, 18);
-	if (!call2(c, 0x27Du, p_game::f_0000027d, 0x7A7D8u, arg32(c, 0))) return;
+	if (!call2(c, 0x27Du, p_game::f_0000027d, 0x7A7D8u, arg32(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
 
-void native_000e58cc(X86Cpu& c) {
-	if (delegate(0xE58CCu)) { p_game::f_000e58cc(c); return; }
+void native_000e58cc(X86Cpu &c) {
+	if (delegate(0xE58CCu)) {
+		p_game::f_000e58cc(c);
+		return;
+	}
 	tick(c, 18);
-	if (!call2(c, 0x1C4u, p_game::f_000001c4, 0x7A7D8u, arg32(c, 0))) return;
+	if (!call2(c, 0x1C4u, p_game::f_000001c4, 0x7A7D8u, arg32(c, 0)))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
@@ -296,8 +354,11 @@ void native_000e58cc(X86Cpu& c) {
 // Every one of its ten call sites passes a constant, so callers NAME a state and this advances past it. What the four
 // states change is not established, so the rule stops at the arithmetic and the call rather than inventing a name for
 // them. See docs/display-context.md, which lists the context header's meaning as unresolved.
-void native_000e58e0(X86Cpu& c) {
-	if (delegate(0xE58E0u)) { p_game::f_000e58e0(c); return; }
+void native_000e58e0(X86Cpu &c) {
+	if (delegate(0xE58E0u)) {
+		p_game::f_000e58e0(c);
+		return;
+	}
 	tick(c, 19);
 	int state = (int)arg32(c, 0) + 1;
 	if (state == 4) {
@@ -305,7 +366,8 @@ void native_000e58e0(X86Cpu& c) {
 		state = 0;
 	}
 	tick(c, 13);
-	if (!call3(c, 0x1E6u, p_game::f_000001e6, 0x7A7D8u, 0u, (uint32_t)state)) return;
+	if (!call3(c, 0x1E6u, p_game::f_000001e6, 0x7A7D8u, 0u, (uint32_t)state))
+		return;
 	tick(c, 22);
 	ret(c, c.r[0]);
 }
@@ -316,21 +378,26 @@ void native_000e58e0(X86Cpu& c) {
 //     which == 1:  g(0x7a7d8, 1, 0x36, 0x31)
 // Both go to 0x14a with the context and three more arguments, so the routine is a two-way choice between two argument
 // sets. What the pairs select is not established.
-void native_000e5a3c(X86Cpu& c) {
-	if (delegate(0xE5A3Cu)) { p_game::f_000e5a3c(c); return; }
+void native_000e5a3c(X86Cpu &c) {
+	if (delegate(0xE5A3Cu)) {
+		p_game::f_000e5a3c(c);
+		return;
+	}
 	static const uint32_t kFirst[] = {0x7A7D8u, 1u, 0u, 0u};
 	static const uint32_t kSecond[] = {0x7A7D8u, 1u, 0x36u, 0x31u};
 	tick(c, 17);
 	const uint32_t which = arg32(c, 0);
 	if (which == 0) {
 		tick(c, 15);
-		if (!callN(c, 0x14Au, p_game::f_0000014a, kFirst, 4)) return;
+		if (!callN(c, 0x14Au, p_game::f_0000014a, kFirst, 4))
+			return;
 		tick(c, 2);
 	}
 	tick(c, 7);
 	if (which == 1) {
 		tick(c, 15);
-		if (!callN(c, 0x14Au, p_game::f_0000014a, kSecond, 4)) return;
+		if (!callN(c, 0x14Au, p_game::f_0000014a, kSecond, 4))
+			return;
 		tick(c, 2);
 	}
 	tick(c, 20);
@@ -341,12 +408,17 @@ void native_000e5a3c(X86Cpu& c) {
 //     int f(int x) { tbios6(0x7a7d8, 1, x); return g(0x7a7d8); }
 // Set a display-context state through TBIOS service 6, then hand the context to 0x518. The pair is "change it, then
 // apply it", and the same two calls appear together in the family at 0xe58xx.
-void native_000e5c6c(X86Cpu& c) {
-	if (delegate(0xE5C6Cu)) { p_game::f_000e5c6c(c); return; }
+void native_000e5c6c(X86Cpu &c) {
+	if (delegate(0xE5C6Cu)) {
+		p_game::f_000e5c6c(c);
+		return;
+	}
 	tick(c, 23);
-	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 1u, (uint32_t)arg16(c, 0))) return;
+	if (!call3(c, 0x20Eu, p_game::f_0000020e, 0x7A7D8u, 1u, (uint32_t)arg16(c, 0)))
+		return;
 	tick(c, 9);
-	if (!call1(c, 0x518u, p_game::f_00000518, 0x7A7D8u)) return;
+	if (!call1(c, 0x518u, p_game::f_00000518, 0x7A7D8u))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
@@ -356,23 +428,30 @@ void native_000e5c6c(X86Cpu& c) {
 //         fill a five-word structure at 0x7add8 with 2, a, b, c, d, then hand it to 0x809 with the display context.
 // A parameter block: the four arguments are packed as 16-bit fields and passed by address, so the callee reads a struct
 // rather than four stack arguments. What the fields mean is not established.
-void native_000e5cd4(X86Cpu& c) {
-	if (delegate(0xE5CD4u)) { p_game::f_000e5cd4(c); return; }
+void native_000e5cd4(X86Cpu &c) {
+	if (delegate(0xE5CD4u)) {
+		p_game::f_000e5cd4(c);
+		return;
+	}
 	tick(c, 41);
 	put16(c, 0x7ADD8u, 2u);
 	put16(c, 0x7ADDAu, (uint16_t)arg16(c, 0));
 	put16(c, 0x7ADDCu, (uint16_t)arg16(c, 1));
 	put16(c, 0x7ADDEu, (uint16_t)arg16(c, 2));
 	put16(c, 0x7ADE0u, (uint16_t)arg16(c, 3));
-	if (!call2(c, 0x809u, p_game::f_00000809, 0x7A7D8u, 0x7ADD8u)) return;
+	if (!call2(c, 0x809u, p_game::f_00000809, 0x7A7D8u, 0x7ADD8u))
+		return;
 	tick(c, 16);
 	ret(c, c.r[0]);
 }
 
 // 0xe63fc (23 bytes).
 //     void f(char *p, int *a, int *b) { *a = *(int *)(p + 0x1e); *b = *(int *)(p + 0x2a); }
-void native_000e63fc(X86Cpu& c) {
-	if (delegate(0xE63FCu)) { p_game::f_000e63fc(c); return; }
+void native_000e63fc(X86Cpu &c) {
+	if (delegate(0xE63FCu)) {
+		p_game::f_000e63fc(c);
+		return;
+	}
 	tick(c, 34);
 	const uint32_t p = arg32(c, 0);
 	put32(c, arg32(c, 1), data32(c, p + 0x1Eu));
@@ -383,8 +462,11 @@ void native_000e63fc(X86Cpu& c) {
 
 // 0xe642c (9 bytes).
 //     int f(char *p) { return *(int16_t *)(p + 0x36); }
-void native_000e642c(X86Cpu& c) {
-	if (delegate(0xE642Cu)) { p_game::f_000e642c(c); return; }
+void native_000e642c(X86Cpu &c) {
+	if (delegate(0xE642Cu)) {
+		p_game::f_000e642c(c);
+		return;
+	}
 	tick(c, 20);
 	ret(c, (uint32_t)(int32_t)(int16_t)rd16(c.sbase[3] + arg32(c, 0) + 0x36u));
 }
@@ -396,15 +478,19 @@ void native_000e642c(X86Cpu& c) {
 // The three leas that compute `i * 57` are the compiler's multiply: i*3, then *9, then *2 plus the original, which is
 // 57. A per-entry counter against a limit, with a callback when it reaches it. Whether the callback resets the counter
 // is in 0xe6bc8, not here.
-void native_000e6c68(X86Cpu& c) {
-	if (delegate(0xE6C68u)) { p_game::f_000e6c68(c); return; }
+void native_000e6c68(X86Cpu &c) {
+	if (delegate(0xE6C68u)) {
+		p_game::f_000e6c68(c);
+		return;
+	}
 	tick(c, 33);
 	const uint32_t i = arg32(c, 0);
 	const uint32_t base = 0x7AEF9u + 57u * i;
 	put32(c, base + 4u, 0u);
 	if (data32(c, base + 8u) == data32(c, base)) {
 		tick(c, 9);
-		if (!call1(c, 0xE6BC8u, p_game::f_000e6bc8, i)) return;
+		if (!call1(c, 0xE6BC8u, p_game::f_000e6bc8, i))
+			return;
 		tick(c, 9);
 	} else {
 		tick(c, 12);
@@ -418,15 +504,21 @@ void native_000e6c68(X86Cpu& c) {
 //     void f(void) -- one ten-argument setup call, then two one-argument calls with the same constant, 2.
 // All arguments are literals: 2, 0x10, 0x1b0, 0x260, 0x14, 0x4d, 0, 0xf, 0xf, 0xe, then 2 and 2. Nothing here is
 // computed, so the rule is the argument list and the order, and what those numbers mean is not established.
-void native_000e75c4(X86Cpu& c) {
-	if (delegate(0xE75C4u)) { p_game::f_000e75c4(c); return; }
+void native_000e75c4(X86Cpu &c) {
+	if (delegate(0xE75C4u)) {
+		p_game::f_000e75c4(c);
+		return;
+	}
 	static const uint32_t kSetup[] = {2u, 0x10u, 0x1B0u, 0x260u, 0x14u, 0x4Du, 0u, 0xFu, 0xFu, 0xEu};
 	tick(c, 27);
-	if (!callN(c, 0xE6858u, p_game::f_000e6858, kSetup, 10)) return;
+	if (!callN(c, 0xE6858u, p_game::f_000e6858, kSetup, 10))
+		return;
 	tick(c, 9);
-	if (!call1(c, 0xE693Cu, p_game::f_000e693c, 2u)) return;
+	if (!call1(c, 0xE693Cu, p_game::f_000e693c, 2u))
+		return;
 	tick(c, 9);
-	if (!call1(c, 0xE699Cu, p_game::f_000e699c, 2u)) return;
+	if (!call1(c, 0xE699Cu, p_game::f_000e699c, 2u))
+		return;
 	tick(c, 12);
 	ret(c, c.r[0]);
 }
@@ -434,23 +526,28 @@ void native_000e75c4(X86Cpu& c) {
 // 0xe9c2c (21 bytes, 11c's first target, and the reason the target choice became a measurement).
 //     char *f(char *p) { while (*p != '=' && *p != 0) p++; return p + 1; }
 // A LOOP RULE: the cursor is in ecx, because the backward jump is a place the runtime can resume in the twin.
-void native_000e9c2c(X86Cpu& c) {
-	if (delegate(0xE9C2Cu)) { p_game::f_000e9c2c(c); return; }
+void native_000e9c2c(X86Cpu &c) {
+	if (delegate(0xE9C2Cu)) {
+		p_game::f_000e9c2c(c);
+		return;
+	}
 	tick(c, 4);
 	c.r[1] = arg32(c, 0);
 	for (;;) {
 		tick(c, 11);
 		const uint8_t ch = data8(c, c.r[1]);
-		if (ch == '=') break;
+		if (ch == '=')
+			break;
 		tick(c, 7);
-		if (ch == 0) break;
+		if (ch == 0)
+			break;
 		tick(c, 9);
 		c.r[1] += 1;
 		X86_POLL(c, 0xE9C30u);
 	}
 	tick(c, 14);
 #ifdef U2_SHADOW_WRONG
-	ret(c, c.r[1]);          // one short: the off-by-one this gate must catch
+	ret(c, c.r[1]);	 // one short: the off-by-one this gate must catch
 #else
 	ret(c, c.r[1] + 1u);
 #endif
@@ -458,29 +555,12 @@ void native_000e9c2c(X86Cpu& c) {
 
 // Ascending by address, because x86_lookup() binary-searches this table.
 const X86FuncEntry g_x86_shadows[] = {
-	{ 0xe05e8, native_000e05e8 },
-	{ 0xe120c, native_000e120c },
-	{ 0xe1a54, native_000e1a54 },
-	{ 0xe23cc, native_000e23cc },
-	{ 0xe3530, native_000e3530 },
-	{ 0xe42d0, native_000e42d0 },
-	{ 0xe5654, native_000e5654 },
-	{ 0xe5748, native_000e5748 },
-	{ 0xe5760, native_000e5760 },
-	{ 0xe5778, native_000e5778 },
-	{ 0xe5790, native_000e5790 },
-	{ 0xe5810, native_000e5810 },
-	{ 0xe58b8, native_000e58b8 },
-	{ 0xe58cc, native_000e58cc },
-	{ 0xe58e0, native_000e58e0 },
-	{ 0xe5a3c, native_000e5a3c },
-	{ 0xe5c6c, native_000e5c6c },
-	{ 0xe5cd4, native_000e5cd4 },
-	{ 0xe63fc, native_000e63fc },
-	{ 0xe642c, native_000e642c },
-	{ 0xe6c68, native_000e6c68 },
-	{ 0xe75c4, native_000e75c4 },
-	{ 0xe9c2c, native_000e9c2c },
+	{0xe05e8, native_000e05e8}, {0xe120c, native_000e120c}, {0xe1a54, native_000e1a54}, {0xe23cc, native_000e23cc},
+	{0xe3530, native_000e3530}, {0xe42d0, native_000e42d0}, {0xe5654, native_000e5654}, {0xe5748, native_000e5748},
+	{0xe5760, native_000e5760}, {0xe5778, native_000e5778}, {0xe5790, native_000e5790}, {0xe5810, native_000e5810},
+	{0xe58b8, native_000e58b8}, {0xe58cc, native_000e58cc}, {0xe58e0, native_000e58e0}, {0xe5a3c, native_000e5a3c},
+	{0xe5c6c, native_000e5c6c}, {0xe5cd4, native_000e5cd4}, {0xe63fc, native_000e63fc}, {0xe642c, native_000e642c},
+	{0xe6c68, native_000e6c68}, {0xe75c4, native_000e75c4}, {0xe9c2c, native_000e9c2c},
 };
 
 // The module. `size`, `crc` and `image` describe the recompiler's image and are only consulted by the kit's
@@ -491,12 +571,12 @@ const X86Module g_mod_native = {
 	"NATIVE", 0x000C, 0u, 0u, g_x86_shadows, sizeof(g_x86_shadows) / sizeof(g_x86_shadows[0]), 0u, nullptr,
 };
 
-#else   // U2_NO_SHADOWS, the no-game CI build
+#else  // U2_NO_SHADOWS, the no-game CI build
 // The CI check compiles the port against a module generated from 4 KB of zero fill, so none of the functions named
 // above exists and the table cannot refer to them. Shadows are game-specific by construction, so that build carries an
 // empty manifest with the same three symbols the port references. What the check proves is that the port links and runs
 // with no game present; what it deliberately does not prove is anything about the strangler.
-const X86FuncEntry g_x86_shadows[] = { {0u, nullptr} };
+const X86FuncEntry g_x86_shadows[] = {{0u, nullptr}};
 const unsigned g_x86_nshadows = 0;
-const X86Module g_mod_native = { "NATIVE", 0x000C, 0u, 0u, g_x86_shadows, 0u, 0u, nullptr };
+const X86Module g_mod_native = {"NATIVE", 0x000C, 0u, 0u, g_x86_shadows, 0u, 0u, nullptr};
 #endif
