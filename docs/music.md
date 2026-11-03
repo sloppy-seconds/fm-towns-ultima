@@ -70,8 +70,17 @@ FM 228s   697 writes
 Once the music starts it never stops again. There is no fade, no ramp and no partial start: the chips are untouched for
 a minute and then driven continuously to the end of the run.
 
-**Verdict:** the mixer is not delaying anything. The program writes nothing to the sound hardware for 63 seconds, and
-the port cannot be adding silence to a program that is already silent.
+**Verdict:** the mixer is not delaying anything. The program writes nothing to the sound hardware until its menu is
+reached, and the port cannot be adding silence to a program that is already silent.
+
+**The 63 seconds is the route, not the machine, and that had to be corrected.** Paul pointed out on 2026-11-03 that the
+Ultima II menu itself plays sounds and music in the emulator. It does here too: on a driven session his own log shows the
+first PCM channel starting at **frame 1084**, about eighteen seconds in, as soon as the menu appears. The 63-second figure
+above comes from a run whose keys did not arrive until frame 2600, so its menu did not appear until frame 4026. A keyless
+run measured today produces no channel start at all, because it never reaches the menu: nothing is pressed.
+
+So the number describes how long that scripted route took to get to the menu, and reading it as a property of the game was
+wrong. What survives is the useful half: the chips are silent until the menu, and the music is the menu's.
 
 ## The frame the music starts is the title menu
 
@@ -98,9 +107,13 @@ this port does not, then something is lost in the first minute and it is ours. I
 faithful and the delay is simply what U2 does.
 
 That question cannot be answered from the port's side at all, and on 2026-11-03 it could not be answered from the
-original's side either.
+original's side either, in the container. It can now, because a rig with working audio exists: `jarvis:~/Downloads/ut-towns`
+boots the trilogy disc into TownsOS under the vendored Tsugaru on a machine with a sound card, and `start.sh --check`
+resolves every path. Comparing the original's first sound against the port's is a measurement waiting to be taken rather
+than a capability that is missing.
 
-**Measured:** Tsugaru has no working audio device in the container, and says so in its own log:
+**Measured, in the container, which is why it could not answer this at the time:** Tsugaru has no working audio device
+there, and says so in its own log:
 
 ```
 ALSA lib pcm.c:2721:(snd_pcm_open_noupdate) Unknown PCM default
