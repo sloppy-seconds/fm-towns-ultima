@@ -105,7 +105,8 @@ presses that got there.
 Heard in the emulator on `jarvis`, which is the first rig this project has had with working audio. This is the comparison
 target, recorded in his words because it is behaviour nobody here can hear:
 
-- music starts **as soon as the game reaches the main menu** (Return to TOWNS OS, Journey Onward, Create Character)
+- music starts **at the splash screen**, before any menu is reached (Paul corrected this on 2026-11-03: he had first
+  described it as starting at the main menu, then heard it start at the splash)
 - **every keypress produces a beep**, arrow keys included
 - choosing **Create Character** hard-stops the music and a different song starts
 - returning to the main menu hard-stops that song and the menu music starts again

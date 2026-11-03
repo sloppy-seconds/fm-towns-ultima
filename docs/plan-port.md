@@ -1780,8 +1780,10 @@ fix that ended the looping sound effect stayed, because the census shows it cost
 
 **The hypothesis for next time, and it is only a hypothesis.** The FM timer's handler now runs, and the sequencer's timing
 assumption no longer holds: the chip's timer was read as free-running, and an interrupt-driven rewrite of it changes what the
-driver sees. A version worth trying is delivering interrupts only after the driver has installed its own handler, or leaving
-the FM timer alone while delivering the rest.
+driver sees. The two halves of the poll are now behind their own switches so this can be tested one at a time: `U2_TICKS=1`
+runs the timer BIOS's 10 ms callbacks, `U2_IRQ=1` adds hardware interrupt delivery, and neither is on by default. The poll
+itself always runs and always advances the clock, because that is the port's time base and an earlier version of these flags
+broke it by returning early.
 
 **What was measured about the attempt, for the record.** The 700-frame frame was unchanged at `21682d77` with a save disk,
 and 14,000 frames with keys reached the world with no fault. Neither of those caught it; the sound census did. That is the
