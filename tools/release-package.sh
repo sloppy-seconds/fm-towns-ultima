@@ -67,6 +67,7 @@ if [[ ! -f "$SDL_LICENSE" ]]; then
 	exit 2
 fi
 BUILD="$OUT/build-host"
+mkdir -p "$OUT"
 cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake.log" 2>&1
 cmake --build "$BUILD" -j"$(nproc)" >"$OUT/build.log" 2>&1 || {
 	echo "the release build failed. Last lines of $OUT/build.log:" >&2
