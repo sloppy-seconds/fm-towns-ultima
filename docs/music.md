@@ -136,7 +136,11 @@ Two facts cost time here and are not about music.
 **The ROM warning screen waits for Return.** Without it the emulator sits on its splash indefinitely, and a screenshot
 looks like a boot in progress rather than a prompt nobody answered.
 
-**A run with no save disk exits at frame 4,415.** The menu Return after two Down presses ends the program when no
-floppy is available, which reads as a crash and is not one. With `saves/userdisk.hdm` in place the same route runs on
-to 14,000 frames. `tools/container-run.sh` already mounts that image, so this bites the port's own headless drivers
-rather than the emulator.
+**A run with no save disk exits at frame 4,415, and the save disk is not why.** The menu Return after two Down
+presses ends the program, and an earlier version of this paragraph blamed a missing floppy. It is the selection: a
+screenshot at frame 4,400 with no `.hdm` anywhere shows the title menu with **Return to TOWNS OS** highlighted, which is
+the quit item. With a save store present the same two Downs land on a different line of a slightly longer menu and the
+run continues. The port does not need a disk image at all, and it says so itself: `machine saves as plain files in
+./saves (writable)` is printed and that directory is mounted as the floppy. The `media no save disk (.hdm); the game
+will ask for one` line above it is about the image, not about the save store, and it reads as a warning when nothing is
+wrong.
