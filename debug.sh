@@ -58,16 +58,32 @@ echo "debug.sh  exit    $status"
 echo "debug.sh  log     $LOG"
 if [[ -s "$LOG" ]]; then
 	echo "debug.sh  what the log caught:"
-	printf '  %-16s %s\n' \
+	printf '  %-18s %s\n' \
 		"PCM mask" "$(grep -c 'PCM mask' "$LOG")" \
 		"PCM on/off" "$(grep -c 'PCM on/off' "$LOG")" \
-		"PCM ch wraps" "$(grep -c 'PCM ch' "$LOG")" \
+		"samples ended" "$(grep -c 'sample ended' "$LOG")" \
+		"irq asserted" "$(grep -c 'PCM irq asserted' "$LOG")" \
+		"irq dropped" "$(grep -c 'PCM irq dropped' "$LOG")" \
+		"status reads" "$(grep -c 'PCM status read' "$LOG")" \
+		"flags reads" "$(grep -c 'PCM flags read' "$LOG")" \
 		"int 93h" "$(grep -c 'int 93h' "$LOG")" \
 		"sound census" "$(grep -cE '^  FM [0-9]+s' "$LOG")"
-	if grep -q 'PCM ch' "$LOG"; then
-		echo "debug.sh  a channel wrapped, which is the looping sound: the line above names the channel"
+	# The line that matters is the join between what the chip asked for and what the driver did about it. A sample that
+	# ended with no assert after it is the chip finishing its job. An assert with no status or flags read is the driver
+	# not being reached. Both are single lines and they mean opposite things.
+	ended=$(grep -c 'sample ended' "$LOG")
+	asserted=$(grep -c 'PCM irq asserted' "$LOG")
+	reads=$(( $(grep -c 'PCM status read' "$LOG") + $(grep -c 'PCM flags read' "$LOG") ))
+	if [[ "$(grep -c 'PCM irq dropped' "$LOG")" -gt 0 ]]; then
+		echo "debug.sh  an interrupt was dropped, and the log names why: $(grep -m1 'PCM irq dropped' "$LOG" | sed 's/^ *//')"
+	elif [[ "$asserted" -gt 0 && "$reads" -eq 0 ]]; then
+		echo "debug.sh  the chip asserted $asserted time(s) and the driver never read its status: it was not reached"
+	elif [[ "$asserted" -gt 0 ]]; then
+		echo "debug.sh  the driver read the sound registers $reads time(s) against $asserted assert(s), so it is being reached"
+	elif [[ "$ended" -gt 0 ]]; then
+		echo "debug.sh  samples ended with nothing asked of the driver, which is what a finished one-shot looks like"
 	elif [[ "$(grep -c 'PCM on/off' "$LOG")" -gt 0 ]]; then
-		echo "debug.sh  the chip was used and no channel wrapped, so no looping was caught in this run"
+		echo "debug.sh  the chip was used and no sample ended, so the sound never reached its marker in this run"
 	else
 		echo "debug.sh  the chip was never touched, so this run did not reach the sound that misbehaves"
 	fi
