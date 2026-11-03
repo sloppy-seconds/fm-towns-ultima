@@ -46,15 +46,38 @@ disk present.
 consequence of taking interrupts at all, and it is small enough that the scripted route still reaches the world with no
 fault.
 
-## Why it is still in the tree, and what would justify it
+## Reverted on 2026-11-03, because it silenced the FM music
 
-It is the correct model: a machine that never takes an interrupt is not a machine, and any driver that does poll a status
-register, or any BIOS service that waits for a timer tick, silently does nothing here. But "correct model" is not evidence
-that this game needs it, and the risk is real: taking an interrupt runs handler code that has never run in this port before.
+Kept for two days as "correct in principle, not yet justified", then bisected when the music stopped being heard. Same route,
+same 9,000 frames, counting the one-second sound-port census:
 
-The honest state is **present and not yet justified**. Plan item `5n` owns the decision, and it has two acceptable endings:
-a measurement that names a behaviour which needs interrupts, or a build without the change that plays the same route and
-still behaves, after which the change comes out and the item records why.
+| kit | change | result |
+|---|---|---|
+| `2d148da` | poll never called anywhere | **83 buckets**, music from frame 4026 |
+| `b67f023` | poll called at every I/O access | **1 bucket**, no music at all |
+| `37ef727` | marker fix on top | still silent |
+| `4ce0ea5` | the delivery reverted | **83 buckets** again, identical to the release build |
+
+So the answer to "does this game want interrupts" is not "unknown": it demonstrably does worse with them. The change was
+reverted whole, and the RF5C68 marker fix that ended the looping sound effect stayed, because it touches only the sample
+channel and the census proves it did not cost the music.
+
+**Why the poll silences the music is not established.** The likely shape is that the FM timer's handler now runs, and the
+sequencer's timing assumption no longer holds: the chip's timer was being read as free-running and an interrupt-driven
+rewrite of it changes what the driver sees. That is a hypothesis, and item `5n` starts from this bisection rather than from
+the guess.
+
+## The gap that remains, and what would justify closing it
+
+A machine that never takes an interrupt is not a machine, and any driver that polls a status register, or any BIOS service
+that waits for a timer tick, silently does nothing here. That is still true: the port still delivers no interrupts, and this
+page records the one attempt and why it came out.
+
+The honest state is **reverted with evidence, not abandoned**. Plan item `5n` owns it, and its ending has changed: not "does
+this game want interrupts" (it demonstrably does worse with the naive version) but "can they be delivered without silencing
+the FM music", measured by the same census that caught the regression.
+
+## The instrument that answered it
 
 ## The instrument that answered it
 

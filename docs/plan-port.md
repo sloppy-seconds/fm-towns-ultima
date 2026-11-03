@@ -44,7 +44,7 @@ Derived from the items below, not maintained separately. `node tools/plancheck.j
 | 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
 | 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
 | 5m Music: where it comes from, and when it starts | AUTONOMOUS | **partly known**, the port's side is measured and recorded in `docs/music.md`, the original's side has no sound device to measure |
-| 5n Hardware interrupt delivery, kept but not yet justified | PARTLY AUTONOMOUS | **open**, the change is in the tree and the record is `docs/interrupts.md`; it needs either a behaviour that requires it or a played test without it |
+| 5n Hardware interrupt delivery, attempted and reverted | PARTLY AUTONOMOUS | **open**, the attempt silenced the FM music and was bisected out; next is a bounded retry or a CUT, and `docs/interrupts.md` holds the numbers |
 
 ## The items this track owns that the old plan did not have
 
@@ -1758,32 +1758,36 @@ The two instruments this produced, the `int 93h` segment dump and the `out8` sou
 `fmtownskit` at `db7744d` and pinned in the parent. Both sit behind `trace_int`, so neither changes a frame. Full
 measurements, the refuted segment hypothesis included, are in `docs/music.md`.
 
-### 5n. Hardware interrupt delivery, kept but not yet justified
+### 5n. Hardware interrupt delivery, attempted, reverted, and why
 
 **State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | partly. The decision can be framed autonomously, but the ending that matters most needs Paul to play a build |
+| autonomy | mostly autonomous now. The bisection is done and the next step is a hypothesis to test, not a judgement call |
 | depends on | nothing |
-| done when | one of two endings, both checkable. Either a measurement names a behaviour of this game that needs an interrupt (a driver that polls a status register, a BIOS service that waits for a tick), in which case the change stays and the measurement is on `docs/interrupts.md`; or a build without it plays the same route and still behaves, in which case it comes out. The failure case: if neither can be shown, the item stays open and says so rather than settling it by preference |
-| blocked by | a played test for the second ending, and that needs Paul |
+| done when | interrupts are delivered **and** the FM music survives it, measured by the same one-second sound-port census that caught the regression: the music must still start at frame 4026 and run to the end of a 9,000-frame route. The failure case: if a bounded attempt cannot have both, the item records that this game demonstrably prefers no interrupts and closes as CUT with that measurement, rather than leaving a change in the tree that silences the music |
+| blocked by | nothing. It was previously blocked on a played test, and bisection replaced that with a number |
 
-**What is now known.** The port never delivered a hardware interrupt. `x86_poll()` existed and nothing called it, which was
-measured rather than reasoned: a one-shot print in `pending_irq()` never appeared, the same print in `x86_poll()` did, with
-`IF=1`. The game does install handlers (vectors `44` and `4D`, master IRQ4 and IRQ13), so its handlers had simply never run.
-The poll now runs at each I/O access, which is the only instruction boundary where this port's clock moves.
+**What is now known.** The port never delivered a hardware interrupt: `x86_poll()` existed and nothing called it, measured by a
+one-shot print that never appeared in `pending_irq()` and did appear in `x86_poll()` with `IF=1`. The game does install
+handlers (vectors `44` and `4D`, master IRQ4 and IRQ13), so they had simply never run.
 
-**Why it is an item and not a fix.** It did not fix the looping sound. The chip's end marker did that. This change was
-deployed first, the sound still stuck, and the logs show the driver never reads the sound's status register and never
-switches a channel off, so it was never waiting for an interrupt. What it does do is correct on its own terms, and what it
-costs is risk: taking an interrupt runs handler code that has never run here.
+**What happened to the fix.** Delivering interrupts at the I/O boundary, the only place this port's clock moves, was deployed
+and then bisected when the music stopped being heard. Same route, same 9,000 frames, counting the per-second sound-port
+census: 83 buckets before the change, **1 bucket with it**, 83 again after reverting. The change is out; the RF5C68 end-marker
+fix that ended the looping sound effect stayed, because the census shows it cost nothing.
 
-**What has been measured about it.** The 700-frame frame is unchanged at `21682d77` with a save disk present. A 14,000-frame
-run with keys reaches the world with no fault. Guest clocks move by 121 ns across that run, which is the change doing
-something and is the reason it is not nothing.
+**The hypothesis for next time, and it is only a hypothesis.** The FM timer's handler now runs, and the sequencer's timing
+assumption no longer holds: the chip's timer was read as free-running, and an interrupt-driven rewrite of it changes what the
+driver sees. A version worth trying is delivering interrupts only after the driver has installed its own handler, or leaving
+the FM timer alone while delivering the rest.
 
-Full record, including the instrument that answered the question, is in `docs/interrupts.md`.
+**What was measured about the attempt, for the record.** The 700-frame frame was unchanged at `21682d77` with a save disk,
+and 14,000 frames with keys reached the world with no fault. Neither of those caught it; the sound census did. That is the
+lesson worth keeping: a change can leave the picture identical and take the music away.
+
+Full record in `docs/interrupts.md`.
 
 ---
 
