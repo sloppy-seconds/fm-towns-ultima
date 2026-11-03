@@ -1470,7 +1470,7 @@ index 2a0e2eb..fd40ebb 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/towns_sound.cpp b/runtime/towns_sound.cpp
-index 00cbbf0..19a3320 100644
+index 00cbbf0..ee019d5 100644
 --- a/runtime/towns_sound.cpp
 +++ b/runtime/towns_sound.cpp
 @@ -52,7 +52,16 @@ struct Stream {
@@ -1491,7 +1491,24 @@ index 00cbbf0..19a3320 100644
  
  // ymfm's view of the machine: its timers and busy flag on the guest clock (its durations are
  // the chip's 8 MHz clocks, two of the CPU's each), its interrupt into IRQ13.
-@@ -105,19 +114,34 @@ static void pcm_sample(Machine& m, SoundChips& s) {
+@@ -96,7 +105,15 @@ void Machine::sound_start() {
+     chips->fm.reset();
+ }
+ 
+-void Machine::sound_irq() { raise_irq(13, sound.fm_irq || sound.pcm_irq); }
++// Counts the diagnostic lines the sound instruments print, so one session cannot flood the log with them. File scope
++// rather than a member: it is a property of the instrument, not of the machine, and it must not become machine state.
++static unsigned pcm_notes = 0;
++
++void Machine::sound_irq() {
++    if (trace_int && sound.pcm_irq && pcm_notes++ < 60)
++        std::fprintf(stderr, "  PCM irq asserted at frame %llu\n", (unsigned long long)frame);
++    raise_irq(13, sound.fm_irq || sound.pcm_irq);
++}
+ 
+ // ---- the RF5C68 ------------------------------------------------------------------------------
+ static void pcm_sample(Machine& m, SoundChips& s) {
+@@ -105,19 +122,34 @@ static void pcm_sample(Machine& m, SoundChips& s) {
      for (int ch = 0; ch < 8 && (snd.pcm_ctrl & 0x80); ++ch) {
          PcmChannel& c = s.pcm[ch];
          if (!c.on) continue;
@@ -1536,18 +1553,31 @@ index 00cbbf0..19a3320 100644
          }
          c.addr += c.step;
          int lv = (c.pan & 0x0F) * c.env, rv = ((c.pan >> 4) & 0x0F) * c.env;
-@@ -234,6 +258,10 @@ static void cd_db(Machine& m, float db) {
-     m.sound.cd_gain[ch] = db > 0 ? 0.0f : std::pow(10.0f, db / 20.0f);
- }
- 
-+// Counts the diagnostic lines below so one session cannot flood the log with them. File scope rather than a member: it is
-+// a property of the instrument, not of the machine, and it must not survive into the machine's own state.
-+static unsigned pcm_notes = 0;
-+
- void Machine::sound_out8(uint32_t port, uint8_t d) {
-     SoundChips& s = *chips;
-     switch (port) {
-@@ -254,7 +282,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -213,13 +245,22 @@ uint8_t Machine::sound_in8(uint32_t port) {
+     case 0x4E2: return sound.volume[sound.volume_sel & 3];
+     case 0x4E3: return sound.volume_sel;
+     case 0x4E8: return 1;
+-    case 0x4E9: return (uint8_t)((sound.fm_irq ? 0x01 : 0) | (sound.pcm_irq ? 0x08 : 0));
++    case 0x4E9:
++        // The status register the interrupt handler reads to tell FM from PCM. Logging the reads answers whether a handler
++        // ran at all after the end-of-sample flag, which is the difference between "the chip did not signal" and "the chip
++        // signalled and the driver ignored it".
++        if (trace_int && pcm_notes++ < 60)
++            std::fprintf(stderr, "  PCM status read = %02X at frame %llu\n",
++                         (int)((sound.fm_irq ? 0x01 : 0) | (sound.pcm_irq ? 0x08 : 0)), (unsigned long long)frame);
++        return (uint8_t)((sound.fm_irq ? 0x01 : 0) | (sound.pcm_irq ? 0x08 : 0));
+     case 0x4EA: return sound.pcm_mask;
+     case 0x4EB: {
+         uint8_t r = sound.pcm_flags;
+         sound.pcm_flags = 0;
+         sound.pcm_irq = false;
+         sound_irq();
++        if (trace_int && pcm_notes++ < 60)
++            std::fprintf(stderr, "  PCM flags read = %02X at frame %llu\n", r, (unsigned long long)frame);
+         return r;
+     }
+     default: return 0;
+@@ -254,7 +295,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          else if (d & 8) cd_db(*this, 0);
          else if (d & 0x10) cd_db(*this, -32.0f);
          return;
@@ -1563,7 +1593,7 @@ index 00cbbf0..19a3320 100644
      case 0x4EC: return;             // LED, mute
      case 0x4F0: case 0x4F1: case 0x4F2: case 0x4F3: case 0x4F4: case 0x4F5: case 0x4F6: {
          PcmChannel& c = s.pcm[s.cbank];
-@@ -265,7 +300,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -265,7 +313,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          case 3: c.step = (uint16_t)((c.step & 0x00FF) | (d << 8)); break;
          case 4: c.loopst = (uint16_t)((c.loopst & 0xFF00) | d); break;
          case 5: c.loopst = (uint16_t)((c.loopst & 0x00FF) | (d << 8)); break;
@@ -1572,7 +1602,7 @@ index 00cbbf0..19a3320 100644
          }
          return;
      }
-@@ -276,8 +311,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -276,8 +324,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          return;
      case 0x4F8:
          sound.pcm_onoff = d;
