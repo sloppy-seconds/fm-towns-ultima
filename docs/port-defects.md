@@ -474,5 +474,15 @@ renderer for exactly that reason, and the test calls the shipped function with n
 
 `--letterbox` remains for anyone who would rather fill the window and accept uneven pixels at non-integer scales.
 
+**And the snap itself was wrong the first time, in a way only a pointer could find.** The first version forced the window
+to a whole multiple at every VSYNC. That fills the window and it also makes the window impossible to resize: each drag
+is undone sixteen milliseconds later, so the edge never moves. Paul found it on his own machine within minutes, which
+is where it had to be found, because the behaviour needs a pointer dragging a real edge and no display is reachable
+from the machine these measurements run on.
+
+A resize now only marks the window unsettled. The snap runs when no mouse button is held and the window has not moved
+for 150 ms, so neither a drag nor a keyboard or window-manager resize is fought, and then it settles on the nearest
+whole multiple.
+
 **And it is presentation only.** The frame the machine draws is untouched: at 700 frames the screenshot is still
 `15d87bf049cf011a3081038e016f3020`, the same digest the Linux and Windows builds produce.
