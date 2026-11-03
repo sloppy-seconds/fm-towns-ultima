@@ -100,6 +100,26 @@ Quit
 program's own path from boot to that menu, which on this route took 66 seconds of machine time including the key
 presses that got there.
 
+## What the original does, as reported by Paul on 2026-11-03
+
+Heard in the emulator on `jarvis`, which is the first rig this project has had with working audio. This is the comparison
+target, recorded in his words because it is behaviour nobody here can hear:
+
+- music starts **as soon as the game reaches the main menu** (Return to TOWNS OS, Journey Onward, Create Character)
+- **every keypress produces a beep**, arrow keys included
+- choosing **Create Character** hard-stops the music and a different song starts
+- returning to the main menu hard-stops that song and the menu music starts again
+- **Journey Onward** keeps the menu music playing while the character selection is navigated, and it hard-stops when that is
+  completed (select character, `Y`, `Space`), then the game loads and music plays again
+
+Two things stand out and both are testable against the port: the music is **tied to the screen**, with hard stops at
+screen transitions rather than fades, and **the keyboard is audible**, which means the beep is the driver's response to a
+key event rather than something the game draws.
+
+Against that, the port so far: the music engine starts writing registers at second 66 of a headless run (594 writes a
+second to the YM3438 plus 101 to the RF5C68), and the mixer outputs nothing. No route scripted here reaches the menu, so
+what the port does in front of a player at the menu has not been measured at all.
+
 ## What is not known, and why
 
 Whether the original FM Towns release is silent through its title screen in the same way. If it plays title music and

@@ -439,7 +439,7 @@ index 74b3012..b4407d9 100644
                  L.append('  X86_RET(c, 0x%xu); }' % nxt)
              else:
 diff --git a/runtime/towns.h b/runtime/towns.h
-index 08029b9..7d3ce30 100644
+index 08029b9..6a9348c 100644
 --- a/runtime/towns.h
 +++ b/runtime/towns.h
 @@ -139,6 +139,7 @@ public:
@@ -499,15 +499,20 @@ index 08029b9..7d3ce30 100644
      void int8e(X86Cpu& c);              // KimG (the kanji input manager), as FORRBIOS.NSD answers it
      void intfd(X86Cpu& c);
      // the timer BIOS, int 97h (the ROM's, which FORRBIOS.NSD hands protected-mode calls to; read
-@@ -273,6 +300,7 @@ public:
+@@ -272,7 +299,12 @@ public:
+ 
      // tracing
      bool trace_io = false, trace_int = false;
++    // The two halves of the poll, switched independently for the experiment of 2026-11-03. `tick_poll` runs the timer BIOS's
++    // 10 ms callbacks and `irq_poll` delivers hardware interrupts; both default off, because nothing has ever called the poll
++    // and turning it on wholesale silenced the FM music. One at a time is the only way to learn which half matters.
++    bool tick_poll = false, irq_poll = false;
      std::vector<uint8_t> font;          // FMT_FNT.ROM if given (not needed so far)
 +    std::vector<uint8_t> font20;        // FMT_F20.ROM, the 512 KB 20-dot font at 0xC2180000
  };
  
  extern Machine* g_towns;
-@@ -314,4 +342,11 @@ private:
+@@ -314,4 +346,11 @@ private:
  // (0x84, 0x85) as MAME's driver takes them, the mix written from power-on for `seconds`.
  bool replay_sound_log(Machine& m, const std::string& log, double seconds, WavWriter& wav, std::string& err);
  
@@ -520,7 +525,7 @@ index 08029b9..7d3ce30 100644
 +
  }  // namespace towns
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..ecfe26b 100644
+index 75d5dad..9201fa7 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
 @@ -10,9 +10,21 @@
@@ -666,20 +671,43 @@ index 75d5dad..ecfe26b 100644
  void x86_jump(X86Cpu& c, uint32_t target) {
      X86Func f = find(c, c.sreg[1], target, target);
      f(c);
-@@ -108,6 +212,12 @@ void x86_out(X86Cpu& c, uint32_t port, int n, uint32_t v) {
+@@ -120,16 +224,26 @@ static void take(X86Cpu& c, int vec) {
+     if (c.eip != resume) x86_fault(c, resume, "an interrupt handler returned elsewhere");
+ }
  
- // Take an interrupt now: the handler runs as a call, its iretd returns here.
- static void take(X86Cpu& c, int vec) {
-+    // Is anything ever delivered? The vectors installed and the interrupt asserted are the two halves of the question, this
-+    // is the join: a delivery names its vector and frame, so a sound interrupt that is never taken shows as an assert with
-+    // no matching delivery beside it.
-+    static unsigned taken = 0;
-+    if (g_towns->trace_int && taken++ < 40)
-+        std::fprintf(stderr, "  int taken vec=%02X at frame %llu\n", vec & 0xFF, (unsigned long long)g_towns->frame);
-     const towns::IntVector& iv = g_towns->pm_vector[vec];
-     uint32_t resume = c.eip;
-     push32(c, c.fl);
-@@ -158,6 +268,34 @@ void x86_int(X86Cpu& c, int n, uint32_t next) {
++// Guards against a handler's own I/O re-entering the poll: taking an interrupt runs guest code, that code touches ports, and
++// the poll would then try to take another interrupt inside the first one's delivery.
++static bool in_poll = false;
++
+ void x86_poll(X86Cpu& c) {
+     towns::Machine& m = *g_towns;
++    // The poll is called by the recompiled code (X86_POLL, 13,938 sites) when the instruction budget runs out, so it has always
++    // been the port's time base: its advance() is what moves the machine's clock. The two optional halves are the interrupt
++    // delivery and the timer BIOS's callbacks, and each is off unless asked. An earlier version returned before the advance
++    // when both were off, which silently removed the time base and stopped the music.
++    if (in_poll) return;
++    in_poll = true;
+     m.advance(m.machine_time(c.clocks));
+-    while (c.fl & X86_IF) {
++    while (m.irq_poll && (c.fl & X86_IF)) {
+         int vec = m.pending_irq();
+         if (vec < 0) break;
+         take(c, vec);
+         m.advance(m.machine_time(c.clocks));
+     }
+-    while (c.fl & X86_IF) {             // the timer BIOS's callbacks (int 97h), as its interrupt calls them
++    while (m.tick_poll && (c.fl & X86_IF)) {             // the timer BIOS's callbacks (int 97h), as its interrupt calls them
+         int n = m.t97_due();
+         if (n < 0) break;
+         const towns::Machine::Timer97& t = m.t97[n];
+@@ -152,12 +266,41 @@ void x86_poll(X86Cpu& c) {
+     uint64_t next = m.next_event();
+     int64_t left = (int64_t)(m.cpu_time(next) - c.clocks);
+     c.budget = (int32_t)(left < 64 ? 64 : left > (1 << 30) ? (1 << 30) : left);
++    in_poll = false;
+ }
+ 
+ void x86_int(X86Cpu& c, int n, uint32_t next) {
      towns::Machine& m = *g_towns;
      m.advance(m.machine_time(c.clocks));
      c.eip = next;
@@ -1073,10 +1101,10 @@ index 629a87e..bdcbef8 100644
      case 0x0A: {                                    // the key matrix
          static const uint8_t none[16] = {};
 diff --git a/runtime/towns_io.cpp b/runtime/towns_io.cpp
-index 039e526..1a1c6ea 100644
+index 039e526..df72569 100644
 --- a/runtime/towns_io.cpp
 +++ b/runtime/towns_io.cpp
-@@ -279,8 +279,24 @@ uint8_t Machine::in8(uint32_t port) {
+@@ -279,8 +279,28 @@ uint8_t Machine::in8(uint32_t port) {
      }
  }
  
@@ -1084,24 +1112,28 @@ index 039e526..1a1c6ea 100644
 +// counted from the machine's own frame clock, the chip traffic begins in earnest and whether it ever goes quiet again.
 +// A register write is the only sign a note was asked for, so bucketing them by second answers the one question a
 +// listener cannot answer from outside: whether the silence before the music is the program waiting or the port's mixer.
-+static void fm_trace(uint64_t frame) {
-+    static unsigned long long bucket = ~0ULL, hits = 0;
++static void fm_trace(uint64_t frame, int kind) {
++    static unsigned long long bucket = ~0ULL, hits[2] = {0, 0};
 +    unsigned long long b = frame / 61;                   // the machine's VSYNC rate, so one bucket is one second
 +    if (b != bucket) {
-+        if (hits) std::fprintf(stderr, "  FM %llus %llu writes\n", bucket, hits);
++        if (hits[0]) std::fprintf(stderr, "  FM %llus %llu writes\n", bucket, hits[0]);
++        if (hits[1]) std::fprintf(stderr, "  PCM %llus %llu writes\n", bucket, hits[1]);
 +        bucket = b;
-+        hits = 0;
++        hits[0] = hits[1] = 0;
 +    }
-+    ++hits;
++    ++hits[kind];
 +}
 +
  void Machine::out8(uint32_t port, uint8_t d) {
      Video& v = video;
-+    if (trace_int && port >= 0x4C0 && port <= 0x4FF) fm_trace(frame);
++    // Split by chip, because the two answer different questions and the census used to add them together: the RF5C68's
++    // registers are 0x4F0-0x4F8, everything else in the span is the YM3438's. A number that mixed them could not say which
++    // chip a silent mixer was failing to hear.
++    if (trace_int && port >= 0x4C0 && port <= 0x4FF) fm_trace(frame, port >= 0x4F0 && port <= 0x4F8 ? 1 : 0);
      switch (port) {
      case 0x00: pic_write(pic[0], 0, d); return;
      case 0x02: pic_write(pic[0], 2, d); return;
-@@ -342,8 +358,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -342,8 +362,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
          // palette chosen, after the other components went in with the 256-colour one.
          int k = port == 0xFD92 ? 2 : port == 0xFD94 ? 0 : 1;   // b r g
          v.pal_reg[v.pal_sel][k] = d;
@@ -1127,7 +1159,7 @@ index 039e526..1a1c6ea 100644
          return;
      }
      case 0xFDA0: v.layer_ctrl = d; return;
-@@ -353,7 +384,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -353,7 +388,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
      default:
          if (port >= 0xFD98 && port <= 0xFD9F) { v.degipal[port - 0xFD98] = d; v.dpmd = true; return; }
          if (port >= 0x3000 && port < 0x5000) { unknown("CMOS write %04x", port); return; }
@@ -1483,10 +1515,10 @@ index 2a0e2eb..fd40ebb 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/towns_sound.cpp b/runtime/towns_sound.cpp
-index 00cbbf0..6c02326 100644
+index 00cbbf0..32bf474 100644
 --- a/runtime/towns_sound.cpp
 +++ b/runtime/towns_sound.cpp
-@@ -52,7 +52,15 @@ struct Stream {
+@@ -52,7 +52,16 @@ struct Stream {
      }
  };
  
@@ -1496,14 +1528,26 @@ index 00cbbf0..6c02326 100644
 +    uint16_t step = 0, loopst = 0;
 +    uint32_t addr = 0;
 +    bool on = false;
-+    // Diagnostics only: how many samples this channel has ended since the CPU last touched it. One line per channel names
-+    // the sample that ended, which is what a report about a repeating sound needs.
-+    unsigned ended = 0;
++    // Diagnostics only: how many times this channel has run off the end and wrapped since the CPU last touched it. A
++    // one-shot effect that keeps wrapping is the shape of "the fight sound repeats until something else plays", and the
++    // question worth answering is whether the end flag reached the driver at all.
++    unsigned wraps = 0;
 +};
  
  // ymfm's view of the machine: its timers and busy flag on the guest clock (its durations are
  // the chip's 8 MHz clocks, two of the CPU's each), its interrupt into IRQ13.
-@@ -96,7 +104,15 @@ void Machine::sound_start() {
+@@ -86,6 +95,10 @@ struct SoundChips {
+     Stream cd_out{kCdRate};
+     // the mix
+     uint64_t k = 0;                     // the next output frame
++    // Diagnostics: how many NON-ZERO samples each source produced in the current second. The mixer can be silent while a
++    // chip is busy, and the census of register writes cannot tell which source is the silent one. This can.
++    uint64_t nz_second = ~0ULL;
++    uint64_t nz[3] = {0, 0, 0};          // FM, PCM, CD
+ };
+ 
+ void SoundChipsFree::operator()(SoundChips* p) const { delete p; }
+@@ -96,7 +109,15 @@ void Machine::sound_start() {
      chips->fm.reset();
  }
  
@@ -1520,7 +1564,7 @@ index 00cbbf0..6c02326 100644
  
  // ---- the RF5C68 ------------------------------------------------------------------------------
  static void pcm_sample(Machine& m, SoundChips& s) {
-@@ -105,19 +121,31 @@ static void pcm_sample(Machine& m, SoundChips& s) {
+@@ -105,19 +126,34 @@ static void pcm_sample(Machine& m, SoundChips& s) {
      for (int ch = 0; ch < 8 && (snd.pcm_ctrl & 0x80); ++ch) {
          PcmChannel& c = s.pcm[ch];
          if (!c.on) continue;
@@ -1528,40 +1572,68 @@ index 00cbbf0..6c02326 100644
 -            int bank = (int)((c.addr >> 11) / 0x2000);
 -            if (snd.pcm_mask & (1 << bank)) {
 -                snd.pcm_flags |= (uint8_t)(1 << bank);
-+        int sample = snd.wave[(c.addr >> 11) & 0xFFFF];
-+        if (sample == 0xFF) {
-+            // END OF SAMPLE. The chip jumps to the loop address and the driver is told through a per-channel flag, and
-+            // through the interrupt when the mask enables that channel.
-+            //
-+            // The flag is per channel, not per bank: this game writes PCM mask = 80 at frame 1084 while starting channel 7
-+            // (on/off = 7F clears bit 7), and channel 7 is the channel observed restarting at frame 1197. The earlier version
-+            // keyed the flag to a 4 KB bank boundary, which a sample shorter than 4 KB never reaches, so the driver was never
-+            // told and the sound never ended. Every one of these effects is shorter than 4 KB.
-+            //
-+            // And the channel stops here. Across three sessions this driver never writes a channel off after the marker,
-+            // never reads the status register, and never reads the flags after boot: it does not stop the sample, so on this
-+            // chip the marker must be what ends it. Looping at the marker instead is exactly the reported symptom, a sound
-+            // that repeats until another sound overwrites the channel.
-+            snd.pcm_flags |= (uint8_t)(1 << ch);
-+            if (snd.pcm_mask & (1 << ch)) {
-                 snd.pcm_irq = true;
-                 m.sound_irq();
-             }
+-                snd.pcm_irq = true;
+-                m.sound_irq();
+-            }
 -        }
--        int sample = snd.wave[(c.addr >> 11) & 0xFFFF];
--        if (sample == 0xFF) {
-+            if (m.trace_int && c.ended++ < 1)
-+                std::fprintf(stderr, "  PCM ch%d sample ended at frame %llu (start %u, loop %u, step %u)\n", ch,
-+                             (unsigned long long)m.frame, c.start, c.loopst, c.step);
-+            c.on = false;
+         int sample = snd.wave[(c.addr >> 11) & 0xFFFF];
+         if (sample == 0xFF) {
++            // END OF SAMPLE. The chip restarts at the loop address, and the driver is told through a per-channel flag, and
++            // through the interrupt when the mask enables that channel. Evidence rather than inference: this game writes
++            // PCM mask = 80 at frame 1084 while starting channel 7 (on/off = 7F clears bit 7), and channel 7 is the one
++            // observed wrapping at frame 1197. So bit 7 is channel 7, the mask and the flag are per channel, and the event
++            // is this marker. The previous version keyed the flag to a 4 KB bank boundary instead, which never arrives for
++            // a sample shorter than 4 KB, and every one of these effects is: the driver was never told, so it never stopped
++            // the channel and the chip looped the sound for ever. That was the fight sound that repeated until another
++            // sound overwrote the channel.
              c.addr = (uint32_t)c.loopst << 11;
 -            sample = snd.wave[(c.addr >> 11) & 0xFFFF];
 -            if (sample == 0xFF) continue;               // looped onto a loop mark: silent
-+            continue;
++            const int again = snd.wave[(c.addr >> 11) & 0xFFFF];
++            if (again == 0xFF) continue;    // looped onto another marker: silent, and nothing to signal. Signalling here
++                                            // would raise the interrupt once per output sample, which is a storm and not
++                                            // a sound.
++            snd.pcm_flags |= (uint8_t)(1 << ch);
++            if (snd.pcm_mask & (1 << ch)) {
++                snd.pcm_irq = true;
++                m.sound_irq();
++            }
++            // The counter answers a different question: did the driver act on that flag? Eight restarts with no register
++            // write in between is about a tenth of a second for a short effect, which is long enough to be a real loop and
++            // short enough to be caught while it is still happening.
++            if (++c.wraps == 8 && m.trace_int)
++                std::fprintf(stderr,
++                             "  PCM ch%d restarted 8 times without a register write at frame %llu (start %u, loop %u, step %u)\n",
++                             ch, (unsigned long long)m.frame, c.start, c.loopst, c.step);
++            sample = again;
          }
          c.addr += c.step;
          int lv = (c.pan & 0x0F) * c.env, rv = ((c.pan >> 4) & 0x0F) * c.env;
-@@ -213,13 +241,22 @@ uint8_t Machine::sound_in8(uint32_t port) {
+@@ -128,6 +164,7 @@ static void pcm_sample(Machine& m, SoundChips& s) {
+     left = std::clamp(left & ~63, -32768, 32767);
+     right = std::clamp(right & ~63, -32768, 32767);
+     s.pcm_out.push(left / 32768.0f, right / 32768.0f);
++    if (left || right) ++s.nz[1];
+ }
+ 
+ // ---- the YM3438 ------------------------------------------------------------------------------
+@@ -136,6 +173,7 @@ static void fm_catch_up(SoundChips& s, uint64_t to) {
+     while (s.fm_next <= to) {
+         s.fm.generate(&o, 1);
+         s.fm_out.push(o.data[0] / 32768.0f, o.data[1] / 32768.0f);
++        if (o.data[0] || o.data[1]) ++s.nz[0];
+         s.fm_next = at(++s.fm_n, kFmRate);
+     }
+ }
+@@ -155,6 +193,7 @@ static void cd_catch_up(Machine& m, SoundChips& s, uint64_t to) {
+         const uint8_t* p = s.sector + s.sector_pos++ * 4;
+         int16_t l = (int16_t)(p[0] | p[1] << 8), r = (int16_t)(p[2] | p[3] << 8);
+         s.cd_out.push(l / 32768.0f * m.sound.cd_gain[0], r / 32768.0f * m.sound.cd_gain[1]);
++        if (l || r) ++s.nz[2];
+     }
+ }
+ 
+@@ -213,13 +252,22 @@ uint8_t Machine::sound_in8(uint32_t port) {
      case 0x4E2: return sound.volume[sound.volume_sel & 3];
      case 0x4E3: return sound.volume_sel;
      case 0x4E8: return 1;
@@ -1585,7 +1657,7 @@ index 00cbbf0..6c02326 100644
          return r;
      }
      default: return 0;
-@@ -254,7 +291,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -254,7 +302,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          else if (d & 8) cd_db(*this, 0);
          else if (d & 0x10) cd_db(*this, -32.0f);
          return;
@@ -1601,16 +1673,16 @@ index 00cbbf0..6c02326 100644
      case 0x4EC: return;             // LED, mute
      case 0x4F0: case 0x4F1: case 0x4F2: case 0x4F3: case 0x4F4: case 0x4F5: case 0x4F6: {
          PcmChannel& c = s.pcm[s.cbank];
-@@ -265,7 +309,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -265,7 +320,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          case 3: c.step = (uint16_t)((c.step & 0x00FF) | (d << 8)); break;
          case 4: c.loopst = (uint16_t)((c.loopst & 0xFF00) | d); break;
          case 5: c.loopst = (uint16_t)((c.loopst & 0x00FF) | (d << 8)); break;
 -        case 6: c.start = d; if (!c.on) c.addr = (uint32_t)c.start << (8 + 11); break;
-+        case 6: c.start = d; c.ended = 0; if (!c.on) c.addr = (uint32_t)c.start << (8 + 11); break;
++        case 6: c.start = d; c.wraps = 0; if (!c.on) c.addr = (uint32_t)c.start << (8 + 11); break;
          }
          return;
      }
-@@ -276,8 +320,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -276,8 +331,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          return;
      case 0x4F8:
          sound.pcm_onoff = d;
@@ -1618,10 +1690,34 @@ index 00cbbf0..6c02326 100644
 +            std::fprintf(stderr, "  PCM on/off = %02X at frame %llu\n", d, (unsigned long long)frame);
          for (int i = 0; i < 8; ++i) {
              s.pcm[i].on = !((d >> i) & 1);
-+            s.pcm[i].ended = 0;
++            s.pcm[i].wraps = 0;
              if (!s.pcm[i].on) s.pcm[i].addr = (uint32_t)s.pcm[i].start << (8 + 11);
          }
          return;
+@@ -288,6 +346,23 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+ // ---- the mix ---------------------------------------------------------------------------------
+ void Machine::audio_take(std::vector<int16_t>& out) {
+     SoundChips& s = *chips;
++    // Once a second, say which sources actually produced samples. A silent mixer with busy chips is the shape of "the music
++    // never plays", and this names the source instead of leaving three candidates.
++    if (trace_int) {
++        const uint64_t sec = now / kClock;
++        static uint64_t printed = ~0ULL;
++        if (sec != s.nz_second) {
++            // Printed when any source produced something, and otherwise once every thirty seconds, so a silent stretch is
++            // visible without filling the log and the moment sound starts is never missed.
++            if ((s.nz[0] || s.nz[1] || s.nz[2] || sec % 30 == 0) && printed != sec) {
++                printed = sec;
++                std::fprintf(stderr, "  AUDIO %llus fm=%llu pcm=%llu cd=%llu samples\n", (unsigned long long)s.nz_second,
++                             (unsigned long long)s.nz[0], (unsigned long long)s.nz[1], (unsigned long long)s.nz[2]);
++            }
++            s.nz_second = sec;
++            s.nz[0] = s.nz[1] = s.nz[2] = 0;
++        }
++    }
+     out.clear();
+     fm_catch_up(s, now);
+     cd_catch_up(*this, s, now);
 diff --git a/runtime/x86.h b/runtime/x86.h
 index 48bb159..b55efa2 100644
 --- a/runtime/x86.h

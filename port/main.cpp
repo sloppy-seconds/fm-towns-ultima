@@ -815,6 +815,15 @@ int main(int argc, char **argv) {
 	// what it asks for is the evidence needed to decide what to add.
 	if (std::getenv("U2_TRACE_INT"))
 		m.trace_int = true;
+	// The two halves of the machine poll, each on its own switch, for the experiment of 2026-11-03. The port's sound engine
+	// comes up about 66 seconds after launch whatever is on screen, and on the original it is running before the menu appears;
+	// the poll is the one thing this port has never run, and its two jobs are separate questions.
+	//   U2_TICKS=1   run the timer BIOS's 10 ms callbacks, deliver no interrupts
+	//   U2_IRQ=1     deliver hardware interrupts as well
+	if (std::getenv("U2_TICKS"))
+		m.tick_poll = true;
+	if (std::getenv("U2_IRQ"))
+		m.irq_poll = true;
 
 	// The program opens its assets by DOS path (Q:\GRAPH\MAP2_1.TIF and friends), so the machine needs a
 	// disc to read them from. Without one, the first int 21h open segfaults inside Disc::handle, which is
