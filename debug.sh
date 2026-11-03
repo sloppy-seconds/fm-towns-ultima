@@ -50,7 +50,16 @@ echo "debug.sh  log     $LOG"
 echo "debug.sh  play; when the sound misbehaves let it run a second, then quit with Ctrl-Q or by closing the window"
 echo
 
-"$BIN" --dev "$@" 2>&1 | tee "$LOG"
+# The log says which binary made it, and what that binary is, before it says anything else. Paul's question of 2026-11-03
+# is the reason: after four rounds of "still sticking" it was impossible to prove from the logs alone that each round had
+# run a NEW binary rather than the one already open. A session report has to be self-describing, or it cannot be trusted.
+{
+	echo "debug.sh binary $BIN"
+	echo "debug.sh sha256 $(sha256sum "$BIN" 2>/dev/null | cut -d' ' -f1)"
+	echo "debug.sh when   $(date -Is)"
+	echo "debug.sh args   $*"
+} >"$LOG"
+"$BIN" --dev "$@" 2>&1 | tee -a "$LOG"
 status=${PIPESTATUS[0]}
 
 echo
