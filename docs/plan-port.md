@@ -44,6 +44,7 @@ Derived from the items below, not maintained separately. `node tools/plancheck.j
 | 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
 | 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
 | 5m Music: where it comes from, and when it starts | AUTONOMOUS | **partly known**, the port's side is measured and recorded in `docs/music.md`, the original's side has no sound device to measure |
+| 5n Hardware interrupt delivery, kept but not yet justified | PARTLY AUTONOMOUS | **open**, the change is in the tree and the record is `docs/interrupts.md`; it needs either a behaviour that requires it or a played test without it |
 
 ## The items this track owns that the old plan did not have
 
@@ -1756,6 +1757,33 @@ to cooperate with.
 The two instruments this produced, the `int 93h` segment dump and the `out8` sound census, are committed in
 `fmtownskit` at `db7744d` and pinned in the parent. Both sit behind `trace_int`, so neither changes a frame. Full
 measurements, the refuted segment hypothesis included, are in `docs/music.md`.
+
+### 5n. Hardware interrupt delivery, kept but not yet justified
+
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | partly. The decision can be framed autonomously, but the ending that matters most needs Paul to play a build |
+| depends on | nothing |
+| done when | one of two endings, both checkable. Either a measurement names a behaviour of this game that needs an interrupt (a driver that polls a status register, a BIOS service that waits for a tick), in which case the change stays and the measurement is on `docs/interrupts.md`; or a build without it plays the same route and still behaves, in which case it comes out. The failure case: if neither can be shown, the item stays open and says so rather than settling it by preference |
+| blocked by | a played test for the second ending, and that needs Paul |
+
+**What is now known.** The port never delivered a hardware interrupt. `x86_poll()` existed and nothing called it, which was
+measured rather than reasoned: a one-shot print in `pending_irq()` never appeared, the same print in `x86_poll()` did, with
+`IF=1`. The game does install handlers (vectors `44` and `4D`, master IRQ4 and IRQ13), so its handlers had simply never run.
+The poll now runs at each I/O access, which is the only instruction boundary where this port's clock moves.
+
+**Why it is an item and not a fix.** It did not fix the looping sound. The chip's end marker did that. This change was
+deployed first, the sound still stuck, and the logs show the driver never reads the sound's status register and never
+switches a channel off, so it was never waiting for an interrupt. What it does do is correct on its own terms, and what it
+costs is risk: taking an interrupt runs handler code that has never run here.
+
+**What has been measured about it.** The 700-frame frame is unchanged at `21682d77` with a save disk present. A 14,000-frame
+run with keys reaches the world with no fault. Guest clocks move by 121 ns across that run, which is the change doing
+something and is the reason it is not nothing.
+
+Full record, including the instrument that answered the question, is in `docs/interrupts.md`.
 
 ---
 

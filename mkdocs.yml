@@ -217,6 +217,7 @@ nav:
       - fmtownskit and seeds: fmtownskit-and-seeds.md
       - The two walks, compared: walk-comparison.md
       - What is broken in the port: port-defects.md
+      - Hardware interrupts: interrupts.md
       - Host OOM incident, 2026-11-03: oom-incident-2026-11-03.md
       - Building the port from the download: port-from-source.md
       - The notice's missing text: port-missing-text.md
