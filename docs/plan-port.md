@@ -1399,7 +1399,7 @@ thing a licence from a non-owner cannot cover, which is the original game.
 
 **The preservation disclaimers, added with it.** The usual set, in plain tone rather than defensive, in three places a
 reader actually meets them: the README's first screen, `docs/licensing.md` as a notice block at the top, and
-`tools/release-readme.txt` inside the archive. Non-commercial preservation, own your own copy and supply your own
+the release notes the workflow publishes beside the binary. Non-commercial preservation, own your own copy and supply your own
 disc files, *Ultima* is Origin Systems now Electronic Arts and *FM Towns* is Fujitsu with no affiliation or endorsement
 claimed, all original content and ROMs belong to their owners and are not included, takedown through GitHub issues,
 and no warranty because MIT already says so.

@@ -390,6 +390,11 @@ extern const unsigned char g_licence_fmtownskit[];
 extern const unsigned long g_licence_fmtownskit_size;
 extern const unsigned char g_licence_sdl3[];
 extern const unsigned long g_licence_sdl3_size;
+// The glyph ROM's provenance, which travels with the binary for the same reason the licences do. The ROM is generated
+// from a public-domain BDF font and is not Fujitsu code, but neither upstream attaches an explicit grant to the
+// generated file, and that has to be stated where the reader can read it rather than in a document they no longer get.
+extern const unsigned char g_licence_font_rom[];
+extern const unsigned long g_licence_font_rom_size;
 
 static std::vector<uint8_t> read_file(const char* path) {
 	std::vector<uint8_t> v;
@@ -491,6 +496,8 @@ int main(int argc, char** argv) {
 		     g_licence_fmtownskit_size);
 		emit("SDL3, statically linked, used for the window, keyboard, gamepad and sound, zlib licence", g_licence_sdl3,
 		     g_licence_sdl3_size);
+		emit("the glyph ROM embedded in this binary, and what is and is not established about it", g_licence_font_rom,
+		     g_licence_font_rom_size);
 		std::printf("\nThe game itself is not distributed with this program and is covered by none of the above. If you own a\n"
 		            "copy of the FM Towns Ultima Trilogy, this runs from your own disc image.\n");
 		return 0;

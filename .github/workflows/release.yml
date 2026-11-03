@@ -87,12 +87,12 @@ jobs:
 
       - name: Record the digest
         id: sum
-        run: echo "sha256=$(sha256sum dist/u2port-linux-x86_64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "sha256=$(sha256sum dist/u2port-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
           name: u2port-linux-x86_64
-          path: dist/u2port-linux-x86_64.tar.gz
+          path: dist/u2port-linux-x86_64
 
     outputs:
       sha256: ${{ steps.sum.outputs.sha256 }}
@@ -109,7 +109,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: u2port-linux-x86_64.tar.gz
+          files: u2port-linux-x86_64
           body: |
             Early, and honest about it. The port reaches the title screen, the game menu and the overworld. Character
             creation does not work, `Esc` or `Q` ends the run, and what is broken is listed with the observation that
@@ -124,10 +124,12 @@ jobs:
 
             ## The host binary
 
-            `u2port-linux-x86_64.tar.gz`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** Unpack it,
-            put your own copy of the game in `game/` beside it, run `./tools/vendor.sh` for the font ROM, then
-            `./play.sh`. At the game menu pick *Journey Onward* and a character that already exists; a disk with
-            three of them ships in the archive. SDL is linked statically from the pinned upstream release, so there is
+            `u2port-linux-x86_64`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** One file, no archive
+            to unpack: put your own copy of the disc image beside it and run it. It reads `ENCHANT.EXP`, TBIOS, the
+            graphics, the sounds and the kanji font out of that image, keeps what it reads under `extracted/`, and
+            creates `saves/` for characters as plain files, so the image is optional after a first run. At the game
+            menu pick *Journey Onward*, or *Generate Character* to make one. `u2port-linux-x86_64 --licences` prints
+            every licence and provenance notice compiled into it. SDL is linked statically from the pinned upstream release, so there is
             no `libSDL3` to install and nothing to apt first: the binary's whole dynamic list is libc, libstdc++, libm
             and libgcc. What SDL loads at run time is the desktop's own (X11 or Wayland, GL, and one of ALSA, Pulse or
             PipeWire), and the archive was checked on a bare Debian trixie container with no SDL installed at all,

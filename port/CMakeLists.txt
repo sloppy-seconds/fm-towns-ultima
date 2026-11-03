@@ -69,7 +69,8 @@ add_custom_command(
 # notice cannot be separated from the thing it applies to, and `u2port --licences` prints it. Same generator, so there is
 # one way of turning a file into a compiled-in array rather than two.
 set(EMBEDDED_LICENCES "")
-foreach(pair "LICENSE:g_licence_mit" "fmtownskit/LICENSE:g_licence_fmtownskit" "LICENSE.SDL3:g_licence_sdl3")
+foreach(pair "LICENSE:g_licence_mit" "fmtownskit/LICENSE:g_licence_fmtownskit" "LICENSE.SDL3:g_licence_sdl3"
+             "assets/font-rom/README.md:g_licence_font_rom")
   string(REPLACE ":" ";" parts "${pair}")
   list(GET parts 0 licence_file)
   list(GET parts 1 licence_symbol)
