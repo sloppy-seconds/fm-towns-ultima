@@ -1,6 +1,10 @@
 #include "native_shadows.h"
-#include "p_game_funcs.h"   // the recompiled twin, for the U2_SHADOW_OFF baseline
 #include "x86_glue.h"
+#ifndef U2_NO_SHADOWS
+#include "p_game_funcs.h"   // the recompiled twin, for the U2_SHADOW_OFF baseline
+#endif
+
+#ifndef U2_NO_SHADOWS
 
 // Native replacements for routines of ENCHANT.EXP, written as RULES.
 //
@@ -486,3 +490,13 @@ const X86FuncEntry g_x86_shadows[] = {
 const X86Module g_mod_native = {
 	"NATIVE", 0x000C, 0u, 0u, g_x86_shadows, sizeof(g_x86_shadows) / sizeof(g_x86_shadows[0]), 0u, nullptr,
 };
+
+#else   // U2_NO_SHADOWS, the no-game CI build
+// The CI check compiles the port against a module generated from 4 KB of zero fill, so none of the functions named
+// above exists and the table cannot refer to them. Shadows are game-specific by construction, so that build carries an
+// empty manifest with the same three symbols the port references. What the check proves is that the port links and runs
+// with no game present; what it deliberately does not prove is anything about the strangler.
+const X86FuncEntry g_x86_shadows[] = { {0u, nullptr} };
+const unsigned g_x86_nshadows = 0;
+const X86Module g_mod_native = { "NATIVE", 0x000C, 0u, 0u, g_x86_shadows, 0u, 0u, nullptr };
+#endif

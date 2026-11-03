@@ -87,6 +87,14 @@ foreach(pair "LICENSE:g_licence_mit" "fmtownskit/LICENSE:g_licence_fmtownskit" "
 endforeach()
 
 add_executable(u2port main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM} ${EMBEDDED_LICENCES})
+# The no-game CI check generates its module from 4 KB of zero fill, so the functions the native shadows name do not
+# exist there and the table cannot name them. Shadows are game-specific by construction, so that build compiles an
+# empty manifest instead of the real one. It is an option rather than a guess at the module's contents because the
+# check is meant to prove one thing, that the port links with no game present, and to fail for its own reasons.
+option(U2_SYNTHETIC_MODULE "build against a module generated from zero fill, with no native shadows" OFF)
+if(U2_SYNTHETIC_MODULE)
+  target_compile_definitions(u2port PRIVATE U2_NO_SHADOWS)
+endif()
 # RECOMP_DIR is on the include path for p_game_funcs.h, which native_shadows.cpp needs to name the recompiled
 # twin when U2_SHADOW_OFF gives the baseline. It is a generated header, but the module is always linked, so the
 # symbol always exists; tools/portcheck.js asserts the address is still declared there.

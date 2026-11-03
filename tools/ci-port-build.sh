@@ -43,8 +43,11 @@ mkdir -p "$OUT"
 head -c 4096 /dev/zero > "$SYN"
 echo "synthetic   $SYN (4096 bytes of zero fill)"
 
+# Two modules from the same zero fill, because port/modules.cpp names both: the game's code selector and TBIOS's.
+# One module was enough until the port started carrying the native shadows, and then the link failed on g_mod_p_tbios,
+# which is a fact about the module list rather than about the thing this check exists to prove.
 (cd "$ROOT" && PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m fmtownskit.recomp \
-	--out "$OUT/recomp" --raw "game=$SYN@0xc+0x0") | tail -2
+	--out "$OUT/recomp" --raw "game=$SYN@0xc+0x0" --raw "tbios=$SYN@0x110+0x0") | tail -2
 
 for f in modules.cpp p_game_000.cpp; do
 	if [[ ! -f "$OUT/recomp/$f" ]]; then
@@ -57,7 +60,8 @@ echo "module      $(ls "$OUT/recomp"/p_*.cpp | wc -l) source file(s), modules.cp
 # The same two cache variables a human passes, for the same reason port-build.sh passes them: RECOMP_DIR has no
 # default worth guessing, and FMT_RUNTIME is cached, so a stale build tree keeps pointing at an old path.
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release \
-	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" > "$OUT/cmake.log" 2>&1 || {
+	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
+	-DU2_SYNTHETIC_MODULE=ON > "$OUT/cmake.log" 2>&1 || {
 	echo "cmake configure failed, last lines of $OUT/cmake.log:" >&2
 	tail -20 "$OUT/cmake.log" >&2
 	exit 1
