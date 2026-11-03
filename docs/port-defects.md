@@ -16,6 +16,7 @@ quickstarts have to give the tested route rather than the one the game menu sugg
 | 3 | Character creation does not work | **Diagnosed 2026-11-01, two causes, both now closed.** The report itself was wrong: `Generate Character` is not a dead end, it is a sub-menu (Examine the Register / Create a Character / Terminate a Character / Main Menu / Look at a Character) and the headless route reaches it. What was dead was the digit. `Create a Character` asks `Create Entry (1-4) # 0` and wants a number, and the port could not deliver one. The second cause was that even a completed creation could not be saved | **fixed. Cause one pinned at kit `4028a76`, cause two by the FAT12 write path, and `tools/controlcreate.py` proves creation, persistence and play across two processes** |
 | 5 | The keyboard could not type a digit | **Found and fixed 2026-11-01, on the yell line.** Every digit key was dropped before it reached the guest, and the whole a-z 0-9 grid is now measured glyph by glyph. Recorded under defect 3 because that is where it was found | **fixed, pinned at kit `4028a76`, and gated by `tools/controlkeymap.py`** |
 | 4 | No sound library means no window | On a Debian trixie container with no SDL and no `libasound`, the port printed `graphics  sdl unavailable (Failed loading libasound.so.2: ... cannot open shared object file), falling back to none` and ran with no window at all. Installing `libasound2` gave a 640x480 window showing the title screen, on the same machine with still no SDL | open, cause known, not fixed |
+| 6 | The window resizes and the picture does not scale | **Reported 2026-11-03 by Paul**, dragging the window larger left the graphics the same size. Measured the same day against SDL 3.4.18 directly rather than by eye: a 640x480 canvas set to `SDL_LOGICAL_PRESENTATION_INTEGER_SCALE` renders 640x480 in a 960x720 window and only whole multiples grow it | **fixed at kit `98fd4c3`**, letterbox presentation, and the frame at 700 is unchanged at `15d87bf0` |
 
 Defects 1 and 2 are play observations reported on 2026-10-30, when the tree was at `51ca6e5`. They are not traces.
 No backtrace has been captured for either, and neither has been re-tested since the report.
@@ -427,3 +428,32 @@ own quit, which is why the memory of "Q crashes it" is not trustworthy, and the 
 unchanged. Running the original in Tsugaru and pressing `Q` at the same three screens answers it, and if the answer
 is "nothing", the defect closes as refuted and the only remaining work is a quit affordance that does not look like
 a crash.
+
+## Defect 6, the measurement and the trade
+
+**Tried:** reproducing "the graphics do not scale" without depending on how a window resizing looks on a particular
+desktop. A small program linked against the same SDL 3.4.18 the port uses draws a white 640x480 rectangle through the
+logical presentation the kit sets, reads the backbuffer back and reports the box the white actually covers.
+
+**Measured**, with `SDL_VIDEODRIVER=dummy`, before any change:
+
+| presentation | window | picture drawn |
+|---|---|---|
+| `INTEGER_SCALE` | 640x480 | 640x480 |
+| `INTEGER_SCALE` | 960x720 | **640x480**, unchanged |
+| `INTEGER_SCALE` | 1000x700 | **640x480**, unchanged |
+| `INTEGER_SCALE` | 1280x960 | 1280x960 |
+| `LETTERBOX` | 960x720 | 960x720 |
+| `LETTERBOX` | 1000x700 | 933x700 |
+
+**Verdict:** POSITIVE, and the name was the diagnosis. Integer scaling only ever scales by whole numbers, so between
+1x and 2x the picture does not move and the window is mostly black, which is precisely what was reported. Letterbox
+tracks the window at any size and keeps the aspect ratio.
+
+**The trade, recorded rather than glossed.** Letterbox with `SDL_SCALEMODE_NEAREST` gives hard edges but uneven pixel
+widths, because 960/640 is 1.5 and some source pixels cover two screen pixels and some cover one. Whole-pixel scaling
+is genuinely better for anyone who cares about that, so it belongs behind an option such as `--integer-scale` rather
+than as the default that appears to do nothing.
+
+**And it is presentation only.** The frame the machine draws is untouched: at 700 frames the screenshot is still
+`15d87bf049cf011a3081038e016f3020`, the same digest the Linux and Windows builds produce.
