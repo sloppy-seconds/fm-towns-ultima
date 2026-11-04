@@ -67,6 +67,7 @@ nav:
       - Assets and graphics: assets-and-graphics.md
       - Extraction: extraction.md
       - Sound: sound.md
+      - Sound playback: audio-playback.md
       - Music: music.md
   - Characters:
       - Save files and the roster: save-files.md

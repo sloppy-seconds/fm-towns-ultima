@@ -44,6 +44,7 @@ Derived from the items below, not maintained separately. `node tools/plancheck.j
 | 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
 | 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
 | 5m Music: where it comes from, and when it starts | AUTONOMOUS | **partly known**, the port's side is measured and recorded in `docs/music.md`, the original's side has no sound device to measure |
+| 5o Some samples are cut off at the end marker | AUTONOMOUS | **open**, the marker stop fixes the repeat and the sample data is the suspect; `docs/audio-playback.md` holds the measurements |
 | 5n Hardware interrupt delivery, attempted and reverted | PARTLY AUTONOMOUS | **open**, the attempt silenced the FM music and was bisected out; next is a bounded retry or a CUT, and `docs/interrupts.md` holds the numbers |
 
 ## The items this track owns that the old plan did not have
@@ -1790,6 +1791,28 @@ and 14,000 frames with keys reached the world with no fault. Neither of those ca
 lesson worth keeping: a change can leave the picture identical and take the music away.
 
 Full record in `docs/interrupts.md`.
+
+### 5o. Some samples are cut off at the end marker
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The next step is a dump of the bytes a channel reads, which needs no display and no ears |
+| depends on | nothing |
+| done when | the wave bytes behind a step (which ends correctly) and a moongate (which is truncated) are dumped and compared, and the page says which of the two explanations holds: the sample contains 0xFF as waveform data, or our wave indexing reads the wrong place and finds 0xFF where the sample has none. Either way the artefact is the dump and the verdict. The failure case: if the dump shows nothing wrong with the mapping, the item records that the marker rule is what hardware does and the truncation is the driver's own behaviour, which is a negative result and closes it |
+| blocked by | nothing |
+
+**What is known.** Stopping the RF5C68 channel at its 0xFF marker fixes the repeating sound effect and leaves the music working,
+measured in play on 2026-11-05 after the FM chip fix. But some samples, a moongate for instance, are truncated. The registers
+cannot separate a sound that should loop from one that should end: every sound has `start 224` and `loop 61440`, and only
+`step` differs.
+
+**Why the wave dump is the next step.** If the mapping is right, the truncation is the chip's own rule and the driver's
+problem. If the mapping is wrong, every channel has been reading the wrong bytes all along, which would explain the original
+long loops as well as the truncations.
+
+Full sequence, measurements and the reverted attempts are in `docs/audio-playback.md`.
 
 ---
 
