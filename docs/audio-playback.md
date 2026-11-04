@@ -1,8 +1,10 @@
 # Sound playback: three faults, what fixed each, and what is left
 
 Everything here was measured on 2026-11-05 in play, with Paul listening on `jarvis` and the port's own instruments in the log.
-The symptom that started it was simple: a sound effect repeated until another sound played, and the menu had no music, no
-keypress beeps and no footstep per step.
+The symptom that started it was simple: a sound effect repeated until another sound played, the menu had no keypress beeps and
+no footstep per step, and the music only started after about a minute. That last part is **unchanged by everything on this page**:
+the music still arrives late and still arrives, exactly as it always did, and the late start is item `5m`, not something fixed
+here.
 
 Three separate faults were stacked, and two of them had to be fixed before the third was even visible.
 
@@ -18,12 +20,16 @@ with reset()      peak |sample| = 0
 
 Removed. The same patch through the port's own chip instance then gave 5482 where it had given 0.
 
-**This is the one fault that explains the shape of the original report.** Sample effects are the RF5C68, and they worked
-throughout. Music, menu beeps and footsteps are FM, and every one of them was missing because the FM chip could not make a
-sound at all, so it is one fault and not three.
+**What this does and does not explain, corrected after Paul pointed it out.** The harness result is solid: on a fresh chip, `reset()`
+followed by the same patch gives silence. What is **not** established is that it silenced the port in play, because music did
+play in earlier builds that still had the `reset()` call, after about sixty seconds. Those two facts contradict the simple
+version of the story, so the honest statement is that the reset can silence a chip and the port's behaviour under it was never
+separated from everything else broken at the time. It stays removed because the harness shows it is unsafe and nothing needed
+it, not because it has been shown to have caused anything.
 
-It also invalidated an earlier conclusion. The marker fix below was reverted on 2026-11-03 because the music stopped starting;
-the FM chip was dead for that entire session, so the evidence was read against a broken machine.
+That also weakens the next paragraph rather than supporting it: the marker fix was reverted on 2026-11-03 for stopping the
+music, and while the machine was certainly in a bad state then, this page cannot now claim the chip was dead as the reason.
+The re-test on 2026-11-05 is what matters, and it is below.
 
 ## 2. `int 90h AH=01` never reached the driver
 
@@ -48,8 +54,12 @@ address pushed, as a real interrupt would. Measured after: the port writes the s
 The chip restarts a sample at its loop address when it reaches an `0xFF` marker, and stopping it is the driver's job. The
 driver never does stop it, which is the original repeating sound.
 
-Stopping the channel at the marker fixes the repeat and leaves the music working, measured in play on 2026-11-05 with
-`U2_IRQ=1`, after the chip fix. The step sound ends every ~80 frames as it should.
+Stopping the channel at the marker fixes the repeat and does not make the music any worse. What that means precisely, because
+it is easy to overstate: the music behaves exactly as it did before the change, starting after about sixty seconds and not
+before. The change was reverted on 2026-11-03 for stopping the music altogether, and it no longer does that. It does not fix
+the late start either, and nothing here should be read as saying the music is fixed: the late start is its own problem and is
+item `5m`. Measured in play on 2026-11-05 with `U2_IRQ=1`, after the chip fix. The step sound ends every ~80 frames as it
+should.
 
 **But some sounds are truncated**, a moongate for instance. The register values cannot separate them:
 
