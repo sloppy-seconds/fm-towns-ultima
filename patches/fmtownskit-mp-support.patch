@@ -820,7 +820,7 @@ index 4d13162..a91e9f7 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..bdcbef8 100644
+index 629a87e..9ea0080 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,12 +35,43 @@ static int new_handle(Machine& m) {
@@ -1061,10 +1061,11 @@ index 629a87e..bdcbef8 100644
  // The keyboard BIOS, int 90h, as FORRBIOS.NSD answers it in protected mode (the program
  // pushes "DOSX" "BIOS" before each call): read on the oracle (tools/oracle.py --trace-calls at
  // each int and the instruction after it) with no key ever pressed -- AH 0 for every function,
-@@ -531,11 +698,35 @@ void Machine::int90(X86Cpu& c) {
+@@ -531,11 +698,66 @@ void Machine::int90(X86Cpu& c) {
      uint8_t ah = (c.r[0] >> 8) & 0xFF;
      if (trace_int) std::fprintf(stderr, "int 90h AX=%04X EBX=%08X ECX=%08X EDX=%08X\n", c.r[0] & 0xFFFF, c.r[3], c.r[1], c.r[2]);
      switch (ah) {
+-    case 0x00: case 0x01: case 0x02: case 0x05: case 0x06:   // init, buffer, code, click, clear
 +    // PATCH, this repository. KYB_lock (AH=04) was not in this kit's recordings, because they were taken
 +    // with no key ever pressed. Measured on the live machine with the emulator console at 000C:0052:
 +    // EAX goes in as 0x00000400 (AH the function, AL the lock flag from [EBP+8]) and comes back as
@@ -1072,11 +1073,42 @@ index 629a87e..bdcbef8 100644
 +    // the `c.r[0] &= 0xFFFF00FF` at the end of this function already delivers it by zeroing AH. One call
 +    // measured, with AL=0. The handler is TBIOS's own, reached through CS=0008 at linear 0x5C12E.
 +    case 0x04:
-     case 0x00: case 0x01: case 0x02: case 0x05: case 0x06:   // init, buffer, code, click, clear
++    case 0x00: case 0x02: case 0x05: case 0x06:   // init, buffer, code, click, clear
          break;
 -    case 0x09:                                      // read a key: none
 -        s16(c, 2, 0xFFFF);
 -        s16(c, 3, 0xFF00);
++    case 0x01: {                                    // the sound driver, run for real
++        // MEASURED ON THE ORIGINAL, 2026-11-03, with Tsugaru's debugger. The Towns sound BIOS is entered through
++        // int 90h and dispatches on AH at 0110:000110B0:
++        //
++        //   0110b3  80 FC 51        cmp ah, 0x51
++        //   0110b8  0F B6 EC        movzx ebp, ah
++        //   0110bb  2E FF 14 AD CC 10 01 00   jmp dword ptr cs:[ebp*4 + 0x110CC]
++        //
++        // and entry 1 of that table at cs:0x110CC is 0x11224: the sound driver, which calls f_00011bf0 and, at the
++        // splash, writes 0x27 to 0x4D8 -- the YM3438's timer control -- from 0110:00011C08. That write is the first
++        // sound write the original makes, and it is what arms the timers the music runs off.
++        //
++        // The kit answered AH=01 with `break`, so this driver never ran. That is why the menu had no music, no keypress
++        // beeps, and why the engine only stumbled into life about 66 seconds later by some other path. The driver is in
++        // the recompiled module already, so it is called here rather than reimplemented.
++        X86Func f = x86_lookup_cs(0x0110, 0x11224);
++        if (!f) {
++            char why[64];
++            std::snprintf(why, sizeof why, "int 90h AH=01: no TBIOS sound driver at 0110:00011224");
++            x86_fault(c, c.eip, why);
++        }
++        const uint32_t resume = 0x0110F000u;    // a return address inside TBIOS's own segment, popped by the driver's ret
++        const uint32_t saved_cs = c.sreg[1];
++        x86_load_seg(c, 1, 0x0110);             // the driver runs with CS = TBIOS, as it would on a real int 90h
++        push32(c, resume);
++        if (trace_int) std::fprintf(stderr, "  int 90h AH=01 -> TBIOS sound driver 0110:00011224\n");
++        f(c);
++        if (c.eip != resume) x86_fault(c, c.eip, "the TBIOS sound driver returned elsewhere");
++        x86_load_seg(c, 1, saved_cs);
++        break;
++    }
 +    case 0x09:                                      // read a key
 +        // PATCH, this repository. The kit had no keyboard, so this answered "none" for ever and a program
 +        // polling for input never moved. Measured on the live machine at 000C:000000B6, the instruction after
@@ -1515,7 +1547,7 @@ index 2a0e2eb..fd40ebb 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/towns_sound.cpp b/runtime/towns_sound.cpp
-index 00cbbf0..32bf474 100644
+index 00cbbf0..9ddab0f 100644
 --- a/runtime/towns_sound.cpp
 +++ b/runtime/towns_sound.cpp
 @@ -52,7 +52,16 @@ struct Stream {
@@ -1536,7 +1568,30 @@ index 00cbbf0..32bf474 100644
  
  // ymfm's view of the machine: its timers and busy flag on the guest clock (its durations are
  // the chip's 8 MHz clocks, two of the CPU's each), its interrupt into IRQ13.
-@@ -86,6 +95,10 @@ struct SoundChips {
+@@ -61,7 +70,21 @@ struct FmPort : ymfm::ymfm_interface {
+     uint64_t at = 0;                    // the guest time of the chip's current access
+     uint64_t timer[2] = {kNever, kNever};
+     uint64_t busy_until = 0;
+-    void ymfm_set_timer(uint32_t t, int32_t clocks) override { timer[t] = clocks < 0 ? kNever : at + (uint64_t)clocks * 2; }
++    // Instrument only: the first few timer schedules and cancels, with their sign. It is what showed that ymfm does schedule
++    // this driver's timers (positive durations) and also cancels them, and the distinction is invisible in a count of writes.
++    void ymfm_set_timer(uint32_t t, int32_t clocks) override {
++        static unsigned pos = 0, neg = 0;
++        bool show = false;
++        if (clocks >= 0) {
++            if (pos++ < 5) show = true;
++        } else if (neg++ < 3) {
++            show = true;
++        }
++        if (show && m && m->trace_int)
++            std::fprintf(stderr, "  ymfm_set_timer(%u, %d) at frame %llu [pos=%u neg=%u]\n", t, clocks,
++                         (unsigned long long)m->frame, pos, neg);
++        timer[t] = clocks < 0 ? kNever : at + (uint64_t)clocks * 2;
++    }
+     void ymfm_set_busy_end(uint32_t clocks) override { busy_until = at + (uint64_t)clocks * 2; }
+     bool ymfm_is_busy() override { return at < busy_until; }
+     void ymfm_update_irq(bool asserted) override { if (m) { m->sound.fm_irq = asserted; m->sound_irq(); } }
+@@ -86,6 +109,10 @@ struct SoundChips {
      Stream cd_out{kCdRate};
      // the mix
      uint64_t k = 0;                     // the next output frame
@@ -1547,7 +1602,7 @@ index 00cbbf0..32bf474 100644
  };
  
  void SoundChipsFree::operator()(SoundChips* p) const { delete p; }
-@@ -96,7 +109,15 @@ void Machine::sound_start() {
+@@ -96,7 +123,15 @@ void Machine::sound_start() {
      chips->fm.reset();
  }
  
@@ -1564,7 +1619,7 @@ index 00cbbf0..32bf474 100644
  
  // ---- the RF5C68 ------------------------------------------------------------------------------
  static void pcm_sample(Machine& m, SoundChips& s) {
-@@ -105,19 +126,34 @@ static void pcm_sample(Machine& m, SoundChips& s) {
+@@ -105,19 +140,34 @@ static void pcm_sample(Machine& m, SoundChips& s) {
      for (int ch = 0; ch < 8 && (snd.pcm_ctrl & 0x80); ++ch) {
          PcmChannel& c = s.pcm[ch];
          if (!c.on) continue;
@@ -1609,7 +1664,7 @@ index 00cbbf0..32bf474 100644
          }
          c.addr += c.step;
          int lv = (c.pan & 0x0F) * c.env, rv = ((c.pan >> 4) & 0x0F) * c.env;
-@@ -128,6 +164,7 @@ static void pcm_sample(Machine& m, SoundChips& s) {
+@@ -128,6 +178,7 @@ static void pcm_sample(Machine& m, SoundChips& s) {
      left = std::clamp(left & ~63, -32768, 32767);
      right = std::clamp(right & ~63, -32768, 32767);
      s.pcm_out.push(left / 32768.0f, right / 32768.0f);
@@ -1617,7 +1672,7 @@ index 00cbbf0..32bf474 100644
  }
  
  // ---- the YM3438 ------------------------------------------------------------------------------
-@@ -136,6 +173,7 @@ static void fm_catch_up(SoundChips& s, uint64_t to) {
+@@ -136,6 +187,7 @@ static void fm_catch_up(SoundChips& s, uint64_t to) {
      while (s.fm_next <= to) {
          s.fm.generate(&o, 1);
          s.fm_out.push(o.data[0] / 32768.0f, o.data[1] / 32768.0f);
@@ -1625,7 +1680,7 @@ index 00cbbf0..32bf474 100644
          s.fm_next = at(++s.fm_n, kFmRate);
      }
  }
-@@ -155,6 +193,7 @@ static void cd_catch_up(Machine& m, SoundChips& s, uint64_t to) {
+@@ -155,6 +207,7 @@ static void cd_catch_up(Machine& m, SoundChips& s, uint64_t to) {
          const uint8_t* p = s.sector + s.sector_pos++ * 4;
          int16_t l = (int16_t)(p[0] | p[1] << 8), r = (int16_t)(p[2] | p[3] << 8);
          s.cd_out.push(l / 32768.0f * m.sound.cd_gain[0], r / 32768.0f * m.sound.cd_gain[1]);
@@ -1633,7 +1688,55 @@ index 00cbbf0..32bf474 100644
      }
  }
  
-@@ -213,13 +252,22 @@ uint8_t Machine::sound_in8(uint32_t port) {
+@@ -182,6 +235,11 @@ uint64_t Machine::sound_next_event() const {
+     return std::min({s.pcm_next, s.port.timer[0], s.port.timer[1]});
+ }
+ 
++// Counts the timer diagnostics so a session cannot flood the log.
++static unsigned tmr_notes = 0;
++static unsigned tmr_exp_notes = 0;
++static unsigned status_notes = 0;   // separate: sharing one counter meant 40 status reads exhausted it before any expiry printed
++
+ void Machine::sound_run(uint64_t to) {
+     SoundChips& s = *chips;
+     for (;;) {
+@@ -196,6 +254,9 @@ void Machine::sound_run(uint64_t to) {
+         fm_catch_up(s, t);
+         s.port.timer[n] = kNever;
+         s.port.at = t;
++        if (trace_int && tmr_exp_notes++ < 20)
++            std::fprintf(stderr, "  FM timer %d expired at frame %llu (now %llu)\n", n, (unsigned long long)frame,
++                         (unsigned long long)now);
+         s.port.expire(n);
+     }
+ }
+@@ -207,19 +268,47 @@ uint8_t Machine::sound_in8(uint32_t port) {
+     case 0x4D8: case 0x4DA: case 0x4DC: case 0x4DE:
+         fm_catch_up(s, now);
+         s.port.at = now;
+-        return s.fm.read((port - 0x4D8) >> 1);
++        // A read of the FM address port returns the chip's status: timer overflow flags and the busy bit. A driver that polls
++        // the timers instead of taking their interrupt reads here, so counting these says which kind of driver this is.
++        {
++            const uint8_t st = s.fm.read((port - 0x4D8) >> 1);
++            // A per-frame summary rather than the first N reads: what matters is whether the driver is still polling later,
++            // and a cap on printed lines hides exactly that. Bits 0 and 1 are the timer overflow flags it would be waiting
++            // for, so the count of reads that carried either is the answer.
++            if (trace_int) {
++                static uint64_t f = ~0ULL;
++                static unsigned n = 0, with_flags = 0;
++                if (frame != f) {
++                    if (n) std::fprintf(stderr, "  FM status frame %llu: %u reads, %u with a timer flag\n",
++                                        (unsigned long long)f, n, with_flags);
++                    f = frame; n = 0; with_flags = 0;
++                }
++                ++n;
++                if (st & 0x03) ++with_flags;
++            }
++            return st;
++        }
+     case 0x4E0: return sound.in_volume[sound.in_sel & 3];
+     case 0x4E1: return sound.in_sel;
      case 0x4E2: return sound.volume[sound.volume_sel & 3];
      case 0x4E3: return sound.volume_sel;
      case 0x4E8: return 1;
@@ -1657,7 +1760,34 @@ index 00cbbf0..32bf474 100644
          return r;
      }
      default: return 0;
-@@ -254,7 +302,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -234,14 +323,25 @@ static void cd_db(Machine& m, float db) {
+     m.sound.cd_gain[ch] = db > 0 ? 0.0f : std::pow(10.0f, db / 20.0f);
+ }
+ 
++// Counts the FM register diagnostics below, so a session cannot flood the log. File scope: instrument state, not machine state.
++static unsigned fm_reg_notes = 0;
++
+ void Machine::sound_out8(uint32_t port, uint8_t d) {
+     SoundChips& s = *chips;
+     switch (port) {
+-    case 0x4D8: case 0x4DA: case 0x4DC: case 0x4DE:
++    case 0x4D8: case 0x4DA: case 0x4DC: case 0x4DE: {
+         fm_catch_up(s, now);
+         s.port.at = now;
++        // The original's sound driver writes 0x27 (timer control) to the YM3438 at the splash. Seeing whether this port's copy
++        // of that driver reaches the same register is the difference between "the driver runs" and "the driver runs and gives
++        // up", and the two look identical from outside.
++        if (trace_int && fm_reg_notes++ < 400) {
++            if ((port - 0x4D8) >> 1 == 0) std::fprintf(stderr, "  FM reg=%02X at frame %llu\n", d, (unsigned long long)frame);
++            else std::fprintf(stderr, "  FM data=%02X at frame %llu\n", d, (unsigned long long)frame);
++        }
+         s.fm.write((port - 0x4D8) >> 1, d);
+         return;
++    }
+     case 0x4E0: sound.in_volume[sound.in_sel & 3] = d; return;
+     case 0x4E1: sound.in_sel = d; return;
+     case 0x4E2:
+@@ -254,7 +354,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          else if (d & 8) cd_db(*this, 0);
          else if (d & 0x10) cd_db(*this, -32.0f);
          return;
@@ -1673,7 +1803,7 @@ index 00cbbf0..32bf474 100644
      case 0x4EC: return;             // LED, mute
      case 0x4F0: case 0x4F1: case 0x4F2: case 0x4F3: case 0x4F4: case 0x4F5: case 0x4F6: {
          PcmChannel& c = s.pcm[s.cbank];
-@@ -265,7 +320,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -265,7 +372,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          case 3: c.step = (uint16_t)((c.step & 0x00FF) | (d << 8)); break;
          case 4: c.loopst = (uint16_t)((c.loopst & 0xFF00) | d); break;
          case 5: c.loopst = (uint16_t)((c.loopst & 0x00FF) | (d << 8)); break;
@@ -1682,7 +1812,7 @@ index 00cbbf0..32bf474 100644
          }
          return;
      }
-@@ -276,8 +331,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -276,8 +383,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          return;
      case 0x4F8:
          sound.pcm_onoff = d;
@@ -1694,7 +1824,7 @@ index 00cbbf0..32bf474 100644
              if (!s.pcm[i].on) s.pcm[i].addr = (uint32_t)s.pcm[i].start << (8 + 11);
          }
          return;
-@@ -288,6 +346,23 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -288,6 +398,23 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
  // ---- the mix ---------------------------------------------------------------------------------
  void Machine::audio_take(std::vector<int16_t>& out) {
      SoundChips& s = *chips;
