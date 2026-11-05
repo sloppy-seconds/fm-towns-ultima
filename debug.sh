@@ -6,9 +6,15 @@
 # and the report that comes back is "the bug did not reproduce". This script sets the variables and passes --dev in the
 # same breath, so the flag and the variable cannot come apart.
 #
-# WHAT IT DOES. Finds the newest binary beside itself, turns on the interrupt trace and the PCM diagnostics, tees every
-# line to a timestamped log, and prints the log's path plus a short summary when you quit. Quit with Ctrl-Q or by closing
-# the window. The summary is the part worth sending back.
+# WHAT IT DOES. Finds the newest binary beside itself, turns on the interrupt trace, the PCM diagnostics and the far-call
+# trace, tees every line to a timestamped log, and prints the log's path plus a short summary when you quit. Quit with
+# Ctrl-Q or by closing the window. The summary is the part worth sending back.
+#
+# WHY THE FAR-CALL TRACE IS IN HERE. The game does not reach the sound layer with int 90h. It does `lcall fs:[0x80]`, which
+# lands in the dispatcher at 0110:000110B0, and the service number is in AH. Only that trace shows which service was asked
+# for and with what arguments, so the repeat question (the original plays a moongate sound three times, this port once) is
+# answered from these lines rather than from the chip. Enabled by default because typing variables at a remote console is
+# not something anyone should have to do.
 #
 # WHAT TO DO WHILE IT RUNS. Play normally. When the sound misbehaves, let it misbehave for a second or two so the
 # instrument has something to count, then carry on, then quit. Nothing has to be timed.
@@ -44,6 +50,10 @@ LOG="${LOG:-$HERE/u2-debug-$(date +%Y%m%d-%H%M%S).log}"
 # The instruments. U2_TRACE_INT is the one that matters for sound and for the int 93h CD path: it turns on the PCM wrap
 # counter, the mask and on/off register log, the int 93h register dump and the per-second sound-port census.
 export U2_TRACE_INT=1
+# The far-call trace, capped so a long session cannot fill a disk with one line per call. AH in the eax field is the service
+# number, and the argument registers follow it.
+export U2_TRACE_FAR=1
+export U2_TRACE_FAR_ALL="${U2_TRACE_FAR_ALL:-20000}"
 
 echo "debug.sh  binary  $BIN"
 echo "debug.sh  log     $LOG"
@@ -76,7 +86,9 @@ if [[ -s "$LOG" ]]; then
 		"status reads" "$(grep -c 'PCM status read' "$LOG")" \
 		"flags reads" "$(grep -c 'PCM flags read' "$LOG")" \
 		"int 93h" "$(grep -c 'int 93h' "$LOG")" \
-		"sound census" "$(grep -cE '^  FM [0-9]+s' "$LOG")"
+		"sound census" "$(grep -cE '^  FM [0-9]+s' "$LOG")" \
+		"TBIOS calls" "$(grep -c '0110:000110b0' "$LOG")" \
+		"AH=01 starts" "$(grep '0110:000110b0' "$LOG" | grep -c 'eax 000001')"
 	# The line that matters is the join between what the chip asked for and what the driver did about it. A sample that
 	# ended with no assert after it is the chip finishing its job. An assert with no status or flags read is the driver
 	# not being reached. Both are single lines and they mean opposite things.

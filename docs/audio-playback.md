@@ -2,9 +2,10 @@
 
 Everything here was measured on 2026-11-05 in play, with Paul listening on `jarvis` and the port's own instruments in the log.
 The symptom that started it was simple: a sound effect repeated until another sound played, the menu had no keypress beeps and
-no footstep per step, and the music only started after about a minute. That last part is **unchanged by everything on this page**:
-the music still arrives late and still arrives, exactly as it always did, and the late start is item `5m`, not something fixed
-here.
+no footstep per step, and the music did not start at all for about a minute. That last part is a **second defect, untouched by
+everything on this page**, and it is item `5m`. The original starts its music at the splash screen, so a minute of silence is not
+baseline behaviour to be described and lived with, it is a fault with a known reference: the correct behaviour is music from the
+splash.
 
 Three separate faults were stacked, and two of them had to be fixed before the third was even visible.
 
@@ -54,12 +55,10 @@ address pushed, as a real interrupt would. Measured after: the port writes the s
 The chip restarts a sample at its loop address when it reaches an `0xFF` marker, and stopping it is the driver's job. The
 driver never does stop it, which is the original repeating sound.
 
-Stopping the channel at the marker fixes the repeat and does not make the music any worse. What that means precisely, because
-it is easy to overstate: the music behaves exactly as it did before the change, starting after about sixty seconds and not
-before. The change was reverted on 2026-11-03 for stopping the music altogether, and it no longer does that. It does not fix
-the late start either, and nothing here should be read as saying the music is fixed: the late start is its own problem and is
-item `5m`. Measured in play on 2026-11-05 with `U2_IRQ=1`, after the chip fix. The step sound ends every ~80 frames as it
-should.
+Stopping the channel at the marker fixes the repeat and does not make the music any worse. To be exact about what that means: the
+music still fails to start for about a minute, which is a defect and not a baseline (item `5m`). The change was reverted on
+2026-11-03 for stopping the music altogether, and it no longer does that. It does not fix the late start either, and nothing here
+should be read as saying the music is fixed.
 
 **But some sounds are truncated**, a moongate for instance. The register values cannot separate them:
 
@@ -72,6 +71,63 @@ start 224, loop 61438, step 1568    <- a slower variant
 one-shot by its registers. The difference has to be in the data the channel reads, and the plausible cause is either that
 the game's samples contain `0xFF` as an ordinary waveform value, or that our wave indexing reads the wrong bank and finds
 `0xFF` where the sample has none.
+
+## 4. The sound API, located (uncommitted, 2026-11-05)
+
+Measured on a played session, not inferred. The game does not use `int 90h` for sound. Its own sound library sits at the end of
+its image (`0xFD933` to `0xFDBFE`) and reaches the system layer with `lcall fs:[0x80]`, which lands in the TBIOS dispatcher at
+`0110:000110B0`. The service number travels in `AH`, so the port's `int 90h` shim never sees these calls at all.
+
+The library's shape, read from `module/p_game_020.cpp`:
+
+| address | services | reads to be the |
+|---|---|---|
+| `0xFD933` | `AH=0`, `AH=0x15` twice, `AH=0x16` | init: installs the driver's far pointer at `[0xdea2c]` |
+| `0xFDB15` | `AH=0x15` with `bl=[ebp+8]`, `ecx=[ebp+0xc]` | parameter write |
+| `0xFDB49` | `AH=0x17` | query |
+| `0xFDB93` | `AH=0x21` with `bl=[ebp+8]` | per-channel request |
+| `0xFDBA8` | `AH=0x22` | per-channel request |
+| `0xFDBBD` | `AH=0x23` with `edx=[ebp+8]` | per-channel request |
+| `0xFDBD2` | `AH=0x16`, `AH=0x24` with `edx/esi/ecx/bl` | the one that carries the sample buffer, so the play call |
+
+On the played session the dispatcher received 195 calls, 55 of them after frame 200, and the services seen were `0x04`, `0x05`,
+`0x15`, `0x16`, `0x21`, `0x23`, `0x43`, `0x44`, `0x46`. **`0x24` was not among them**, which is the next thing to explain: either the
+play call is one of the others, or the trace is missing calls.
+
+Two facts that rule things out. `0110:00011224`, the sample-start path that claims a channel and writes `0x4F8` once, was entered
+**exactly once** in the whole session and that entry came from this port's own `int 90h` shim. And `0x4F8` was written three
+times in the same session, all at frame 97. So the game's PCM output during play does not go through the TBIOS start service at
+all, and the repeat question has to be answered in the game's own library, not in the system layer.
+
+## 5. The wave RAM is 87.5 percent unwritten, and the sample is one 4 KB page (uncommitted, 2026-11-05)
+
+Measured on the traced build, in play, from the marker itself:
+
+```
+PCM ch7 sample ended at frame 705 (start 224, loop 61440, step 1960)
+WAVE read at EFFF (start 224 loop 61440): FF 39 17 8E 8E 90 81 8B B4 D4 CA A0 0F ...
+WAVE ff 57346 of 65536, first non-FF at E000, loop point 0000
+```
+
+Three things follow, and they are the first hard facts about the PCM path rather than inferences from it.
+
+**The address mapping is correct.** `start = 224` puts the first byte of the sample at wave offset `0xE000`, and `first non-FF at
+E000` is exactly where real data begins. So the channel is not reading the wrong place, which was the leading suspect and is now
+ruled out.
+
+**The sample is 4096 bytes and ends on its own last byte.** The channel ran from `0xE000` to `0xEFFF` and the byte at `0xEFFF`
+is `FF`, which is the end marker. At step 1960 that is about twelve frames, which is exactly when the marker fires. One pass is
+therefore correct behaviour for the data as this port has it.
+
+**Wave RAM is 87.5 percent `FF`.** 57,346 bytes of 65,536 are fill. Only 8,190 bytes hold anything else, and the sample under
+investigation occupies one 4 KB page of that. The fill is not a bug in itself: `FF` is what the driver writes to mean "end of
+sample", and an empty region of wave RAM is supposed to be `FF`.
+
+**What is still unexplained.** The original plays the moongate three times and this port once, and the port issues exactly one
+start per sound (`4F8 = FF` then `4F8 = 7F`, seven times in a session, one pair per sound). So either the original's sample data
+is three pages long where ours is one, or the original re-triggers the channel twice more by some route this port does not
+reproduce. The loop address the driver programs, `0xF000`, is one page past the data, which is where the end marker lives, so it
+is a stop configuration rather than a loop within the sample.
 
 ## What was tried and reverted
 

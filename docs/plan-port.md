@@ -1744,16 +1744,19 @@ audio tracks on the disc start at LBA 9000 and are never touched. So the music c
 are silent for 63 machine seconds before the first write, then driven continuously at about 695 writes a second to the
 end of the run. The screen at the exact frame the first write lands is the title menu.
 
-**What that settles.** The port is not adding the delay. A program that writes nothing to the sound hardware for a
-minute cannot be made silent by its mixer, and the mixer was the easy suspect because that is what a late start sounds
-like.
+**What is left.** The original is not silent, so this is a defect in the port and not a property of the program. That was
+established by playing the original: music starts at the splash screen and every keypress beeps, while this port is silent for
+about a minute. An earlier reading of this item concluded the opposite, that the program writes nothing to the sound hardware for
+63 seconds and the port is merely reproducing it. That conclusion came from a headless port run with no keys, and it is
+withdrawn: a measurement of the port's own silence says nothing about the original, and the original was heard to make music
+from the first screen. The 63 second figure describes this port's behaviour and is the thing to fix.
 
-**What is left.** Whether the original behaves the same way. That needs the emulator to have audio at all, and on
-2026-11-03 it did not: `SDL_AUDIODRIVER=disk` was set and confirmed in the container, SDL still went to ALSA and failed
-with `Cannot open PCM device.`, and Tsugaru's readme warns that audio does not work on natively-running Linux and
-offers no dump option of its own. The next step is a PulseAudio null sink inside the container so the emulator has a
-device that always opens, with the capture taken from the sink's monitor rather than through a driver the emulator has
-to cooperate with.
+The next step is still a sound device for the emulator, but to answer a different question than the one written here before:
+which write the original makes at the splash that this port does not make. On 2026-11-03 the emulator had no audio at all:
+`SDL_AUDIODRIVER=disk` was set and confirmed in the container, SDL still went to ALSA and failed with `Cannot open PCM device.`,
+and Tsugaru's readme warns that audio does not work on natively-running Linux and offers no dump option of its own. A PulseAudio
+null sink inside the container would give the emulator a device that always opens, with the capture taken from the sink's monitor
+rather than through a driver the emulator has to cooperate with.
 
 The two instruments this produced, the `int 93h` segment dump and the `out8` sound census, are committed in
 `fmtownskit` at `db7744d` and pinned in the parent. Both sit behind `trace_int`, so neither changes a frame. Full
@@ -1782,7 +1785,7 @@ fix that ended the looping sound effect stayed, because the census shows it cost
 **The hypothesis for next time, and it is only a hypothesis.** The FM timer's handler now runs, and the sequencer's timing
 assumption no longer holds: the chip's timer was read as free-running, and an interrupt-driven rewrite of it changes what the
 driver sees. The two halves of the poll are now behind their own switches so this can be tested one at a time: `U2_TICKS=1`
-runs the timer BIOS's 10 ms callbacks, `U2_IRQ=1` adds hardware interrupt delivery, and neither is on by default. The poll
+runs the timer BIOS's 10 ms callbacks, which stays opt-in. Hardware interrupt delivery is on by default because it is part of the machine, and `U2_NO_IRQ=1` turns it off for a differential run. The poll
 itself always runs and always advances the clock, because that is the port's time base and an earlier version of these flags
 broke it by returning early.
 

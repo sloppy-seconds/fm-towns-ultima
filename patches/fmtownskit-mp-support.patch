@@ -525,7 +525,7 @@ index 08029b9..6a9348c 100644
 +
  }  // namespace towns
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..d457613 100644
+index 75d5dad..d7788d4 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
 @@ -10,9 +10,21 @@
@@ -671,7 +671,19 @@ index 75d5dad..d457613 100644
  void x86_jump(X86Cpu& c, uint32_t target) {
      X86Func f = find(c, c.sreg[1], target, target);
      f(c);
-@@ -108,6 +212,12 @@ void x86_out(X86Cpu& c, uint32_t port, int n, uint32_t v) {
+@@ -103,11 +207,24 @@ uint32_t x86_in(X86Cpu& c, uint32_t port, int n) {
+ void x86_out(X86Cpu& c, uint32_t port, int n, uint32_t v) {
+     g_towns->advance(g_towns->machine_time(c.clocks));
+     if (g_towns->count_access) { ++g_towns->access.io_w; if (port == 0x6C) ++g_towns->access.wait_w; }
++    // Who writes the sample channel registers? The original's breakpoint on 0x4F8 landed at 0110:00013025, inside f_000112a4, which
++    // is the RELEASE path: it reads 0x4EA, clears the channel bits from the claim masks and writes their complement. Knowing which
++    // instruction writes 0x4F8 in the port makes the two comparable, and answers whether the start path is TBIOS code we can name.
++    static unsigned f8 = 0;
++    if ((port == 0x4F8 || port == 0x4F6 || port == 0x4F4) && g_towns->trace_int && f8++ < 60)
++        std::fprintf(stderr, "  OUT %03X = %02X from %04X:%08X at frame %llu\n", (unsigned)port, (unsigned)(v & 0xFF),
++                     (unsigned)c.sreg[1], (unsigned)c.eip, (unsigned long long)g_towns->frame);
+     g_towns->out(port, n, v);
+ }
  
  // Take an interrupt now: the handler runs as a call, its iretd returns here.
  static void take(X86Cpu& c, int vec) {
@@ -684,7 +696,7 @@ index 75d5dad..d457613 100644
      const towns::IntVector& iv = g_towns->pm_vector[vec];
      uint32_t resume = c.eip;
      push32(c, c.fl);
-@@ -120,16 +230,26 @@ static void take(X86Cpu& c, int vec) {
+@@ -120,16 +237,53 @@ static void take(X86Cpu& c, int vec) {
      if (c.eip != resume) x86_fault(c, resume, "an interrupt handler returned elsewhere");
  }
  
@@ -694,6 +706,23 @@ index 75d5dad..d457613 100644
 +
  void x86_poll(X86Cpu& c) {
      towns::Machine& m = *g_towns;
++    // Summary rather than a flood: how often the poll ran, how often the gate was open, and the first frame at which a hardware
++    // request was pending with interrupts enabled. Headless runs never enter this function at all, so the only place this can be
++    // measured is an interactive session, and a session log cannot carry one line per poll.
++    {
++        static unsigned long long polls = 0, if_set = 0, first_open = 0;
++        ++polls;
++        if (c.fl & X86_IF) {
++            ++if_set;
++            if (!first_open) first_open = m.frame;
++        }
++        static uint64_t last_report = 0;
++        if (m.trace_int && m.frame / 200 != last_report / 200) {
++            last_report = m.frame;
++            std::fprintf(stderr, "  POLL up to frame %llu: %llu polls, %llu with IF set, first IF frame %llu, irq_poll %d\n",
++                         (unsigned long long)m.frame, polls, if_set, first_open, m.irq_poll ? 1 : 0);
++        }
++    }
 +    // The poll is called by the recompiled code (X86_POLL, 13,938 sites) when the instruction budget runs out, so it has always
 +    // been the port's time base: its advance() is what moves the machine's clock. The two optional halves are the interrupt
 +    // delivery and the timer BIOS's callbacks, and each is off unless asked. An earlier version returned before the advance
@@ -702,6 +731,16 @@ index 75d5dad..d457613 100644
 +    in_poll = true;
      m.advance(m.machine_time(c.clocks));
 -    while (c.fl & X86_IF) {
++    // Instrument: the gate between a hardware request and its delivery is two flags, irq_poll and the guest's IF. A request that
++    // sits unclaimed with the poll on means the guest is running with interrupts disabled, which is a fact about this port's
++    // execution and not about the chip. Printed once per frame, in a narrow band around the frame the driver arms the timers.
++    if (m.trace_int) {
++        static unsigned shown = 0;
++        if (shown++ < 10) {
++            std::fprintf(stderr, "  POLL frame %llu irq_poll %d IF %d fm_irq %d pcm_irq %d\n", (unsigned long long)m.frame,
++                         m.irq_poll ? 1 : 0, (c.fl & X86_IF) ? 1 : 0, m.sound.fm_irq ? 1 : 0, m.sound.pcm_irq ? 1 : 0);
++        }
++    }
 +    while (m.irq_poll && (c.fl & X86_IF)) {
          int vec = m.pending_irq();
          if (vec < 0) break;
@@ -713,7 +752,7 @@ index 75d5dad..d457613 100644
          int n = m.t97_due();
          if (n < 0) break;
          const towns::Machine::Timer97& t = m.t97[n];
-@@ -152,12 +272,41 @@ void x86_poll(X86Cpu& c) {
+@@ -152,12 +306,41 @@ void x86_poll(X86Cpu& c) {
      uint64_t next = m.next_event();
      int64_t left = (int64_t)(m.cpu_time(next) - c.clocks);
      c.budget = (int32_t)(left < 64 ? 64 : left > (1 << 30) ? (1 << 30) : left);
@@ -833,7 +872,7 @@ index 4d13162..a91e9f7 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..ccc0d1b 100644
+index 629a87e..fb90b14 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,12 +35,43 @@ static int new_handle(Machine& m) {
@@ -880,7 +919,23 @@ index 629a87e..ccc0d1b 100644
          return true;
      }
      while (!path.empty() && (path[0] == '\\' || path[0] == '/')) path.erase(0, 1);
-@@ -308,6 +339,31 @@ void Machine::int21(X86Cpu& c) {
+@@ -256,6 +287,15 @@ void Machine::int21(X86Cpu& c) {
+             // interrupt here is taken in protected mode; a vector set back to what 02h gave
+             // before any was set (selector 0) is none.
+             pm_vector[c.r[1] & 0xFF] = {c.sreg[3], c.r[2], c.sreg[3] != 0};
++            // Instrument: which interrupt vectors the program installs, and where. The port delivers keys through a queue rather
++            // than through a keyboard interrupt handler, so anything that handler does is skipped (the keypress beep among it).
++            // These lines name the handlers so one of them can be identified as the keyboard's and called the way the machine calls it.
++            if (trace_int) {
++                static unsigned vec_notes = 0;
++                if (vec_notes++ < 40)
++                    std::fprintf(stderr, "  VECTOR %02X -> %04X:%08X at frame %llu\n", c.r[1] & 0xFF, c.sreg[3], c.r[2],
++                                 (unsigned long long)frame);
++            }
+             if (al == 0x07) rm_vector[c.r[1] & 0xFF] = c.r[3];
+             set_cf(c, false);
+             return;
+@@ -308,6 +348,31 @@ void Machine::int21(X86Cpu& c) {
      }
      case 0x3C: case 0x3D: {                         // create, open
          std::string name = cstr(*this, ds + c.r[2]), path;
@@ -912,7 +967,7 @@ index 629a87e..ccc0d1b 100644
          int h = new_handle(*this);
          if (h < 0) { set_cf(c, true); s16(c, 0, 4); return; }
          Handle& hd = handles[h];
-@@ -333,6 +389,13 @@ void Machine::int21(X86Cpu& c) {
+@@ -333,6 +398,13 @@ void Machine::int21(X86Cpu& c) {
          uint32_t h = c.r[3] & 0xFFFF;
          if (h >= handles.size() || !handles[h].used) { set_cf(c, true); s16(c, 0, 6); return; }
          Handle& hd = handles[h];
@@ -926,7 +981,7 @@ index 629a87e..ccc0d1b 100644
          if (hd.f) std::fclose(hd.f);
          hd = Handle{};
          set_cf(c, false);
-@@ -367,8 +430,17 @@ void Machine::int21(X86Cpu& c) {
+@@ -367,8 +439,17 @@ void Machine::int21(X86Cpu& c) {
              write_block(buf, tmp.data(), done);
          } else {
              read_block(buf, tmp.data(), n);
@@ -946,7 +1001,7 @@ index 629a87e..ccc0d1b 100644
          }
          c.r[0] = done;
          set_cf(c, false);
-@@ -408,6 +480,39 @@ void Machine::int21(X86Cpu& c) {
+@@ -408,6 +489,39 @@ void Machine::int21(X86Cpu& c) {
          set_cf(c, false);
          return;
      }
@@ -986,7 +1041,7 @@ index 629a87e..ccc0d1b 100644
      case 0xFF:                                      // not DOS's (an extender's test, DX=78h):
          unknown("int 21h AX=%04X DX=%04X: none (as on the Towns)", c.r[0] & 0xFFFF, c.r[2] & 0xFFFF);
          return;                                     // RUN386 leaves every register as it was
-@@ -448,9 +553,51 @@ static uint32_t from_msf(const uint8_t* p) {
+@@ -448,9 +562,51 @@ static uint32_t from_msf(const uint8_t* p) {
  
  void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      uint8_t ah = (eax >> 8) & 0xFF, al = eax & 0xFF;
@@ -1040,7 +1095,7 @@ index 629a87e..ccc0d1b 100644
          char why[64];
          std::snprintf(why, sizeof why, "int 93h AX=%04Xh: not the CD", eax & 0xFFFF);
          x86_fault(c, c.eip, why);
-@@ -503,6 +650,18 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -503,6 +659,18 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          return;
      case 0x54: {                                    // the table of contents
          const auto& t = disc.tracks();
@@ -1059,7 +1114,7 @@ index 629a87e..ccc0d1b 100644
          std::vector<uint8_t> o(6 + 3 * t.size());
          o[0] = 3;                                   // as RUN386's buffer held it (*not understood*)
          o[1] = (uint8_t)t.front().number;
-@@ -522,20 +681,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -522,20 +690,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      x86_fault(c, c.eip, why);
  }
  
@@ -1158,10 +1213,31 @@ index 629a87e..ccc0d1b 100644
      case 0x0A: {                                    // the key matrix
          static const uint8_t none[16] = {};
 diff --git a/runtime/towns_io.cpp b/runtime/towns_io.cpp
-index 039e526..df72569 100644
+index 039e526..3d8d109 100644
 --- a/runtime/towns_io.cpp
 +++ b/runtime/towns_io.cpp
-@@ -279,8 +279,28 @@ uint8_t Machine::in8(uint32_t port) {
+@@ -57,6 +57,20 @@ void Machine::raise_irq(int irq, bool level) {
+ int Machine::pending_irq() {
+     Pic& m = pic[0];
+     Pic& s = pic[1];
++    // Instrument: the sound request is IRQ13, which is slave IRQ5 and vector 0x4D. The handler at 0x4D is installed by the
++    // program, so if a request sits in the slave's IRR and is never taken, the reason is a mask. This prints that state when
++    // the request is pending, once per frame, and it is the difference between "the chip never asked" and "the CPU is told
++    // not to listen".
++    if (trace_int && (s.irr & 0x20)) {
++        static uint64_t last = ~0ULL;
++        if (frame != last) {
++            last = frame;
++            std::fprintf(stderr, "  IRQ13 pending at frame %llu: master imr %02X isr %02X irr %02X, slave imr %02X isr %02X, "
++                                 "vector 4D %s\n",
++                         (unsigned long long)frame, m.imr, m.isr, m.irr, s.imr, s.isr,
++                         pm_vector[0x4D].set ? "installed" : "MISSING");
++        }
++    }
+     int sirq = -1;
+     for (int i = 0; i < 8; ++i) {
+         if (s.isr & (1 << i)) break;
+@@ -279,8 +293,28 @@ uint8_t Machine::in8(uint32_t port) {
      }
  }
  
@@ -1190,7 +1266,7 @@ index 039e526..df72569 100644
      switch (port) {
      case 0x00: pic_write(pic[0], 0, d); return;
      case 0x02: pic_write(pic[0], 2, d); return;
-@@ -342,8 +362,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -342,8 +376,23 @@ void Machine::out8(uint32_t port, uint8_t d) {
          // palette chosen, after the other components went in with the 256-colour one.
          int k = port == 0xFD92 ? 2 : port == 0xFD94 ? 0 : 1;   // b r g
          v.pal_reg[v.pal_sel][k] = d;
@@ -1216,7 +1292,7 @@ index 039e526..df72569 100644
          return;
      }
      case 0xFDA0: v.layer_ctrl = d; return;
-@@ -353,7 +388,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
+@@ -353,7 +402,13 @@ void Machine::out8(uint32_t port, uint8_t d) {
      default:
          if (port >= 0xFD98 && port <= 0xFD9F) { v.degipal[port - 0xFD98] = d; v.dpmd = true; return; }
          if (port >= 0x3000 && port < 0x5000) { unknown("CMOS write %04x", port); return; }
@@ -1572,7 +1648,7 @@ index 2a0e2eb..fd40ebb 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/towns_sound.cpp b/runtime/towns_sound.cpp
-index 00cbbf0..3f887c8 100644
+index 00cbbf0..8ff75ba 100644
 --- a/runtime/towns_sound.cpp
 +++ b/runtime/towns_sound.cpp
 @@ -52,7 +52,16 @@ struct Stream {
@@ -1593,7 +1669,7 @@ index 00cbbf0..3f887c8 100644
  
  // ymfm's view of the machine: its timers and busy flag on the guest clock (its durations are
  // the chip's 8 MHz clocks, two of the CPU's each), its interrupt into IRQ13.
-@@ -61,7 +70,21 @@ struct FmPort : ymfm::ymfm_interface {
+@@ -61,10 +70,35 @@ struct FmPort : ymfm::ymfm_interface {
      uint64_t at = 0;                    // the guest time of the chip's current access
      uint64_t timer[2] = {kNever, kNever};
      uint64_t busy_until = 0;
@@ -1615,8 +1691,23 @@ index 00cbbf0..3f887c8 100644
 +    }
      void ymfm_set_busy_end(uint32_t clocks) override { busy_until = at + (uint64_t)clocks * 2; }
      bool ymfm_is_busy() override { return at < busy_until; }
-     void ymfm_update_irq(bool asserted) override { if (m) { m->sound.fm_irq = asserted; m->sound_irq(); } }
-@@ -72,6 +95,7 @@ struct SoundChips {
+-    void ymfm_update_irq(bool asserted) override { if (m) { m->sound.fm_irq = asserted; m->sound_irq(); } }
++    void ymfm_update_irq(bool asserted) override {
++        // The link between arming a timer and the handler running is where the music stops, so it gets a line of its own. If
++        // these appear at frame 97 and no interrupt is ever taken, the request exists and delivery does not, which is a
++        // different fault from the driver never asking.
++        if (m && m->trace_int) {
++            static unsigned n = 0;
++            if (n++ < 12)
++                std::fprintf(stderr, "  FM IRQ %s at frame %llu\n", asserted ? "asserted" : "released",
++                             (unsigned long long)m->frame);
++        }
++        if (m) { m->sound.fm_irq = asserted; m->sound_irq(); }
++    }
+     void expire(uint32_t t) { m_engine->engine_timer_expired(t); }
+ };
+ 
+@@ -72,6 +106,7 @@ struct SoundChips {
      // the RF5C68
      PcmChannel pcm[8];
      uint8_t cbank = 0;
@@ -1624,7 +1715,7 @@ index 00cbbf0..3f887c8 100644
      uint64_t pcm_n = 0, pcm_next = 0;   // the next sample, and its time
      Stream pcm_out{kPcmRate};
      // the YM3438
-@@ -86,6 +110,10 @@ struct SoundChips {
+@@ -86,6 +121,10 @@ struct SoundChips {
      Stream cd_out{kCdRate};
      // the mix
      uint64_t k = 0;                     // the next output frame
@@ -1635,7 +1726,7 @@ index 00cbbf0..3f887c8 100644
  };
  
  void SoundChipsFree::operator()(SoundChips* p) const { delete p; }
-@@ -93,10 +121,20 @@ void SoundChipsFree::operator()(SoundChips* p) const { delete p; }
+@@ -93,10 +132,20 @@ void SoundChipsFree::operator()(SoundChips* p) const { delete p; }
  void Machine::sound_start() {
      chips.reset(new SoundChips);
      chips->port.m = this;
@@ -1658,7 +1749,7 @@ index 00cbbf0..3f887c8 100644
  
  // ---- the RF5C68 ------------------------------------------------------------------------------
  static void pcm_sample(Machine& m, SoundChips& s) {
-@@ -105,19 +143,31 @@ static void pcm_sample(Machine& m, SoundChips& s) {
+@@ -105,19 +154,51 @@ static void pcm_sample(Machine& m, SoundChips& s) {
      for (int ch = 0; ch < 8 && (snd.pcm_ctrl & 0x80); ++ch) {
          PcmChannel& c = s.pcm[ch];
          if (!c.on) continue;
@@ -1676,10 +1767,10 @@ index 00cbbf0..3f887c8 100644
 +            // a sample shorter than 4 KB, and every one of these effects is: the driver was never told, so it never stopped
 +            // the channel and the chip looped the sound for ever. That was the fight sound that repeated until another
 +            // sound overwrote the channel.
-+            // THE MARKER ENDS THE SAMPLE, so the channel stops. This is the version that fixed the repeating fight sound, and it was
-+            // reverted once because the music then failed to start -- but the FM chip was dead at that time (sound_start called
-+            // fm.reset(), which silences a fresh ym3438), so that conclusion was drawn against a broken chip and is not evidence
-+            // against this. Re-applied now that the chip is alive.
++            // THE MARKER ENDS THE SAMPLE. Looping here was measured in play on 2026-11-05 and loops for ever, because the driver does
++            // not release a channel of its own accord: the ordered log shows start, marker, and then nothing until the NEXT sound's
++            // stop write replaces it. So the stopping has to be ours. What is left open is why the marker arrives about twelve frames
++            // into a sound that should last longer, which is the wave dump below.
 +            snd.pcm_flags |= (uint8_t)(1 << ch);
 +            if (snd.pcm_mask & (1 << ch)) {
                  snd.pcm_irq = true;
@@ -1688,9 +1779,29 @@ index 00cbbf0..3f887c8 100644
 -        }
 -        int sample = snd.wave[(c.addr >> 11) & 0xFFFF];
 -        if (sample == 0xFF) {
-+            if (m.trace_int && c.wraps++ < 6)
++            if (m.trace_int && c.wraps++ < 1) {
 +                std::fprintf(stderr, "  PCM ch%d sample ended at frame %llu (start %u, loop %u, step %u)\n", ch,
 +                             (unsigned long long)m.frame, c.start, c.loopst, c.step);
++                // The bytes the channel was actually reading, at the loop address, so a marker that arrives too early can be told from
++                // a marker that is genuinely there. A wave RAM that is mostly FF says the mapping is wrong rather than the sound short.
++                unsigned ff = 0, first = 0;
++                bool found = false;
++                for (unsigned i = 0; i < 0x10000; ++i) {
++                    if (snd.wave[i] == 0xFF) {
++                        ++ff;
++                    } else if (!found) {
++                        found = true;
++                        first = i;
++                    }
++                }
++                const unsigned at = (unsigned)c.loopst << 8;
++                std::fprintf(stderr, "  WAVE read at %04X (start %u loop %u):", (unsigned)((c.addr >> 11) & 0xFFFF), c.start,
++                             c.loopst);
++                for (unsigned i = 0; i < 24; ++i)
++                    std::fprintf(stderr, " %02X", snd.wave[(((unsigned)(c.addr >> 11)) + i) & 0xFFFF]);
++                std::fprintf(stderr, "\n  WAVE ff %u of 65536, first non-FF at %04X, loop point %04X\n", ff, found ? first : 0xFFFFu,
++                             at & 0xFFFF);
++            }
 +            c.on = false;
              c.addr = (uint32_t)c.loopst << 11;
 -            sample = snd.wave[(c.addr >> 11) & 0xFFFF];
@@ -1699,7 +1810,7 @@ index 00cbbf0..3f887c8 100644
          }
          c.addr += c.step;
          int lv = (c.pan & 0x0F) * c.env, rv = ((c.pan >> 4) & 0x0F) * c.env;
-@@ -128,6 +178,7 @@ static void pcm_sample(Machine& m, SoundChips& s) {
+@@ -128,6 +209,7 @@ static void pcm_sample(Machine& m, SoundChips& s) {
      left = std::clamp(left & ~63, -32768, 32767);
      right = std::clamp(right & ~63, -32768, 32767);
      s.pcm_out.push(left / 32768.0f, right / 32768.0f);
@@ -1707,7 +1818,7 @@ index 00cbbf0..3f887c8 100644
  }
  
  // ---- the YM3438 ------------------------------------------------------------------------------
-@@ -136,6 +187,7 @@ static void fm_catch_up(SoundChips& s, uint64_t to) {
+@@ -136,6 +218,7 @@ static void fm_catch_up(SoundChips& s, uint64_t to) {
      while (s.fm_next <= to) {
          s.fm.generate(&o, 1);
          s.fm_out.push(o.data[0] / 32768.0f, o.data[1] / 32768.0f);
@@ -1715,7 +1826,7 @@ index 00cbbf0..3f887c8 100644
          s.fm_next = at(++s.fm_n, kFmRate);
      }
  }
-@@ -155,6 +207,7 @@ static void cd_catch_up(Machine& m, SoundChips& s, uint64_t to) {
+@@ -155,6 +238,7 @@ static void cd_catch_up(Machine& m, SoundChips& s, uint64_t to) {
          const uint8_t* p = s.sector + s.sector_pos++ * 4;
          int16_t l = (int16_t)(p[0] | p[1] << 8), r = (int16_t)(p[2] | p[3] << 8);
          s.cd_out.push(l / 32768.0f * m.sound.cd_gain[0], r / 32768.0f * m.sound.cd_gain[1]);
@@ -1723,7 +1834,7 @@ index 00cbbf0..3f887c8 100644
      }
  }
  
-@@ -182,6 +235,11 @@ uint64_t Machine::sound_next_event() const {
+@@ -182,6 +266,11 @@ uint64_t Machine::sound_next_event() const {
      return std::min({s.pcm_next, s.port.timer[0], s.port.timer[1]});
  }
  
@@ -1735,7 +1846,7 @@ index 00cbbf0..3f887c8 100644
  void Machine::sound_run(uint64_t to) {
      SoundChips& s = *chips;
      for (;;) {
-@@ -196,6 +254,9 @@ void Machine::sound_run(uint64_t to) {
+@@ -196,6 +285,9 @@ void Machine::sound_run(uint64_t to) {
          fm_catch_up(s, t);
          s.port.timer[n] = kNever;
          s.port.at = t;
@@ -1745,7 +1856,7 @@ index 00cbbf0..3f887c8 100644
          s.port.expire(n);
      }
  }
-@@ -207,19 +268,47 @@ uint8_t Machine::sound_in8(uint32_t port) {
+@@ -207,19 +299,54 @@ uint8_t Machine::sound_in8(uint32_t port) {
      case 0x4D8: case 0x4DA: case 0x4DC: case 0x4DE:
          fm_catch_up(s, now);
          s.port.at = now;
@@ -1754,6 +1865,13 @@ index 00cbbf0..3f887c8 100644
 +        // the timers instead of taking their interrupt reads here, so counting these says which kind of driver this is.
 +        {
 +            const uint8_t st = s.fm.read((port - 0x4D8) >> 1);
++            // DIAGNOSTIC, U2_FM_FLAGS=1: report both timer overflow flags as set on every status read.
++            // ymfm sets a timer's overflow flag only when that timer's interrupt is enabled, while the hardware sets it on expiry
++            // regardless and gates only the interrupt line. A driver that polls the flags rather than taking the interrupt sees a
++            // chip that never finishes a timer under ymfm, which looks exactly like a driver that gives up. This switch tests that
++            // without patching ymfm, and it is off unless the variable is set.
++            static const bool force_fm_flags = std::getenv("U2_FM_FLAGS") != nullptr;
++            const uint8_t st_out = force_fm_flags ? (uint8_t)(st | 0x03) : st;
 +            // A per-frame summary rather than the first N reads: what matters is whether the driver is still polling later,
 +            // and a cap on printed lines hides exactly that. Bits 0 and 1 are the timer overflow flags it would be waiting
 +            // for, so the count of reads that carried either is the answer.
@@ -1766,9 +1884,9 @@ index 00cbbf0..3f887c8 100644
 +                    f = frame; n = 0; with_flags = 0;
 +                }
 +                ++n;
-+                if (st & 0x03) ++with_flags;
++                if (st_out & 0x03) ++with_flags;
 +            }
-+            return st;
++            return st_out;
 +        }
      case 0x4E0: return sound.in_volume[sound.in_sel & 3];
      case 0x4E1: return sound.in_sel;
@@ -1795,7 +1913,7 @@ index 00cbbf0..3f887c8 100644
          return r;
      }
      default: return 0;
-@@ -234,14 +323,43 @@ static void cd_db(Machine& m, float db) {
+@@ -234,14 +361,43 @@ static void cd_db(Machine& m, float db) {
      m.sound.cd_gain[ch] = db > 0 ? 0.0f : std::pow(10.0f, db / 20.0f);
  }
  
@@ -1840,7 +1958,7 @@ index 00cbbf0..3f887c8 100644
      case 0x4E0: sound.in_volume[sound.in_sel & 3] = d; return;
      case 0x4E1: sound.in_sel = d; return;
      case 0x4E2:
-@@ -254,7 +372,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -254,7 +410,14 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          else if (d & 8) cd_db(*this, 0);
          else if (d & 0x10) cd_db(*this, -32.0f);
          return;
@@ -1856,7 +1974,7 @@ index 00cbbf0..3f887c8 100644
      case 0x4EC: return;             // LED, mute
      case 0x4F0: case 0x4F1: case 0x4F2: case 0x4F3: case 0x4F4: case 0x4F5: case 0x4F6: {
          PcmChannel& c = s.pcm[s.cbank];
-@@ -265,7 +390,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -265,7 +428,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          case 3: c.step = (uint16_t)((c.step & 0x00FF) | (d << 8)); break;
          case 4: c.loopst = (uint16_t)((c.loopst & 0xFF00) | d); break;
          case 5: c.loopst = (uint16_t)((c.loopst & 0x00FF) | (d << 8)); break;
@@ -1865,7 +1983,7 @@ index 00cbbf0..3f887c8 100644
          }
          return;
      }
-@@ -276,8 +401,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -276,8 +439,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          return;
      case 0x4F8:
          sound.pcm_onoff = d;
@@ -1877,7 +1995,7 @@ index 00cbbf0..3f887c8 100644
              if (!s.pcm[i].on) s.pcm[i].addr = (uint32_t)s.pcm[i].start << (8 + 11);
          }
          return;
-@@ -288,6 +416,23 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -288,6 +454,23 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
  // ---- the mix ---------------------------------------------------------------------------------
  void Machine::audio_take(std::vector<int16_t>& out) {
      SoundChips& s = *chips;

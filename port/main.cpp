@@ -163,6 +163,11 @@ static unsigned long long g_stop_frame = 0;
 // and the game menu's own call is 14 hits later. That is a comparison of the wrong moment, which reads exactly like
 // a real difference.
 void x86_trace(X86Cpu &c, uint32_t at) {
+	// In a trace build this runs once per instruction, so it is the only place that knows where execution really is. Without
+	// this line c.eip only moves at call boundaries, and every instrument that reports c.eip (the I/O write log among them)
+	// reports the caller's resume address instead of the writing instruction. That mistake was made once: a write to 0x4F8 was
+	// attributed to 0110:00012944, the site that had called a function with no OUT in it at all.
+	c.eip = at;
 	if (g_stop_at && at == g_stop_at) {
 		if (g_stop_frame && (!towns::g_towns || towns::g_towns->frame < g_stop_frame))
 			return;
@@ -820,10 +825,13 @@ int main(int argc, char **argv) {
 	// the poll is the one thing this port has never run, and its two jobs are separate questions.
 	//   U2_TICKS=1   run the timer BIOS's 10 ms callbacks, deliver no interrupts
 	//   U2_IRQ=1     deliver hardware interrupts as well
+	// Hardware interrupt delivery is part of the machine, not an experiment, so it is on by default. Measured on 2026-11-05: with
+	// delivery off the whole played session took zero interrupts and the sound driver waited a minute for a timer that had already
+	// expired, while with it on the driver writes the FM chip about 596 times a second from the first second. U2_NO_IRQ=1 turns it
+	// off for a differential run, and U2_TICKS=1 adds the timer BIOS's 10 ms callbacks, which stay opt-in.
+	m.irq_poll = !std::getenv("U2_NO_IRQ");
 	if (std::getenv("U2_TICKS"))
 		m.tick_poll = true;
-	if (std::getenv("U2_IRQ"))
-		m.irq_poll = true;
 
 	// The program opens its assets by DOS path (Q:\GRAPH\MAP2_1.TIF and friends), so the machine needs a
 	// disc to read them from. Without one, the first int 21h open segfaults inside Disc::handle, which is
@@ -1067,7 +1075,13 @@ int main(int argc, char **argv) {
 	for (int i = 0; i < 6; ++i)
 		if (i != 1)
 			c.sreg[i] = 0x0014;
-	c.budget = 1 << 30;
+	// The first instruction budget, which is how long the guest runs before the runtime gets its turn. It used to be 1 << 30, over a
+	// billion clocks, and that is the whole reason no hardware interrupt was ever delivered: x86_poll is what advances machine time
+	// and takes pending interrupts, and at a billion clocks the first poll was hours of emulated time away. Measured on 2026-11-05:
+	// with the old value a whole played session produced zero polls, zero interrupts taken, and music that waited a minute for a
+	// timer that had already expired. A few thousand clocks is a small fraction of a scanline, and the poll recomputes its own
+	// budget from the next machine event each time it runs.
+	c.budget = 4000;
 
 	X86Func entry = x86_lookup_cs(0x000C, ENTRY);
 	if (!entry) {
