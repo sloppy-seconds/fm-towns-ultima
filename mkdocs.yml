@@ -68,6 +68,7 @@ nav:
       - Extraction: extraction.md
       - Sound: sound.md
       - Sound playback: audio-playback.md
+      - Tsugaru fork and its instruments: tsugaru-fork.md
       - Music: music.md
   - Characters:
       - Save files and the roster: save-files.md

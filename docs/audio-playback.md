@@ -129,6 +129,32 @@ is three pages long where ours is one, or the original re-triggers the channel t
 reproduce. The loop address the driver programs, `0xF000`, is one page past the data, which is where the end marker lives, so it
 is a stop configuration rather than a loop within the sample.
 
+## 6. The dispatch table, read at run time (uncommitted, 2026-11-05)
+
+The module resolves `call dword ptr cs:[ebp*4+0x110CC]` at run time, so which entry answers a service is a fact about the loaded
+image. `U2_DUMP_DISPATCH=1` finds the dispatcher by its own bytes (`0F B6 EC`, `movzx ebp, ah`) and dumps the table. The entries
+that matter, measured:
+
+| service | entry | what the code does |
+|---|---|---|
+| `AH=0x10` | `0x11B34` | reads port `0x4D8` and returns the FM status in `DL` |
+| `AH=0x17` | `0x11B04` | not yet read |
+| `AH=0x18` | `0x11B1C` | arms the timers: `gs:[edi+0x27] \|= 0x2A`, then writes register `0x27` |
+| `AH=0x24` | `0x124F0` | never called in any session so far |
+
+**Two of those were guessed wrong first and are corrected here.** `AH=0x10` is not a sequencer, it is a status read, and
+`AH=0x18` is not a note write, it is timer arming. What misled the first reading was comparing argument registers between a
+title-screen log and an in-game log: `AH=0x18` calls carry different `ebx` values in the two, and that service does not read `ebx`
+at all. Different leftovers in a register are not different parameters.
+
+**What is established about the title screen.** The interrupt handler at vector `0x4D` (`0xFDDE8`) runs from frame 97, reads the
+sound status, and does nothing but rewrite `0x27` about 295 times a second. No key-on is written. In-game the same handler runs and
+music is audible, so the game's own player is feeding the driver there and not at the title.
+
+**What is left.** Find the game-side music player: which code writes note data to the FM chip in-game, and what sets the song it
+walks. The traced build (`-DU2_TRACE_ON`) gives true write addresses, so one in-game run names the first key-on after entering
+the game and the code that produced it.
+
 ## What was tried and reverted
 
 **`int 90h AH=06` routed to `0x11274`.** The game calls that service at the menu (frames 2604, 4423) and the shim swallowed

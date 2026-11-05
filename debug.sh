@@ -54,6 +54,11 @@ export U2_TRACE_INT=1
 # number, and the argument registers follow it.
 export U2_TRACE_FAR=1
 export U2_TRACE_FAR_ALL="${U2_TRACE_FAR_ALL:-20000}"
+# Entries into the game's own sound library, 0xFD933 to 0xFDC00 in code selector 000C. Each line names the entry, the return
+# address it came from, and the frame, so a routine the game only reaches in some states can be seen being reached. Measured at
+# the title screen: 64 entries, all at frame 97, and zero into 0xFDBD2, the one that asks the driver to play. In-game is what
+# this run is for.
+export U2_TRACE_FN="${U2_TRACE_FN:-000c:fd933:fdc00}"
 
 echo "debug.sh  binary  $BIN"
 echo "debug.sh  log     $LOG"
@@ -88,7 +93,9 @@ if [[ -s "$LOG" ]]; then
 		"int 93h" "$(grep -c 'int 93h' "$LOG")" \
 		"sound census" "$(grep -cE '^  FM [0-9]+s' "$LOG")" \
 		"TBIOS calls" "$(grep -c '0110:000110b0' "$LOG")" \
-		"AH=01 starts" "$(grep '0110:000110b0' "$LOG" | grep -c 'eax 000001')"
+		"AH=01 starts" "$(grep '0110:000110b0' "$LOG" | grep -c 'eax 000001')" \
+		"sound library" "$(grep -c '^fn ' "$LOG")" \
+		"music play 0xfdbd2" "$(grep -c 'fdbd2' "$LOG")"
 	# The line that matters is the join between what the chip asked for and what the driver did about it. A sample that
 	# ended with no assert after it is the chip finishing its job. An assert with no status or flags read is the driver
 	# not being reached. Both are single lines and they mean opposite things.
