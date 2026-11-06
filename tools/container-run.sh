@@ -102,7 +102,11 @@ cmd_start() {
 		# that keystrokes cannot navigate.
 		-e "TSUGARU_EXTRA=-BOOTKEY CD"
 	)
-	[ -f "$DISC_CCD" ] && args+=(-v "$DISC_CCD:/disc/game.ccd:ro,z" -e "CD_IMAGE=/disc/game.ccd")	[ -f "$DISC_IMG" ] && args+=(-v "$DISC_IMG:/disc/game.img:ro,z")
+	# These two must stay on separate lines. Joined by a tab they parse as one
+	# simple command, the array assignment lands on the [ that follows it, and
+	# the CD is silently never attached, which leaves Tsugaru at the BIOS.
+	[ -f "$DISC_CCD" ] && args+=(-v "$DISC_CCD:/disc/game.ccd:ro,z" -e "CD_IMAGE=/disc/game.ccd")
+	[ -f "$DISC_IMG" ] && args+=(-v "$DISC_IMG:/disc/game.img:ro,z")
 	# The save floppy MUST be writable. U2 creates ROSTER1.UT2 and WORLD1-4.UT2
 	# on it at character creation, and a read-only mount makes the game report
 	# "A WRONG DISK" and refuse to manage saves. Copy the pristine image into
