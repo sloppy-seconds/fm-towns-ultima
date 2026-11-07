@@ -186,11 +186,40 @@ which is track 5 and nothing else. The second is track 7. Both come from the CD 
    asks for `CD-DA 225 to 280` at the character screen, which is inside the data track, and data rendered as 16-bit PCM is the
    squelch that was heard there. Each track is now bounded by its own first and last sector.
 
-**What is still different.** At Create Character the machine plays track 7 and this port goes silent, because the request it receives
-has an end before its start (`CD-DA 225 to 67`), which plays nothing. Whether that is the port's table of contents and position
-replies still differing from the BIOS's, or the program asking for a track by number through a service this port does not have, is
-not yet known. The measurement to make first is what the program asks the BIOS for at that moment, which needs a call-stack print at
-the CD audio start rather than another range comparison.
+**What is still different, and what the call stack settled.** At Create Character the machine plays track 7 and this port goes
+silent, because the request it receives has an end before its start (`CD-DA 225 to 67`), which plays nothing. The fork's call-stack
+log at the audio start names the caller:
+
+```
+000C:000E093A -> 000C:00102492 -> 0256:000027B9      the game asks, through a DOS-extender thunk
+```
+
+So the game does ask for it, and the port is mis-decoding what it asks. The game's own code says why. At `0xE093A` it builds a
+parameter block and calls the CD BIOS:
+
+```
+0e0904  mov byte  [0xe3d], 0xfe
+0e090e  mov byte  [0xe39], al      the track, from the caller
+0e0913  mov byte  [0xe3c], 1
+0e0926  mov dword [0xe40], 0xb94   a sub-function code
+0e0930  push 0xe50                 output block
+0e0935  push 0xe34                 parameter block
+0e093a  call 0x102492              into the CD BIOS
+```
+
+`int 93h` in this port is hand-written and expects two MSF triples in the buffer. What the program passes is this structure, so the
+decoded range is meaningless. The same is true of the splash call, which only works because the port's own position reply supplies
+the numbers.
+
+**The consequence for the port.** Its CD services are modelled one level too high. Two routes, and the second is the honest one:
+
+- reverse the parameter block at `0xe34` and make the hand-written `int 93h` services parse it. Bounded, but it re-derives an ABI
+  that the BIOS already implements.
+- model the CD controller at `0x4C0` to `0x4C7` and route `int 93h` into the recompiled TBIOS, so the real BIOS code speaks to a
+  device this port provides. `references/TOWNSEMU`'s `TownsCDROM` is a worked reference for that device, and the port already has
+  the disc model, the audio reader and the mixer it would feed.
+
+The second is more work and is the shape that makes every CD service correct at once, rather than one call at a time.
 
 ## What was tried and reverted
 
