@@ -1729,38 +1729,40 @@ is how the phase-5 mechanics items would be confirmed against the running game r
 
 ### 5m. Music: where it comes from, and when it starts
 
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | done, and no decision was needed in the end |
+| depends on | nothing |
+| done when | met. The source is named, the track is named, and the port plays it in the same place the original does, confirmed in play on 2026-11-07 |
+| blocked by | nothing |
+
+**What was wrong, and it was three defects rather than one.** The port was given a one-track cue, so the program was told the disc
+had one track and its CD-audio request came out as `00:00:00` to `00:00:00`. The position service answered zeros, and the program
+hands that same buffer back as a play range. And the audio reader bounded each track by `file_start`, which is zero for every track
+on a single-image disc, so the data track was rendered as audio.
+
+**What is now known.** The music is CD audio, proved by muting the CD during the splash. The file that decides the layout is the
+`.ccd`: a Control byte and a PLBA per track, plus the lead-out. Ultima II's music is track 5, `CDDAPLAY 06:43:00 to 08:06:74`, which
+is LBA 30225 to 36524. The port now plays it at the splash and the census reads 44,100 samples a second in play. Measurements are in
+`docs/audio-playback.md` section 7.
+
+### 5p. The character screen changes song and this port goes silent
+
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
 | field | value |
 |---|---|
-| autonomy | autonomous, and it needs no decision. The work left is a sound device inside the emulator container and a capture, both mechanical |
+| autonomy | autonomous until the call-stack print, which is a small change to the fork rather than a decision |
 | depends on | nothing |
-| done when | the original's silence gap is captured and set beside the port's 63 seconds, either showing they agree or naming the difference in seconds and which way it points. The failure case: if Tsugaru still cannot be given an audio device, `docs/music.md` records that negative and the item closes as CUT rather than sitting open |
-| blocked by | nothing technical anywhere. Paul parked it on 2026-11-03 and asked for it not to be worked further for now |
+| done when | the port plays the track the original plays at the Create Character screen, or the page records what the program asks the BIOS for there and why it cannot be reproduced. The failure case is a finding rather than a gap: if the program asks by track number through a service this port does not implement, that is the answer and the item closes with it |
+| blocked by | nothing |
 
-**What is now known.** The music is not CD audio, measured rather than inferred: across 14,000 frames the program
-makes exactly one CD-DA play request and it asks for MSF `00:00:00` to `00:00:00`, in both `DS` and `ES`. The seven
-audio tracks on the disc start at LBA 9000 and are never touched. So the music comes from the sound chips, and those
-are silent for 63 machine seconds before the first write, then driven continuously at about 695 writes a second to the
-end of the run. The screen at the exact frame the first write lands is the title menu.
-
-**What is left.** The original is not silent, so this is a defect in the port and not a property of the program. That was
-established by playing the original: music starts at the splash screen and every keypress beeps, while this port is silent for
-about a minute. An earlier reading of this item concluded the opposite, that the program writes nothing to the sound hardware for
-63 seconds and the port is merely reproducing it. That conclusion came from a headless port run with no keys, and it is
-withdrawn: a measurement of the port's own silence says nothing about the original, and the original was heard to make music
-from the first screen. The 63 second figure describes this port's behaviour and is the thing to fix.
-
-The next step is still a sound device for the emulator, but to answer a different question than the one written here before:
-which write the original makes at the splash that this port does not make. On 2026-11-03 the emulator had no audio at all:
-`SDL_AUDIODRIVER=disk` was set and confirmed in the container, SDL still went to ALSA and failed with `Cannot open PCM device.`,
-and Tsugaru's readme warns that audio does not work on natively-running Linux and offers no dump option of its own. A PulseAudio
-null sink inside the container would give the emulator a device that always opens, with the capture taken from the sink's monitor
-rather than through a driver the emulator has to cooperate with.
-
-The two instruments this produced, the `int 93h` segment dump and the `out8` sound census, are committed in
-`fmtownskit` at `db7744d` and pinned in the parent. Both sit behind `trace_int`, so neither changes a frame. Full
-measurements, the refuted segment hypothesis included, are in `docs/music.md`.
+**What is known.** The original plays track 7 there, `CDDAPLAY 09:50:00 to 11:42:74` from `0256:000027BF`. This port receives a
+request whose end precedes its start, `CD-DA 225 to 67`, which plays nothing, so the music stops. The measurement to make first is
+what the program asks the BIOS for at that moment, which needs a call-stack print at the audio start rather than another comparison
+of ranges.
 
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 
