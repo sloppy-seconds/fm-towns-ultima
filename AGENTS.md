@@ -264,6 +264,19 @@ The order that avoids it. Verify the input before drawing a conclusion from it, 
 the media describes the disc, which here was a `.ccd` with eight tracks and a one-track cue without. When his observation and a
 measurement disagree, say so in the reply and keep measuring rather than publishing the measurement as the answer.
 
+**The port is the hypothesis, the original is the oracle.** Expected behaviour comes from the original: its own code, its disc, and
+what it does when it runs. A run of the port shows what this implementation currently does, which is the thing under test. Use it to
+generate candidates and to prove the harness works, never to define what correct looks like. When the port and the original disagree,
+the port is wrong by construction, because the port is the one built on assumptions. Three conclusions this week were published from
+port runs as if they were statements about the machine, and all three were statements about the port: "the music is not CD audio",
+"no FM writes after startup", and "the driver releases the channel on its own".
+
+The exception is narrow and worth stating, because it is where a port run does earn its place. Where the port executes the original's
+recompiled code under inputs that have been checked, its trace is evidence about that code. The two measurements that actually settled
+the music came from that: the vector `0x4D` handler entered 4,973 times, and the sample start address landing exactly on the data at
+`0xE000`. Both were the original's own instructions under a harness whose inputs had been verified. Everything that misled me came from
+a layer the port owns, which here means the `int 93h` services, the media loader and the audio mixer.
+
 ### Say what you assume, before building on it
 
 **Paul validates the premises. An assumption that only appears in the code is one nobody could check.** Before implementing anything
