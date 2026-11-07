@@ -339,6 +339,14 @@ static std::string cue_from_image(const std::vector<std::string> &dirs) {
 		if (ec || images.size() != 1)
 			continue;
 		const fs::path &img = images.front();
+		// CLONECD FIRST, because it is the only file here that states the layout. The download ships "<image>.ccd" beside the
+		// image, with a Control byte and a PLBA per track, so the seven audio tracks survive and the program is given a real
+		// table of contents. A cue cannot express this disc: track 2's PREGAP is undecidable from the cue, and the reader refuses
+		// the file rather than shift every later track by 150 sectors in silence. Measured before this existed: the game asked the
+		// CD to play 00:00:00 to 00:00:00 and no music played, because one track was all it had been told about.
+		const fs::path ccd = img.parent_path() / (img.stem().string() + ".ccd");
+		if (file_exists(ccd.string()))
+			return ccd.string();
 		// A NAME OF OUR OWN, because the obvious one is taken and wrong. The archive.org download ships
 		// "<image>.cue" beside "<image>.img", and that cue declares a PREGAP on the audio tracks that the reader
 		// refuses. Writing "<image>.cue" therefore either collides with the download's own file, in which case the
@@ -845,6 +853,16 @@ int main(int argc, char **argv) {
 			std::printf("machine   no disc: %s\n", err.c_str());
 		} else {
 			std::printf("machine   disc opened from %s\n", cue_path);
+			// Self-test for the CD audio path, independent of whether the program ever asks for it: U2_CD_TEST=<from>:<to> starts a
+			// track immediately. Nothing in the game is touched, so a run with this on says whether this port can produce CD samples
+			// at all, which is a different question from whether a program requested them.
+			if (const char *cdt = std::getenv("U2_CD_TEST")) {
+				unsigned long f = 0, t = 0;
+				if (std::sscanf(cdt, "%lu:%lu", &f, &t) == 2) {
+					m.cd_play((uint32_t)f, (uint32_t)t);
+					std::printf("machine   CD test play %lu to %lu\n", f, t);
+				}
+			}
 		}
 	}
 

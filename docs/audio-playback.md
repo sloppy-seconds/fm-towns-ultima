@@ -155,6 +155,43 @@ music is audible, so the game's own player is feeding the driver there and not a
 walks. The traced build (`-DU2_TRACE_ON`) gives true write addresses, so one in-game run names the first key-on after entering
 the game and the code that produced it.
 
+## 7. CD audio is the music, and the tracks are now measured (2026-11-07)
+
+The splash music is CD audio. Two independent measurements say so, and neither is an inference from register traffic.
+
+**Muting the CD silences it.** Paul ran the debugger's `CDDAMUTE` in the middle of the splash with music playing, and the music
+stopped. `CDDAUNMUTE` brought it back. That is a direct test of one device and the only detector that has not been wrong.
+
+**The fork logs every CD audio start.** `TSG_CDDA_LOG=1` in `references/TOWNSEMU` prints the range and the instruction that asked
+for it. Two starts appear in a run that reaches the character screen:
+
+```
+CDDAPLAY 06:43:00 to 08:06:74 at 0256:000027C9     splash, track 5
+CDDAPLAY 09:50:00 to 11:42:74 at 0256:000027BF     Create Character, track 7
+```
+
+Both ranges begin exactly on a track's first sector and end exactly on its last: 06:43:00 is LBA 30225 and 08:06:74 is LBA 36524,
+which is track 5 and nothing else. The second is track 7. Both come from the CD BIOS at `0256`, not from the game's own segment.
+
+**Two port defects were behind the silence, and a third behind the squelch.**
+
+1. **The media.** The port was given a one-track cue, so the program was told the disc had one track and its table of contents was
+   nine bytes. It now reads the `.ccd`, which states the layout, and the table is thirty bytes with eight tracks. The loader had
+   been refusing the eight-track cue because its `PREGAP` cannot be decided from a cue, and the `.ccd` is the file that decides it.
+2. **The position service.** The program asks `int 93h` where the play is and hands that same buffer back as a play range, so an
+   all-zero answer becomes "play 00:00:00 to 00:00:00", which is nothing. Measured: with a range in that reply the program asked
+   for `CD-DA 30225 to 36525`, exactly track 5.
+3. **The audio reader's bounds.** `Disc::read_audio` bounded each track from `file_start`, which is zero for every track on a
+   single-image disc, so the first audio track claimed every sector below its own end, including the whole data track. The program
+   asks for `CD-DA 225 to 280` at the character screen, which is inside the data track, and data rendered as 16-bit PCM is the
+   squelch that was heard there. Each track is now bounded by its own first and last sector.
+
+**What is still different.** At Create Character the machine plays track 7 and this port goes silent, because the request it receives
+has an end before its start (`CD-DA 225 to 67`), which plays nothing. Whether that is the port's table of contents and position
+replies still differing from the BIOS's, or the program asking for a track by number through a service this port does not have, is
+not yet known. The measurement to make first is what the program asks the BIOS for at that moment, which needs a call-stack print at
+the CD audio start rather than another range comparison.
+
 ## What was tried and reverted
 
 **`int 90h AH=06` routed to `0x11274`.** The game calls that service at the menu (frames 2604, 4423) and the shim swallowed
