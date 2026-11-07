@@ -254,6 +254,33 @@ cites a command, because the transcription between the command and here is where
 clean. A check that has never been seen to fail is a comment. `tools/checkquoted.js` was tested this way
 before being trusted and failed correctly on a fabricated sequence.
 
+**A port-side measurement may not contradict an observation of the original.** When Paul reports what the game does and a run of this
+port says otherwise, the port is wrong or the instrument is. It is never that he misheard. This cost a week: he said the music was CD
+audio, a port run showed a CD request of `00:00:00` to `00:00:00`, that was recorded as "not CD audio" in `docs/music.md`, and the
+zero was produced by the port's one-track disc description, which was the very defect under investigation. Then, after `CDDAMUTE`
+proved him right, the same habit produced a launcher explanation that contradicted what he had already said twice.
+
+The order that avoids it. Verify the input before drawing a conclusion from it, and for anything about the disc that means checking
+the media describes the disc, which here was a `.ccd` with eight tracks and a one-track cue without. When his observation and a
+measurement disagree, say so in the reply and keep measuring rather than publishing the measurement as the answer.
+
+### Say what you assume, before building on it
+
+**Paul validates the premises. An assumption that only appears in the code is one nobody could check.** Before implementing anything
+that rests on an explanation rather than a measurement, state the explanation in one sentence and wait. Three shapes of this went
+wrong in one week, all from the same cause:
+
+- "the launcher started a track before the game ran" was invented to explain why the port had to supply a CD position, and went into
+a commit message and a page before the call stack showed the game asking for the track itself
+- "the driver releases the channel on its own" was read off one log line and reversed by the next run
+- "the music is not CD audio" came from an instrument whose input was broken
+
+**What to write instead.** "I think X, because Y, and Z would confirm it. Shall I run Z?" That is one sentence and it moves the work
+forward. What not to write is a commit describing X as measured when Y was the only thing measured.
+
+This is not the same rule as the one above. That one is about evidence already gathered, this one is about the reasoning placed on
+top of it, which is exactly the part that cannot be checked from a log afterwards.
+
 ### Do not claim more platform support than has been tested
 
 Everything here was built on Linux and **only Linux has run it**. `vendor.sh`
