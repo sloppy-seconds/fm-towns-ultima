@@ -1774,6 +1774,26 @@ the program's parameter block and the substitution can be deleted. `references/T
 device. Done when the character screen plays track 7 with `U2_CD_NOFALLBACK=1` set, which would prove the program's own request is
 being understood rather than answered for.
 
+**That route is now known to be wrong in one part.** The `int 93h` handler is not in the recompiled module at all. It lives in `/IO.SYS`
+on the disc, at file offset `0x2160`, which is segment `0256`, and it is a twenty-byte trampoline that far-calls into segment `0x0050`,
+a second module. `TBIOS.BIN`, `ENCHANT.EXP` and all ten ROM files were searched for its first bytes and none contains them. Routing
+`int 93h` into the recompiled BIOS therefore has nothing to route to, and loading IO.SYS would mean running DOS system code in 16-bit
+real mode, which this port does not have.
+
+**Parked 2026-11-07 by Paul**, after three attempts to locate the game's track table by searching memory. The substitution stays, and
+the splash and gameplay music work.
+
+| tried | result |
+|---|---|
+| `FIND 064300` and `FIND 095000`, eight cycles with a translation before each | one address, `0x8BAE`, in low memory rather than the game's data area |
+| dump from `0x8B40` | a keyboard translation table mapping scan codes to ASCII, not track times |
+| translation taken at dump time | `Page Table Not Present`, so the dump is not the game's memory and proves nothing either way |
+| memory-write monitor on the assumed table address | only DMA-tagged writes with code-like values, which is the CD controller's transfer buffer |
+
+**The next step when this is picked up.** The table at `0xCE0` is only ever read through DS with an immediate address, so its writer uses
+a computed pointer. Reading `f_000e0624`, `f_000e07c8` and their neighbours in full, rather than grepping their constants, is how that
+pointer is found. It needs no emulator, and it is reading rather than another instrument.
+
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 
 **State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS

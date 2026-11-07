@@ -256,3 +256,50 @@ All behind `trace_int`, so none changes a frame:
 
 The last two are what separated "the chip is asked and answers" from "the chip is never asked", which was the difference
 between two very different fixes.
+
+## 8. Gameplay music is FM, and the CD is only used by screens (measured 2026-11-07)
+
+Two walks on the original with the fork logging every CD audio start and every write to the sound and CD ports settle what each
+device is for.
+
+**A full walk through gameplay produces no CD play at all.** Overworld, town, overworld, death, dungeon, overworld produced three CD
+stops at the menus and not one CD audio start, while the FM chip received 40,892 register writes and 3,300 key-on register selects,
+and the sample chip was enabled 679 times. So in-game music is the FM chip, and the CD is used for screens.
+
+**Menus and screens are CD, and there are two tracks.** Two walks gave the same boundary sequence:
+
+```
+CDDAPLAY 06:43:00 to 08:06:74     splash, and again after exiting to the menus   track 5
+CDDAPLAY 09:50:00 to 11:42:74     Create Character                              track 7
+```
+
+Both ranges begin and end exactly on a track's first and last sector. A stop precedes each change, and one of those stops came from
+`000C:000FDEE8`, the game's own sound interrupt handler, so the program drives the CD from its own interrupt path as well as asking
+the BIOS for tracks.
+
+That means the port's in-game music is right in mechanism rather than by luck: the game's own sequencer runs on the FM chip, so
+changing the music between the overworld, towns and dungeons comes from its own code, and the port reproduces it by executing that
+code. It also means a music change per context cannot be a CD request, which was the first thing to check about it.
+
+## What was tried and failed: finding the track table by searching memory
+
+The game builds its CD requests from a three-bytes-per-track table at `0xCE0`, which is empty in the image and therefore filled at
+run time. Three attempts to locate it:
+
+**Search for the track times.** `FIND 064300` and `FIND 095000`, the MSF of tracks 5 and 7 as the builder uses them, over eight cycles
+with a segment translation before each. One address came back every cycle, `0x8BAE`, in low memory rather than the game's 4 MB data
+area.
+
+**Dump that address.** `0x8B40` onward is a keyboard translation table, four-byte records mapping scan codes to ASCII (`0x53` to `S`,
+`0x54` to `T` and so on), and the matched bytes are not at `0x8BAE` in the dump. So the hit was not a track table.
+
+**Check whether the game was running.** The translation taken at dump time says `Page Table Not Present`, so segment `0x14` was not
+mapped the way the game maps it, and the dump cannot be used as evidence either way.
+
+Failed for two reasons worth recording: the searches were fired at fixed times rather than repeated, and `FIND` reports that it
+searches main RAM, sprite RAM and VRAM, which may not include the game's four-megabyte area. A memory-write monitor on the assumed
+address caught only DMA traffic with code-like values, which is the CD controller's transfer buffer, not the table.
+
+**What is left.** The table is only ever read through DS with an immediate address, so its writer uses a computed pointer. Reading the
+functions at `0xE0624`, `0xE07C8` and their neighbours in full, rather than grepping their constants, is how that pointer gets found,
+and it needs no emulator.

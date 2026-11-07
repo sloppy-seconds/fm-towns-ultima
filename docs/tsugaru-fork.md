@@ -38,6 +38,33 @@ line rather than one per iteration. The final pending edge is dropped rather tha
 This runs at full speed. That is the whole point: it is the only instrument here that
 answers "what executed" without stopping the machine.
 
+## The rig on the test machine
+
+`jarvis:~/Downloads/ut-towns/` holds a runnable copy so the original can be observed without touching anything else. It is not in git and
+it has been lost once, so the contents are listed here and it is rebuilt rather than recalled:
+
+```
+emulator/Tsugaru_CFG     this fork, built
+emulator/Tsugaru_CUI     stock, for comparison
+roms/                    the FreeTOWNS set from vendor/roms
+disc/                    the trilogy .ccd, .img and save disk
+saves/CMOS.BIN           required. Without it the machine beeps and never finds the CD
+```
+
+Every part comes from the repository or from the disc. `saves/CMOS.BIN` is the one that is easy to forget and the one whose absence
+produces a confusing symptom: a machine that beeps and exits instead of booting, which reads like an instrument fault.
+
+## Extra logging in this fork
+
+| variable | effect |
+|---|---|
+| `TSG_IO_TRACE=1` | every write to `0x4C0`-`0x4FF` with the writing instruction |
+| `TSG_CDDA_LOG=1` | every CD audio start and stop, with the range, the instruction, the call stack, and 16 bytes at `DS:0x0E34` and `DS:0x0E50` |
+
+Two traps already paid for. The trampoline at `0256:0018` does `mov ax,0x50 / mov ds,ax`, so a dump taken through the live DS at a CD audio
+event reads the driver's data, not the game's. And the first version of the call-stack log printed the debugger's instruction ring, which
+is useless here because the CD BIOS polls in a tight loop and every entry was that loop.
+
 ## What the console gives, and what it does not
 
 Measured 2026-11-05 on the CUI binary, all three spellings rejected with `Do what?`:
@@ -62,6 +89,9 @@ What the CUI console does have:
 | `CBRKON <event>` | clear a break event. It is not a conditional break |
 | `HIST` | the recent CS:EIP ring |
 | `MD`, `STA`, `PAU`, `SAVECFG` | memory dump, status, pause, save the edge graph |
+| `MON MEMW <phys> [<phys2>]` | monitor a memory **write** and keep running. Physical address, not linear |
+| `ADTR <seg>:<off>` | translate. Paging is on, so linear and physical differ and a monitor needs the physical answer |
+| `FIND <bytes>` | search main RAM, sprite RAM and VRAM. It may not reach the program's four-megabyte area |
 
 Events for `BRKON` include `IOW <port>`, `IOR`, `MEMR`/`MEMW <physical>`, `INT n`,
 `INT n AH=hh`, `INT n AX=hhhh`, `RETKEY`, `LBUTTONUP` and the VRAM and PIC families. The
