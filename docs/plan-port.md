@@ -1759,10 +1759,20 @@ is LBA 30225 to 36524. The port now plays it at the splash and the census reads 
 | done when | the port plays the track the original plays at the Create Character screen, or the page records what the program asks the BIOS for there and why it cannot be reproduced. The failure case is a finding rather than a gap: if the program asks by track number through a service this port does not implement, that is the answer and the item closes with it |
 | blocked by | nothing |
 
-**What is known.** The original plays track 7 there, `CDDAPLAY 09:50:00 to 11:42:74` from `0256:000027BF`. This port receives a
-request whose end precedes its start, `CD-DA 225 to 67`, which plays nothing, so the music stops. The measurement to make first is
-what the program asks the BIOS for at that moment, which needs a call-stack print at the audio start rather than another comparison
-of ranges.
+**What is known, and the call stack is the important part.** The original plays track 7 there, `CDDAPLAY 09:50:00 to 11:42:74`, and
+the stack at the audio start names the caller: `000C:000E093A` then `0256:000027B9`. That is the game asking through a DOS-extender
+thunk into the CD BIOS, and the splash play has the same caller, so nothing is started by the launcher. The game builds a parameter
+block at `0xe34` with a sub-function code `0xb94` and calls the BIOS with it, and this port's hand-written `int 93h` services expect
+two MSF triples instead, which is why the decoded range arrives with its end before its start.
+
+**The port's splash music is a substitution, measured as such.** `U2_CD_NOFALLBACK=1` restores the documented answer of zeros while
+nothing has played, and the splash goes silent, so the music comes from the position service supplying a range rather than from the
+program's own request being understood.
+
+**The route.** Model the CD controller at `0x4C0` to `0x4C7` and route `int 93h` into the recompiled TBIOS, so the real BIOS interprets
+the program's parameter block and the substitution can be deleted. `references/TOWNSEMU`'s `TownsCDROM` is a worked reference for the
+device. Done when the character screen plays track 7 with `U2_CD_NOFALLBACK=1` set, which would prove the program's own request is
+being understood rather than answered for.
 
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 

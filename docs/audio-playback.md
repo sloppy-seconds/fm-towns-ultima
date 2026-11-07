@@ -178,9 +178,11 @@ which is track 5 and nothing else. The second is track 7. Both come from the CD 
 1. **The media.** The port was given a one-track cue, so the program was told the disc had one track and its table of contents was
    nine bytes. It now reads the `.ccd`, which states the layout, and the table is thirty bytes with eight tracks. The loader had
    been refusing the eight-track cue because its `PREGAP` cannot be decided from a cue, and the `.ccd` is the file that decides it.
-2. **The position service.** The program asks `int 93h` where the play is and hands that same buffer back as a play range, so an
-   all-zero answer becomes "play 00:00:00 to 00:00:00", which is nothing. Measured: with a range in that reply the program asked
-   for `CD-DA 30225 to 36525`, exactly track 5.
+2. **The position service, which is a substitution rather than machine behaviour.** The program asks `int 93h` where the play is
+   and hands that same buffer back as a play range, so an all-zero answer becomes "play 00:00:00 to 00:00:00", which is nothing. This
+   port now answers with a range, and that is what makes the splash music play. Measured with `U2_CD_NOFALLBACK=1`, which restores
+   the documented zeros-while-nothing-has-played answer: the splash is silent. So this is a workaround standing in for a service the
+   port does not implement, not something the machine does.
 3. **The audio reader's bounds.** `Disc::read_audio` bounded each track from `file_start`, which is zero for every track on a
    single-image disc, so the first audio track claimed every sector below its own end, including the whole data track. The program
    asks for `CD-DA 225 to 280` at the character screen, which is inside the data track, and data rendered as 16-bit PCM is the
@@ -210,6 +212,11 @@ parameter block and calls the CD BIOS:
 `int 93h` in this port is hand-written and expects two MSF triples in the buffer. What the program passes is this structure, so the
 decoded range is meaningless. The same is true of the splash call, which only works because the port's own position reply supplies
 the numbers.
+
+**A correction to an earlier claim on this page.** It said the launcher started a track before Ultima II ran, and that this is why
+the port had to supply a position. That was an inference, not a measurement, and the call stack refutes it: the splash play and the
+character screen play have the same caller, the game at `000C:000E093A`. There is no launcher involvement. What the port supplies is a
+substitution for a service it does not implement, measured by turning it off and hearing silence.
 
 **The consequence for the port.** Its CD services are modelled one level too high. Two routes, and the second is the honest one:
 
