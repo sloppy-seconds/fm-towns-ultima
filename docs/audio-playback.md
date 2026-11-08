@@ -498,3 +498,26 @@ still unread, and it is now the only thing standing between this and a correct i
 a device. Under the ROM dispatcher `AL=0xC0` has a high nibble of `0xC` and lands on the default branch, so that reading is contradicted
 twice: by the dispatcher and by the caller above.
 
+### 9.10 The vector table, and the int 93h entry confirmed byte for byte
+
+A dump of the real-mode vector table at 40 seconds, 1,024 bytes, read with
+`python3 /var/tmp/parseivt.py`, gives:
+
+| vector | value | linear | where |
+|---|---|---|---|
+| `Int 10h` `13h` `16h` `1Ah` | `0A7E:039B` | `0x00AB7B` | the MBIOS module at file `0xA3E0` |
+| `Int 21h` | `1064:13F9` | `0x011A39` | below IO.SYS's end at file `0x11639` |
+| `Int 2Fh` | `17BA:03F6` | `0x017F96` | past IO.SYS's end, so neither IO.SYS nor the ROM |
+| `Int 93h` | `0256:0000` | `0x002560` | IO.SYS file `0x2160` |
+| `Int 08h` `09h` | `5E88:10FE` | `0x05F97E` | a mode-switch stub |
+
+**The int 93h entry is now confirmed by comparison, not inference.** Physical `0:2560` reads `FA 55 8B EC 80 66 06 FE 5D 80 FC 80 73 0A`, and
+IO.SYS file `0x2160` holds the same bytes, so the stub read statically in 9.2 is the vector's target.
+
+**But two regions of the image no longer match the file, measured the same way.** Physical `0:11A40`, inside the int 21h handler, holds
+`75 0C 55 89 E5 8B 6E 02 2E 89 2E DA 13` where IO.SYS file `0x11640` holds `76 04 77 05 39 76 06 73 03 E8 24`. Physical `0:10250`
+likewise differs: the dump reads `00 00 00 00 00 00 00 00 00 00 00 00 00 9D 5A AA` where the file holds
+`90 BF 45 5C B4 03 CD AE 80 65 03 FD B4 02 CD AE`. So the OS has written over those parts of its own image, and a file offset there is not
+the code that runs. Any further reading of the `0x250F` and `0x2511` services has to come from a dump taken while they are resident, not
+from the file, and that is a different instrument from the ones used so far.
+

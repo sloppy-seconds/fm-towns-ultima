@@ -1808,9 +1808,10 @@ in `IO.SYS` or the game image.
 5. **Implement the `0x2511` path correctly, then the CD service.** The register image is now measured: `EAX=0x2511`, `ECX=0`,
 `EDX` = the sub-block at `0xB94`, `EDI` = the buffer offset, and the segment is the sub-block's `+2`. Sub-block `+0xA` holds `0x54C0` or
 `0x50C0` depending on the path, which is a real-mode stack pointer and not a function code, so `towns_dos.cpp` `case 0x11` reading it as
-`EAX` is the port's defect and the first thing to fix. What is left after that is the buffer's contents: the game fills it through a
-`0x250F` call with buffer `0xCD4` and length `0x0A`, and the ROM dispatcher selects its handler on the high nibble of the buffer's first
-byte (`FMT_SYS.ROM` `0x3C795`), so reading that byte explains which family the call belongs to.
+`EAX` is the port's defect and the first thing to fix. What is left after that is the buffer's contents, and the route has changed: the
+int 21h handler at `1064:13F9` does **not** match IO.SYS at file `0x11639` when both are read (measured, `docs/audio-playback.md` 9.10),
+so the `0x250F` transfer service has to be read from a dump taken while it is resident rather than from the file. The int 93h entry, by
+contrast, is now confirmed byte for byte: `0256:0000` equals file `0x2160`.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.
