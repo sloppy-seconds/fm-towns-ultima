@@ -468,8 +468,33 @@ an offset from `+0xA` and a word from `+4`, then takes `DS:[SI+2]` and `DS:[SI] 
 `CS`, and calls `0x3D219`. The default handler at `0x3C9A9` is the reset and status path: it writes `0xA0`, reads port `0x3B72`,
 and returns `CX=1` with carry set for a status nibble of 9, `CX=0x80` for 8.
 
+### 9.9 The `0x2511` caller, read in full, and the port's real defect
+
+The function at `0xE06C0`, which is the character-screen path, builds the request explicitly:
+
+```
+0x0E06D7  mov word [0xb94], 0x93        ; sub-block +0: interrupt number
+0x0E06E0  mov ax,[0xe24]
+0x0E06E6  mov word [0xb96], ax          ; +2: a real-mode segment, from the last reply
+0x0E06EC  mov dword [0xb9e], 0x54c0     ; +0xA: 0x54c0 in this path, 0x50c0 in the other
+0x0E06F6  mov word [0xe34], 0x2511      ; int 21h AX
+0x0E070D  mov dword [0xe40], 0xb94      ; EDX = the sub-block
+0x0E0717  mov ax,[0xe28]
+0x0E071D  mov word [0xe48], ax          ; EDI = an offset, from the last reply
+0x0E072D  call 0x102692                 ; int 21h
+```
+
+So the register image is `EAX=0x2511`, `ECX=0`, `EDX=0xb94`, `EDI=[0xe28]`, and the reply is read back from `0xe51` and `0xe58`. The
+buffer the BIOS sees is at segment `[0xe24]` offset `[0xe28]`, and both of those came out of the *previous* call's reply, so the extender
+allocates it and the game then fills it through another `0x250F` call that passes `0xCD4` with length `0x0A`.
+
+The value at sub-block `+0xA` is `0x54C0` here and `0x50C0` on the other path, which differ only in their high byte. Those are real-mode
+`SS:SP` values, a stack pointer per path, and not a function code. **This is the port's defect.** `towns_dos.cpp` `case 0x11` reads `+0xa`
+as `EAX` and hands `0x50C0` to its CD service as `AH=0x50`, `AL=0xC0`. The registers the caller actually sets are `EDX` (the sub-block)
+and `EDI` (the offset), with the segment in the sub-block at `+2`. Which bytes of the buffer at `DS:DI` carry the start and end time is
+still unread, and it is now the only thing standing between this and a correct implementation.
+
 **Which corrects the port.** `towns_dos.cpp` reads `EAX` out of the sub-block and treats `0x50C0` as `AH=0x50`, `AL=0xC0`, a function and
-a device. Under this dispatcher `AL=0xC0` has a high nibble of `0xC` and lands on the default branch, so that reading is not supported by
-the ROM. The other reading, `0050:00C0` as a real-mode pointer into the same selector the interrupt stub keeps its work words in, is
-still open. It should be treated as the leading candidate and the port's `AH`/`AL` interpretation as unconfirmed.
+a device. Under the ROM dispatcher `AL=0xC0` has a high nibble of `0xC` and lands on the default branch, so that reading is contradicted
+twice: by the dispatcher and by the caller above.
 

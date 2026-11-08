@@ -1805,14 +1805,12 @@ named by the sub-block at `0xb94`. The request itself is six bytes at `0xCD4`, a
 `EDX`, `ESI` and `EDI` from the block at `0xe34` and executes `int 0x21`, then writes the registers and the carry flag back to
 `0xe50`. It is a register image, and `0x250F` and `0x2511` are `int 21h` `AX` values, neither of which appears as a constant anywhere
 in `IO.SYS` or the game image.
-5. **Establish the request's first byte, then implement it in `fmtownskit`.** Still open, and narrower than it was. SHSUCDX is
-disqualified: `shsucdx.nsm` contains no `audio`, `93h` or `CDDA` at all, so the audio family is not MSCDEX. The ROM dispatcher is found
-at `FMT_SYS.ROM` `0x3C795`, and it selects its handler on the **high nibble of the first byte of the request buffer**, not on `AH`: `0x2n`
-to `0x3CAF3`, `0xBn` to `0x3CCD7`, everything else to `0x3C9A9`, and no near call reaches it so the entry is far or vectored. That leaves
-one question, which family the program's request uses, and one way to answer it without the emulator: read the `0x2511` caller at
-`0xE06C0` to `0xE07E8` in full and find what it puts in the buffer, in particular its first byte. The port's current reading of `EAX` as
-`AH=0x50`, `AL=0xC0` is unconfirmed and contradicted by this dispatch, since `0xC0` would land on the default branch. The other
-reading, `0050:00C0` as a real-mode pointer, is the leading candidate.
+5. **Implement the `0x2511` path correctly, then the CD service.** The register image is now measured: `EAX=0x2511`, `ECX=0`,
+`EDX` = the sub-block at `0xB94`, `EDI` = the buffer offset, and the segment is the sub-block's `+2`. Sub-block `+0xA` holds `0x54C0` or
+`0x50C0` depending on the path, which is a real-mode stack pointer and not a function code, so `towns_dos.cpp` `case 0x11` reading it as
+`EAX` is the port's defect and the first thing to fix. What is left after that is the buffer's contents: the game fills it through a
+`0x250F` call with buffer `0xCD4` and length `0x0A`, and the ROM dispatcher selects its handler on the high nibble of the buffer's first
+byte (`FMT_SYS.ROM` `0x3C795`), so reading that byte explains which family the call belongs to.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.
