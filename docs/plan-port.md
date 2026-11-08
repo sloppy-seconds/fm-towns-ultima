@@ -1805,17 +1805,14 @@ named by the sub-block at `0xb94`. The request itself is six bytes at `0xCD4`, a
 `EDX`, `ESI` and `EDI` from the block at `0xe34` and executes `int 0x21`, then writes the registers and the carry flag back to
 `0xe50`. It is a register image, and `0x250F` and `0x2511` are `int 21h` `AX` values, neither of which appears as a constant anywhere
 in `IO.SYS` or the game image.
-5. **Fix the TOC header and check the Create Character range.** Measured this session: the service word is `AH` with `AL=0xC0` and the port's
-reading of it is correct, the play range is a packed-BCD pair copied out of the table of contents, and the splash plays `06:45:00` to
-`08:09:00` decoding to `30225` to `36525` after the measured minus-150-sector correction. The Create Character screen asks
-`00:05:00` to `00:06:00` instead, a one-second window inside the data track, where the original plays track 7 at `09:50:00` to
-`11:42:74`. **Suspect: the table of contents header.** The port sends `03 01 08` and marks the leading `3` as not understood, and the
-program's own parser at `0xE06C0` reads the first three header bytes into three fields, decrements the third, and then copies 3-byte
-entries from `0xBAE` onward into an array, up to `0x63` of them. Under a `(first, last, ...)` reading the port's header says first track
-`3` and last track `1`, which is a negative count and would explain a derived range that is nonsense. **Experiment:** send the header as
-`01 08` followed by whatever the third byte should be, drive the same route, and check that the request becomes roughly `09:52:00` to
-`11:44:74`, which decodes to the `44250` to `52724` the original plays. If it does, the header is understood and the item's done-when is
-reachable. If it does not, the header is innocent and the difference is in the position reply instead, which is the next suspect.
+5. **Get the original's requests at the Create Character screen.** The service word, the buffer contents and the minus-150 correction are
+all measured, and two suspects have been ruled out on the way: the table of contents header (`U2_TOC_HEADER=1`, which sends `01 08 08`
+instead of `03 01 08`, leaves the screen's request byte for byte identical) and the port's own decoding, which is the same code that gets
+the splash right. What remains is that the character screen asks `00:05:00` to `00:06:00`, a one-second window inside the data track,
+where the original plays track 7. Deciding whether that request means something else to the real BIOS, or whether the program made a
+different request because an earlier reply differed, needs the original's own requests at that screen. That is one drive through
+character creation with `TSG_CDDA_LOG=1`, and it needs a person at the emulator. Autonomy: `BLOCKED ON HUMAN` for that one run, autonomous
+for everything after it.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.

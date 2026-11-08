@@ -1031,7 +1031,7 @@ index 4d13162..863dcd4 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..1eb3691 100644
+index 629a87e..4f0ce16 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,12 +35,43 @@ static int new_handle(Machine& m) {
@@ -1396,7 +1396,7 @@ index 629a87e..1eb3691 100644
              auto msf = [](uint32_t f, uint8_t* q) { q[0] = (uint8_t)(f / 4500); q[1] = (uint8_t)(f / 75 % 60); q[2] = (uint8_t)(f % 75); };
              for (const auto& t : disc.tracks())
                  if (s >= t.lba()) p[1] = (uint8_t)t.number;
-@@ -503,16 +752,35 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -503,16 +752,50 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          return;
      case 0x54: {                                    // the table of contents
          const auto& t = disc.tracks();
@@ -1413,10 +1413,28 @@ index 629a87e..1eb3691 100644
 +            return;
 +        }
          std::vector<uint8_t> o(6 + 3 * t.size());
-         o[0] = 3;                                   // as RUN386's buffer held it (*not understood*)
-         o[1] = (uint8_t)t.front().number;
-         o[2] = (uint8_t)t.back().number;
+-        o[0] = 3;                                   // as RUN386's buffer held it (*not understood*)
+-        o[1] = (uint8_t)t.front().number;
+-        o[2] = (uint8_t)t.back().number;
 -        to_msf(t.back().lba() + t.back().sectors, &o[3]);
++        // The header's first byte, which RUN386's buffer held as 3 and which was never understood. The program's
++        // own parser at 0xE06C0 reads three header bytes into three fields and decrements the third, which reads
++        // as (first, last, count) rather than as a leading magic byte. Under that reading the recorded header says
++        // first track 3 and last track 1, a negative count, and it is the one thing that differs between the splash,
++        // which asks for the right range, and the Create Character screen, which does not.
++        //
++        // U2_TOC_HEADER=1 selects the (first, last, last) layout so the two can be compared on the screen that
++        // differs. This is an experiment with a stated outcome, not a fix: the item records what it should make the
++        // character screen ask for (09:52:00 to 11:44:74, or 44250 to 52724 after the minus-150 correction).
++        if (std::getenv("U2_TOC_HEADER")) {
++            o[0] = (uint8_t)t.front().number;
++            o[1] = (uint8_t)t.back().number;
++            o[2] = (uint8_t)t.back().number;
++        } else {
++            o[0] = 3;                               // as RUN386's buffer held it (*not understood*)
++            o[1] = (uint8_t)t.front().number;
++            o[2] = (uint8_t)t.back().number;
++        }
 +        to_msf_bcd(t.back().lba() + t.back().sectors, &o[3]);
          for (size_t k = 0; k < t.size(); ++k) {
 -            to_msf(t[k].lba(), &o[6 + 3 * k]);
@@ -1434,7 +1452,7 @@ index 629a87e..1eb3691 100644
          return;
      }
      default: break;
-@@ -522,20 +790,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -522,20 +805,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      x86_fault(c, c.eip, why);
  }
  

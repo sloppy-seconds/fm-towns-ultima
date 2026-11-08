@@ -588,7 +588,15 @@ the original does: there, the same screen plays track 7, `09:50:00` to `11:42:74
 
 Two facts about the request are unexplained and both are recorded rather than guessed at. The buffer is **ten** bytes here, not six, and
 the third group is `00 06 31 00`. And the values are one second long, which is not a music range, so either this is a different service
-from the splash's play or the program computed it from a reply the port gave wrongly. The suspect for the second is the table of contents
-header, whose first byte the port sets to `3` and marks *not understood*, because the splash asks for the right track and this screen does
-not.
+from the splash's play or the program computed it from a reply the port gave wrongly.
+
+**The table of contents header is innocent, measured.** `U2_TOC_HEADER=1` sends the header as `01 08 08` instead of `03 01 08`, on the
+reading that the parser at `0xE06C0` consumes `(first, last, count)`. The reply becomes
+`01 08 08 13 25 00 80 02 00 ...` and the character screen asks for exactly the same `00 05 00 00 06 00` as before, byte for byte. So the
+header is ruled out, and the suspect moves to the position reply: the request is always preceded by a position ask, and the port answers
+that one with its substitution (`30225` to the end of the disc) rather than with anything derived from the drive.
+
+**What is left needs the original.** Distinguishing "this request means something else to the real BIOS" from "the program made a
+different request because an earlier reply differed" requires the requests the original makes at that same screen, and no run of this
+port can supply them. That is one drive through character creation with `TSG_CDDA_LOG=1`, which needs a real click.
 
