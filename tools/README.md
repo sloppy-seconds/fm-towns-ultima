@@ -133,6 +133,7 @@ that the port links, which is `ci-port-build.sh`.
 | `dis16.py` | Disassemble a 16-bit real-mode window, printing file offset, linear address and `segment:offset` together. The CD layer is 16-bit code in `IO.SYS` loaded at linear `0x400`, and doing that conversion by hand is where the errors are. Needs Capstone. |
 | `dis32.py` | Disassemble a 32-bit flat-image window and annotate direct call and jump targets. For an `MP` image the file offset is the code address, which is why the game's CD cluster at `0xE05F8` reads directly. Needs Capstone. |
 | `findabs.py` | Find 32-bit absolute references to one or more addresses in a flat image. Zero references is a real answer: the CD service words `0x250F` and `0x2511` appear only at the game's own call sites, never as a compared constant. |
+| `callers.py` | List near and far call sites whose target lands in an address range. Walking upward from known code is how the CD BIOS dispatcher in `FMT_SYS.ROM` was found at `0x3C795`, after opcode searches for `cmp ah,0x50` and friends returned zero. Also reports zero, which is how we know that dispatcher is entered by a far call or a vector rather than a near call. |
 | `tilesheet.js` | Render a tile bank to a labelled PNG grid. See `docs/assets-and-graphics.md` 5.4 for which layout to use per file. |
 | `crossdiff.js` | Rabin-Karp shared-substring search between executables. Used in `docs/save-disk.md` 6.5. |
 | `findpal.js` | I/O census and port classification, plus indirect-call/constant correlation. Used in `docs/save-disk.md` 6.6. |

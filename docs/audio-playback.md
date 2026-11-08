@@ -438,3 +438,38 @@ buffer are the start and end time. Two routes, both static:
 
 Neither route needs the emulator, which is what the plan asked for.
 
+### 9.8 SHSUCDX answers nothing here, and the ROM dispatcher is found (2026-11-09)
+
+**SHSUCDX disqualified, measured.** The source is `shsucdx.nsm`, 79,659 bytes, indexed from
+`https://raw.githubusercontent.com/adoxa/shsucd/master/shsucdx.nsm`. Searching it for `audio`, `93h` and `CDDA` returns nothing at all. It
+implements the data path, `Int 2Fh` functions `0B` to `10` (drive check, version, drive letters, directory entry, and `10h` send-device-request
+which forwards a device request header untouched), so it has no audio code to specify. The CD audio family is therefore not MSCDEX, and the
+route was worth one check and no more.
+
+**The ROM dispatcher, found by walking callers.** `tools/callers.py` reports 50 near calls into `0x3C990`..`0x3CD80`, clustering at
+`0x3C7A1` to `0x3C996`, which puts the entry immediately above. At `0x3C795`:
+
+```
+0x3C795  mov al,[si]
+0x3C797  and al,0xf0
+0x3C799  cmp al,0x20      ; low nibble cleared
+0x3C79B  je 0x3C7A5       ; -> call 0x3CAF3, ret
+0x3C79D  cmp al,0xb0
+0x3C79F  je 0x3C7A9       ; -> call 0x3CCD7, ret
+0x3C7A1  call 0x3C9A9     ; default
+```
+
+So the service is selected by the **high nibble of the first byte of the request buffer**, not by `AH`. Three families exist: `0x2n`,
+`0xBn` and everything else. `tools/callers.py` also reports **no near call** into `0x3C795`, so the dispatcher is entered by a far call or
+through a vector, which is consistent with it being the `Int 93h` entry.
+
+The `0xBn` handler at `0x3CCD7` is 32-bit code with `66` prefixes. It reads a descriptor out of `ES:[DI]`, taking a segment from `+0xC`,
+an offset from `+0xA` and a word from `+4`, then takes `DS:[SI+2]` and `DS:[SI] & 0x0F`, saves the segment registers, switches `DS` to
+`CS`, and calls `0x3D219`. The default handler at `0x3C9A9` is the reset and status path: it writes `0xA0`, reads port `0x3B72`,
+and returns `CX=1` with carry set for a status nibble of 9, `CX=0x80` for 8.
+
+**Which corrects the port.** `towns_dos.cpp` reads `EAX` out of the sub-block and treats `0x50C0` as `AH=0x50`, `AL=0xC0`, a function and
+a device. Under this dispatcher `AL=0xC0` has a high nibble of `0xC` and lands on the default branch, so that reading is not supported by
+the ROM. The other reading, `0050:00C0` as a real-mode pointer into the same selector the interrupt stub keeps its work words in, is
+still open. It should be treated as the leading candidate and the port's `AH`/`AL` interpretation as unconfirmed.
+
