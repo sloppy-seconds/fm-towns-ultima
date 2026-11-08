@@ -1790,36 +1790,39 @@ the splash and gameplay music work.
 | translation taken at dump time | `Page Table Not Present`, so the dump is not the game's memory and proves nothing either way |
 | memory-write monitor on the assumed table address | only DMA-tagged writes with code-like values, which is the CD controller's transfer buffer |
 
-**The plan, written 2026-11-07 for a fresh session.** Six steps, each with an artefact, and steps one to five need no emulator.
+**The plan, written 2026-11-07, worked 2026-11-09.** Steps one to four are done or answered. What remains is steps five and six.
 
-1. **Find the file that contains segment `0x0050`.** The `0050:0` dump already exists in the debugger logs. Byte-search it against the
-disc image and `IO.SYS` to get a file name and offset. Artefact: the file and offset, recorded here.
-2. **Disassemble its dispatch.** `0050:0190` is `mov si,ax` then `jmp word ptr cs:[si+0xCA]`, so the table at `cs:0xCA` lists the
-handlers. Enumerate the entries for `AH=0x50` to `0x56`. Artefact: a service to handler-address table.
-3. **Read the four services the game uses**, `0x50` play, `0x52` stop, `0x53` position, `0x54` TOC. Extract which fields of the block at
-`0xe34` each one reads, and which bytes of the reply at `0xe50` the caller consumes. Artefact: the block layout, written into
-`docs/audio-playback.md`.
-4. **Resolve whether the block belongs to the BIOS or to the extender.** The game sets `0xe39` to the track, `0xe3c` to 1, `0xe3d` to
-`0xfe`, `0xe40` to the dword `0xb94`, and `0xe48` to a word from `0xe30`. If it is the extender's structure, the block our `int 93h`
-receives may already be unpacked and step five parses something else. Artefact: the answer, recorded, because it changes step five.
-5. **Implement in `fmtownskit`, beside the other BIOS services.** Parse the block, act through the existing `cd_play`, `cd_stop` and
-`cd_sector`, and fill the reply. The audio path, the disc model and the PIC already exist and are measured working. Keep the old path
-behind a switch until the new one is verified.
+1. **Find the file that contains the CD layer. DONE, with a correction.** There is no separate driver file and no `MSCDEX.EXE` on the
+disc. The layer is inside `IO.SYS`: 26 controller-port loads at file `0x4106` to `0x4CAC`, 32 `int 93h` instructions, and the strings
+`C:\MSCDEX.EXE` and `TOWNS_CD`. The corrected first question was not "which file holds segment `0x0050`", because `0x50` is a selector
+whose base changes per context, measured as `0x500` in one session and `0x68C50` in another.
+2. **Read the interrupt convention. DONE.** The driver's own call site at file `0x4179` shows `AH=0xFD`, `AL=0xB0` plus a four-bit
+selector, `DS:DI` a buffer and `CH` carried in and out. The entry stub guards `AH` to `0xFD` or above, or `0x04` or below.
+3. **Read what the game sends. DONE.** The CD cluster is `0xE05F8` to `0xE0FA0`. The game does not call `int 93h` directly: it calls
+`int 21h` with `AX=0x250F` and `0x2511` through the register-image routine at `0x102692`, and `0x2511` raises the real-mode interrupt
+named by the sub-block at `0xb94`. The request itself is six bytes at `0xCD4`, a start time and an end time.
+4. **Settle whether the block belongs to the BIOS or the extender. ANSWERED, the extender.** `0x102692` loads `EAX`, `EBX`, `ECX`,
+`EDX`, `ESI` and `EDI` from the block at `0xe34` and executes `int 0x21`, then writes the registers and the carry flag back to
+`0xe50`. It is a register image, and `0x250F` and `0x2511` are `int 21h` `AX` values, neither of which appears as a constant anywhere
+in `IO.SYS` or the game image.
+5. **Read the driver's side of the buffer, then implement it in `fmtownskit`.** Still open, and now the only unknown: which bytes of
+the buffer at `DS:DI` the driver reads as the start and end time, and what it writes back. Two static routes, both named in
+`docs/audio-playback.md` 9.7. `FMT_SYS.ROM` holds a second CD controller driver at file `0x3CA00` and is where a Towns CD BIOS would
+live, but its Int 93h entry is not found by opcode search (`cmp ah,0x50`, `cmp ah,0xFD` and `cmp al,0xFD` are zero hits), so the
+dispatch is indirect and its table has to be found first. And `FMT_DOS.ROM` ships SHSUCDX as `MSCDEX.EXE`, so if the audio calls pass
+through MSCDEX the request record has a public reference implementation. The port's `case 0x11` gateway already matches the game's
+block layout, so the work is the CD service and not the marshalling.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.
 
-**Two unknowns, both answered by reading.** Whether the block is the BIOS's or the extender's, which step four settles. And how much DOS
-the services depend on: if they are thin wrappers over the controller, step five is small; if they sit on DOS internals, implement the
-observable behaviour at the game's boundary instead and record that as the decision.
-
 **Verification is one listening run**, because the headless route never reached the character screen in any run this week. The port's own
 CD-DA log gives the range as a secondary check, and the range for track 7 is `44250` to `52724`.
 
-**Failure cases, stated in advance.** If step one cannot find the module in the image, the `0256` trampoline's far pointer says where it
-lives and the emulator can dump it instead, so the item continues. If step four shows the extender owns the structure, the plan changes
-rather than fails and the item says what it changes to. If step six cannot reach track 7 without the substitution, the item closes with
-the driver's semantics written down and the port's approximation labelled as one.
+**Failure cases.** Two of the three are now spent. Step one found the layer and step four found that the extender owns the block, so the
+plan changed as it said it would rather than failing. The one that remains: if step five cannot be read far enough to play track 7
+without the substitution, the item closes with the driver's semantics recorded as far as they were read, and the port's approximation
+labelled as one.
 
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 

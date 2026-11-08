@@ -303,3 +303,138 @@ address caught only DMA traffic with code-like values, which is the CD controlle
 **What is left.** The table is only ever read through DS with an immediate address, so its writer uses a computed pointer. Reading the
 functions at `0xE0624`, `0xE07C8` and their neighbours in full, rather than grepping their constants, is how that pointer gets found,
 and it needs no emulator.
+
+## 9. The CD layer is inside IO.SYS, and the call convention is measured (2026-11-09)
+
+### 9.1 There is no separate driver file
+
+The disc carries no CD driver and no `MSCDEX.EXE`. `node tools/getfile.js --list CD` and `--list DRV` both report no such name, and
+`CONFIG.SYS`, 84 bytes, loads only `DEVICE=TBIOS.SYS /TBIOS.BIN`. `AUTOEXEC.BAT`, 196 bytes, runs `GAIJI2` and `CONTROL` and nothing
+else.
+
+The CD layer is inside `IO.SYS`, 77,824 bytes, measured by `python3 tools/cdlayer.py`:
+
+| file | `mov dx,0x4C0..0x4C7` | `int 93h` | CD strings |
+|---|---|---|---|
+| `IO.SYS` | 26 | 32 | `C:\MSCDEX.EXE`, `!/L:Q /D:TOWNS_CD /D:MENU_DRV /M:8`, `Q7\7TOWNS_CD` |
+| `T_OAK2.EXE` | 0 | 0 | none |
+| `CONTROL.EXE` | 0 | 1 | none |
+| `TBIOS.SYS` | 0 | 0 | none |
+
+The controller code sits at file offsets `0x4106` to `0x4CAC`. It polls `0x4C0` for a ready bit, writes parameters to `0x4C4`, and
+writes the command to `0x4C2`, with the parameter bytes staged in its own data at `DS:0x3B` to `DS:0x43`.
+
+**The load base is 0x400, measured three ways.** `0256:0018` resolves to file `0x2178` (`0x2578 - 0x400`). The physical dump at
+`0:05E0` matches file `0x1E0` byte for byte. And a CD play recorded on the original carries the frame `0256:27B9`, which is linear
+`0x4D19` and file `0x4919`, inside the controller region. So the driver the game reaches is this one, in `IO.SYS`.
+
+### 9.2 The interrupt convention, read from the driver's own call site
+
+File `0x4179`, base `0x400`, segment `0457`:
+
+```
+push ds
+mov al,[bp+2]      ; and al,0x0f  then  or al,0xb0
+mov ch,[bp+7]
+mov ds,[bp+0x10]
+mov di,[bp+0x0e]
+mov ah,0xfd
+int 0x93
+```
+
+So `int 93h` is entered with `AH=0xFD`, `AL=0xB0` plus a four-bit selector, `DS:DI` a buffer and `CH` carried in and out. The entry
+stub at file `0x2160` guards `AH` to `0xFD` or above, or `0x04` or below, so a second family exists in the low range.
+
+### 9.3 What the game sends, and the parked note was reading the wrong layer
+
+The CD code is one cluster at `0xE05F8` to `0xE0FA0`. The routine the splash and the character screen both reach is `0x102692`, and
+it is a register-image caller, not a BIOS call:
+
+```
+mov eax,[esi]      ; block +0x00
+mov ebx,[esi+4]    ; +0x04
+mov ecx,[esi+8]    ; +0x08
+mov edx,[esi+0x0c] ; +0x0c
+mov edi,[esi+0x14] ; +0x14
+mov esi,[esi+0x10] ; +0x10
+int 0x21
+```
+
+and it writes `EAX`, `EBX`, `ECX`, `EDX`, `ESI`, `EDI` and the carry flag back into the reply block at `0xe50`. So the block at
+`0xe34` is a register image for the DOS extender and the two service words in it, `0x250F` and `0x2511`, are `int 21h` `AX` values.
+
+`0x2511` raises a real-mode interrupt. `EDX` points at a sub-block at `0xb94` whose first word is `0x93`, whose `+2` word is a
+segment, and whose `+0xa` dword is `0x50c0` in the splash path and `0x54c0` in the other. Read as a register value that is `AH=0x50`
+with `AL=0xC0`, and read as a real-mode address it is `0050:00C0`, the same selector the interrupt stub keeps its work words in.
+
+The request the game fills is six bytes at `0xcd4`: three taken from the track table at `0xce0` by the index in `EDI` times three,
+and three from locals at `[ebp-3]` to `[ebp-1]`. That is a start time and an end time, and it is the data that has to reach the
+driver.
+
+### 9.4 What this changes
+
+The port's `towns_dos.cpp` `case 0x11` already implements `2511h`, reading `+0` as the interrupt number, `+2` as a segment, `+0xa` as
+`EAX` and `+0xe` as `EDX`, and calling `int93` with `DS = segment * 16 + DI`. That matches the observed block, so the gateway is not the
+defect. What is still unread is the driver's side: which bytes of the buffer `DS:DI` are the start and end time, and what the reply
+must carry.
+
+**Two corrections to earlier notes.** The parked note said the next step was to find the writer of the table at `0xce0`. The table is
+read here with an immediate address and an index computed as `edi + edi*2`, so the writer is elsewhere and still unread. It is no
+longer on the critical path, because the port does not need the table. It needs the request and reply format, which is in the driver.
+
+The other correction: `ADTR 50:0` gave linear `0x500`, identity mapped, in one session and linear `0x68C50` in an earlier one, so
+selector `0x50` is per-context. It cannot be used as a stable base for dumping the installed handler, and the address that earlier
+looked like the handler's home was a different table.
+
+### 9.5 The commands behind 9.1 to 9.3
+
+```
+node tools/getfile.js IO.SYS --out /var/tmp/io        # and T_OAK2.EXE, CONTROL.EXE, TBIOS.SYS, RUN386.EXE
+python3 tools/cdlayer.py /var/tmp/io/IO.SYS /var/tmp/io/T_OAK2.EXE /var/tmp/io/CONTROL.EXE /var/tmp/io/TBIOS.SYS
+tools/.venv/bin/python tools/dis16.py /var/tmp/io/IO.SYS 0x4179 0x20 0x400    # the driver's int 93h call site
+tools/.venv/bin/python tools/dis16.py /var/tmp/io/IO.SYS 0x2160 0x40 0x400    # the entry stub and its guard
+tools/.venv/bin/python tools/dis32.py ENCHANT.EXP 0x102692 0x40                # the register-image caller
+tools/.venv/bin/python tools/dis32.py ENCHANT.EXP 0xE05F8 0x120                # the CD cluster's first service
+tools/.venv/bin/python tools/findabs.py ENCHANT.EXP 0xcd4 0x250f 0x2511 0x50c0
+```
+
+The disassembly helpers `dis16.py`, `dis32.py` and `findabs.py` are in `tools/` for the same reason: these addresses are worth
+re-reading without rebuilding a one-liner. All three use capstone, so they need `./tools/decode-setup.sh` once. The ROM offsets below
+were checked with `python3 /var/tmp/findpat.py`, which is a five-line byte search and stays a scratch script.
+
+### 9.6 Two ROMs hold the rest of the layer
+
+`FMT_SYS.ROM`, 262,144 bytes, carries 12 loads of `0x4C0` to `0x4C7`, starting at file `0x3CA00`. Disassembled there
+(`tools/.venv/bin/python tools/dis16.py /var/tmp/io/FMT_SYS.ROM 0x3c9c0 0x80 0`) it polls `0x4C0`, stages parameters through a register
+file at `0x3B60` to `0x3B7E`, and writes the command to `0x4C2`. So there are two CD controller drivers on this machine, one in the system
+ROM and one in `IO.SYS`, both driving the same ports by different routes.
+
+`FMT_DOS.ROM`, 524,288 bytes, contains `C:\MSCDEX.EXE` at `0x15F4C` and four strings that name what it is:
+
+```
+0x022670  '   /E/K/S/M    Ignored (for MSCDEX commandline compatibility).'
+0x02293A  'SHSUCDX or MSCDEX is already installed.'
+0x023400  'This FMT_DOS.ROM includes SHSUCDX by courtesy of Mr. Jason Hood.'
+0x023444  'It is renamed to MSCDEX.EXE so that FM TOWNS software recognizes it.'
+0x0234F2  'Copyright (C) 2005-2020 Jason Hood'
+```
+
+So the DOS CD extensions on this machine are **SHSUCDX**, Jason Hood's open-source MSCDEX replacement, shipped inside the DOS ROM and
+renamed to `MSCDEX.EXE` so that Towns software finds it. That is worth knowing for two reasons. The DOS-side CD API is
+MSCDEX-compatible, so its semantics have a public reference implementation rather than only a ROM to read. And it explains the absence
+of a driver file: the whole CD stack is in the firmware and in `IO.SYS`, not on the disc.
+
+### 9.7 What is still unread, and the two routes to it
+
+The one thing not yet read is the service the game's `AH=0x50` and `AH=0x54` calls land in, and therefore which bytes of the `DS:DI`
+buffer are the start and end time. Two routes, both static:
+
+- **The system ROM.** `FMT_SYS.ROM` holds a CD controller driver and is the one place a Towns CD BIOS would live. Its Int 93h entry has
+  not been found by opcode search: `cmp ah,0x50`, `cmp ah,0xFD` and `cmp al,0xFD` all occur zero times in it, so the dispatch is
+  indirect and the table has to be found first, probably from the ROM's own interrupt vector contents.
+- **SHSUCDX as the specification.** If the audio calls pass through MSCDEX, the record layout the game builds is the MSCDEX device
+  request and ioctl structure, which SHSUCDX implements in public source. That would answer the field question without disassembly, and
+  it also predicts what a correct reply looks like.
+
+Neither route needs the emulator, which is what the plan asked for.
+
