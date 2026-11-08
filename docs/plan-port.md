@@ -1754,9 +1754,9 @@ is LBA 30225 to 36524. The port now plays it at the splash and the census reads 
 
 | field | value |
 |---|---|
-| autonomy | autonomous until the call-stack print, which is a small change to the fork rather than a decision |
+| autonomy | autonomous for steps one to five, which are reading and port code. One listening run by Paul at the end, because the headless route never reached the character screen |
 | depends on | nothing |
-| done when | the port plays the track the original plays at the Create Character screen, or the page records what the program asks the BIOS for there and why it cannot be reproduced. The failure case is a finding rather than a gap: if the program asks by track number through a service this port does not implement, that is the answer and the item closes with it |
+| done when | with `U2_CD_NOFALLBACK=1` set, the Create Character screen plays track 7 and the splash still plays track 5, and the substitution, the switch and the hand-written CD cases are deleted. The failure case is a finding rather than a gap: if the block turns out to belong to the extender, or the services turn out to sit on DOS internals, the page records the driver's real semantics and the item closes with the port's approximation labelled as one |
 | blocked by | nothing |
 
 **What is known, and the call stack is the important part.** The original plays track 7 there, `CDDAPLAY 09:50:00 to 11:42:74`, and
@@ -1790,9 +1790,36 @@ the splash and gameplay music work.
 | translation taken at dump time | `Page Table Not Present`, so the dump is not the game's memory and proves nothing either way |
 | memory-write monitor on the assumed table address | only DMA-tagged writes with code-like values, which is the CD controller's transfer buffer |
 
-**The next step when this is picked up.** The table at `0xCE0` is only ever read through DS with an immediate address, so its writer uses
-a computed pointer. Reading `f_000e0624`, `f_000e07c8` and their neighbours in full, rather than grepping their constants, is how that
-pointer is found. It needs no emulator, and it is reading rather than another instrument.
+**The plan, written 2026-11-07 for a fresh session.** Six steps, each with an artefact, and steps one to five need no emulator.
+
+1. **Find the file that contains segment `0x0050`.** The `0050:0` dump already exists in the debugger logs. Byte-search it against the
+disc image and `IO.SYS` to get a file name and offset. Artefact: the file and offset, recorded here.
+2. **Disassemble its dispatch.** `0050:0190` is `mov si,ax` then `jmp word ptr cs:[si+0xCA]`, so the table at `cs:0xCA` lists the
+handlers. Enumerate the entries for `AH=0x50` to `0x56`. Artefact: a service to handler-address table.
+3. **Read the four services the game uses**, `0x50` play, `0x52` stop, `0x53` position, `0x54` TOC. Extract which fields of the block at
+`0xe34` each one reads, and which bytes of the reply at `0xe50` the caller consumes. Artefact: the block layout, written into
+`docs/audio-playback.md`.
+4. **Resolve whether the block belongs to the BIOS or to the extender.** The game sets `0xe39` to the track, `0xe3c` to 1, `0xe3d` to
+`0xfe`, `0xe40` to the dword `0xb94`, and `0xe48` to a word from `0xe30`. If it is the extender's structure, the block our `int 93h`
+receives may already be unpacked and step five parses something else. Artefact: the answer, recorded, because it changes step five.
+5. **Implement in `fmtownskit`, beside the other BIOS services.** Parse the block, act through the existing `cd_play`, `cd_stop` and
+`cd_sector`, and fill the reply. The audio path, the disc model and the PIC already exist and are measured working. Keep the old path
+behind a switch until the new one is verified.
+6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
+play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
+are unused, and the hand-written CD cases the new code replaces.
+
+**Two unknowns, both answered by reading.** Whether the block is the BIOS's or the extender's, which step four settles. And how much DOS
+the services depend on: if they are thin wrappers over the controller, step five is small; if they sit on DOS internals, implement the
+observable behaviour at the game's boundary instead and record that as the decision.
+
+**Verification is one listening run**, because the headless route never reached the character screen in any run this week. The port's own
+CD-DA log gives the range as a secondary check, and the range for track 7 is `44250` to `52724`.
+
+**Failure cases, stated in advance.** If step one cannot find the module in the image, the `0256` trampoline's far pointer says where it
+lives and the emulator can dump it instead, so the item continues. If step four shows the extender owns the structure, the plan changes
+rather than fails and the item says what it changes to. If step six cannot reach track 7 without the substitution, the item closes with
+the driver's semantics written down and the port's approximation labelled as one.
 
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 
