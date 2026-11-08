@@ -521,3 +521,30 @@ likewise differs: the dump reads `00 00 00 00 00 00 00 00 00 00 00 00 00 9D 5A A
 the code that runs. Any further reading of the `0x250F` and `0x2511` services has to come from a dump taken while they are resident, not
 from the file, and that is a different instrument from the ones used so far.
 
+### 9.11 The port is now an instrument for the buffer, and the first byte is `0x06`
+
+`towns_dos.cpp` `case 0x11` now names the block fields for what they are and, under `U2_TRACE_INT=1` with `--dev`, prints the block, the
+segment, the stack word and sixteen bytes at the target:
+
+```
+  real-mode int 93h: block 400B94 ds 76CD ss:sp 53C0 target 76CD4 bytes 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  real-mode int 93h: block 400B94 ds 76CD ss:sp 52C0 target 76CD4 bytes 06 2D 00 08 09 00 00 00 00 00 00 00 00 00 00 00
+  real-mode int 93h: block 400B94 ds 76BA ss:sp 54C0 target 76BA4 bytes 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+
+Four things this settles and one it raises.
+
+- The port's `0x0F` address fabrication round-trips: segment `0x76CD` with offset `4` gives `0x76CD4`, the buffer the program filled. So
+  `DS:DI` is right and the port was already computing it correctly.
+- The stack word takes **three** values across the run, `52C0`, `53C0` and `54C0`, differing only in the segment and keeping offset
+  `0xC0`. Three distinct call paths, one stack each. That is what a stack pointer looks like and not what a function code looks like.
+- The program fills the buffer between the first and second call: zeros first, then `06 2D 00 08 09 00`, which is a six-byte start and end
+  pair. Read as minutes, seconds, frames that is `06:45:00` to `08:09:00`, which is within about two seconds of the splash's measured
+  range `06:43:00` to `08:06:74`. So this is the same track's region, not a different one, and the small offset is unexplained.
+- The same buffer serves both calls, so it is a request area that is prepared and then executed, not one buffer per call.
+
+**Which reframes the dispatcher question.** That first byte is the start time's minutes, so the buffer is a time record and not a
+structure whose first byte is a service selector. The caller sets `EDI`, and the ROM dispatcher reads `[SI]`, so the two pointers are not
+the same register and there is no contradiction: the dispatcher's selector byte comes from somewhere the caller does not set. What the
+`Int 93h` entry loads into `SI` is therefore the next question, and it needs the entry itself, which is still unlocated.
+

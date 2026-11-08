@@ -1031,7 +1031,7 @@ index 4d13162..863dcd4 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..f6596df 100644
+index 629a87e..1eb3691 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,12 +35,43 @@ static int new_handle(Machine& m) {
@@ -1094,7 +1094,48 @@ index 629a87e..f6596df 100644
              if (al == 0x07) rm_vector[c.r[1] & 0xFF] = c.r[3];
              set_cf(c, false);
              return;
-@@ -308,6 +348,31 @@ void Machine::int21(X86Cpu& c) {
+@@ -283,20 +323,37 @@ void Machine::int21(X86Cpu& c) {
+             return;
+         }
+         case 0x11: {                                // issue a real-mode interrupt: the block at DS:EDX
++            // MEASURED, docs/audio-playback.md 9.9. The block holds the interrupt number at +0, the
++            // segment to load into DS at +2, and a real-mode stack pointer at +0xA: 0x50C0 on one
++            // path and 0x54C0 on the other, differing only in the high byte. The caller puts the
++            // buffer offset in EDI, so the target the interrupt sees is (segment << 4) + EDI.
++            //
++            // The word at +0xA is NOT a register image. Calling it AH=0x50, AL=0xC0 was a guess, and
++            // the ROM dispatcher at FMT_SYS.ROM 0x3C795 selects on the high nibble of the buffer's
++            // first byte instead, so 0xC0 would land on its default branch. It is still passed to
++            // int93 and written back because the port's CD service dispatches on it, and that is
++            // recorded here as a substitution rather than presented as the BIOS's interface.
+             uint32_t blk = ds + c.r[2];
+             uint32_t num = mem_read(blk, 2);
+             uint32_t rds = mem_read(blk + 2, 2), res = mem_read(blk + 4, 2);
+-            uint32_t eax = mem_read(blk + 0xA, 4), edx = mem_read(blk + 0xE, 4);
++            uint32_t ss_sp = mem_read(blk + 0xA, 4), edx = mem_read(blk + 0xE, 4);
+             if (num != 0x93) {
+                 char why[64];
+                 std::snprintf(why, sizeof why, "real-mode int %02Xh through 2511h: no service", num);
+                 x86_fault(c, c.eip, why);
+             }
++            const uint32_t target = rds * 16 + (c.r[7] & 0xFFFF);
++            if (trace_int) {
++                std::fprintf(stderr, "  real-mode int 93h: block %05X ds %04X ss:sp %04X target %05X bytes", blk, rds,
++                             ss_sp, target);
++                for (int i = 0; i < 16; ++i) std::fprintf(stderr, " %02X", mem_read(target + i, 1));
++                std::fprintf(stderr, "\n");
++            }
+             uint32_t save_edx = c.r[2];
+             c.r[2] = edx;
+-            uint32_t ret = eax;
++            uint32_t ret = ss_sp;
+             (void)res;
+-            int93(c, eax, ret, rds * 16 + (c.r[7] & 0xFFFF));
++            int93(c, ss_sp, ret, target);
+             mem_write(blk + 0xA, 4, ret);
+             c.r[0] = ret;
+             c.r[2] = save_edx;
+@@ -308,6 +365,31 @@ void Machine::int21(X86Cpu& c) {
      }
      case 0x3C: case 0x3D: {                         // create, open
          std::string name = cstr(*this, ds + c.r[2]), path;
@@ -1126,7 +1167,7 @@ index 629a87e..f6596df 100644
          int h = new_handle(*this);
          if (h < 0) { set_cf(c, true); s16(c, 0, 4); return; }
          Handle& hd = handles[h];
-@@ -333,6 +398,13 @@ void Machine::int21(X86Cpu& c) {
+@@ -333,6 +415,13 @@ void Machine::int21(X86Cpu& c) {
          uint32_t h = c.r[3] & 0xFFFF;
          if (h >= handles.size() || !handles[h].used) { set_cf(c, true); s16(c, 0, 6); return; }
          Handle& hd = handles[h];
@@ -1140,7 +1181,7 @@ index 629a87e..f6596df 100644
          if (hd.f) std::fclose(hd.f);
          hd = Handle{};
          set_cf(c, false);
-@@ -367,8 +439,17 @@ void Machine::int21(X86Cpu& c) {
+@@ -367,8 +456,17 @@ void Machine::int21(X86Cpu& c) {
              write_block(buf, tmp.data(), done);
          } else {
              read_block(buf, tmp.data(), n);
@@ -1160,7 +1201,7 @@ index 629a87e..f6596df 100644
          }
          c.r[0] = done;
          set_cf(c, false);
-@@ -408,6 +489,39 @@ void Machine::int21(X86Cpu& c) {
+@@ -408,6 +506,39 @@ void Machine::int21(X86Cpu& c) {
          set_cf(c, false);
          return;
      }
@@ -1200,7 +1241,7 @@ index 629a87e..f6596df 100644
      case 0xFF:                                      // not DOS's (an extender's test, DX=78h):
          unknown("int 21h AX=%04X DX=%04X: none (as on the Towns)", c.r[0] & 0xFFFF, c.r[2] & 0xFFFF);
          return;                                     // RUN386 leaves every register as it was
-@@ -441,6 +555,15 @@ static void to_msf(uint32_t lba, uint8_t* p) {
+@@ -441,6 +572,15 @@ static void to_msf(uint32_t lba, uint8_t* p) {
      p[0] = (uint8_t)(lba / (75 * 60)); p[1] = (uint8_t)(lba / 75 % 60); p[2] = (uint8_t)(lba % 75);
  }
  
@@ -1216,7 +1257,7 @@ index 629a87e..f6596df 100644
  static uint32_t from_msf(const uint8_t* p) {
      uint32_t f = ((uint32_t)(p[0] & 0x7F) * 60 + p[1]) * 75 + p[2];
      return f >= 150 ? f - 150 : 0;
-@@ -448,9 +571,51 @@ static uint32_t from_msf(const uint8_t* p) {
+@@ -448,9 +588,51 @@ static uint32_t from_msf(const uint8_t* p) {
  
  void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      uint8_t ah = (eax >> 8) & 0xFF, al = eax & 0xFF;
@@ -1270,7 +1311,7 @@ index 629a87e..f6596df 100644
          char why[64];
          std::snprintf(why, sizeof why, "int 93h AX=%04Xh: not the CD", eax & 0xFFFF);
          x86_fault(c, c.eip, why);
-@@ -464,7 +629,12 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -464,7 +646,12 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          cd_play(from_msf(p), from_msf(p + 3));
          cd_paused = false;
          cd.repeat = c.r[1] & 0xFF;
@@ -1284,7 +1325,7 @@ index 629a87e..f6596df 100644
          return;
      }
      case 0x53: {                                    // where the play is: AL and the buffer
-@@ -475,7 +645,69 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -475,7 +662,69 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          // note) while it plays or is paused, all zero once a track has ended or none played.
          uint8_t p[10] = {};
          uint32_t s = cd_sector();               // (a track that has ended stops here)
@@ -1355,7 +1396,7 @@ index 629a87e..f6596df 100644
              auto msf = [](uint32_t f, uint8_t* q) { q[0] = (uint8_t)(f / 4500); q[1] = (uint8_t)(f / 75 % 60); q[2] = (uint8_t)(f % 75); };
              for (const auto& t : disc.tracks())
                  if (s >= t.lba()) p[1] = (uint8_t)t.number;
-@@ -503,16 +735,35 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -503,16 +752,35 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          return;
      case 0x54: {                                    // the table of contents
          const auto& t = disc.tracks();
@@ -1393,7 +1434,7 @@ index 629a87e..f6596df 100644
          return;
      }
      default: break;
-@@ -522,20 +773,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -522,20 +790,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      x86_fault(c, c.eip, why);
  }
  
@@ -1430,10 +1471,7 @@ index 629a87e..f6596df 100644
 +    // measured, with AL=0. The handler is TBIOS's own, reached through CS=0008 at linear 0x5C12E.
 +    case 0x04:
 +    case 0x00: case 0x02: case 0x05: case 0x06:   // init, buffer, code, click, clear
-         break;
--    case 0x09:                                      // read a key: none
--        s16(c, 2, 0xFFFF);
--        s16(c, 3, 0xFF00);
++        break;
 +    case 0x01: {                                    // the sound driver, run for real
 +        // Service 6 is entry 6 of the same table at cs:0x110CC, which is 0x11274, and it is the one the game actually asks for
 +        // at the menu (frames 2604 and 4423). The kit answered that with `break` too.
@@ -1466,7 +1504,10 @@ index 629a87e..f6596df 100644
 +        f(c);
 +        if (c.eip != resume) x86_fault(c, c.eip, "the TBIOS sound driver returned elsewhere");
 +        x86_load_seg(c, 1, saved_cs);
-+        break;
+         break;
+-    case 0x09:                                      // read a key: none
+-        s16(c, 2, 0xFFFF);
+-        s16(c, 3, 0xFF00);
 +    }
 +    case 0x09:                                      // read a key
 +        // PATCH, this repository. The kit had no keyboard, so this answered "none" for ever and a program

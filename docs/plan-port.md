@@ -1805,13 +1805,14 @@ named by the sub-block at `0xb94`. The request itself is six bytes at `0xCD4`, a
 `EDX`, `ESI` and `EDI` from the block at `0xe34` and executes `int 0x21`, then writes the registers and the carry flag back to
 `0xe50`. It is a register image, and `0x250F` and `0x2511` are `int 21h` `AX` values, neither of which appears as a constant anywhere
 in `IO.SYS` or the game image.
-5. **Implement the `0x2511` path correctly, then the CD service.** The register image is now measured: `EAX=0x2511`, `ECX=0`,
-`EDX` = the sub-block at `0xB94`, `EDI` = the buffer offset, and the segment is the sub-block's `+2`. Sub-block `+0xA` holds `0x54C0` or
-`0x50C0` depending on the path, which is a real-mode stack pointer and not a function code, so `towns_dos.cpp` `case 0x11` reading it as
-`EAX` is the port's defect and the first thing to fix. What is left after that is the buffer's contents, and the route has changed: the
-int 21h handler at `1064:13F9` does **not** match IO.SYS at file `0x11639` when both are read (measured, `docs/audio-playback.md` 9.10),
-so the `0x250F` transfer service has to be read from a dump taken while it is resident rather than from the file. The int 93h entry, by
-contrast, is now confirmed byte for byte: `0256:0000` equals file `0x2160`.
+5. **Locate the `Int 93h` entry, then implement the CD service.** The register image is measured: `EAX=0x2511`, `ECX=0`, `EDX` = the
+sub-block at `0xB94`, `EDI` = the buffer offset, and the segment is the sub-block's `+2`. Sub-block `+0xA` holds `0x54C0`, `0x53C0` or
+`0x52C0` across a run, which is a real-mode stack pointer per call path and not a function code, so `towns_dos.cpp` `case 0x11` reading it
+as `EAX` was the port's defect and is now documented as a substitution. The buffer at `DS:DI` is confirmed to be a six-byte start and end
+pair (`06 2D 00 08 09 00` on the splash path), so the service selector is **not** in the buffer's first byte. The ROM dispatcher reads
+`[SI]` while the caller sets `DI`, so the remaining question is what the `Int 93h` entry loads into `SI`, and that needs the entry, which
+is still unlocated. `towns_dos.cpp` `case 0x11` now prints the block, the stack word and sixteen bytes at the target under
+`U2_TRACE_INT=1` with `--dev`, so the next reader has the instrument already in place.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.
