@@ -494,9 +494,17 @@ as `EAX` and hands `0x50C0` to its CD service as `AH=0x50`, `AL=0xC0`. The regis
 and `EDI` (the offset), with the segment in the sub-block at `+2`. Which bytes of the buffer at `DS:DI` carry the start and end time is
 still unread, and it is now the only thing standing between this and a correct implementation.
 
-**Which corrects the port.** `towns_dos.cpp` reads `EAX` out of the sub-block and treats `0x50C0` as `AH=0x50`, `AL=0xC0`, a function and
-a device. Under the ROM dispatcher `AL=0xC0` has a high nibble of `0xC` and lands on the default branch, so that reading is contradicted
-twice: by the dispatcher and by the caller above.
+**Corrected 2026-11-09, same session, by a port run.** The word at `+0xA` takes four values in one session and each belongs to a different
+service: `0x50C0` with the buffer holding a start and end pair and the port playing it, `0x52C0` with the buffer zeroed and a stop,
+`0x53C0` with a position request, `0x54C0` with the table of contents. The game's own code confirms it, because `0xE092A` writes `0x50C0`
+inside the function that builds the MSF range and issues the play, and `0xE06EC` writes `0x54C0` inside the function that reads a run of
+`0x63` six-byte records, which is the table of contents being parsed. So `+0xA` is a **service word**, `AH` the function and `AL=0xC0` a
+constant, and not a stack pointer. The earlier reading in this section was wrong: four distinct values matched four distinct operations, and
+the agreement was the answer rather than a coincidence.
+
+What follows from that: the port's `towns_dos.cpp` reading `+0xA` as `EAX` and dispatching on `AH` with `AL=0xC0` is **right**, and the
+services it implements are `0x50` play, `0x52` stop, `0x53` position, `0x54` table of contents, `0x55` pause and `0x56` resume. The claim
+that this was the port's defect is withdrawn.
 
 ### 9.10 The vector table, and the int 93h entry confirmed byte for byte
 
@@ -536,15 +544,18 @@ Four things this settles and one it raises.
 
 - The port's `0x0F` address fabrication round-trips: segment `0x76CD` with offset `4` gives `0x76CD4`, the buffer the program filled. So
   `DS:DI` is right and the port was already computing it correctly.
-- The stack word takes **three** values across the run, `52C0`, `53C0` and `54C0`, differing only in the segment and keeping offset
-  `0xC0`. Three distinct call paths, one stack each. That is what a stack pointer looks like and not what a function code looks like.
-- The program fills the buffer between the first and second call: zeros first, then `06 2D 00 08 09 00`, which is a six-byte start and end
-  pair. Read as minutes, seconds, frames that is `06:45:00` to `08:09:00`, which is within about two seconds of the splash's measured
-  range `06:43:00` to `08:06:74`. So this is the same track's region, not a different one, and the small offset is unexplained.
-- The same buffer serves both calls, so it is a request area that is prepared and then executed, not one buffer per call.
+- The value at `+0xA` is a **service word**, not a stack pointer. It takes `0x50C0`, `0x52C0`, `0x53C0` and `0x54C0` across one run, and
+  each one is the call the port sees: play, stop, position, table of contents. See the correction in 9.9.
+- The buffer at `DS:DI` is a **packed-BCD** start and end pair. `06 2D 00 08 09 00` is `06:45:00` to `08:09:00`, and both values are
+  copies of the table of contents entries: the TOC reply the port sent holds `06 45 00` and `08 09 00`, packed BCD, and the game unpacks
+  them into this buffer. So the play range is derived from the TOC rather than from a table in the program.
+- The port already plays that range: `from_msf` subtracts 150 sectors, so `06:45:00` becomes `30225`, which is the `06:43:00` the original
+  was measured playing. The two-second correction is a measurement, not a fudge, and it explains why the splash works.
 
-**Which reframes the dispatcher question.** That first byte is the start time's minutes, so the buffer is a time record and not a
-structure whose first byte is a service selector. The caller sets `EDI`, and the ROM dispatcher reads `[SI]`, so the two pointers are not
-the same register and there is no contradiction: the dispatcher's selector byte comes from somewhere the caller does not set. What the
-`Int 93h` entry loads into `SI` is therefore the next question, and it needs the entry itself, which is still unlocated.
+**Which reframes the dispatcher question.** The buffer is a packed-BCD time pair and the service is in `AH`, so the byte the ROM reads at
+`[SI]` is neither of those: the caller sets `DI` and `AH`, and the ROM dispatcher reads a memory byte at `SI`. Either the ROM entry loads
+`SI` from a structure the caller passes, or the ROM dispatcher serves a different caller, and the `0xBn` family it does handle is the one
+`IO.SYS` uses (`AL=0xB0|n`). The family the game uses is `0xC0`, which lands on the ROM's default branch, and that branch is the reset and
+status path, which is not what a play does. So the ROM dispatcher is probably not the code that serves this call, and the search for its
+entry is worth less than it looked.
 

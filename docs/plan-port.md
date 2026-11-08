@@ -1805,14 +1805,13 @@ named by the sub-block at `0xb94`. The request itself is six bytes at `0xCD4`, a
 `EDX`, `ESI` and `EDI` from the block at `0xe34` and executes `int 0x21`, then writes the registers and the carry flag back to
 `0xe50`. It is a register image, and `0x250F` and `0x2511` are `int 21h` `AX` values, neither of which appears as a constant anywhere
 in `IO.SYS` or the game image.
-5. **Locate the `Int 93h` entry, then implement the CD service.** The register image is measured: `EAX=0x2511`, `ECX=0`, `EDX` = the
-sub-block at `0xB94`, `EDI` = the buffer offset, and the segment is the sub-block's `+2`. Sub-block `+0xA` holds `0x54C0`, `0x53C0` or
-`0x52C0` across a run, which is a real-mode stack pointer per call path and not a function code, so `towns_dos.cpp` `case 0x11` reading it
-as `EAX` was the port's defect and is now documented as a substitution. The buffer at `DS:DI` is confirmed to be a six-byte start and end
-pair (`06 2D 00 08 09 00` on the splash path), so the service selector is **not** in the buffer's first byte. The ROM dispatcher reads
-`[SI]` while the caller sets `DI`, so the remaining question is what the `Int 93h` entry loads into `SI`, and that needs the entry, which
-is still unlocated. `towns_dos.cpp` `case 0x11` now prints the block, the stack word and sixteen bytes at the target under
-`U2_TRACE_INT=1` with `--dev`, so the next reader has the instrument already in place.
+5. **Capture the character screen's requests.** The service word at `+0xA` is settled and the port's reading of it is correct: `0x50C0` play,
+`0x52C0` stop, `0x53C0` position, `0x54C0` table of contents, measured by correlating one port run and confirmed by the game's own write at
+`0xE092A`. The play range is a packed-BCD pair the program copies out of the table of contents, and the port already plays it with the
+measured minus-150-sector correction, which is why the splash works. What remains is the Create Character screen, where the same builder is
+reached with a different index and the port goes silent with a decoded range of `225 to 67`, which decodes back to `00 03 00 00 00 43`, a
+buffer that is not a time pair. So the next step is a port trace at that screen rather than any more reading, and the port is drivable with
+scripted keys, so it needs no click: reach the screen, print the request, and the wrong bytes say what the path does differently.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.
