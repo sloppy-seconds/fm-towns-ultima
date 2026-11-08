@@ -559,3 +559,36 @@ Four things this settles and one it raises.
 status path, which is not what a play does. So the ROM dispatcher is probably not the code that serves this call, and the search for its
 entry is worth less than it looked.
 
+### 9.12 The Create Character request, and the input trap that nearly hid it
+
+Driving the port through character creation over its control socket, with `--dev` so `U2_TRACE_INT` is honoured, gives the requests at
+those screens. Two traps first, because both produced plausible-looking wrong answers.
+
+**The cue is the wrong medium.** The first run passed `build/port/disc.cue`, which declares one track. The port's table of contents then
+read `03 01 01 13 25 00 80 02 00`, 9 bytes with first and last track both `01`, the program asked to play `00:02:00` to `00:13:25`, and the
+character screen asked for `00 01 00 00 06 00`. All of that is a correct answer to a disc with one track. The `.ccd` declares eight, and
+with it the table of contents is 30 bytes, `03 01 08 13 25 00 80 02 00 ...`, and the splash request is `06 2D 00 08 09 00`. This is the
+documented `.ccd` versus `.cue` trap, and it looked like a finding for one run.
+
+**The committed tool drops the instrument.** `tools/controlcreate.py` starts the port without `--dev`, and the port drops `U2_TRACE_INT` in
+that mode, printing `[dropped, pass --dev: U2_TRACE_INT]` on a line nobody reads when the run is already failing for a different reason. So
+the trace came from a scratch driver that copies the same socket protocol and key route and adds `--dev`.
+
+**What the character screen asks, measured:**
+
+```
+  real-mode int 93h: block 400B94 ds 76CD ss:sp 53C0 target 76CD4 bytes 06 2D 00 08 09 00 ...   (position)
+  real-mode int 93h: block 400B94 ds 76CD ss:sp 50C0 target 76CD4 bytes 00 05 00 00 06 00 00 06 31 00 ...
+  CD-DA 225 to 300 (frame 908) raw 00 05 00 00 06 00 cx FF01
+```
+
+So the request is `00:05:00` to `00:06:00`, a **one-second window five seconds into the disc**, which decodes to `225` to `300` after the
+minus-150 correction. That is inside the data track, so the port's own audio bounds refuse it and the screen is silent. It is also not what
+the original does: there, the same screen plays track 7, `09:50:00` to `11:42:74`.
+
+Two facts about the request are unexplained and both are recorded rather than guessed at. The buffer is **ten** bytes here, not six, and
+the third group is `00 06 31 00`. And the values are one second long, which is not a music range, so either this is a different service
+from the splash's play or the program computed it from a reply the port gave wrongly. The suspect for the second is the table of contents
+header, whose first byte the port sets to `3` and marks *not understood*, because the splash asks for the right track and this screen does
+not.
+
