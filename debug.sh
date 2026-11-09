@@ -31,17 +31,20 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The binary, newest first: a debug build beside the script beats a release one, and a built tree beats nothing.
+# The binary, newest first: a debug build beside the script beats a release one, and a built tree beats nothing. The
+# executable is named after its title (docs/port-structure.md), so `u2` comes first and `u2port` stays because that is
+# what every build before the rename called itself. Without this, a tree holding the new binary and an old one runs the
+# old one and reports the wrong thing, which is exactly the failure this block was written to prevent.
 BIN=""
-for cand in "$HERE/u2port-debug" "$HERE/u2port" "$HERE/build/port/b/u2port"; do
+for cand in "$HERE/u2port-debug" "$HERE/u2" "$HERE/u2port" "$HERE/build/port/b/u2" "$HERE/build/port/b/u2port"; do
 	if [[ -x "$cand" ]]; then
 		BIN="$cand"
 		break
 	fi
 done
 if [[ -z "$BIN" ]]; then
-	echo "debug.sh: no u2port beside $HERE" >&2
-	echo "  expected one of: u2port-debug, u2port, build/port/b/u2port" >&2
+	echo "debug.sh: no port binary beside $HERE" >&2
+	echo "  expected one of: u2port-debug, u2, u2port, build/port/b/u2" >&2
 	exit 2
 fi
 
