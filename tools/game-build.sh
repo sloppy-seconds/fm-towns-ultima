@@ -176,13 +176,13 @@ printf 'FILE "%s" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n' "$DISC
 say "cue       $OUT/disc.cue (track 1 only, resolving to $DISC_IMG)"
 
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" \
-	-DFMT_RUNTIME="$KIT/runtime" -DU2_FOREIGN_MODULE=ON > "$OUT/cmake.log" 2>&1
+	-DFMT_RUNTIME="$KIT/runtime" -DU2_FOREIGN_MODULE=ON -DPORT_TARGET="${GAME_ID}port" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
 	tail -20 "$OUT/build.log" >&2
 	exit 1
 }
-say "built     $OUT/b/u2port"
+say "built     $OUT/b/${GAME_ID}port"
 
 [[ $NO_RUN -eq 1 ]] && { say "run       skipped (--no-run). Everything is under $OUT."; exit 0; }
 
@@ -195,8 +195,12 @@ if [[ -n "$SAVE_DISK" && -f "$ROOT/$SAVE_DISK" ]]; then
 	FLOPPY="$ROOT/$SAVE_DISK"
 	say "floppy    $FLOPPY"
 fi
-# The binary is named after the title (plan item U3-6a). Until that rename lands, every build of the port calls
-# itself u2port, which is why the name is looked for rather than assumed.
+# The binary is named after the title (plan item U3-6a): the module is compiled in, so one binary per title is
+# the shape and the names have to differ. The variable is passed rather than derived, and the file is checked
+# because a build that silently produced the default name is exactly the failure the item exists to stop.
 PORT_BIN="$OUT/b/${GAME_ID}port"
-[[ -x "$PORT_BIN" ]] || PORT_BIN="$OUT/b/u2port"
+if [[ ! -x "$PORT_BIN" ]]; then
+	echo "no $PORT_BIN, so the build did not honour -DPORT_TARGET=${GAME_ID}port" >&2
+	exit 1
+fi
 "$PORT_BIN" --graphics=none --frames="$FRAMES" "$ROOT/$GAME" "$OUT/TBIOS.BIN" "$OUT/disc.cue" $FLOPPY

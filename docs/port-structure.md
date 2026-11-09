@@ -44,7 +44,7 @@ difference in one 44 KB region. Seven ids is the right table size, but the demos
 | the title's executable and entry | `tools/games.js` | done |
 | the build stage | `build/<id>/` | done for `u3`, `u2` still uses `build/port/` |
 | the committed module | `module/<id>/` | not done, `module/` is U2's today |
-| the binary | `<id>port`, via a CMake `PORT_TARGET` cache variable | not done, everything is `u2port` today |
+| the binary | `<id>port`, via a CMake `PORT_TARGET` cache variable | done: `u3` builds `u3port`, `u2` still builds `u2port` |
 | measured seeds | `tools/seeds/<id>.txt` | partly: `tools/u3-seeds.txt` and `tools/runtime-seeds.txt` |
 | extracted asset output | `extracted/<id>/` | not done, `extracted/u2` and `extracted/GRAPH` coexist |
 | the save disk | `saves/<id>-test.hdm` | partly: `saves/u3test.hdm` |

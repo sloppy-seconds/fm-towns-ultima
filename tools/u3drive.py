@@ -79,7 +79,7 @@ def main():
     ap.add_argument("--frames", type=int, default=None, help="total frames to run, default: last key + settle")
     ap.add_argument("--settle", type=int, default=60, help="frames to run past the last key")
     ap.add_argument("--out", default=os.path.join(ROOT, "analysis", "u3drive"))
-    ap.add_argument("--bin", default=os.path.join(ROOT, "build", "u3", "b", "u2port"))
+    ap.add_argument("--bin", default=os.path.join(ROOT, "build", "u3", "b", "u3port"))
     ap.add_argument("--exp", default=os.path.join(ROOT, "EXODUS.EXP"))
     ap.add_argument("--tbios", default=os.path.join(ROOT, "build", "u3", "TBIOS.BIN"))
     ap.add_argument("--cue", default=os.path.join(ROOT, "build", "u3", "disc.cue"))

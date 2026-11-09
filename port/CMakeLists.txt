@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
-project(u2port CXX)
+# THE EXECUTABLE IS NAMED AFTER THE TITLE IT RUNS (docs/recompile-ultima3-plan.md, item U3-6a, and
+# docs/port-structure.md). Seven titles are in scope and the module is compiled in, so one binary per title is the
+# shape, which means the names have to differ: two releases, two play.sh trees, or one folder holding both
+# binaries collide otherwise. The default is u2port, so Ultima II's build, its release asset name, the gate that
+# reads build/port/b/u2port and every doc that says u2port are unchanged by this variable existing. A build for
+# another title passes -DPORT_TARGET=<id>port, which is what tools/game-build.sh does.
+set(PORT_TARGET u2port CACHE STRING "name of the executable this build produces")
+project(${PORT_TARGET} CXX)
 set(CMAKE_CXX_STANDARD 20)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -29,7 +36,7 @@ include(${FMT_RUNTIME}/towns.cmake)
 option(U2_TRACE "record execution for differential debugging" OFF)
 if(U2_TRACE)
   add_compile_definitions(X86_TRACE_ON)
-  message(STATUS "u2port: instruction tracing on")
+  message(STATUS "${PORT_TARGET}: instruction tracing on")
 endif()
 
 # Compiles the shadows with a deliberate error, so tools/shadow-diff.py can prove its comparison has teeth. Never on
@@ -37,7 +44,7 @@ endif()
 option(U2_SHADOW_WRONG "compile the native shadows with a deliberate error" OFF)
 if(U2_SHADOW_WRONG)
   add_compile_definitions(U2_SHADOW_WRONG)
-  message(STATUS "u2port: native shadows are DELIBERATELY WRONG, for gate testing only")
+  message(STATUS "${PORT_TARGET}: native shadows are DELIBERATELY WRONG, for gate testing only")
 endif()
 
 # The module list is port/modules.cpp rather than ${RECOMP_DIR}/modules.cpp on purpose. x86_lookup_cs() walks the
@@ -66,7 +73,7 @@ add_custom_command(
 # The licence texts, embedded for the same reason and with a sharper edge. SDL3 and fmtownskit are linked statically into
 # this binary, and both of their licences require the notice to travel with the copy. Shipping them as files beside the
 # binary works until somebody copies only the binary, which is exactly what a single-file release invites. Embedded, the
-# notice cannot be separated from the thing it applies to, and `u2port --licences` prints it. Same generator, so there is
+# notice cannot be separated from the thing it applies to, and `<binary> --licences` prints it. Same generator, so there is
 # one way of turning a file into a compiled-in array rather than two.
 set(EMBEDDED_LICENCES "")
 foreach(pair "LICENSE:g_licence_mit" "fmtownskit/LICENSE:g_licence_fmtownskit" "LICENSE.SDL3:g_licence_sdl3"
@@ -86,14 +93,14 @@ foreach(pair "LICENSE:g_licence_mit" "fmtownskit/LICENSE:g_licence_fmtownskit" "
   list(APPEND EMBEDDED_LICENCES ${out})
 endforeach()
 
-add_executable(u2port main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM} ${EMBEDDED_LICENCES})
+add_executable(${PORT_TARGET} main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM} ${EMBEDDED_LICENCES})
 # The no-game CI check generates its module from 4 KB of zero fill, so the functions the native shadows name do not
 # exist there and the table cannot name them. Shadows are game-specific by construction, so that build compiles an
 # empty manifest instead of the real one. It is an option rather than a guess at the module's contents because the
 # check is meant to prove one thing, that the port links with no game present, and to fail for its own reasons.
 option(U2_SYNTHETIC_MODULE "build against a module generated from zero fill, with no native shadows" OFF)
 if(U2_SYNTHETIC_MODULE)
-  target_compile_definitions(u2port PRIVATE U2_NO_SHADOWS)
+  target_compile_definitions(${PORT_TARGET} PRIVATE U2_NO_SHADOWS)
 endif()
 # A MODULE FROM ANOTHER TITLE. port/native_shadows.cpp is a list of replacements for named routines of
 # ENCHANT.EXP, so every entry names a function that exists in that module and in no other. Against a module
@@ -102,39 +109,39 @@ endif()
 # deleting the file, and tools/u3-build.sh sets it.
 option(U2_FOREIGN_MODULE "the module is not ENCHANT.EXP, so U2's native shadows do not apply" OFF)
 if(U2_FOREIGN_MODULE)
-  target_compile_definitions(u2port PRIVATE U2_NO_SHADOWS)
-  message(STATUS "u2port: module is from another title, native shadows disabled")
+  target_compile_definitions(${PORT_TARGET} PRIVATE U2_NO_SHADOWS)
+  message(STATUS "${PORT_TARGET}: module is from another title, native shadows disabled")
 endif()
 # RECOMP_DIR is on the include path for p_game_funcs.h, which native_shadows.cpp needs to name the recompiled
 # twin when U2_SHADOW_OFF gives the baseline. It is a generated header, but the module is always linked, so the
 # symbol always exists; tools/portcheck.js asserts the address is still declared there.
-target_include_directories(u2port PRIVATE ${RECOMP_DIR})
-target_link_libraries(u2port game_recomp fmt_towns)
+target_include_directories(${PORT_TARGET} PRIVATE ${RECOMP_DIR})
+target_link_libraries(${PORT_TARGET} game_recomp fmt_towns)
 
 # A WINDOWS BUILD HAS TO CARRY ITS RUNTIME, because mingw's would otherwise be two DLLs nobody has. The first cross
 # build imported libgcc_s_seh-1.dll and libstdc++-6.dll, which is the same defect as a binary that needs libSDL3: it
 # looks self-contained and is not. Static linking here matches what SDL already does on every platform, so the
 # artefact is one file.
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_link_options(u2port PRIVATE -static -static-libgcc -static-libstdc++)
+  target_link_options(${PORT_TARGET} PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 if(TARGET fmt_towns_sdl)
-  target_link_libraries(u2port fmt_towns_sdl)
+  target_link_libraries(${PORT_TARGET} fmt_towns_sdl)
 endif()
 
 # Which SDL the kit found, said out loud because the release artefact's portability depends on the answer. The kit
 # prefers SDL3::SDL3-static when the config package provides it, which is what tools/sdl-from-source.sh builds.
 if(TARGET SDL3::SDL3-static)
-  message(STATUS "u2port: SDL3 static archive, no libSDL3 runtime dependency")
+  message(STATUS "${PORT_TARGET}: SDL3 static archive, no libSDL3 runtime dependency")
 elseif(TARGET SDL3::SDL3)
-  message(STATUS "u2port: SDL3 shared library, the binary needs libSDL3 installed")
+  message(STATUS "${PORT_TARGET}: SDL3 shared library, the binary needs libSDL3 installed")
 else()
-  message(STATUS "u2port: no SDL3 found, built without the window front-end")
+  message(STATUS "${PORT_TARGET}: no SDL3 found, built without the window front-end")
 endif()
 
 # A release binary is unpacked wherever the reader puts it, so anything it loads from beside its own file has to be
 # found by relative path rather than by an absolute build directory. $ORIGIN is the binary's own directory, and
 # SDL3/ beside it is where a build that ships loadable backends would put them.
-set_target_properties(u2port PROPERTIES
+set_target_properties(${PORT_TARGET} PROPERTIES
   BUILD_RPATH "$ORIGIN:$ORIGIN/SDL3"
   INSTALL_RPATH "$ORIGIN:$ORIGIN/SDL3")

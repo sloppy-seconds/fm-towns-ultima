@@ -44,7 +44,7 @@ while the document calls it done.
 | U3-4c | OPEN | not attempted |
 | U3-4d | OPEN | not attempted |
 | U3-5a-e | OPEN | blocked behind a playable save disk |
-| U3-6a | OPEN | the binary is `u2port` for every title, which collides at release time |
+| U3-6a | DONE | `PORT_TARGET`, so Ultima III builds `u3port` and Ultima II keeps `u2port` |
 | U3-6b | OPEN | two build scripts, one descriptor table, and the strip arithmetic in both |
 | U3-6c | OPEN | 30+ `U2_*` environment names are shared by U2 and U3 |
 | U3-6d | OPEN | `module/`, `extracted/` and the doc pages do not follow one pattern |
@@ -531,16 +531,28 @@ out, being `P3` and a launcher rather than a title. The conventions and the meas
 
 #### U3-6a. The binary is named after its title
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
-Everything the port builds is called `u2port`, including the one that runs Ultima III. The directories are
+Everything the port built was called `u2port`, including the one that runs Ultima III. The directories are
 separate so nothing collides on disk today, but two releases, two `play.sh`es or one folder holding both
 binaries do collide, and the name is also what `play.sh` looks for and what the release asset is called.
 
 | field | value |
 |---|---|
-| done when | `port/CMakeLists.txt` takes the executable's name from a cache variable defaulting to `u2port`, every target-scoped line uses it, and `tools/game-build.sh u2` produces `u3port` while Ultima II's build still produces `u2port` with its release name, gate and docs unchanged. The failure case: a rename that moves `dist/u2port-linux-x86_64` or the name `tools/checkall.js` checks for |
+| done when | `port/CMakeLists.txt` takes the executable's name from a cache variable defaulting to `u2port`, every target-scoped line uses it, `tools/game-build.sh u3` produces `u3port`, and Ultima II's build still produces `u2port` with its release name, gate and docs unchanged. The failure case: a rename that moves `dist/u2port-linux-x86_64` or the name `tools/checkall.js` checks for |
 | blocked by | nothing |
+
+**What is now known.** `PORT_TARGET` is a cache variable defaulting to `u2port`, `project()` and every
+target-scoped line use it, and the only remaining `u2port` in `port/CMakeLists.txt` is the default in the comment
+that explains it. Verified four ways: configuring with no `PORT_TARGET` yields only a `u2port.dir` target, the
+same configure with `-DPORT_TARGET=u3port` yields only `u3port.dir`, `tools/game-build.sh u3` linked
+`build/u3/b/u3port` and ran 60 frames from it, and `tools/port-build.sh --reuse` rebuilt `build/port/b/u2port`
+which ran 60 frames unchanged. `tools/ci-port-build.sh` now builds its foreign configuration as `u3port` and
+fails if the name did not reach the target, and `tools/u3drive.py` defaults to `build/u3/b/u3port`.
+
+**The done-when was wrong when first written**, saying `tools/game-build.sh u2` produces `u3port`. Nothing
+implements an item literally like that, but a criterion that states the opposite of the intent is how a rename
+gets argued about later, so it was corrected before the work rather than after.
 
 #### U3-6b. One build script, not two
 
