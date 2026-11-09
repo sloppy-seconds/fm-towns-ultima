@@ -663,3 +663,21 @@ The repair follows from that and is testable: write the live range into `[0..5]`
 and end, and the Create Character screen should then ask for a real range instead of `00:05:00`. The risk to check is the splash, which takes
 the fallback branch and must not change.
 
+**Done, and it moved the defect.** `towns_dos.cpp` `case 0x53` now writes the range on both branches. Measured after: Create Character asks
+`06 2D 00 08 09 00`, which is `30225` to `36525`, the same range the menu uses, and the port plays it. The splash is unchanged. So the screen
+has music again and the request is no longer a track number read as a time. It is not track 7, and the reason is now visible.
+
+**The program never fills its own table in this port.** `case 0x50` under `U2_TRACE_INT` now prints the program's track table at
+`prog_base + 0xCE0`, the address the original's watch was armed on. Every play prints 24 zero bytes:
+
+```
+  CD-DA table at 400CE0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  CD-DA 30225 to 36525 (frame 548) raw 06 2D 00 08 09 00 cx FF01
+  CD-DA table at 400CE0: 00 ... (same, at frames 908 and 2129)
+```
+
+So in this port the program's play range is always the one the position service just gave it, at the menu as well as at Create Character. On
+the original the same table is filled at run time, which is why its requests differ by screen. The table of contents the port replies with is
+correct and lands in the program's `0xBA4` buffer through the alias, so what is missing is whatever writes `0xCE0` from that buffer, and that
+writer has still not run in this port.
+

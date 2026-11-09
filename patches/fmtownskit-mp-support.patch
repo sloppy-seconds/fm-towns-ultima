@@ -1031,7 +1031,7 @@ index 4d13162..863dcd4 100644
          for (uint32_t n = 16; n < 32 && read_data(n, pvd); ++n) {
              if (std::memcmp(pvd + 1, "CD001", 5)) break;
 diff --git a/runtime/towns_dos.cpp b/runtime/towns_dos.cpp
-index 629a87e..68898a8 100644
+index 629a87e..1ec5a76 100644
 --- a/runtime/towns_dos.cpp
 +++ b/runtime/towns_dos.cpp
 @@ -35,12 +35,43 @@ static int new_handle(Machine& m) {
@@ -1311,11 +1311,21 @@ index 629a87e..68898a8 100644
          char why[64];
          std::snprintf(why, sizeof why, "int 93h AX=%04Xh: not the CD", eax & 0xFFFF);
          x86_fault(c, c.eip, why);
-@@ -464,7 +646,12 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -464,7 +646,22 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          cd_play(from_msf(p), from_msf(p + 3));
          cd_paused = false;
          cd.repeat = c.r[1] & 0xFF;
 -        if (trace_int) std::fprintf(stderr, "  CD-DA %u to %u (frame %llu)\n", cd.from, cd.to, (unsigned long long)frame);
++        // The program's own track table, which the original builds at linear 0x400CE0 and reads with an immediate DS address at
++        // 0xE08D9 as [edi + edi*2 + 0xCE0]. Printing it beside the request answers whether the program picked a range from its own
++        // table or echoed the one the position service just gave it. That distinction is the whole of the remaining question in
++        // plan item 5p, and it cannot be told from the request alone because both produce a valid-looking range.
++        if (trace_int) {
++            const uint32_t tbl = profile->prog_base + 0xCE0;
++            std::fprintf(stderr, "  CD-DA table at %06X:", tbl);
++            for (int i = 0; i < 24; ++i) std::fprintf(stderr, " %02X", mem_read(tbl + i, 1));
++            std::fprintf(stderr, "\n");
++        }
 +        // The request's six raw bytes as well as the decoded range. A splash that plays music on the original and not here is either
 +        // a request this port never receives or a request it decodes wrongly, and the two are indistinguishable from the decoded
 +        // MSF alone: a range that decodes to zero looks the same whether the argument was zeros or a different encoding entirely.
@@ -1325,7 +1335,7 @@ index 629a87e..68898a8 100644
          return;
      }
      case 0x53: {                                    // where the play is: AL and the buffer
-@@ -475,12 +662,86 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -475,12 +672,86 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          // note) while it plays or is paused, all zero once a track has ended or none played.
          uint8_t p[10] = {};
          uint32_t s = cd_sector();               // (a track that has ended stops here)
@@ -1416,7 +1426,7 @@ index 629a87e..68898a8 100644
          }
          write_block(buf, p, sizeof p);
          ret = (ret & 0xFFFFFF00u) | (cd.playing ? 1 : 0);
-@@ -503,16 +764,50 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -503,16 +774,50 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
          return;
      case 0x54: {                                    // the table of contents
          const auto& t = disc.tracks();
@@ -1472,7 +1482,7 @@ index 629a87e..68898a8 100644
          return;
      }
      default: break;
-@@ -522,20 +817,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
+@@ -522,20 +827,93 @@ void Machine::int93(X86Cpu& c, uint32_t eax, uint32_t& ret, uint32_t buf) {
      x86_fault(c, c.eip, why);
  }
  
