@@ -1836,7 +1836,19 @@ format.
 
 ### 5q. Sound looping: which samples loop, and who decides
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**Resolved 2026-11-09.** The mechanism is re-triggering, not looping. A play session on the original with `TSG_IO_TRACE=1`, a fight then a
+moongate, shows 36 start writes to channel 7, every one `4F6=E0`, each followed by `4F8=7F` to enable it and `4F8=FF` to stop everything.
+So the game writes the start address again for every repetition, and the chip's loop address is never used to loop inside a sample. That
+settles the marker question too: the port's stop-at-marker rule is not what decides how many times a sound is heard.
+
+It also found the real defect. `towns_sound.cpp` reset the channel address on a start write only `if (!c.on)`, so a retrigger arriving while
+the previous sound still played was dropped. A fight sound is one retrigger and was unaffected; a moongate is several in quick succession
+and all but the first were lost, which is the "plays once instead of three times" this port has carried since the sound work began. The
+guard is removed and `tools/portcheck.js` forbids it coming back. Record: `docs/audio-playback.md` 10. What is now known: sound effects are
+software-retriggered on channel 7, start `0xE0`, step `1960` or `1507`, and the on/off byte is `0x7F` then `0xFF`. What is not yet verified:
+that the moongate repeats in the port, which needs the sound played.
 
 | field | value |
 |---|---|

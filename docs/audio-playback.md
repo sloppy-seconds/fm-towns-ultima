@@ -733,3 +733,36 @@ the original the same table is filled at run time, which is why its requests dif
 correct and lands in the program's `0xBA4` buffer through the alias, so what is missing is whatever writes `0xCE0` from that buffer, and that
 writer has still not run in this port.
 
+## 10. Sound effects are re-triggered, not looped (measured 2026-11-09)
+
+Plan item 5q asked which sounds loop and who decides. A full play session on the original with `TSG_IO_TRACE=1`, doing a fight and then
+walking through a moongate, answers it from the register traffic.
+
+**Tried:** reconstruct the RF5C68 sequences from the log. `0x4F7` with bit 6 set selects the channel, then `0x4F0` to `0x4F6` address it, and
+`0x4F8` is the on/off byte. `python3 /var/tmp/pcmseq.py pcmwatch.log` prints one line per start write and one per on/off.
+
+**Measured:** 158 events. Channel 7 takes **36 start writes**, every one of them `4F6=E0`, with loop values that vary per sound and at least
+one of them past the data:
+
+```
+start   7 0xe0 0xe000   1960
+start   7 0xe0 0xfffe   1960
+start   7 0xe0 0xeffe   1507
+start   7 0xe0 0xf000   1960
+```
+
+and the on/off sequence around each is `4F8=7F` (channel 7 enabled, the rest off) followed by `4F8=FF` (all off). Channels 0 to 6 take one
+start write each, which is the channel being set up rather than used.
+
+**Verdict:** the game **re-triggers in software**. Every sound is a start write to channel 7, so a sound that repeats does so because the
+program writes the start address again, not because the chip loops. That also settles the marker question: with no hardware loop in play, the
+port's stop-at-marker rule is not what decides how many times a sound is heard.
+
+**Which exposed the real defect.** `towns_sound.cpp` reset the channel address on a start write only `if (!c.on)`, so a re-trigger that
+arrived while the previous sound was still playing was dropped. A fight sound is one re-trigger and was never affected. A moongate is
+several in quick succession, and all but the first were lost, which is exactly the "plays once instead of three times" this port has carried.
+The guard is gone: a start write resets the address whether or not the channel is enabled. `tools/portcheck.js` forbids the guard coming
+back.
+
+What is still not verified: that the moongate now repeats in the port. That needs the sound played, which means walking through one.
+

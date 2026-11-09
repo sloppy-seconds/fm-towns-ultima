@@ -2012,7 +2012,7 @@ index 2a0e2eb..fd40ebb 100644
      struct Impl;
      std::unique_ptr<Impl> p_;
 diff --git a/runtime/towns_sound.cpp b/runtime/towns_sound.cpp
-index 00cbbf0..7a84267 100644
+index 00cbbf0..02a95c8 100644
 --- a/runtime/towns_sound.cpp
 +++ b/runtime/towns_sound.cpp
 @@ -52,7 +52,16 @@ struct Stream {
@@ -2338,16 +2338,25 @@ index 00cbbf0..7a84267 100644
      case 0x4EC: return;             // LED, mute
      case 0x4F0: case 0x4F1: case 0x4F2: case 0x4F3: case 0x4F4: case 0x4F5: case 0x4F6: {
          PcmChannel& c = s.pcm[s.cbank];
-@@ -265,7 +428,7 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -265,7 +428,16 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          case 3: c.step = (uint16_t)((c.step & 0x00FF) | (d << 8)); break;
          case 4: c.loopst = (uint16_t)((c.loopst & 0xFF00) | d); break;
          case 5: c.loopst = (uint16_t)((c.loopst & 0x00FF) | (d << 8)); break;
 -        case 6: c.start = d; if (!c.on) c.addr = (uint32_t)c.start << (8 + 11); break;
-+        case 6: c.start = d; c.wraps = 0; if (!c.on) c.addr = (uint32_t)c.start << (8 + 11); break;
++        case 6:
++            // A START WRITE RESETS THE ADDRESS, whether or not the channel is enabled. The old guard here was `if (!c.on)`, which dropped every
++            // retrigger that arrived while the previous sound was still playing. Measured 2026-11-09 on the original with TSG_IO_TRACE: channel 7
++            // takes 36 start writes, all `4F6=E0`, so a sound effect is re-triggered in software rather than looped in hardware, and a sound the
++            // game plays several times in quick succession lost all but the first (plan item 5q). The fight sound is one retrigger and was never
++            // affected, which is why only the moongate played once.
++            c.start = d;
++            c.wraps = 0;
++            c.addr = (uint32_t)c.start << (8 + 11);
++            break;
          }
          return;
      }
-@@ -276,8 +439,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -276,8 +448,11 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
          return;
      case 0x4F8:
          sound.pcm_onoff = d;
@@ -2359,7 +2368,7 @@ index 00cbbf0..7a84267 100644
              if (!s.pcm[i].on) s.pcm[i].addr = (uint32_t)s.pcm[i].start << (8 + 11);
          }
          return;
-@@ -288,6 +454,23 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
+@@ -288,6 +463,23 @@ void Machine::sound_out8(uint32_t port, uint8_t d) {
  // ---- the mix ---------------------------------------------------------------------------------
  void Machine::audio_take(std::vector<int16_t>& out) {
      SoundChips& s = *chips;

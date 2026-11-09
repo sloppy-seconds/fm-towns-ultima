@@ -543,5 +543,14 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	forbidText(dos, 'to_msf_bcd', 'the table of contents stays binary, which is what the program copies');
 }
 
+// THE SOUND-EFFECT RETRIGGER, measured 2026-11-09 (docs/audio-playback.md 10, plan item 5q). The original re-triggers every sound effect
+// with a start write to channel 7 rather than looping in hardware, and a start write resets the channel address whether or not the channel
+// is enabled. Guarding that reset on the channel being off dropped every retrigger that arrived during playback, which is why a moongate
+// played once where the original plays it several times.
+{
+	const snd = stripComments(read('fmtownskit/runtime/towns_sound.cpp'));
+	forbidText(snd, 'if (!c.on) c.addr', 'a start write resets the address even while the channel is on');
+}
+
 console.log(failures ? 'portcheck: ' + failures + ' failed' : 'portcheck: ' + checks + ' checks pass');
 process.exit(failures ? 1 : 0);
