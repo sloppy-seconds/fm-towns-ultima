@@ -48,6 +48,7 @@ that the port links, which is `ci-port-build.sh`.
 | `msgtable.js` | Tests whether register-supplied string arguments come from constant-address loads. Found zero, which is a real negative. |
 | `structmap.js` | Enumerates the fields of a strided array, searching both `[reg+disp32]` and `[base+index+disp]` encodings. The second form is what made the object array readable. |
 | `sndparse.js` | Establishes the `.SND` header layouts. Offset 12 equals `filesize - 32` in 15 of 15 files. |
+| `sndff.py` | Counts `0xFF` bytes inside each `.SND` payload over its declared length. That count is the answer to plan item 5o: thirteen of fifteen payloads contain `0xFF` as waveform data and the only two that do not, `BUMP` and `FIRE`, are the ones that play to the end, so the port's end-marker rule is what truncates the rest. Asserted in `tools/verify.js`. |
 | `sndrate.js` | Tests whether the `1960` rate field can be a frequency, by computing effect durations. |
 | `fontsheet.js` | Tests whether a greyscale PNG is a character sheet, by gutter and periodicity analysis. |
 | `fontgrid.js` | Finds the cell grid in a character sheet, and prints a coarse ASCII view. Used to rule out `GAI.TIF` as a font. |

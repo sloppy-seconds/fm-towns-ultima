@@ -682,6 +682,9 @@ The ranges are identical, and they are the original's own numbers. Then the subs
 ranges, byte for byte. So the substitution had been answering **for** the program since the buffer was never mapped, and with that fixed it
 is dead code. `U2_CD_NOFALLBACK` is gone with it.
 
+**Heard, not just measured.** Paul listened to the port on 2026-11-09 and confirmed the title music and the Create Character music both play.
+That is the oracle for this: the requests matching the original's is the evidence, and hearing the music is the confirmation.
+
 **What is now known.** The CD contract this program uses is four services on `Int 93h` with `AL=0xC0` and the function in `AH`: `0x50` play,
 `0x52` stop, `0x53` position, `0x54` table of contents, with `0x55` pause and `0x56` resume. The buffers are binary MSF pairs counting the
 2-second lead-in, reached through the `2511h` real-mode window. The program derives its play range from the table of contents reply, which

@@ -1869,7 +1869,15 @@ Full record in `docs/interrupts.md`.
 
 ### 5o. Some samples are cut off at the end marker
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**Resolved 2026-11-09.** The first explanation holds: the samples contain `0xFF` as waveform data, so the marker rule truncates them at the
+first such byte, and nothing is wrong with the wave indexing. Measured over every `.SND` payload inside its declared length, thirteen of
+the fifteen contain `0xFF` and the only two that do not are `BUMP` and `FIRE`, which are exactly the ones that play to the end. `MAGIC3`
+stops 44 bytes into 16,418. Record and table: `docs/sound.md`. Asserted in `tools/verify.js`, and scanned by `tools/sndff.py`. What is now
+known: the length to play is the header's at offset 12, the marker rule and that length are not the same number, and a sample with an
+early `0xFF` is cut short by design rather than by a decoding fault. Left open deliberately: whether a looping effect and a one-shot need
+different rules, which is a playback question and not a measurement.
 
 | field | value |
 |---|---|

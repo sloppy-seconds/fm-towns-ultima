@@ -84,6 +84,36 @@ No `0xFF 0xEx` sync anywhere.
 `DEATH`, `DUNGEON`, `TIME`, `CNFLCT`, `DEVIL`, `LCN`, `MONTOR_E`, `MONTOR_W`)
 for Ultima III's towns. *Format open.*
 
+## The 0xFF end marker truncates the samples that contain it (2026-11-09)
+
+The port's RF5C68 channel stops at the first `0xFF` in wave RAM, which is what makes a looping sound effect end. Plan item 5o asked
+whether the truncated samples, a moongate for instance, hold `0xFF` as waveform data or whether the port reads the wrong place and finds a
+`0xFF` the sample does not have.
+
+**Tried:** every `.SND` payload counted for `0xFF`, over the declared length at offset 12, which equals `filesize - 32` for all 15 files
+(`tools/verify.js` asserts that separately). The scan is `python3 tools/sndff.py /var/tmp/snd`, over files written by
+`node tools/getfile.js`.
+
+**Measured:**
+
+| file | payload | `0xFF` bytes | first at |
+|---|---|---|---|
+| `BUMP` | 2,816 | **0** | - |
+| `FIRE` | 1,103 | **0** | - |
+| `MAGIC3` | 16,418 | 3,446 | 44 |
+| `BOMB2` | 5,251 | 319 | 64 |
+| `MAGIC2` | 58,535 | 3,927 | 123 |
+| `KATANA1` | 6,381 | 433 | 122 |
+| the other eight | - | 59 to 2,220 | 96 to 2,223 |
+
+Thirteen of the fifteen contain `0xFF` inside their own declared data, and the only two that do not are `BUMP` and `FIRE`, which are
+exactly the ones that play to the end.
+
+**Verdict:** POSITIVE for the first explanation. The samples hold `0xFF` as waveform data, so the marker rule truncates them at the first
+such byte, and `MAGIC3` would stop 44 bytes into 16,418. Nothing is wrong with the wave indexing. The length to play is the header's at
+offset 12, and the marker rule and it are not the same number. What that means for playback, and whether a looping effect and a one-shot
+need different rules, is a separate question and is not settled here.
+
 ---
 
 ---

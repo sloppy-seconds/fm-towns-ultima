@@ -690,6 +690,25 @@ for (const n of SND) {
 }
 eq('.SND files satisfying size == 32+len@12', sndOk, 15);
 
+// THE 0xFF MARKER RULE, and its cost (plan item 5o, docs/sound.md). The port's RF5C68 channel stops at the first 0xFF in wave RAM,
+// which is what makes a looping sound effect end. The question was whether the truncated samples hold 0xFF as waveform data or whether
+// the port reads the wrong place. Counting 0xFF inside the declared payload answers it: thirteen of fifteen contain it, and exactly the
+// two that do not, BUMP and FIRE, are the ones that play to the end. Both numbers are asserted, so a change to either is noticed.
+{
+	let withFF = 0;
+	for (const n of SND) {
+		const e = cat.get('SOUND/' + n + '.SND');
+		if (!e) continue;
+		const buf = disc.read(e.lba, e.size);
+		const body = buf.subarray(32, 32 + buf.readUInt32LE(12));
+		let n_ff = 0;
+		for (const c of body) if (c === 0xFF) n_ff++;
+		if (n_ff > 0) withFF++;
+		if (n === 'BUMP' || n === 'FIRE') eq('.SND holds no 0xFF as data: ' + n, n_ff, 0);
+	}
+	eq('.SND payloads containing 0xFF as waveform data', withFF, 13);
+}
+
 // .EUP are sound driver tables, not colour data. Check the internal names.
 {
 	const e = cat.get('SOUND/DUNGEON.EUP');
