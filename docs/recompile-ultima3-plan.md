@@ -188,7 +188,7 @@ number quoted from a page instead of measured.
 
 #### U3-0a. Assert the container and the entry in a gate
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 The measurements above exist in prose and in a `/var/tmp` directory. Prose is not a check. This item
 turns them into assertions.
@@ -198,9 +198,14 @@ turns them into assertions.
 | done when | `tools/verify.js` reads `EXODUS.EXP` from the disc through `tools/cd.js` and asserts the size is 904,310, the signature is `MP`, `(pages - 1) * 512 + lastPage` equals the size, `relocCount` is 0, `headerSize` is `0x1e`, and the dword at `0x14` is `0x0d8ab0`. The failure case: a check that reads a copy under `/var/tmp` or a header dumped by hand, which would pass on a different rip |
 | blocked by | nothing |
 
+**What is now known.** Nine assertions, all reading the disc, plus one that compares the two binaries:
+the 64 bytes before each entry are byte-identical, so the entry sits at the same relative offset in the
+same High C runtime block. Two of the checks are controls, and both were watched failing: the size
+changed by one byte, and the entry read as a file offset is `02 03`, not a jump.
+
 #### U3-0b. One command that recompiles Ultima III
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 `tools/port-build.sh` is Ultima II's: it hardcodes `ENCHANT.EXP`, takes its seeds from
 `tools/seeds.js`, its ranges from `tools/codelimits.js` and its entry as `0x101a20`. Four U2 values, one
@@ -212,11 +217,19 @@ builds from drifting apart.
 | done when | one command strips `EXODUS.EXP`, runs the recompiler with the entry seed and the U3 seed set, and prints the function, instruction and byte counts as a regression line. A second run reproduces them exactly. The failure case: a script that hardcodes the counts it prints, or two scripts that each own half the strip arithmetic |
 | blocked by | U3-0a, for the entry value it uses |
 
+**What is now known.** `tools/u3-build.sh` does the whole build in one command and prints one
+machine-comparable line, `counts    functions=860 instructions=45443 bytes=148461 ...`. Two recompiler
+runs into different directories produce identical counts, so the line is a regression figure rather
+than a description. The script owns the strip, the frame shift, the seed derivation, the ranges and the
+key together, checks the strip is exactly `0x200` bytes and that the entry field lands on `eb 56`, and
+refuses to continue if either fails. `tools/seeds.js` gained `--shift 0x200` rather than the script
+converting 583 values in shell.
+
 ### Phase 1. A module that builds and a machine that reaches it
 
 #### U3-1a. Compile the module in CI
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 The compile is measured. What is missing is the harness that keeps it true, in the shape
 `.github/workflows/port-build.yml` already uses for U2: no game file present, a synthetic image
@@ -227,9 +240,16 @@ recompiled and linked.
 | done when | a workflow compiles a U3 module from a synthetic image and links it against `fmt_towns`, and fails when the recompiler emits a source that does not compile. The failure case: a job that builds U2 by accident, which is why it must name the game |
 | blocked by | U3-0b |
 
+**What is now known.** `tools/ci-port-build.sh` now builds **two** configurations from the same synthetic
+module: Ultima II's, with the native shadows, and the one a second title uses
+(`-DU2_FOREIGN_MODULE=ON`, an empty shadow manifest). It also asserts that `tools/u3-build.sh` exits
+non-zero when its game file is absent, so the U3 route cannot build a module from whatever is lying
+around. The existing workflow job runs all of it, so CI covers the U3 configuration without a second
+workflow to drift.
+
 #### U3-1b. The title screen, drawn by the port
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** DONE · **Autonomy:** PARTLY AUTONOMOUS
 
 The first real milestone and the one that answers every structural question at once: does the machine
 hand the program what the original's loader did, does the video path work, does the palette lookup
@@ -239,6 +259,22 @@ find the same table, does the start-up stub get past its `int 21h` checks.
 |---|---|
 | done when | `port/main.cpp`'s U3 counterpart maps `EXODUS.EXP` at the measured base, sets the measured selectors and `ESP`, calls `0x0d8ab0`, and the frame captured with `shot` matches the machine's title screen. If the machine comparison is not available yet, the criterion is a captured frame with the title art legible and a written record of which pixels were compared. The failure case: a port that stops on a trap, where the trap address, the module it looked in and the function it wanted are all recorded rather than worked around |
 | blocked by | U3-2a for the base and selectors. It can proceed with chosen values, and then the choice must be said out loud |
+
+**What is now known.** The port boots `EXODUS.EXP`, reads the disc, opens the floppy, composes the kanji
+font from `\UTFONT.FNT` and runs. At frame 200 the captured frame is the Ultima III title: a visual
+read of the PNG reported the dragon artwork, `Ultima III - EXODUS -` and `FUJITSU`. Frames 400 and 800
+are the same screen animating, with no fault, so the attract loop is stable and the game is waiting for
+a key.
+
+Three things had to be true and all three were assumed rather than measured, which is why 2a is still
+open: the load base `0x400000`, CS `0x000c` and DS/ES/SS `0x0014` are Ultima II's. They work, and
+"they work" is not the same claim as "they are what the original used". The stack pointer is no longer
+assumed: `port/main.cpp` reads it from the `MP` header at `0x0e`, which is `0x000f5a78` for `EXODUS.EXP`
+and `0x11eb10` for `ENCHANT.EXP`, the value a live `STA` reported there.
+
+One measured seed was needed to get past frame 95: `0xbc14c`, reached through `call dword ptr [0xb3178]`
+whose slot is zero in the image and written at run time. It is in `tools/u3-seeds.txt` with the fault
+that produced it.
 
 ### Phase 2. The numbers that are the machine's, not the game's
 

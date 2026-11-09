@@ -34,6 +34,12 @@
 //   node tools/seeds.js --bin EXODUS.EXP --emit  the seed list, comma separated, one line
 //   node tools/seeds.js --bin DARKNESS.EXP --json
 //
+//   --shift 0x200   emit in a frame 0x200 lower, which is the frame `python -m fmtownskit.recomp --raw`
+//                   and the port use: runtime address = file offset - 0x200. Added 2026-11-10 because
+//                   Ultima III's build needed it and a hand-written loop over 583 values in a shell script
+//                   is exactly the kind of arithmetic AGENTS.md says belongs in one tool. Seeds that would
+//                   go negative are dropped and counted, never quietly turned into address 0.
+//
 // Exit status 1 if no candidate survives, because an empty seed set would make a walk that
 // reaches nothing look like a walk that found nothing to reach.
 
@@ -249,7 +255,19 @@ function main() {
 		return 0;
 	}
 	if (argv.includes('--emit')) {
-		console.log(out.map((a) => '0x' + a.toString(16)).join(','));
+		// --shift moves the whole set into a lower frame, dropping what would go negative.
+		const shiftIdx = argv.indexOf('--shift');
+		const shift = shiftIdx >= 0 ? parseInt(argv[shiftIdx + 1], 16) : 0;
+		let dropped = 0;
+		const shifted = out
+			.map((a) => (shift ? a - shift : a))
+			.filter((a) => {
+				if (a >= 0) return true;
+				dropped++;
+				return false;
+			});
+		if (shift > 0 && dropped) console.error('--shift 0x' + shift.toString(16) + ': dropped ' + dropped + ' seed(s) that would be negative');
+		console.log(shifted.map((a) => '0x' + a.toString(16)).join(','));
 		return 0;
 	}
 

@@ -755,9 +755,20 @@ int main(int argc, char **argv) {
 	// 000C:101A20 fires, and the program's own heap base (DS:0xDFD08) is that same number, so it is the value
 	// the loader hands over. The older 0x11EAC8 was 0x48 lower, which put the heap base and every pointer it
 	// returned 0x48 below the machine's, and the allocator then failed on its 28th allocation.
-	const uint32_t STACK =
-		std::getenv("U2_STACK") ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16) : 0x11EB10;
-
+	// ESP AT THE ENTRY IS THE HEADER'S TOO, at offset 0x0e. For ENCHANT.EXP the field is 0x11EB10, which is the
+	// same number STA reports when a breakpoint on 000C:101A20 fires, so the field and the machine agree on the
+	// title it was measured on. That agreement is what makes it usable for a second title rather than assumed:
+	// EXODUS.EXP's field is 0x000F5A78, above its 0x200-stripped image and inside the machine's RAM, and no live
+	// reading of Ultima III's hand-off exists yet (docs/recompile-ultima3-plan.md, item U3-2a). A field that is
+	// not plausible falls back to the measured value rather than to zero, so a misread header cannot silently
+	// put the stack inside the program's own image.
+	const uint32_t HEADER_STACK = (uint32_t)file[0x0e] | ((uint32_t)file[0x0f] << 8) |
+								  ((uint32_t)file[0x10] << 16) | ((uint32_t)file[0x11] << 24);
+	const uint32_t STACK_FROM_HEADER =
+		(HEADER_STACK > image_size && HEADER_STACK < 0x800000) ? HEADER_STACK : 0x11EB10;
+	const uint32_t STACK = std::getenv("U2_STACK")
+							   ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16)
+							   : STACK_FROM_HEADER;
 	towns::Machine m;
 	// The profile's program base and physical base are the kit's own ports: 0x200000 linear and 0x49000
 	// physical. This program is at linear 0x400000, measured, and its pages sit at physical 0x76000, which is

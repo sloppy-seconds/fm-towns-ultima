@@ -11,8 +11,10 @@
 # that reason, and the workflow reuses the image the project already ships rather than fighting the runner's apt.
 #
 # WHAT A GREEN TICK MEANS: the kit pin and its mirror patch agree, the port links against a fresh recompiler
-# output, and every check in `tools/checkall.js` that does not need the disc passes. The disc checks skip
-# themselves and print how many, which is the honest shape rather than a silent pass.
+# output in both configurations (Ultima II's, with its native shadows, and a foreign module's, which is what
+# tools/u3-build.sh builds), the U3 build refuses to run with no binary to check, and every check in
+# `tools/checkall.js` that does not need the disc passes. The disc checks skip themselves and print how many,
+# which is the honest shape rather than a silent pass.
 name: Port builds without the game
 
 on:

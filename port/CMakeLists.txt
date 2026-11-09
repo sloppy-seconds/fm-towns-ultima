@@ -95,6 +95,16 @@ option(U2_SYNTHETIC_MODULE "build against a module generated from zero fill, wit
 if(U2_SYNTHETIC_MODULE)
   target_compile_definitions(u2port PRIVATE U2_NO_SHADOWS)
 endif()
+# A MODULE FROM ANOTHER TITLE. port/native_shadows.cpp is a list of replacements for named routines of
+# ENCHANT.EXP, so every entry names a function that exists in that module and in no other. Against a module
+# recompiled from EXODUS.EXP the compile stops at the first `f_000e6858 is not a member of p_game`, which is the
+# gate doing its job. This option is how a second title builds with an empty shadow manifest rather than by
+# deleting the file, and tools/u3-build.sh sets it.
+option(U2_FOREIGN_MODULE "the module is not ENCHANT.EXP, so U2's native shadows do not apply" OFF)
+if(U2_FOREIGN_MODULE)
+  target_compile_definitions(u2port PRIVATE U2_NO_SHADOWS)
+  message(STATUS "u2port: module is from another title, native shadows disabled")
+endif()
 # RECOMP_DIR is on the include path for p_game_funcs.h, which native_shadows.cpp needs to name the recompiled
 # twin when U2_SHADOW_OFF gives the baseline. It is a generated header, but the module is always linked, so the
 # symbol always exists; tools/portcheck.js asserts the address is still declared there.

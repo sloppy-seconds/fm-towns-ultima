@@ -71,9 +71,38 @@ cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	tail -30 "$OUT/build.log" >&2
 	exit 1
 }
-if [[ ! -x "$OUT/b/u2port" ]]; then
+if [[ ! -f "$OUT/b/u2port" ]]; then
 	echo "no u2port at $OUT/b/u2port" >&2
 	exit 1
 fi
 echo "linked      $OUT/b/u2port ($(stat -c %s "$OUT/b/u2port") bytes)"
-echo "the port links with no game present. It does not play, and nothing in CI can make it play."
+
+# THE SAME MODULE, BUILT THE WAY A SECOND TITLE BUILDS IT. `-DU2_FOREIGN_MODULE=ON` is what tools/u3-build.sh passes:
+# it compiles port/native_shadows.cpp with an empty manifest, because every entry in the real one names a function of
+# ENCHANT.EXP and a module from another title has none of them. That failure is the gate doing its job, and this step
+# is what proves the option does its own job. It is a link check and nothing more: no game is played, no disc is read.
+cmake -S "$ROOT/port" -B "$OUT/b-foreign" -DCMAKE_BUILD_TYPE=Release \
+	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
+	-DU2_FOREIGN_MODULE=ON > "$OUT/cmake-foreign.log" 2>&1 || {
+	echo "the foreign-module configure failed, last lines of $OUT/cmake-foreign.log:" >&2
+	tail -20 "$OUT/cmake-foreign.log" >&2
+	exit 1
+}
+cmake --build "$OUT/b-foreign" -j"$(nproc)" > "$OUT/build-foreign.log" 2>&1 || {
+	echo "the foreign-module build failed, last lines of $OUT/build-foreign.log:" >&2
+	tail -30 "$OUT/build-foreign.log" >&2
+	exit 1
+}
+echo "linked      $OUT/b-foreign/u2port, with no native shadows (the configuration a second title uses)"
+
+# AND THE U3 BUILD MUST REFUSE TO RUN WITHOUT ITS OWN BINARY. tools/u3-build.sh extracts EXODUS.EXP from the disc and
+# checks that the entry field lands on the start-up stub; with no disc and no binary there is nothing to check, so it
+# must stop with a message rather than build a module from whatever is lying around. Pointed at a file that does not
+# exist, which is the state a fresh clone is in.
+if U3_GAME=no-such-game.EXP "$ROOT/tools/u3-build.sh" --no-run --quiet > "$OUT/u3-refusal.log" 2>&1; then
+	echo "tools/u3-build.sh exited 0 with no game file present, so it built something out of nothing" >&2
+	exit 1
+fi
+echo "refused     tools/u3-build.sh with no EXODUS.EXP present, as it must"
+
+echo "the port links with no game present, in both configurations. It does not play, and nothing in CI can make it play."

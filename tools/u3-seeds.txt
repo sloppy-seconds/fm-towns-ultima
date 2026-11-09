@@ -1,0 +1,23 @@
+# Function entries in EXODUS.EXP that no static rule finds, measured by running the port.
+#
+# Format: one guest address per line, hex, `#` starts a comment. Guest address means the runtime frame:
+# file offset minus 0x200, which is what the recompiled module is keyed by and what `tools/u3-build.sh`
+# hands the recompiler. tools/seeds.js emits the same frame with `--shift 0x200`.
+#
+# These are not guesses. Each line was produced by one of two things and the source is named beside it:
+#
+#   port     the port stopped with `no recompiled function at <addr>`, which is the machine's own statement
+#            that the program transferred there, and the bytes at that address were then read back to
+#            confirm they are code
+#   live     read off the running game on the Tsugaru machine, the way tools/runtime-seeds.txt was
+#
+# Why they exist at all: the game installs function pointers into its own data segment at start-up, so
+# `call dword ptr [0xb3178]` has no static target. The slot is zero in the image and holds a code address
+# only once the program has written it. That is the same shape as Ultima II's timer handler, and the same
+# remedy: the address is measured rather than derived.
+
+# port, frame 95: reached through `call dword ptr [0xb3178]` at guest 0xd4ef3, with the target pushed as
+# an immediate at guest 0xbecdf (`68 4c c1 0b 00`). The function has no `55 8b ec` prologue, which is why
+# the callback rule in tools/seeds.js (prologue only) does not find it. It starts `ff 05 10 69 04 00`, an
+# increment of a static counter, preceded by a `ret` and the two-byte nop.
+0xbc14c
