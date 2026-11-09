@@ -436,6 +436,33 @@ following it back needs a different method than the one this page proposed.
 The plan's acceptance criterion is "to-hit and damage stated exactly, and marked read-versus-verified".
 Neither is satisfied and the page says so rather than offering a plausible formula.
 
+### The port's tables are byte-identical to the original's (measured 2026-11-09)
+
+This is the answer to "how can we be sure the port spawns the same creatures": the tables the spawn code indexes are the same bytes on both
+sides, so with the same band roll the same monster and the same group size come out, because the code doing the arithmetic is the original's.
+
+**Tried:** dump `0x4D4A00` from the port and compare with the same region of the death-screen savestate. The port needed a way to dump memory
+at the end of a run, since `U2_STOP_DUMP` only fires when a stop address is hit, so `port/main.cpp` gained `U2_DUMP_ADDR` and `U2_DUMP_LEN`.
+Both are hex, which bit once: `U2_DUMP_LEN=20` asks for 32 bytes.
+
+**Measured:**
+
+```
+port   00 00 00 00 30 FC 34 2C F0 48 38 F8 3C E0 00 00 02 02 02 01
+origin 00 00 00 00 30 FC 34 2C F0 48 38 F8 3C E0 00 00 02 02 02 01
+identical: True
+```
+
+The state offset is `0x363EB2`, which is runtime `0x4D4A00` under the anchor derived above. The run was 1,500 frames of a plain start,
+`--graphics=none`, no input.
+
+**Verdict:** POSITIVE for the type half of the question, and by construction rather than by sampling. Band b selects the same monster byte and
+the same group size on both sides, because both read this table and both run the same selection code.
+
+**What is still open,** and it is the other half: whether the **rolls** match. The band comes from `randMod(100)`, and the RNG is shared with
+every other subsystem, so one extra or missing consumption anywhere diverges every later spawn while the spawn code stays perfect. Comparing
+rolls needs both sides at the same logical point, which means a savestate on each, and the original's needs a hand at the emulator.
+
 ## How a monster is chosen at spawn, read from the code (2026-11-09)
 
 Paul asked whether a dragon early in the game is the game's design or the port mis-picking. The choice is in two routines, and neither uses

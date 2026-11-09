@@ -1257,6 +1257,8 @@ and a prefix rule would demand the flag for variables the port has never heard o
 | `U2_STOP_COUNT=<n>` | stop on the Nth hit rather than the first, which is how "the 28th allocation fails" was measured. |
 | `U2_STOP_FRAME=<n>` | ignore stops before frame n. Without it a routine that also runs at start-up is compared at start-up: the first hit of TBIOS's text renderer is the copyright notice, and the menu's own call is 14 hits later, so the two sides are compared at different moments and read as a difference when there is none. |
 | `U2_STOP_DUMP=<linear hex>` | 64 bytes at that address when the stop fires. |
+| `U2_DUMP_ADDR=<linear hex>` | with `U2_DUMP_LEN`, dumps that range at exit whatever ended the run, so a region can be read after N frames without needing an address that a breakpoint actually reaches. Added 2026-11-09 to compare the monster tables with the original's. |
+| `U2_DUMP_LEN=<hex bytes>` | the length for `U2_DUMP_ADDR`, default 0x20. Hex, so `20` asks for 32 bytes. |
 | `U2_VRAM=1` | at exit, how much of the machine's VRAM vector is non-zero, plus the kit's VRAM and sprite access counters. |
 | `U2_DIFF_CODE=1` | at exit, every byte of the program's image that guest memory has changed, and how many are inside a decoded instruction when `U2_COVERAGE` is given. |
 | `U2_COVERAGE=<file>` | the coverage file from `tools/insncoverage.py`. |

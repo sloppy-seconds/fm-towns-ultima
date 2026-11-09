@@ -1960,6 +1960,20 @@ int main(int argc, char **argv) {
 		code = s.code;
 		std::printf("stopped\n");
 	}
+	// U2_DUMP_ADDR / U2_DUMP_LEN: dump that range when the run ends, whatever ended it. The existing
+	// U2_STOP_DUMP only fires when a stop address is set and hit, which cannot be used to ask "what does
+	// this address hold after N frames" without guessing an address that is actually reached. Measured
+	// need, 2026-11-09: comparing the monster band and group tables between the port and the original.
+	if (const char *da = std::getenv("U2_DUMP_ADDR")) {
+		const uint32_t at = (uint32_t)std::strtoul(da, nullptr, 16);
+		uint32_t len = 32;
+		if (const char *dl = std::getenv("U2_DUMP_LEN")) len = (uint32_t)std::strtoul(dl, nullptr, 16);
+		std::vector<uint8_t> buf(len);
+		towns::g_towns->read_block(at, buf.data(), len);
+		std::printf("memory    %08x:", at);
+		for (uint32_t i = 0; i < len; ++i) std::printf(" %02X", buf[i]);
+		std::printf("\n");
+	}
 	// The disk is written once, here, and not per save. A run that dies part way leaves the image exactly as it was
 	// found, which is the property that matters when the image is the only copy of somebody's characters.
 	if (!g_saves_dir && g_floppy.loaded() && !g_floppy.flush())
