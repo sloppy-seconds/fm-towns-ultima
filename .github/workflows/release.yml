@@ -169,9 +169,22 @@ jobs:
             u2port-linux-x86_64
             u2port-windows-x86_64.exe
           body: |
-            Early, and honest about it. The port reaches the title screen, the game menu and the overworld. Character
-            creation does not work, `Esc` or `Q` ends the run, and what is broken is listed with the observation that
-            found each one: [`docs/port-defects.md`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/port-defects.md).
+            Early, and honest about it. The port reaches the title screen, the game menu and the overworld, characters can be
+            created and played, and music and sound effects work. What is still broken is listed with the observation that found
+            each one: [`docs/port-defects.md`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/port-defects.md).
+
+            ## Since v0.2.0
+
+            - **CD audio plays what the game asks for.** The character screen no longer falls silent: the port had been reading a
+              real-mode buffer that was never mapped onto the program's memory, and sending the table of contents in the wrong number
+              format. Both fixed, so the title music and the character-creation music are the ranges the original asks for.
+            - **Sound effects repeat properly.** A start write to a sound channel now restarts it even while it is still playing, which
+              is how the game re-triggers a sound. Before, everything after the first repetition was dropped, so a moongate played once.
+            - **Character creation works**, and is exercised end to end by `tools/controlcreate.py` twice per run.
+            - `Esc` no longer ends the run. Quitting is `Ctrl-Q` or closing the window, because `Esc` is the easiest key to hit by
+              accident.
+            - **Windows and Linux binaries**, built from the same source, with the Windows one still never run on a real Windows
+              machine. That limitation is stated rather than glossed.
 
             ## You still need the game
 
