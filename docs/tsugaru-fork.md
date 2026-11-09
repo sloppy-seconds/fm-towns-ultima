@@ -134,6 +134,7 @@ are listed here because the next session otherwise rebuilds one of them.
 | `dump50.sh`, `dump53.sh`, `dump54.sh`, `dump55.sh` | timed memory dumps with no typing needed: low memory and the `0x50` selector, the `0x68C50` region, and the interrupt vector table. `dump54.sh`'s log is the input to `tools/ivt.py` |
 | `dumptoc.sh` | dumps the CD BIOS's own parsed table of contents at physical `0x8BAE` |
 | `pcmwatch.sh` | runs with `TSG_IO_TRACE=1` and nothing else, to capture the RF5C68 register traffic while a repeating sound plays. The log needs filtering afterwards; the lines that matter are ports `0x4F0` to `0x4F8`. Written for plan item 5q |
+| `spawnwatch.sh` | dumps the monster band table at `0xD4A00`, the spawn slots at `0xCE3C0` and the RNG at `0xDFC78` every 30 seconds, with `ADTR` before each so the live window can be identified. Written for plan item 5r. Needs a hand only for the click and the walk |
 
 Every one of them writes a log beside itself and takes its console commands from a FIFO, so
 nothing has to be typed while the machine runs. The two that need hands say so in their headers.
