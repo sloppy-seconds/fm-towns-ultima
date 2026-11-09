@@ -221,6 +221,21 @@ begins `Roster data:ULTIMA III for FM-TOWNS` and carries `NAME`, the shrine
 flags, `TORCHES`, `MEMBER`, `STATUS`, the six attributes, `RACE`,
 `PROFESSION`, `SEX`, `MAGIC`, `HITPOINT`.
 
+**The port writes four Ultima III files, not one.** Measured 2026-11-10 in the port after creating characters
+and forming a party, against the original's single `ROSTER.UT3` above, which is what the emulator wrote when
+only a character had been created:
+
+| file | size | first bytes |
+|---|---|---|
+| `ROSTER.UT3` | 14,676 B | `Roster data:ULTIMA III for FM-TOWNS` |
+| `PARTY.UT3` | 197 B | `Party data:ULTIMA III for FM-TOWNS` |
+| `PLAYERS.UT3` | 3,050 B | `Player data:ULTIMA III for FM-TOWNS` |
+| `WORLD.UT3` | 4,787 B | `World data:ULTIMA III for FM-TOWNS` |
+
+The roster is 54 bytes larger than the original's 14,622 for two more characters, so the per-character
+record is consistent with the size above. All four name themselves, and the same run on Ultima II wrote
+`ROSTER1.UT2` (3,659 B) and `WORLD1.UT2` (68,096 B), which are the sizes this page gives for that title.
+
 **Verdict:** POSITIVE and decisive for the emulator. Write protection is off,
 drive A: is correctly mapped, and a generated 1232 KB disk is writable by FM
 Towns games. The floppy subsystem is not the problem.

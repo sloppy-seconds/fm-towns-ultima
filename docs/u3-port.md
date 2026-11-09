@@ -5,9 +5,9 @@ What `EXODUS.EXP` does under this project's machine, as of 2026-11-10. The plan 
 are the ones it asked for.
 
 **Where it stands: the port boots Ultima III, draws the title, walks its menus, reads a character off a
-save floppy, and stops at the disk validation in front of the game proper.** No fault, no workaround,
-800 frames of attract loop. Everything past "Journey Onward" needs a save disk the original has not
-been asked for yet.
+save floppy, creates characters, forms a party, and writes all four of the game's save files.** No fault,
+no workaround, 800 frames of attract loop. What it does not yet do is start a journey from that party, and
+the four file formats are unread.
 
 ## The build, in one command
 
@@ -63,36 +63,41 @@ project has never written to.
 
 That route is `ROUTES["title-to-register"]` in `tools/u3drive.py`.
 
-## The disk is the blocker, and it says so
+## The disk, and the four files a party writes
 
-`Journey Onward` answers `A WRONG DISK! Push SPACE`, and the disk holds one file:
+**This section was wrong and is replaced.** It said a playable disk could only come from the original, and that
+`WORLD.UT3` was the missing piece. A session on 2026-11-10 created characters and formed a party in the port, and
+the port wrote all four files itself.
 
-```
-AOMORI       (label)
-ROSTER  UT3    14622 B  clusters 2-16 (15)
-```
+| file | size | first bytes |
+|---|---|---|
+| `ROSTER.UT3` | 14,676 B | `Roster data:ULTIMA III for FM-TOWNS` |
+| `PARTY.UT3` | 197 B | `Party data:ULTIMA III for FM-TOWNS` |
+| `PLAYERS.UT3` | 3,050 B | `Player data:ULTIMA III for FM-TOWNS` |
+| `WORLD.UT3` | 4,787 B | `World data:ULTIMA III for FM-TOWNS` |
 
-So the roster alone is not a playable disk. `WORLD.UT3`, `PARTY.UT3` and `PLAYERS.UT3` are named in the
-binary and absent from this image. The next step is therefore not code: it is a save disk produced by the
-**original** game after it has begun a journey, which is what plan item U3-3b now waits on. Synthesising
-one would be guessing at a format nobody has read, which is the thing this repository forbids.
+Every one names itself in its first bytes, which is how a file can be identified without knowing its format. The
+same run on Ultima II wrote `ROSTER1.UT2` (3,659 B) and `WORLD1.UT2` (68,096 B), which are the sizes
+[save-files.md](save-files.md) already records for that title.
 
-### The attempt to make one, and where it stopped
+So `A WRONG DISK! Push SPACE` was the empty-disk case, not a lock: the disk held `ROSTER.UT3` alone, and the other
+three files did not exist yet. Forming a party is what creates them, and the port does that.
 
-A second container was started to drive the original: the same image, its own ports, the disc mounted read
-only, and a **copy** of `saves/u3test.hdm` and `saves/CMOS.BIN` in `/var/tmp`, so nothing shared could be
-written. It booted to the TownsOS launcher and stopped there.
+### Still unknown: the four formats
 
-That launcher is mouse-driven, which `tools/container-run.sh` already says in a comment about the disk
-selection menu, and the two things it needed were a coordinate nobody measured and a decision about which
-icon is which. A vision model asked for pixel positions answered in a space of its own (its `ULTIMA III`
-at 465,170 against a 640-wide screen, and an `EXIT` at 965), so clicking on that reading would have been a
-guess dressed as a measurement. The container was removed rather than driven blind, and the floppy copy
-was never written.
+Four files with sizes and self-describing headers is not a field map. Nothing in this repository can yet say what
+`WORLD.UT3`'s 4,787 bytes contain beyond the word `Mons` near the start, or how `PARTY.UT3`'s 197 bytes name the
+members. That work is plan item U3-3b and it is reading, not guessing.
 
-What would finish it: a person at the screen for two minutes, or the same pixel discipline
-`tools/u2flow.py` uses, which means measuring the launcher's icon grid on this machine first. Neither is
-something this page can do from a shell.
+### The attempt that turned out not to be needed
+
+Before the party route worked, a second container was started to drive the original to make a disk, with its own
+ports, the disc read only, and copies of the floppy and CMOS in `/var/tmp` so nothing shared could be written. It
+reached the TownsOS launcher and stopped, because that launcher is mouse driven and the vision model's pixel
+readings came back in a coordinate space of their own. The container was removed with the floppy copy untouched.
+
+That effort is recorded rather than deleted because it is the shape of a wrong turn: the answer was one menu
+further along in the port, not an emulator session.
 
 ## The DOS extender calls, counted
 

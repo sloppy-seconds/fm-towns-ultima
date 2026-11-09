@@ -36,7 +36,7 @@ while the document calls it done.
 | U3-2b | DONE | 26 `int 21h` sites, every immediate one served |
 | U3-2c | OPEN | the game has opened nothing from the disc yet, so there is nothing to test |
 | U3-3a | DONE | `--route title-to-register`, every screen read before the next key |
-| U3-3b | OPEN | the roster reads; `Journey Onward` says `A WRONG DISK` because `WORLD.UT3` is not on the image |
+| U3-3b | OPEN | all four save files are written by the port and each names itself; the field formats are unread |
 | U3-3c | OPEN | no game screen with text has been reached yet |
 | U3-3d | OPEN | not attempted |
 | U3-4a | OPEN | 860 functions from 583 derived seeds and one measured, zero conflicts, no negatives |
@@ -397,13 +397,23 @@ records `ROSTER.UT3` at 14,622 bytes for a party. `saves/u3test.hdm` already exi
 
 | field | value |
 |---|---|
-| done when | a save written by the original on a copy of that disk reloads in the port, and the character fields the port reads agree with `tools/savedisk.js` on the same file. The failure case: fields that disagree are named one by one, not averaged into "mostly matches" |
-| blocked by | a save disk the **original** has begun a journey on. `saves/u3test.hdm` holds only `ROSTER.UT3` (14,622 bytes), the port reads it and prints the character, and `Journey Onward` answers `A WRONG DISK! Push SPACE`. `WORLD.UT3`, `PARTY.UT3` and `PLAYERS.UT3` are named in the binary and absent from the image. Synthesising them would be guessing a format nobody has read |
+| done when | every field of `ROSTER.UT3`, `PARTY.UT3`, `PLAYERS.UT3` and `WORLD.UT3` is named with its offset and width, the port's own written values are checked against the bytes the game reads back, and a character created in the original and one created in the port compare equal field by field. The failure case: fields that disagree are named one by one, not averaged into "mostly matches" |
+| blocked by | nothing. The disk is no longer the obstacle, and the original does not have to supply one |
 
-**What is now known.** The read half is done: a roster written on the real machine parses in the port,
-which is a stronger result than the plan's criterion asked for. The write half and the world file are
-what the item now waits on, and they need the original game driven through character creation and
-`Journey Onward` on a copy of that disk.
+**Corrected 2026-11-10.** This item said a playable disk could only come from the original, and that
+`WORLD.UT3` was the missing piece. That was wrong. A session in the port created characters and formed a
+party, and the port wrote all four files: `ROSTER.UT3` 14,676 B, `PARTY.UT3` 197 B, `PLAYERS.UT3` 3,050 B,
+`WORLD.UT3` 4,787 B. Each one names itself in its first bytes (`Roster data:ULTIMA III for FM-TOWNS` and so
+on), so a file's identity does not depend on knowing its format. `A WRONG DISK! Push SPACE` was the
+empty-disk case: the disk held the roster alone.
+
+Both halves of the old criterion are now met in substance, and the item narrows to what is actually left,
+which is the formats. Nothing here can yet say what `WORLD.UT3`'s 4,787 bytes hold beyond the word `Mons`
+near the start, or how `PARTY.UT3`'s 197 bytes name its members. That is reading, and it is the whole of the
+remaining item.
+
+For comparison, the same session on Ultima II wrote `ROSTER1.UT2` (3,659 B) and `WORLD1.UT2` (68,096 B),
+both the sizes [save-files.md](save-files.md) already records.
 
 #### U3-3c. Text
 
@@ -624,9 +634,9 @@ Written down in advance, because a plan that cannot fail is not a plan.
 - If the game consumes its `.MP3` and `.DG3` files in a way that needs a decoder to run, not just to be
   read, then format work that [open-questions.md](open-questions.md) section 6 lists as open becomes a
   blocker rather than a side quest.
-- If the save format is not self-describing and no save can be produced before the game is playable,
-  phase 3 needs the original driven by hand, which changes the autonomy of two items from partly
-  autonomous to blocked.
+- If the save format turns out not to be self-describing after all. It already did not bite: all four files
+  open with `Roster data:`, `Party data:`, `Player data:` and `World data:`, and the port writes them, so the
+  formats are a reading job rather than a blocker.
 
 ## What this changes elsewhere
 
