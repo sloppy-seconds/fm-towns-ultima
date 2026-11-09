@@ -463,34 +463,36 @@ the same group size on both sides, because both read this table and both run the
 every other subsystem, so one extra or missing consumption anywhere diverges every later spawn while the spawn code stays perfect. Comparing
 rolls needs both sides at the same logical point, which means a savestate on each, and the original's needs a hand at the emulator.
 
-### The RNG is the C library's, and its state is 1 at 1,500 frames in two separate runs
+### The RNG is seeded with a constant zero, measured
 
 Before asking for a savestate it was worth knowing whether a sequence comparison is even possible, and that depends on the seed.
 
-**The pieces, read from the image.** State is the dword at game offset `0xDFC78`. `rand` is at virtual `0x101A54` and is three instructions: it
-loads the **high word** at `0xDFC7A`, masks `0x7F` off the top of `AH`, and returns. `srand` is at `0x101A68`: `mov eax,[esp+4]`, then
-`mov [0xDFC78],eax`. Four call sites, three of them shaped
+**The pieces, read from the image.** The generator is `0x101A40`, which `docs/rng-helpers.md` records as an LCG with multiplier
+`0x41C64E6D`, increment `0x3039` and state at `DS:0xDFC78`, confirmed live. `randMod` and `randRange` wrap it. The setter next to it at
+`0x101A68` is `mov eax,[esp+4]` then `mov [0xDFC78],eax`, which is `srand`, and it has four call sites.
+
+**Measured, and it settles the question.** Watching writes to linear `0x4DFC78` during a full create route:
 
 ```
-call 0x10246C
-call 0x102268
-push eax
-call 0x101A68     <- srand(0x102268())
+watch 004dfc78 = 00000000 (4B) at 000c:000ebdaf  frame 650
+watch 004dfc78 = 00000000 (4B) at 000c:000ebdaf  frame 2129
+watch 004dfc78 = 00000000 (4B) at 000c:000ebdaf  frame 2724
 ```
 
-and the fourth seeds from a computed product of its own. What `0x102268` returns is not identified, which matters because that is the seed.
+Three writes, all from one caller, **all seeding zero**. Nothing clock-derived, and three separate calls in one run rather than one at
+start-up. So the RNG is seeded deterministically, and two runs given the same actions walk the same chain.
 
-**Measured instead of inferred.** Two separate port runs, `--graphics=none`, 1,500 frames, dumping linear `0x4DFC78`:
+**And the create route never draws from it.** Those three writes are the setter. The LCG writes the state on every call, so a `rand` call
+would appear in the same watch, and none did: no attribute is rolled, which matches the recorded fact that a character's 90 points are
+allocated rather than diced.
 
-```
-01 00 00 00
-01 00 00 00
-```
+**What that means for the question.** Same seed, same tables (measured identical), same instructions, so the sequence of bands is identical
+provided the same number of `rand` calls happen, which they do when the same actions are taken. The check that remains is a count of `rand`
+calls per spawn on each side, and the instrument is the same watch: `U2_WATCH=4DFC78:4` on the port and `MON MEMW` on the original.
 
-Identical, and equal to the C library's default seed. That is consistent with a constant seed and inconsistent with a clock seed, but it does
-**not** prove `srand` has been reached: no `rand` call has necessarily happened by frame 1,500 either, since the game sits at the menu with no
-input. A dump after real gameplay is what would settle it, and the same dump taken twice would say whether the two sides can be compared as
-sequences or only as distributions.
+**One correction to my own earlier reading.** I first took `0x101A54` for the generator and reported it as three instructions that load the
+high word and return. That address is the *tail* of `0x101A40`, after the state has already been written; the store at `0x101A4E` is the LCG
+step, not a setter. The repository already had this right in `docs/rng-helpers.md`.
 
 **Why that matters for the question.** If the seed is constant and the code and tables are identical, then the sequence of bands is identical
 too, provided the same number of `rand` calls happen, which they do when the same actions are taken. The comparison then reduces to the tables,
