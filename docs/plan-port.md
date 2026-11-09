@@ -1750,7 +1750,17 @@ is LBA 30225 to 36524. The port now plays it at the splash and the census reads 
 
 ### 5p. The character screen changes song and this port goes silent
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+**Resolved 2026-11-09.** Two defects, both measured rather than read. `0x250F`'s real-mode window was never mapped onto the program's
+frames, so every CD reply went to a copy the program never read and its track table at `0xCE0` stayed empty. And the table of contents was
+sent in BCD while the program copies the bytes verbatim and the original's buffer holds binary. Fixed, the port's requests are the
+original's own numbers: menu `30225` to `36524`, Create Character `44250` to `52724`, byte for byte. The position substitution was then
+proven dead by removing it and re-running the same route to the same ranges, so it and `U2_CD_NOFALLBACK` are gone. Record:
+`docs/audio-playback.md` 9.15. What is now known: the contract is `Int 93h` with `AL=0xC0`, `AH` the function (`0x50` play, `0x52` stop,
+`0x53` position, `0x54` TOC, `0x55` pause, `0x56` resume), buffers binary MSF with the lead-in through the `2511h` window, and the play range
+derives from the table of contents reply rather than from the position reply. Still unknown and no longer needed here: which family the ROM
+dispatcher at `0x3C795` serves.
 
 | field | value |
 |---|---|

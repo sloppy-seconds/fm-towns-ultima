@@ -651,6 +651,47 @@ knows what is playing. On the original something always is, since the menu track
 the track has been stopped, so the honest answer is zero and the screen goes silent. The next question is therefore not "what does position
 say" but "why is nothing playing when the program asks".
 
+### 9.15 Resolved: the buffer was never mapped, and the TOC was in the wrong format
+
+Everything above 9.12 is the search. This is the answer, measured 2026-11-09.
+
+**The buffer.** `0x250F` is Phar Lap's "make a real-mode address of a protected-mode one". This port implemented it by subtracting the
+program's base and adding the profile's `prog_phys` window, and **nothing mapped that window onto the program's frames**. So every reply
+the CD services wrote went to a copy the program never read. Printed side by side in one service call:
+
+```
+  CD-DA toc alias: reply 03 01 08 13 25 00 80 02  at 400BA4: 03 01 08 13 25 00 80 02  program 400BA4: 00 00 00 00 00 00 00 00
+```
+
+Before the fix that line read `at 076BA4: 03 01 08 ...  program 400BA4: 00 00 00 ...`. That is why the program's track table at `0xCE0` was
+always zeros, and why every play range was an echo of the position reply: the program had nothing of its own.
+
+**The format.** With the buffer mapped, the program filled its table from the table of contents and asked to play `09 52 00`, which
+decoded to `46500` instead of `44250`. The reply was being sent in BCD, and the note beside `to_msf` already recorded that the oracle's
+buffer held **binary** with the lead-in. The program copies those bytes into its table verbatim, so BCD put `09 52 00` where the binary
+form of the same track is `06 45 00`. `to_msf_bcd` is gone and its comment says why.
+
+**Measured after both, on the create route:**
+
+| screen | port | original |
+|---|---|---|
+| menu | `30225` to `36524` | `CDDAPLAY 06:43:00 to 08:06:74` |
+| Create Character | `44250` to `52724` | `CDDAPLAY 09:50:00 to 11:42:74` |
+
+The ranges are identical, and they are the original's own numbers. Then the substitution was removed and the route re-run: the same two
+ranges, byte for byte. So the substitution had been answering **for** the program since the buffer was never mapped, and with that fixed it
+is dead code. `U2_CD_NOFALLBACK` is gone with it.
+
+**What is now known.** The CD contract this program uses is four services on `Int 93h` with `AL=0xC0` and the function in `AH`: `0x50` play,
+`0x52` stop, `0x53` position, `0x54` table of contents, with `0x55` pause and `0x56` resume. The buffers are binary MSF pairs counting the
+2-second lead-in, reached through the `2511h` real-mode window. The program derives its play range from the table of contents reply, which
+is why a correct reply is the whole of the contract and a correct position reply is not enough.
+
+**What is still not known, and no longer matters for this item.** Which family the ROM dispatcher at `FMT_SYS.ROM 0x3C795` serves. The
+program's `AL=0xC0` would land on its default branch, so that dispatcher is probably not the code behind these calls, and the item closed
+without it. The oracle's claim that the position reply carries the track number at `[1]` is contradicted by a consumer that reads the same
+byte as the start time's seconds, and the port now writes the range there.
+
 **That last paragraph was wrong, and the code says why.** `towns_dos.cpp` `case 0x53` has two branches. The **fallback** branch, taken when
 nothing plays, writes the first six bytes as a table-of-contents start and end pair, and that is the range the menu screen plays. The
 **playing** branch writes the oracle's layout instead: status, the track at `[1]`, the position at `[3..5]`, the disc position at `[7..9]`.

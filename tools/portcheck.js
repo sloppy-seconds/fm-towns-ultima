@@ -532,5 +532,16 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	else ok('the shadow table is ascending', entries.length + ' shadow(s)');
 }
 
+// THE CD CONTRACT, resolved 2026-11-09 (docs/audio-playback.md 9.15). Two things must stay true. The 2511h real-mode window must be
+// mapped back onto the program before any service touches the buffer, because without that every reply went to a copy the program never
+// read: the table of contents landed at 0x76BA4 while the program's own 0x400BA4 stayed zero. And the position substitution that used to
+// answer for the program must not come back, because it was proven dead by removing it and re-running the create route to identical ranges.
+{
+	const dos = stripComments(read('fmtownskit/runtime/towns_dos.cpp'));
+	requireText(dos, 'buf = pr.prog_base + (buf - pr.prog_phys)', 'the 2511h buffer is mapped onto the program');
+	forbidText(dos, 'U2_CD_NOFALLBACK', 'the position substitution stays removed');
+	forbidText(dos, 'to_msf_bcd', 'the table of contents stays binary, which is what the program copies');
+}
+
 console.log(failures ? 'portcheck: ' + failures + ' failed' : 'portcheck: ' + checks + ' checks pass');
 process.exit(failures ? 1 : 0);
