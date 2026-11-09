@@ -651,3 +651,15 @@ knows what is playing. On the original something always is, since the menu track
 the track has been stopped, so the honest answer is zero and the screen goes silent. The next question is therefore not "what does position
 say" but "why is nothing playing when the program asks".
 
+**That last paragraph was wrong, and the code says why.** `towns_dos.cpp` `case 0x53` has two branches. The **fallback** branch, taken when
+nothing plays, writes the first six bytes as a table-of-contents start and end pair, and that is the range the menu screen plays. The
+**playing** branch writes the oracle's layout instead: status, the track at `[1]`, the position at `[3..5]`, the disc position at `[7..9]`.
+At the Create Character screen something *is* playing, so the second branch runs, and `[1]` holds the track number `5`. The program then
+reuses the same buffer as a play range, reads `[0..2]` as the start and `[3..5]` as the end, and asks for `00 05 00` to `00 06 00`:
+the track number read as the start time's seconds. So nothing was stopped and no stop is missing. The two branches disagree about what the
+first six bytes mean, and the program only ever agreed with one of them.
+
+The repair follows from that and is testable: write the live range into `[0..5]` on the playing branch as well, from the current play's start
+and end, and the Create Character screen should then ask for a real range instead of `00:05:00`. The risk to check is the splash, which takes
+the fallback branch and must not change.
+
