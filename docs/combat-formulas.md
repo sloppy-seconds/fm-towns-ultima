@@ -491,8 +491,11 @@ Three things follow. The spawn slots at `0x4CE3C8` change between dumps, so the 
 at `0x4D4A04` holds `30 FC 34 2C F0 48 38 F8 3C E0` for bands 0 to 9, **every value a multiple of four**, which is not a small monster id:
 they are offsets, so the id is scaled and the record they point at is not the name table.
 
-**What this does not yet say** is which band holds the dragon. That needs the name region, which is runtime data at linear `0x479300` to
-`0x481000` (`docs/game-text.md`), dumped in the same run. The next dump adds it, and then band, offset and name can be joined offline.
+**What this does not yet say** is which band holds the dragon. That needs the name region, which is runtime data at **linear** `0x79300` to
+`0x81000` (`docs/game-text.md`). One correction on the way: the first attempt dumped `0x479377`, the game offset plus the data segment base,
+and the log shows that region is `F3` fill, so `0x79300` is a linear address in its own right and not an offset into the data segment. The
+regions that are offsets (`0xD4A04`, `0xCE3C8`) and the region that is linear (`0x79300`) need to be dumped differently, which is exactly
+the kind of address mistake this repository records having made before.
 
 ---
 
