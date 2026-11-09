@@ -1805,13 +1805,13 @@ named by the sub-block at `0xb94`. The request itself is six bytes at `0xCD4`, a
 `EDX`, `ESI` and `EDI` from the block at `0xe34` and executes `int 0x21`, then writes the registers and the carry flag back to
 `0xe50`. It is a register image, and `0x250F` and `0x2511` are `int 21h` `AX` values, neither of which appears as a constant anywhere
 in `IO.SYS` or the game image.
-5. **Test the position substitution at the Create Character screen.** The original's log settles the target: it plays `09:50:00` to
-`11:42:74` there, which is track 7's start to one sector before track 8's (`docs/audio-playback.md` 9.13). The port's table of contents is
-correct for all eight tracks, and the minus-150 adjustment is the CD lead-in rather than a fudge, so the table is not the suspect. What is
-left is the **position** service, which the port answers with its substitution. Run the same create route with `U2_CD_NOFALLBACK=1` and
-compare the request: if it changes, the substitution misleads the program and the fix is to answer position from the drive. If it does not,
-the request is built from something else on that screen and the next step is a monitor on the game's table at `0xCE0` during a create run.
-Both are port-side and autonomous, and the original's run is done: its log is `/home/paul/Downloads/ut-towns/cddacreate.log`.
+5. **Find out why nothing is playing when the program asks for a position.** The experiment settled the mechanism: with `U2_CD_NOFALLBACK=1`
+every play range on the create route becomes zeros, so the ranges are built from the **position reply** and not from the table of contents
+directly, even though the values equal table entries. Turning the substitution off is therefore not the repair: an honest answer of "nothing
+is playing" gives a program that asks for nothing. On the original a track is always running when the program asks, and in the port it is
+not. So the step is to find where the port stops the menu track before the Create Character screen, which is a port-side question with a
+port-side instrument: the existing `U2_TRACE_INT` trace already prints every stop, and the answer is the frame at which the stop arrives and
+what asked for it.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.

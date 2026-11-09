@@ -633,3 +633,21 @@ the same table, asks for the right range. The remaining difference is what prece
 first, and the port answers that one with its substitution rather than with anything derived from the drive. That is now the only suspect
 left, and it is testable by turning the substitution off.
 
+**Turned off, measured: the substitution is load-bearing, and the ranges come from it.** With `U2_CD_NOFALLBACK=1` the same create route
+changes every request at once:
+
+| screen | with the substitution | without it |
+|---|---|---|
+| menu | `06 2D 00 08 09 00`, plays `30225` to `36525` | `00 00 00 00 00 00`, plays `0` to `0` |
+| Create Character | `00 05 00 00 06 00`, plays `225` to `300` | `00 00 00 00 00 00`, plays `0` to `0` |
+
+So the play ranges are built from the **position reply**, not from the table of contents directly. That also explains why the earlier note
+that the play range is "copied out of the table of contents" was only half right: the values equal TOC entries, and they reach the program
+through the position service. The table of contents is correct and still does not determine what is played.
+
+What that means for the fix: turning the substitution off is not the repair, because a position that honestly reports nothing gives a
+program that asks for nothing. The repair is a position reply that describes the drive truthfully, which the port can only produce if it
+knows what is playing. On the original something always is, since the menu track runs from the splash until the game changes it. In the port
+the track has been stopped, so the honest answer is zero and the screen goes silent. The next question is therefore not "what does position
+say" but "why is nothing playing when the program asks".
+
