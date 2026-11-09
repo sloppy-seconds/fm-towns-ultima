@@ -95,14 +95,14 @@ cmake --build "$OUT/b-foreign" -j"$(nproc)" > "$OUT/build-foreign.log" 2>&1 || {
 }
 echo "linked      $OUT/b-foreign/u2port, with no native shadows (the configuration a second title uses)"
 
-# AND THE U3 BUILD MUST REFUSE TO RUN WITHOUT ITS OWN BINARY. tools/u3-build.sh extracts EXODUS.EXP from the disc and
-# checks that the entry field lands on the start-up stub; with no disc and no binary there is nothing to check, so it
-# must stop with a message rather than build a module from whatever is lying around. Pointed at a file that does not
-# exist, which is the state a fresh clone is in.
-if U3_GAME=no-such-game.EXP "$ROOT/tools/u3-build.sh" --no-run --quiet > "$OUT/u3-refusal.log" 2>&1; then
-	echo "tools/u3-build.sh exited 0 with no game file present, so it built something out of nothing" >&2
+# AND A TITLE'S BUILD MUST REFUSE TO RUN WITHOUT ITS OWN BINARY. tools/game-build.sh extracts the title's `.EXP`
+# from the disc and checks that the entry field lands on the start-up stub. With no disc and no binary there is
+# nothing to check, so it must stop with a message rather than build a module from whatever is lying around. Named
+# by a title id that does not exist, which is the state a fresh clone is in for every title but Ultima II.
+if "$ROOT/tools/game-build.sh" no-such-title --no-run --quiet > "$OUT/title-refusal.log" 2>&1; then
+	echo "tools/game-build.sh exited 0 for a title that does not exist, so it built something out of nothing" >&2
 	exit 1
 fi
-echo "refused     tools/u3-build.sh with no EXODUS.EXP present, as it must"
+echo "refused     tools/game-build.sh for an unknown title, as it must"
 
 echo "the port links with no game present, in both configurations. It does not play, and nothing in CI can make it play."

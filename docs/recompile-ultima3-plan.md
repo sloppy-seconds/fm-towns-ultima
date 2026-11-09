@@ -29,7 +29,7 @@ while the document calls it done.
 | item | state | one line |
 |---|---|---|
 | U3-0a | DONE | `verify.js` asserts the container, the entry and the stack field, with two watched controls |
-| U3-0b | DONE | `tools/u3-build.sh`, one command, counts reproducible across runs |
+| U3-0b | DONE | `tools/game-build.sh u3`, one command, counts reproducible across runs |
 | U3-1a | DONE | CI links both module configurations and asserts the U3 build refuses with no game file |
 | U3-1b | DONE | the title screen draws, 800 frames, no fault |
 | U3-2a | OPEN | stack measured from the header, selectors moot because the game sets its own, base still assumed |
@@ -44,6 +44,10 @@ while the document calls it done.
 | U3-4c | OPEN | not attempted |
 | U3-4d | OPEN | not attempted |
 | U3-5a-e | OPEN | blocked behind a playable save disk |
+| U3-6a | OPEN | the binary is `u2port` for every title, which collides at release time |
+| U3-6b | OPEN | two build scripts, one descriptor table, and the strip arithmetic in both |
+| U3-6c | OPEN | 30+ `U2_*` environment names are shared by U2 and U3 |
+| U3-6d | OPEN | `module/`, `extracted/` and the doc pages do not follow one pattern |
 
 The whole of the remainder hangs on one artefact: a save disk the **original** has begun a journey on.
 [u3-port.md](u3-port.md) records how that was attempted and why it stopped, and it is the first thing a
@@ -242,7 +246,7 @@ builds from drifting apart.
 | done when | one command strips `EXODUS.EXP`, runs the recompiler with the entry seed and the U3 seed set, and prints the function, instruction and byte counts as a regression line. A second run reproduces them exactly. The failure case: a script that hardcodes the counts it prints, or two scripts that each own half the strip arithmetic |
 | blocked by | U3-0a, for the entry value it uses |
 
-**What is now known.** `tools/u3-build.sh` does the whole build in one command and prints one
+**What is now known.** `tools/game-build.sh u3` does the whole build in one command and prints one
 machine-comparable line, `counts    functions=860 instructions=45443 bytes=148461 ...`. Two recompiler
 runs into different directories produce identical counts, so the line is a regression figure rather
 than a description. The script owns the strip, the frame shift, the seed derivation, the ranges and the
@@ -267,7 +271,7 @@ recompiled and linked.
 
 **What is now known.** `tools/ci-port-build.sh` now builds **two** configurations from the same synthetic
 module: Ultima II's, with the native shadows, and the one a second title uses
-(`-DU2_FOREIGN_MODULE=ON`, an empty shadow manifest). It also asserts that `tools/u3-build.sh` exits
+(`-DU2_FOREIGN_MODULE=ON`, an empty shadow manifest). It also asserts that `tools/game-build.sh` exits
 non-zero when its game file is absent, so the U3 route cannot build a module from whatever is lying
 around. The existing workflow job runs all of it, so CI covers the U3 configuration without a second
 workflow to drift.
@@ -518,6 +522,62 @@ needs the original running. `references/u3-typescript` and `references/u3-gdx` a
 and never authorities, which is the rule [u3-hypothesis-tests.md](u3-hypothesis-tests.md) already
 follows. That page's most valuable result is a falsification that turned out to be the error, which is
 the failure mode to expect from treating a reference implementation as evidence.
+
+### Phase 6. Seven titles that do not fight for names
+
+Scope decided by Paul on 2026-11-10: `DARKNESS`, `ENCHANT`, `EXODUS`, `BRITISH` and the three demos. `TMENU` is
+out, being `P3` and a launcher rather than a title. The conventions and the measured table are in
+[port-structure.md](port-structure.md).
+
+#### U3-6a. The binary is named after its title
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+Everything the port builds is called `u2port`, including the one that runs Ultima III. The directories are
+separate so nothing collides on disk today, but two releases, two `play.sh`es or one folder holding both
+binaries do collide, and the name is also what `play.sh` looks for and what the release asset is called.
+
+| field | value |
+|---|---|
+| done when | `port/CMakeLists.txt` takes the executable's name from a cache variable defaulting to `u2port`, every target-scoped line uses it, and `tools/game-build.sh u2` produces `u3port` while Ultima II's build still produces `u2port` with its release name, gate and docs unchanged. The failure case: a rename that moves `dist/u2port-linux-x86_64` or the name `tools/checkall.js` checks for |
+| blocked by | nothing |
+
+#### U3-6b. One build script, not two
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+`tools/port-build.sh` owns Ultima II's build and `tools/game-build.sh` owns the other six. They now share
+`tools/games.js`, so they no longer disagree about a title's facts, but they still each own a copy of the strip,
+the frame shift and the module key, which is the failure case U3-0b named.
+
+| field | value |
+|---|---|
+| done when | `tools/port-build.sh --game <id>` builds every title, `tools/game-build.sh` is gone, and Ultima II's build produces the same counts and the same `counts` line it produces today. The failure case: two scripts that each own half of the strip arithmetic, or a merged script whose Ultima II path differs from the recorded numbers |
+| blocked by | U3-6a |
+
+#### U3-6c. One environment namespace
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+More than thirty `U2_*` variables are shared by Ultima II and Ultima III today, including `U2_SHOT` and
+`U2_STACK`, which U3's own build and drive scripts set. A third title would copy whichever spelling it read first.
+
+| field | value |
+|---|---|
+| done when | every knob has a `PORT_*` spelling, the `U2_*` spellings are still honoured as aliases for one release with the alias documented and a test proving it still reaches the guest, and `tools/controlsmoke.py` passes on the port built that way. The failure case: an alias that silently wins over the new name, or a harness changed in the same commit and therefore unable to show which spelling it used |
+| blocked by | U3-6b |
+
+#### U3-6d. One directory per title, where the directory is not already shared
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+`module/` is Ultima II's committed module under a generic name, `extracted/` mixes `u2`, `u2-colour`, `GRAPH`,
+`SOUND` and `UT2`, and the two doc pages this session added do not follow one pattern.
+
+| field | value |
+|---|---|
+| done when | the module lives at `module/<id>/` with Ultima II's moved there and the CMake default updated, extraction output goes to `extracted/<id>/`, the seeds files go to `tools/seeds/<id>.txt`, and the per-title pages are `docs/port-<id>.md`. The failure case: a move that leaves a script pointing at the old path, which `checkall` must catch rather than a user |
+| blocked by | U3-6b |
 
 ## Do not do
 

@@ -58,6 +58,7 @@ nav:
       - Attribution, the shared groundwork: plan-attribution.md
       - Recompiling Ultima III: recompile-ultima3-plan.md
       - The Ultima III port, measured: u3-port.md
+      - Seven titles, one structure: port-structure.md
   - How this project plans: plan-process.md
   - Quickstart: quickstart.md
   - Getting set up: setup.md

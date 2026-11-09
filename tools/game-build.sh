@@ -1,51 +1,65 @@
 #!/usr/bin/env bash
-# tools/u3-build.sh - build the Ultima III port: EXODUS.EXP recompiled onto fmtownskit's FM Towns machine.
+# tools/game-build.sh - build any of the seven titles onto fmtownskit's FM Towns machine.
 #
-# WHY THIS IS A SECOND SCRIPT AND NOT A FLAG ON port-build.sh. port-build.sh owns Ultima II's build and every
-# number in docs/ was taken with it, so changing its behaviour to serve a second title would put those numbers at
-# risk for no gain. What the two builds must not do is each own half of one arithmetic: the strip, the frame
-# shift and the module key all belong together, and both scripts do all three in one place. The shared work that
-# really is shared (TBIOS, the cue, cmake) is done by the same tools, not by copies of each other.
+# WHAT THIS FILE IS, AND WHY IT IS NOT CALLED AFTER ONE GAME. It began as tools/u3-build.sh, because a second
+# title needed the strip, the frame shift, the seed derivation and the recompiler invocation in one place and
+# port-build.sh already owned Ultima II's. Seven titles are now in scope (tools/games.js), so a script named
+# after one of them would be the first of seven copies. The per-title facts are read from tools/games.js; this
+# file owns the platform-wide arithmetic, which is the strip, the frame and the module key.
 #
-# THE FRAME. Runtime address = file offset - 0x200, measured on both titles: the entry field is 0xd8ab0 and the
-# bytes at file 0xd8cb0 are the start-up stub, so the recompilation runs on the stripped image with that seed and
-# every address it is given in the same frame as the module it produces. Keying the module on the unstripped file
-# puts every lookup 0x200 out, which is this project's most expensive recurring mistake.
+# WHY IT IS STILL A SECOND SCRIPT AND NOT A FLAG ON port-build.sh. port-build.sh owns Ultima II's build and every
+# number in docs/ was taken with it, so changing its behaviour would put those numbers at risk for no gain. What
+# the two must not do is each own half of one arithmetic, and they do not: both do the strip, the shift and the
+# key in one place each, from the same descriptor. Folding them into one script is plan item U3-6b.
+#
+# THE FRAME. Runtime address = file offset - 0x200, measured on every title: the header's entry field is a
+# runtime address and the bytes at `entry` in the stripped image are the `eb 56` start-up stub, which the script
+# checks before using it. Keying the module on the unstripped file puts every lookup 0x200 out, which is this
+# project's most expensive recurring mistake.
 #
 # USAGE
-#   tools/u3-build.sh                recompile, build, run 120 frames
-#   tools/u3-build.sh --reuse        skip the recompilation, use what is in the build directory
-#   tools/u3-build.sh --frames N     run N vsyncs instead of 120
-#   tools/u3-build.sh --no-run       build and stop
-#   tools/u3-build.sh --quiet        print only the counts line
-#   DISC_IMG=/path/to/x.img          the disc image, if not the one .img beside the tools
+#   tools/game-build.sh u3              recompile, build, run 120 frames
+#   tools/game-build.sh u3 --reuse      skip the recompilation, use what is in the build directory
+#   tools/game-build.sh u3 --frames N   run N vsyncs instead of 120
+#   tools/game-build.sh u3 --no-run     build and stop
+#   tools/game-build.sh --list          the titles, from tools/games.js
+#   DISC_IMG=/path/to/x.img             the disc image, if not the one .img beside the tools
 #
-# U3_SEEDS=FILE appends guest-frame seed addresses, in the same format as tools/runtime-seeds.txt. It is how the
-# walked seed set of plan item U3-4a joins the build without editing this script: the entry alone reaches 645
-# functions, and every seed added later is a line in that file.
+# EXTRA_SEEDS=FILE appends guest-frame seed addresses, in the same format as tools/runtime-seeds.txt, on top of
+# the title's own file from tools/games.js. It is how an experiment adds seeds without editing anything.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KIT="$ROOT/fmtownskit"
-OUT="$ROOT/build/u3"
-RECOMP="$OUT/recomp"
-GAME="${U3_GAME:-EXODUS.EXP}"
-STRIPPED="/var/tmp/u3-$(basename "$GAME" .EXP)-stripped.bin"
 
 REUSE=0
 FRAMES=120
 NO_RUN=0
 QUIET=0
+GAME_ID=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+		--list) node "$ROOT/tools/games.js" --list; exit 0 ;;
 		--reuse) REUSE=1; shift ;;
 		--frames) FRAMES="$2"; shift 2 ;;
 		--no-run) NO_RUN=1; shift ;;
 		--quiet) QUIET=1; shift ;;
-		*) echo "usage: tools/u3-build.sh [--reuse] [--frames N] [--no-run] [--quiet]" >&2; exit 2 ;;
+		--game) GAME_ID="$2"; shift 2 ;;
+		-*) echo "usage: tools/game-build.sh <title> [--reuse] [--frames N] [--no-run] [--quiet]" >&2; exit 2 ;;
+		*) GAME_ID="$1"; shift ;;
 	esac
 done
+GAME_ID="${GAME_ID:-u3}"
+
+# The per-title facts come from one table, so a title's executable name is not written into a second place.
+GAME=$(node "$ROOT/tools/games.js" --get "$GAME_ID" exp) || exit 2
+SELECTOR=$(node "$ROOT/tools/games.js" --get "$GAME_ID" selector) || exit 2
+SEED_FILE=$(node "$ROOT/tools/games.js" --get "$GAME_ID" seeds) || exit 2
+SAVE_DISK=$(node "$ROOT/tools/games.js" --get "$GAME_ID" saveDisk) || exit 2
+OUT="$ROOT/build/$GAME_ID"
+RECOMP="$OUT/recomp"
+STRIPPED="/var/tmp/$GAME_ID-$(basename "$GAME" .EXP)-stripped.bin"
 
 say() { [[ $QUIET -eq 1 ]] || echo "$@"; }
 
@@ -90,24 +104,25 @@ if [[ $REUSE -eq 0 ]]; then
 	# 3. Seeds. The entry is not CALLed by anything, so it has to be given. The rest are DERIVED from the image
 	#    each run by tools/seeds.js, in the lower frame the recompiler and the port use, so nothing here is a
 	#    checked-in list that can go stale against a different rip. Measured extras (addresses the static rules
-	#    cannot find, taken from a run of the port or the machine) live in tools/u3-seeds.txt, a line each.
+	#    cannot find, taken from a run of the port or the machine) come from the title's own file, named in
+	#    tools/games.js, so no game's seed list is discovered by a naming convention in this script.
 	SEEDS="$ENTRY,$(cd "$ROOT" && node tools/seeds.js --bin "$GAME" --emit --shift 0x200)"
-	if [[ -f "$ROOT/tools/u3-seeds.txt" ]]; then
-		EXTRA=$(sed 's/#.*//' "$ROOT/tools/u3-seeds.txt" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
+	if [[ -n "$SEED_FILE" && -f "$ROOT/$SEED_FILE" ]]; then
+		EXTRA=$(sed 's/#.*//' "$ROOT/$SEED_FILE" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
 		if [[ -n "$EXTRA" ]]; then
 			SEEDS="$SEEDS,$EXTRA"
-			say "seeds     plus $(tr ',' '\n' <<< "$EXTRA" | grep -c .) measured, from tools/u3-seeds.txt"
+			say "seeds     plus $(tr ',' '\n' <<< "$EXTRA" | grep -c .) measured, from $SEED_FILE"
 		fi
 	fi
-	if [[ -n "${U3_SEEDS:-}" ]]; then
-		[[ -f "$U3_SEEDS" ]] || { echo "U3_SEEDS=$U3_SEEDS does not exist" >&2; exit 2; }
-		EXTRA=$(sed 's/#.*//' "$U3_SEEDS" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
+	if [[ -n "${EXTRA_SEEDS:-}" ]]; then
+		[[ -f "$EXTRA_SEEDS" ]] || { echo "EXTRA_SEEDS=$EXTRA_SEEDS does not exist" >&2; exit 2; }
+		EXTRA=$(sed 's/#.*//' "$EXTRA_SEEDS" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
 		SEEDS="$SEEDS,$EXTRA"
-		say "seeds     plus $(tr ',' '\n' <<< "$EXTRA" | grep -c .) from $U3_SEEDS"
+		say "seeds     plus $(tr ',' '\n' <<< "$EXTRA" | grep -c .) from $EXTRA_SEEDS"
 	fi
 	say "seeds     $(tr ',' '\n' <<< "$SEEDS" | grep -c .) in the runtime frame"
 
-	# 4. No-code ranges, per module. EXODUS's ranges are its own: tools/codelimits.js finds the zero runs that
+	# 4. No-code ranges, per module, derived from that module's own image. tools/codelimits.js finds the zero runs that
 	#    are not code, and a range carried over from ENCHANT.EXP would refuse Ultima II's real code in a module
 	#    for Ultima III.
 	GAME_NO_CODE=$(cd "$ROOT" && node tools/codelimits.js --file "$STRIPPED" --args | sed 's/--no-code /--no-code game=/g')
@@ -123,15 +138,15 @@ if [[ $REUSE -eq 0 ]]; then
 	TB_SPEC="tbios=$OUT/TBIOS.BIN@110:20-100"
 	[[ -n "$TB_SEEDS" ]] && TB_SPEC="$TB_SPEC+$TB_SEEDS"
 
-	# 6. One pass, two modules, each with its own ranges. The selector is 0x0c, which is the one the port
-	#    registers the game module at and the one Ultima II's live CS was measured to be; Ultima III's has not
-	#    been measured (item U3-2a), and until it is, this is the assumption the port runs under and it is
-	#    printed rather than buried.
+	# 6. One pass, two modules, each with its own ranges. The selector is the title's, from tools/games.js: 0x0c
+	#    is measured on ENCHANT and is an assumption everywhere else until that title is measured. The load base
+	#    is the port's choice for every title, because the image is flat with no relocations, and neither number
+	#    is allowed to be silently defaulted, so both are printed.
 	rm -rf "$RECOMP"
 	rm -f "$OUT/recomp-summary.txt"
-	say "assumption selector 0x0c and load base 0x400000 are Ultima II's, not measured on Ultima III (U3-2a)"
+	say "assumption selector $SELECTOR and load base 0x400000, both measured on ENCHANT only (plan item U3-2a)"
 	(cd "$ROOT" && PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m fmtownskit.recomp --out "$RECOMP" \
-		--raw "game=$STRIPPED@0xc+$SEEDS" $GAME_NO_CODE \
+		--raw "game=$STRIPPED@$SELECTOR+$SEEDS" $GAME_NO_CODE \
 		--raw "$TB_SPEC" $TB_NO_CODE) | tail -2 | tee "$OUT/recomp-report.txt"
 
 	# The counts line, stable and machine-comparable, so a second run can be diffed against this one rather
@@ -172,11 +187,16 @@ say "built     $OUT/b/u2port"
 [[ $NO_RUN -eq 1 ]] && { say "run       skipped (--no-run). Everything is under $OUT."; exit 0; }
 
 # 8. Run it. `--graphics=none` for the same reason as Ultima II's build: a measurement path must not change
-#    according to whether a display happens to be reachable. The save disk is passed when one is present, because
-#    Ultima III asks for A: and a missing floppy is a different run from a formatted one.
+#    according to whether a display happens to be reachable. The save disk is the title's own from tools/games.js,
+#    passed when it exists, because a game that asks for A: runs differently with no floppy than with a formatted
+#    one and the difference is not a port defect.
 FLOPPY=""
-if [[ -f "$ROOT/saves/u3test.hdm" ]]; then
-	FLOPPY="$ROOT/saves/u3test.hdm"
+if [[ -n "$SAVE_DISK" && -f "$ROOT/$SAVE_DISK" ]]; then
+	FLOPPY="$ROOT/$SAVE_DISK"
 	say "floppy    $FLOPPY"
 fi
-"$OUT/b/u2port" --graphics=none --frames="$FRAMES" "$ROOT/$GAME" "$OUT/TBIOS.BIN" "$OUT/disc.cue" $FLOPPY
+# The binary is named after the title (plan item U3-6a). Until that rename lands, every build of the port calls
+# itself u2port, which is why the name is looked for rather than assumed.
+PORT_BIN="$OUT/b/${GAME_ID}port"
+[[ -x "$PORT_BIN" ]] || PORT_BIN="$OUT/b/u2port"
+"$PORT_BIN" --graphics=none --frames="$FRAMES" "$ROOT/$GAME" "$OUT/TBIOS.BIN" "$OUT/disc.cue" $FLOPPY
