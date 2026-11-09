@@ -2,7 +2,7 @@
 # tools/release-package.sh - assemble the host artefact a release carries: a port that plays, with no game in it.
 #
 # WHAT IS IN THE ARTEFACT AND WHY. Since 2026-10-30 the recompiled C++ is committed under module/, so a playable
-# u2port can be built by CI with no disc anywhere in the pipeline. That is the binary this packages, together with
+# The port can be built by CI with no disc anywhere in the pipeline. That is the binary this packages, together with
 # the smallest set of scripts that make "drop your own files in ./game/ and run ./play.sh" work without a clone.
 #
 # SDL IS LINKED STATIC, and that is what makes the binary somebody else's machine's binary rather than a Debian
@@ -68,13 +68,13 @@ if [[ ! -f "$SDL_LICENSE" ]]; then
 fi
 BUILD="$OUT/build-host"
 mkdir -p "$OUT"
-cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake.log" 2>&1
+cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DPORT_TARGET=u2 -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake.log" 2>&1
 cmake --build "$BUILD" -j"$(nproc)" >"$OUT/build.log" 2>&1 || {
 	echo "the release build failed. Last lines of $OUT/build.log:" >&2
 	tail -30 "$OUT/build.log" >&2
 	exit 1
 }
-cp "$BUILD/u2port" "$OUT/$NAME"
+cp "$BUILD/u2" "$OUT/$NAME"
 chmod 0755 "$OUT/$NAME"
 
 # The portability assertion. A binary that needs libSDL3 from the distro is not the thing this release claims to

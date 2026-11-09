@@ -36,7 +36,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_PORT = os.path.join(ROOT, 'build', 'port', 'b', 'u2port')
+DEFAULT_PORT = os.path.join(ROOT, 'build', 'port', 'b', 'u2')
 DEFAULT_DISK = os.path.join(ROOT, 'saves', 'userdisk.hdm')
 ALPHABET = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ') + list('0123456789') + \
            ['space', 'Down', 'Up', 'Left', 'Right', 'Return']   # Escape is dropped by kPcToTowns, so it is not swept

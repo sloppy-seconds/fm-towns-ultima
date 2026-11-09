@@ -44,13 +44,13 @@ difference in one 44 KB region. Seven ids is the right table size, but the demos
 | the title's executable and entry | `tools/games.js` | done |
 | the build stage | `build/<id>/` | done for `u3`, `u2` still uses `build/port/` |
 | the committed module | `module/<id>/` | not done, `module/` is U2's today |
-| the binary | `<id>port`, via a CMake `PORT_TARGET` cache variable | done: `u3` builds `u3port`, `u2` still builds `u2port` |
+| the binary | the title's id, via a CMake `PORT_TARGET` cache variable | done: `u3` builds `u3`, `u2` builds `u2` |
 | measured seeds | `tools/seeds/<id>.txt` | partly: `tools/u3-seeds.txt` and `tools/runtime-seeds.txt` |
 | extracted asset output | `extracted/<id>/` | not done, `extracted/u2` and `extracted/GRAPH` coexist |
 | the save disk | `saves/<id>-test.hdm` | partly: `saves/u3test.hdm` |
 | the doc page | `docs/port-<id>.md` | not done, this session added `docs/u3-port.md` |
 | environment variables | one neutral `PORT_*` namespace | not done, 30+ `U2_*` names are shared by U2 and U3 today |
-| release assets | `<id>port-<os>-<arch>` | not done, `dist/u2port-linux-x86_64` |
+| release assets | `<id>port-<os>-<arch>` | not done, and deliberately unchanged by the executable's rename: `dist/u2port-linux-x86_64` still says what it is to somebody who downloads it |
 
 The environment variables are the ones that will hurt first, because U3 already uses `U2_SHOT` and `U2_STACK` and
 a third title would copy whichever spelling it reads first. They are also the change most likely to break a
@@ -60,8 +60,10 @@ harness silently, so they go last and alone.
 
 1. The descriptor table and the naming conventions. No behaviour change, and it is what stops the next title
    copying a name instead of asking for it.
-2. `PORT_TARGET` in CMake plus the six call sites that name the binary. U2's default stays `u2port`, so no
-   release name, gate or doc moves.
+2. `PORT_TARGET` in CMake plus the six call sites that name the binary. Done: the executable is the title's id,
+   so `u2` and `u3`, and the release asset keeps its long name. Every build passes `-DPORT_TARGET` explicitly
+   rather than relying on the default, because the value is cached and a tree configured before the rename kept
+   producing `u2port` while printing the new name. That was measured, not anticipated.
 3. The `PORT_*` environment namespace with `U2_*` honoured as aliases for one release, then dropped.
 
 Steps 1 and 2 are in `docs/recompile-ultima3-plan.md` as items U3-6a, U3-6b and U3-6c. Step 3 is the one to do

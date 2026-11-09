@@ -48,7 +48,7 @@ WORLD_REPRODUCIBLE = "45ef7efc21c6254f"
 FRAMES = 1500
 
 ap_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BIN = os.environ.get("U2_BIN", os.path.join(ap_root, "build/ctl/u2port"))
+BIN = os.environ.get("U2_BIN", os.path.join(ap_root, "build/port/b/u2"))
 EXP = os.environ.get("U2_EXP", os.path.join(ap_root, "ENCHANT.EXP"))
 TBIOS = os.environ.get("U2_TBIOS", os.path.join(ap_root, "build/play/TBIOS.BIN"))
 CUE = os.environ.get("U2_CUE", os.path.join(ap_root, "build/play/disc.cue"))

@@ -66,7 +66,7 @@ cmake --build "$BUILD" -j"$(nproc)" >"$OUT/build-win.log" 2>&1 || {
 	exit 1
 }
 mkdir -p "$OUT"
-cp "$BUILD/u2port.exe" "$OUT/$NAME"
+cp "$BUILD/u2.exe" "$OUT/$NAME"
 chmod 0644 "$OUT/$NAME"
 
 # The self-containment assertion. Any of these in the import table means the file is not one file on a stranger's

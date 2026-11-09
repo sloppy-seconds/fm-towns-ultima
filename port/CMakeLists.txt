@@ -2,10 +2,11 @@ cmake_minimum_required(VERSION 3.20)
 # THE EXECUTABLE IS NAMED AFTER THE TITLE IT RUNS (docs/recompile-ultima3-plan.md, item U3-6a, and
 # docs/port-structure.md). Seven titles are in scope and the module is compiled in, so one binary per title is the
 # shape, which means the names have to differ: two releases, two play.sh trees, or one folder holding both
-# binaries collide otherwise. The default is u2port, so Ultima II's build, its release asset name, the gate that
-# reads build/port/b/u2port and every doc that says u2port are unchanged by this variable existing. A build for
-# another title passes -DPORT_TARGET=<id>port, which is what tools/game-build.sh does.
-set(PORT_TARGET u2port CACHE STRING "name of the executable this build produces")
+# binaries collide otherwise. The name is the title's id from tools/games.js, so `u1`, `u2`, `u3`, `british`,
+# `u1demo`. The default is `u2` because Ultima II is the title every existing doc, gate and route was measured on.
+# The RELEASE ASSET keeps its long name (dist/u2port-linux-x86_64): that name says what the file is to somebody who
+# downloads it, and tools/checkall.js asserts it, so renaming the executable deliberately does not move it.
+set(PORT_TARGET u2 CACHE STRING "name of the executable this build produces")
 project(${PORT_TARGET} CXX)
 set(CMAKE_CXX_STANDARD 20)
 if(NOT CMAKE_BUILD_TYPE)

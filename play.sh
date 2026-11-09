@@ -137,9 +137,11 @@ else
 	echo "saves     the port creates ./saves on first run, and no image was found to seed it from"
 fi
 
-# 6. The binary. A release tarball ships u2port next to this script, and then there is nothing to build: that is
-#    the whole point of the release. A clone has no u2port at the root, so it builds one from module/ with cmake,
-#    which needs a compiler and SDL3 but no recompiler and no toolkit beyond its runtime headers.
+# 6. The binary. A release tarball ships the port next to this script under its release name, and then there is
+#    nothing to build: that is the whole point of the release. A clone has no binary at the root, so it builds one
+#    from module/ with cmake, which needs a compiler and SDL3 but no recompiler and no toolkit beyond its runtime
+#    headers. The NAME OF THE EXECUTABLE IS THE TITLE'S, so this looks for `u2` first (docs/port-structure.md): the
+#    release asset keeps its long name and is found too, and `u2port` is what builds called it before the rename.
 sdl3_from_system() {
 	local d
 	for d in /usr/lib/cmake/SDL3 /usr/lib/x86_64-linux-gnu/cmake/SDL3 /usr/lib64/cmake/SDL3 \
@@ -150,15 +152,21 @@ sdl3_from_system() {
 	return 1
 }
 
-if [[ -x "$ROOT/u2port" ]]; then
+if [[ -x "$ROOT/u2" ]]; then
+	PORT_BIN="$ROOT/u2"
+	echo "binary    $PORT_BIN (shipped with this archive, nothing built)"
+elif [[ -x "$ROOT/u2port" ]]; then
 	PORT_BIN="$ROOT/u2port"
 	echo "binary    $PORT_BIN (shipped with this archive, nothing built)"
-elif [[ $REBUILD -eq 0 && -x "$WORK/u2port" ]]; then
-	PORT_BIN="$WORK/u2port"
+elif [[ -x "$ROOT/u2port-linux-x86_64" ]]; then
+	PORT_BIN="$ROOT/u2port-linux-x86_64"
+	echo "binary    $PORT_BIN (the release asset, nothing built)"
+elif [[ $REBUILD -eq 0 && -x "$WORK/u2" ]]; then
+	PORT_BIN="$WORK/u2"
 	echo "binary    $PORT_BIN (built earlier, --rebuild to force)"
 else
 	[[ -d "$ROOT/port" ]] || {
-		echo "no u2port beside this script and no port/ directory to build one from." >&2
+		echo "no port binary beside this script and no port/ directory to build one from." >&2
 		exit 2
 	}
 	# SDL3 from the distro if it has one, and from the pinned source if it does not. Ubuntu 24.04 has no
@@ -187,7 +195,7 @@ else
 		tail -20 "$WORK/build.log" >&2
 		exit 1
 	}
-	PORT_BIN="$WORK/u2port"
+	PORT_BIN="$WORK/u2"
 	echo "built     $PORT_BIN from module/ ($(ls "$ROOT"/module/p_*.cpp | wc -l) sources, no recompile)"
 fi
 

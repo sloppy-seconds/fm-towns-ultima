@@ -227,13 +227,16 @@ echo "cue       $OUT/disc.cue (track 1 only, for the kit's reader, resolving to 
 # -DFMT_RUNTIME is passed explicitly rather than left to the CMakeLists default, because the value is CACHEd: a
 # build tree created before the kit moved would keep pointing at the old path and fail with a message that names
 # the new one, which is the most confusing possible combination.
-cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" > "$OUT/cmake.log" 2>&1
+# -DPORT_TARGET for the same reason. A tree configured before the executable was renamed holds `u2port` in its cache,
+# so a build like that produces `u2port`, prints the name it was told to print, and the run line then executes a
+# binary that is not there. Measured exactly that on 2026-11-10.
+cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" -DPORT_TARGET=u2 > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
 	tail -20 "$OUT/build.log" >&2
 	exit 1
 }
-echo "built     $OUT/b/u2port"
+echo "built     $OUT/b/u2"
 
 if [[ $NO_RUN -eq 1 ]]; then
 	echo "run       skipped (--no-run). Everything is under $OUT."
@@ -245,4 +248,4 @@ fi
 # it, and this script is the measurement path: a run must not change according to whether a display happens to be
 # reachable from the shell that started it. With `none` this is byte-identical to what every figure in docs/ was
 # taken with.
-"$OUT/b/u2port" --graphics=none --frames="$FRAMES" "$ROOT/ENCHANT.EXP" "$OUT/tbios.bin" "$OUT/disc.cue"
+"$OUT/b/u2" --graphics=none --frames="$FRAMES" "$ROOT/ENCHANT.EXP" "$OUT/tbios.bin" "$OUT/disc.cue"

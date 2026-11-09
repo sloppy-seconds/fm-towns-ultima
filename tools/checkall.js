@@ -697,7 +697,7 @@ if (skipCheck('attribution ledger')) { recordSkip('attribution ledger'); } else 
 // Skips nothing: it needs a built port, and says so rather than passing quietly.
 if (!skipCheck('shadow differential')) {
 	const problems = [];
-	const binary = path.join(ROOT, 'build', 'port', 'b', 'u2port');
+	const binary = path.join(ROOT, 'build', 'port', 'b', 'u2');
 	const py = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
 		? path.join(__dirname, '.venv', 'bin', 'python3') : 'python3';
 	// CI cannot run this and never will: the check builds against a module generated from zero fill and has no game
@@ -712,7 +712,7 @@ if (!skipCheck('shadow differential')) {
 		recordSkip('shadow differential');
 		console.log('skip  shadow differential (no game media in this tree: it needs a built port and a disc)');
 	} else if (!fs.existsSync(binary)) {
-		problems.push('build/port/b/u2port is missing, so the differential was not run (./tools/port-build.sh)');
+		problems.push('build/port/b/u2 is missing, so the differential was not run (./tools/port-build.sh)');
 		record('shadow differential', problems);
 	} else {
 		for (const [label, extra] of [['differential', []], ['control', ['--control']]]) {
@@ -754,8 +754,11 @@ if (!skipCheck('shadow differential')) {
 	const problems = [];
 	for (const f of fs.readdirSync(__dirname).filter((n) => /\.(py|js|sh)$/.test(n))) {
 		const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
-		if (!/u2port/.test(src)) continue;
-		const sets = instruments.filter((n) => src.includes(n));
+// The pre-filter used to be a search for the string `u2port`, which is the executable's name. The executable is now
+// named after its title (`u2`, `u3`, ...), so a name-based filter would have silently stopped inspecting most of the
+// tools that launch the port and the check would have gone quiet rather than red. It is dropped: `sets` and
+// `launches` are the real test, and the only cost of dropping it is reading a few more files.
+	const sets = instruments.filter((n) => src.includes(n));
 		// A QUOTED '--dev', and a tool that actually launches a process. An unquoted mention is prose, and the first
 		// version of this check passed on a comment that said "--dev, because ..." while the argument itself had been
 		// removed: a check that could not fail. Verified by deleting the argument and watching this go red.

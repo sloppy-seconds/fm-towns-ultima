@@ -44,7 +44,7 @@ while the document calls it done.
 | U3-4c | OPEN | not attempted |
 | U3-4d | OPEN | not attempted |
 | U3-5a-e | OPEN | blocked behind a playable save disk |
-| U3-6a | DONE | `PORT_TARGET`, so Ultima III builds `u3port` and Ultima II keeps `u2port` |
+| U3-6a | DONE | `PORT_TARGET`, so the executable is the title's id: `u2`, `u3` |
 | U3-6b | OPEN | two build scripts, one descriptor table, and the strip arithmetic in both |
 | U3-6c | OPEN | 30+ `U2_*` environment names are shared by U2 and U3 |
 | U3-6d | OPEN | `module/`, `extracted/` and the doc pages do not follow one pattern |
@@ -542,13 +542,21 @@ binaries do collide, and the name is also what `play.sh` looks for and what the 
 | done when | `port/CMakeLists.txt` takes the executable's name from a cache variable defaulting to `u2port`, every target-scoped line uses it, `tools/game-build.sh u3` produces `u3port`, and Ultima II's build still produces `u2port` with its release name, gate and docs unchanged. The failure case: a rename that moves `dist/u2port-linux-x86_64` or the name `tools/checkall.js` checks for |
 | blocked by | nothing |
 
-**What is now known.** `PORT_TARGET` is a cache variable defaulting to `u2port`, `project()` and every
-target-scoped line use it, and the only remaining `u2port` in `port/CMakeLists.txt` is the default in the comment
-that explains it. Verified four ways: configuring with no `PORT_TARGET` yields only a `u2port.dir` target, the
-same configure with `-DPORT_TARGET=u3port` yields only `u3port.dir`, `tools/game-build.sh u3` linked
-`build/u3/b/u3port` and ran 60 frames from it, and `tools/port-build.sh --reuse` rebuilt `build/port/b/u2port`
-which ran 60 frames unchanged. `tools/ci-port-build.sh` now builds its foreign configuration as `u3port` and
-fails if the name did not reach the target, and `tools/u3drive.py` defaults to `build/u3/b/u3port`.
+**What is now known.** `PORT_TARGET` is a cache variable, `project()` and every target-scoped line use it, and
+the executable is named after the title's id rather than after the port: `tools/game-build.sh u3` links
+`build/u3/b/u3` and Ultima II's build links `build/port/b/u2`. Verified by building and running both, 60 frames
+each, with the register dumps this page already recorded. `tools/ci-port-build.sh` builds its foreign
+configuration as `u3` and fails if the name did not reach the target, and `tools/u3drive.py` defaults to
+`build/u3/b/u3`.
+
+**The release asset name did not move.** `dist/u2port-linux-x86_64` is what the release ships and what
+`tools/checkall.js` asserts, and it is a different name from the executable inside it. Renaming the executable
+without renaming the asset is deliberate: the asset name says what the file is to somebody who downloads it.
+
+**A cached variable lies.** The first rebuild after the rename printed `built .../b/u2` and produced nothing,
+because `build/port/b/CMakeCache.txt` still held `PORT_TARGET=u2port`. Every build now passes `-DPORT_TARGET`
+explicitly, for the same reason `tools/port-build.sh` already passed `-DFMT_RUNTIME` explicitly. The stale
+`build/port/b/u2port` binary from before the rename is left in place rather than deleted, and nothing reads it.
 
 **The done-when was wrong when first written**, saying `tools/game-build.sh u2` produces `u3port`. Nothing
 implements an item literally like that, but a criterion that states the opposite of the intent is how a rename

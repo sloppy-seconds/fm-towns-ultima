@@ -71,20 +71,20 @@ cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	tail -30 "$OUT/build.log" >&2
 	exit 1
 }
-if [[ ! -f "$OUT/b/u2port" ]]; then
-	echo "no u2port at $OUT/b/u2port" >&2
+if [[ ! -f "$OUT/b/u2" ]]; then
+	echo "no u2 at $OUT/b/u2" >&2
 	exit 1
 fi
-echo "linked      $OUT/b/u2port ($(stat -c %s "$OUT/b/u2port") bytes)"
+echo "linked      $OUT/b/u2 ($(stat -c %s "$OUT/b/u2") bytes)"
 
-# THE SAME MODULE, BUILT THE WAY A SECOND TITLE BUILDS IT. `-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3port` is what
+# THE SAME MODULE, BUILT THE WAY A SECOND TITLE BUILDS IT. `-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3` is what
 # tools/game-build.sh passes: the option compiles port/native_shadows.cpp with an empty manifest, because every entry
 # in the real one names a function of ENCHANT.EXP and a module from another title has none of them, and the target
 # name is what keeps two binaries from calling themselves the same thing. The first is the gate doing its job, and
 # this step proves the second does its own. A link check and nothing more: no game is played, no disc is read.
 cmake -S "$ROOT/port" -B "$OUT/b-foreign" -DCMAKE_BUILD_TYPE=Release \
 	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
-	-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3port > "$OUT/cmake-foreign.log" 2>&1 || {
+	-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3 > "$OUT/cmake-foreign.log" 2>&1 || {
 	echo "the foreign-module configure failed, last lines of $OUT/cmake-foreign.log:" >&2
 	tail -20 "$OUT/cmake-foreign.log" >&2
 	exit 1
@@ -94,11 +94,11 @@ cmake --build "$OUT/b-foreign" -j"$(nproc)" > "$OUT/build-foreign.log" 2>&1 || {
 	tail -30 "$OUT/build-foreign.log" >&2
 	exit 1
 }
-if [[ ! -x "$OUT/b-foreign/u3port" ]]; then
-	echo "no u3port at $OUT/b-foreign/u3port, so -DPORT_TARGET did not reach the target" >&2
+if [[ ! -x "$OUT/b-foreign/u3" ]]; then
+	echo "no u3 at $OUT/b-foreign/u3, so -DPORT_TARGET did not reach the target" >&2
 	exit 1
 fi
-echo "linked      $OUT/b-foreign/u3port, no native shadows, named after its title (a second title's configuration)"
+echo "linked      $OUT/b-foreign/u3, no native shadows, named after its title (a second title's configuration)"
 
 # AND A TITLE'S BUILD MUST REFUSE TO RUN WITHOUT ITS OWN BINARY. tools/game-build.sh extracts the title's `.EXP`
 # from the disc and checks that the entry field lands on the start-up stub. With no disc and no binary there is

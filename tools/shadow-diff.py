@@ -16,7 +16,7 @@ SCREENS COME FROM MEMORY, NOT A WINDOW. The screen buffer and the character reco
 
 USAGE
   ./tools/shadow-diff.py                      compare baseline and shadows on the default build
-  ./tools/shadow-diff.py --port /var/tmp/wb/u2port    ... against another build
+  ./tools/shadow-diff.py --port /var/tmp/wb/u2    ... against another build
   ./tools/shadow-diff.py --json               machine-readable
 
 EXIT STATUS. 0 when the two runs agree and the shadow ran. 1 otherwise, so this can gate a commit.
@@ -85,7 +85,7 @@ def one_run(port_path, template_disk, shadow_off, boot, settle, work, tag):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--port', default=os.path.join(ROOT, 'build', 'port', 'b', 'u2port'))
+    ap.add_argument('--port', default=os.path.join(ROOT, 'build', 'port', 'b', 'u2'))
     ap.add_argument('--disk', default=os.path.join(ROOT, 'saves', 'userdisk.hdm'))
     ap.add_argument('--boot', type=int, default=2000)
     ap.add_argument('--settle', type=int, default=600)
