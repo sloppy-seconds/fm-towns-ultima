@@ -292,9 +292,27 @@ of `0x000c`, so the header field is not the selector.
 | done when | the load base, CS, DS, ES, SS, EIP and ESP at the entry of `EXODUS.EXP` are recorded with the console commands that read them, in a page of their own. The failure case: the registers cannot be captured before the game runs its own start-up, in which case the port chooses a scheme, says so, and the scheme is written down as an assumption rather than presented as a measurement |
 | blocked by | booting the game to Ultima III on the save disk, which needs a person at the menu |
 
+**Where it has got to, 2026-11-10.** One third of it is measured and one third has stopped mattering.
+
+The stack pointer is the measured third. `port/main.cpp` reads it from the `MP` header at `0x0e`:
+`0x000f5a78` for `EXODUS.EXP`, and `0x11eb10` for `ENCHANT.EXP`, which is exactly what a live `STA`
+reported at that game's entry. The field is the loader's value where it has been checked against the
+machine, so reading it for a second title is a generalisation rather than a guess.
+
+The selectors are the part that stopped mattering. Ultima III loads its own: the emitted module has nine
+`mov ds, eax`, four `mov ss, eax`, four `mov es, eax`, four `mov fs, eax`, and two `mov ss, word ptr
+[0xb318d]` and `[0xb3823]` that take a selector from the program's own data. Whatever the port sets at
+the hand-off is replaced early.
+
+The load base is what is left, and an argument says it cannot be observed by the program: the image is
+flat, `relocCount` is 0, and every reference in it is segment-relative. `0x400000` is Ultima II's
+measured value and Ultima III's **assumed** one. The live measurement that would settle it needs the
+emulator driven to the game's entry, and the only running container is mid-session in Ultima II, so it
+was not taken. Details in [u3-port.md](u3-port.md).
+
 #### U3-2b. The DOS extender calls EXODUS makes
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
 Static: the `int 21h` sites in the module, with `AH` where the constant is visible. Runtime: which of
 them execute, from a control-channel trace.
@@ -303,6 +321,12 @@ them execute, from a control-channel trace.
 |---|---|
 | done when | every `AH` value U3 uses is listed with the site that uses it, and each is marked served, unserved or unreached by `fmtownskit/runtime/towns_dos.cpp`. The failure case: an unserved call that is found to matter, recorded with the symptom it causes rather than patched blindly |
 | blocked by | U3-1b for the runtime half |
+
+**What is now known.** 26 sites. Fourteen carry an immediate and every one of those is served by
+`towns_dos.cpp` today: three each of the Phar Lap vector calls `2502`, `2503`, `2506`, `2507`, one
+`AH=30` DOS version and one `AH=4a` setblock. The other twelve compute their function number and none
+has raised a fault in 800 frames, so the static census is complete where it can be and the runtime half
+is the absence of a fault rather than a trace. The table is in [u3-port.md](u3-port.md).
 
 #### U3-2c. The disc's drive and current directory
 
@@ -315,18 +339,25 @@ while the current drive is Q", so this may be a check rather than a change.
 | field | value |
 |---|---|
 | done when | the port opens `\GRAPH\MAP3.TIF` and `\UT3\SOSARIA.MP3` from the disc image, and either the existing path handling is confirmed unchanged or the change is carried as a named kit patch in `patches/`. The failure case: a `chdir` shim added to the port that hides a wrong assumption inside the runtime |
-| blocked by | U3-1b |
+| blocked by | U3-3b. Measured 2026-11-10: the game has opened **nothing** from the disc through 1900 frames. The title art is inside the executable, and the only disc file read is `\UTFONT.FNT`, which the machine opens for its own font and not the game. So the item cannot be measured until the game starts and asks for a map |
 
 ### Phase 3. From the title screen into the game
 
 #### U3-3a. Keys, and a route that gets past the title
 
-**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+**State:** DONE · **Autonomy:** PARTLY AUTONOMOUS
 
 | field | value |
 |---|---|
 | done when | a scripted route over the control socket leaves the title screen and reaches character creation or player selection, with every key code used written down. The failure case: the route needs a key the socket cannot deliver, recorded with the key and the symptom |
 | blocked by | U3-1b |
+
+**What is now known.** `tools/u3drive.py --route title-to-register` sends space at 500, Down at 800,
+Return at 1100 and Return at 1400, and lands on the register with slot 1 reading `ASSS Male Elf
+Barbarian Good`. Each screen was read before the next key was chosen, and the table of screens is in
+[u3-port.md](u3-port.md). Two capabilities the route proves: digits reach the guest, because
+`Create Entry (1-20)` accepted `1` and answered `Create (Not Empty!)`, and the game reads the roster off
+the floppy through the port.
 
 #### U3-3b. A save disk, read and written
 
@@ -338,7 +369,12 @@ records `ROSTER.UT3` at 14,622 bytes for a party. `saves/u3test.hdm` already exi
 | field | value |
 |---|---|
 | done when | a save written by the original on a copy of that disk reloads in the port, and the character fields the port reads agree with `tools/savedisk.js` on the same file. The failure case: fields that disagree are named one by one, not averaged into "mostly matches" |
-| blocked by | U3-3a |
+| blocked by | a save disk the **original** has begun a journey on. `saves/u3test.hdm` holds only `ROSTER.UT3` (14,622 bytes), the port reads it and prints the character, and `Journey Onward` answers `A WRONG DISK! Push SPACE`. `WORLD.UT3`, `PARTY.UT3` and `PLAYERS.UT3` are named in the binary and absent from the image. Synthesising them would be guessing a format nobody has read |
+
+**What is now known.** The read half is done: a roster written on the real machine parses in the port,
+which is a stronger result than the plan's criterion asked for. The write half and the world file are
+what the item now waits on, and they need the original game driven through character creation and
+`Journey Onward` on a copy of that disk.
 
 #### U3-3c. Text
 
@@ -379,6 +415,19 @@ Ultima II's equivalent exercise found 30 conflicting starts and resolved 22 of t
 |---|---|
 | done when | every start held by either walk is a function in the module or recorded as not-a-function with the evidence, the conflict count is zero, and the total is stated once on a page that owns it. The failure case: a union of seeds whose conflicts are suppressed by dropping the seeds that conflict |
 | blocked by | U3-0b |
+
+**Where it has got to, 2026-11-10.** The sets are reconciled enough to build with: `tools/seeds.js`
+derives 583 candidates for `EXODUS.EXP` in 0.048 s (572 from `call rel32`, 126 single-caller targets
+promoted by a prologue, 5 callback immediates, 6 address-taken), the entry is added, and one address the
+machine supplied takes it to 860 functions and 148,461 bytes with zero walk conflicts. `docs/u3-port.md`
+owns that number. What is not done is the other direction: no start has been shown to be a
+not-a-function, and the 30 unresolved indirect transfers are the reason the union is not complete.
+
+One address needed the machine, and its shape is the general problem: `call dword ptr [0xb3178]` has a
+slot that is zero in the image, and the program fills it at run time from a `push imm32` at guest
+`0xbecdf`. A static rule could follow that immediate, and the callback rule does not because the target
+has no prologue. That is the next seed rule, and it is a candidate rather than a finding until it is
+measured on a run.
 
 #### U3-4b. The jump tables and the nine indirect transfers
 
