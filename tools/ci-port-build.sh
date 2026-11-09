@@ -59,9 +59,12 @@ echo "module      $(ls "$OUT/recomp"/p_*.cpp | wc -l) source file(s), modules.cp
 
 # The same two cache variables a human passes, for the same reason port-build.sh passes them: RECOMP_DIR has no
 # default worth guessing, and FMT_RUNTIME is cached, so a stale build tree keeps pointing at an old path.
+# -DPORT_ALLOW_SHARED_SDL because this container has a shared SDL3 and this job ships nothing: its only claim is that
+# the port links. The static archive is built and used by the release workflow, which is where portability matters, so
+# making this job compile SDL from source would add minutes to every push to prove something already proved.
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release \
 	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
-	-DU2_SYNTHETIC_MODULE=ON > "$OUT/cmake.log" 2>&1 || {
+	-DU2_SYNTHETIC_MODULE=ON -DPORT_ALLOW_SHARED_SDL=ON > "$OUT/cmake.log" 2>&1 || {
 	echo "cmake configure failed, last lines of $OUT/cmake.log:" >&2
 	tail -20 "$OUT/cmake.log" >&2
 	exit 1
@@ -84,7 +87,7 @@ echo "linked      $OUT/b/u2 ($(stat -c %s "$OUT/b/u2") bytes)"
 # this step proves the second does its own. A link check and nothing more: no game is played, no disc is read.
 cmake -S "$ROOT/port" -B "$OUT/b-foreign" -DCMAKE_BUILD_TYPE=Release \
 	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
-	-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3 > "$OUT/cmake-foreign.log" 2>&1 || {
+	-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3 -DPORT_ALLOW_SHARED_SDL=ON > "$OUT/cmake-foreign.log" 2>&1 || {
 	echo "the foreign-module configure failed, last lines of $OUT/cmake-foreign.log:" >&2
 	tail -20 "$OUT/cmake-foreign.log" >&2
 	exit 1

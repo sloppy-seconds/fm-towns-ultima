@@ -142,16 +142,8 @@ fi
 #    from module/ with cmake, which needs a compiler and SDL3 but no recompiler and no toolkit beyond its runtime
 #    headers. The NAME OF THE EXECUTABLE IS THE TITLE'S, so this looks for `u2` first (docs/port-structure.md): the
 #    release asset keeps its long name and is found too, and `u2port` is what builds called it before the rename.
-sdl3_from_system() {
-	local d
-	for d in /usr/lib/cmake/SDL3 /usr/lib/x86_64-linux-gnu/cmake/SDL3 /usr/lib64/cmake/SDL3 \
-		/usr/local/lib/cmake/SDL3 /usr/local/lib64/cmake/SDL3 /opt/homebrew/lib/cmake/SDL3
-	do
-		[[ -f "$d/SDL3Config.cmake" ]] && return 0
-	done
-	return 1
-}
-
+#    There is no probe for a distro SDL3 any more: every build links the pinned static archive, because a binary that
+#    needs libSDL3 from the package manager is the thing this whole script exists to avoid handing to somebody.
 if [[ -x "$ROOT/u2" ]]; then
 	PORT_BIN="$ROOT/u2"
 	echo "binary    $PORT_BIN (shipped with this archive, nothing built)"
@@ -169,26 +161,21 @@ else
 		echo "no port binary beside this script and no port/ directory to build one from." >&2
 		exit 2
 	}
-	# SDL3 from the distro if it has one, and from the pinned source if it does not. Ubuntu 24.04 has no
-	# libsdl3-dev at all and a plain desktop may have no SDL whatsoever, and neither is a reason a clone cannot
-	# build. The source build is the same one the release uses, so the binary a stranger gets is the binary we ship.
-	SDL_ARGS=()
-	if sdl3_from_system
-	then
-		echo "sdl3      from the system"
-	elif [[ -x "$ROOT/tools/sdl-from-source.sh" ]]
-	then
-		echo "sdl3      none found, building the pinned static SDL3 (once, a few minutes)"
-		SDL_PREFIX="$(SDL3_CACHE="$WORK/sdl3" "$ROOT/tools/sdl-from-source.sh")" || {
-			echo "the SDL3 source build failed. Install libsdl3-dev, or run tools/sdl-from-source.sh to see why." >&2
-			exit 1
-		}
-		SDL_ARGS=(-DCMAKE_PREFIX_PATH="$SDL_PREFIX")
-	else
-		echo "no SDL3 found and no tools/sdl-from-source.sh beside this script to build one." >&2
-		echo "install libsdl3-dev (or SDL3-devel), or use the release archive, which needs neither." >&2
+	# THE PINNED STATIC SDL3, ALWAYS, including on a machine that has one from the distro. A build that links the
+	# system's libSDL3 produces a binary that runs here and nowhere else, and that is now a configure error rather
+	# than a quiet outcome (port/CMakeLists.txt). The source build is the same one the release uses, so what a
+	# stranger gets from a clone is what we ship. It is a few minutes once and cached under $WORK/sdl3 after that.
+	if [[ ! -x "$ROOT/tools/sdl-from-source.sh" ]]; then
+		echo "no tools/sdl-from-source.sh beside this script to build the static SDL3 every build links." >&2
+		echo "use the release archive, which needs no SDL at all." >&2
 		exit 2
 	fi
+	echo "sdl3      building or reusing the pinned static archive (a few minutes the first time)"
+	SDL_PREFIX="$(SDL3_CACHE="$WORK/sdl3" "$ROOT/tools/sdl-from-source.sh")" || {
+		echo "the SDL3 source build failed. Run tools/sdl-from-source.sh to see why." >&2
+		exit 1
+	}
+	SDL_ARGS=(-DCMAKE_PREFIX_PATH="$SDL_PREFIX")
 	cmake -S "$ROOT/port" -B "$WORK" -DCMAKE_BUILD_TYPE=Release "${SDL_ARGS[@]}" >"$WORK/cmake.log" 2>&1
 	cmake --build "$WORK" -j"$(nproc)" >"$WORK/build.log" 2>&1 || {
 		echo "the port failed to build. Last lines of $WORK/build.log:" >&2

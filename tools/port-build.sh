@@ -230,7 +230,29 @@ echo "cue       $OUT/disc.cue (track 1 only, for the kit's reader, resolving to 
 # -DPORT_TARGET for the same reason. A tree configured before the executable was renamed holds `u2port` in its cache,
 # so a build like that produces `u2port`, prints the name it was told to print, and the run line then executes a
 # binary that is not there. Measured exactly that on 2026-11-10.
-cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" -DPORT_TARGET=u2 > "$OUT/cmake.log" 2>&1
+# STATIC SDL3 BY DEFAULT, and the manifest is the reason: a binary that needs libSDL3 from the distro is not
+# portable, Ubuntu 24.04 has no libsdl3-dev at all, and a reader who copies one file expects one file to work.
+# tools/sdl-from-source.sh builds the pinned upstream release as libSDL3.a and prints its prefix, building it only
+# if it is missing, so the first build on a fresh clone takes a few minutes and every one after it is instant.
+# PORT_ALLOW_SHARED_SDL=ON is for a link check that has a shared SDL3 and ships nothing; port/CMakeLists.txt refuses
+# a shared SDL3 without it.
+SDL3_PREFIX="${SDL3_PREFIX:-$("$ROOT/tools/sdl-from-source.sh" --print-prefix)}"
+if [[ ! -f "$SDL3_PREFIX/lib/libSDL3.a" ]]; then
+	echo "no static SDL3 at $SDL3_PREFIX/lib/libSDL3.a, and every build links one by default." >&2
+	echo "run tools/sdl-from-source.sh, or set SDL3_PREFIX to a prefix that has the archive." >&2
+	exit 2
+fi
+echo "sdl3      static archive at $SDL3_PREFIX"
+# SDL3_DIR is passed as well as CMAKE_PREFIX_PATH, and that is not belt and braces: the value is a CACHE entry, so a
+# tree configured before this rule held the system's SDL3 here, find_package used it, and the configure then failed
+# with the message that says a shared SDL3 was found. Measured on 2026-11-10 on the first build after the change.
+SDL3_CMAKE_DIR="$SDL3_PREFIX/lib/cmake/SDL3"
+if [[ ! -f "$SDL3_CMAKE_DIR/SDL3Config.cmake" ]]; then
+	echo "the static SDL3 prefix has no $SDL3_CMAKE_DIR/SDL3Config.cmake, so CMake cannot be pointed at it." >&2
+	exit 2
+fi
+
+cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" -DPORT_TARGET=u2 -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
 	tail -20 "$OUT/build.log" >&2

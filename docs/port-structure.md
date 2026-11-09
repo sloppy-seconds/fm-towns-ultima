@@ -51,10 +51,46 @@ difference in one 44 KB region. Seven ids is the right table size, but the demos
 | the doc page | `docs/port-<id>.md` | not done, this session added `docs/u3-port.md` |
 | environment variables | one neutral `PORT_*` namespace | not done, 30+ `U2_*` names are shared by U2 and U3 today |
 | release assets | `<id>port-<os>-<arch>` | not done, and deliberately unchanged by the executable's rename: `dist/u2port-linux-x86_64` still says what it is to somebody who downloads it |
+| the link mode | static SDL3 from `tools/sdl-from-source.sh`, shared refused | done: CMake stops on a shared SDL3, `-DPORT_ALLOW_SHARED_SDL=ON` is for a link check that ships nothing |
 
 The environment variables are the ones that will hurt first, because U3 already uses `U2_SHOT` and `U2_STACK` and
 a third title would copy whichever spelling it reads first. They are also the change most likely to break a
 harness silently, so they go last and alone.
+
+## Where a title's files live
+
+One rule, because the first two attempts disagreed: **the binary goes at the tree root beside `play.sh`, and the
+engine's files go in `game/`.** That is how `/home/paul/Downloads/fmu2/` is laid out on jarvis, and it is why
+`u2` and `u3` sit beside `u2port` rather than inside `game/` next to the executables the guest loads. A build that
+puts a binary anywhere else makes a person guess which directory to run it from.
+
+| what | where | example |
+|---|---|---|
+| the port binary | tree root | `fmu2/u2`, `fmu2/u3` |
+| the guest's executable and the disc | `game/` | `game/ENCHANT.EXP`, `game/EXODUS.EXP`, `game/disc.cue`, `game/ultima.img` |
+| save floppies | `assets/save-disk/` | `assets/save-disk/userdisk.hdm`, `assets/save-disk/u3test.hdm` |
+
+Inside the repository the same distinction is `build/<id>/b/<id>` for the binary and `build/<id>/` for the
+per-title build products, which is a staging directory rather than a distribution one.
+
+## Static by default, and a shared SDL is a configuration error
+
+Every build links the pinned SDL3 archive, and one that would link the distro's shared library stops at configure
+time and names `tools/sdl-from-source.sh` instead. The reasoning is the same as the release's: a binary that needs
+`libSDL3` from a package manager is not portable, Ubuntu 24.04 has no `libsdl3-dev` at all, and a person who copies
+one file expects one file to work.
+
+Two cache traps were paid for here on 2026-11-10, both the same shape as the `FMT_RUNTIME` one:
+
+- `SDL3_DIR` is cached, so a tree configured before this rule kept the brew prefix, `find_package` used it, and the
+  configure failed with the message about a shared SDL3. Every build now passes `SDL3_DIR` explicitly as well as
+  `CMAKE_PREFIX_PATH`.
+- `PORT_TARGET` is cached too, so the first build after the executable was renamed produced `u2port` while printing
+  `u2`. Every build passes it explicitly.
+
+`-DPORT_ALLOW_SHARED_SDL=ON` exists for exactly one case, `tools/ci-port-build.sh`, which links inside a container
+that has a shared SDL3 and ships nothing. The release workflow builds the archive from source, so the static path is
+proven there rather than in the fast link job.
 
 ## The order, and why
 

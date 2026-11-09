@@ -130,12 +130,28 @@ if(TARGET fmt_towns_sdl)
   target_link_libraries(${PORT_TARGET} fmt_towns_sdl)
 endif()
 
-# Which SDL the kit found, said out loud because the release artefact's portability depends on the answer. The kit
-# prefers SDL3::SDL3-static when the config package provides it, which is what tools/sdl-from-source.sh builds.
+# STATIC SDL3 IS THE DEFAULT AND A SHARED ONE IS A BUILD ERROR. A binary that needs libSDL3 from the distro is not
+# portable: Ubuntu 24.04 has no libsdl3-dev at all, and a reader who copies one file expects one file to work. So a
+# configure that finds only the shared library stops here and names the fix, rather than producing something that
+# runs on this machine and nowhere else. tools/sdl-from-source.sh builds the pinned upstream release as libSDL3.a,
+# and every build script passes its prefix. -DPORT_ALLOW_SHARED_SDL=ON exists for one case: a CI link check inside a
+# container that has a shared SDL3 and is not producing anything anybody runs.
+option(PORT_ALLOW_SHARED_SDL "link the system SDL3 instead of the pinned static archive (nothing you ship)" OFF)
+
+# Which SDL the kit found, said out loud because the artefact's portability depends on the answer.
 if(TARGET SDL3::SDL3-static)
   message(STATUS "${PORT_TARGET}: SDL3 static archive, no libSDL3 runtime dependency")
 elseif(TARGET SDL3::SDL3)
-  message(STATUS "${PORT_TARGET}: SDL3 shared library, the binary needs libSDL3 installed")
+  if(PORT_ALLOW_SHARED_SDL)
+    message(WARNING "${PORT_TARGET}: linking the SHARED SDL3, so this binary needs libSDL3 installed. Not shippable.")
+  else()
+    message(FATAL_ERROR
+      "only a shared SDL3 was found, and every build links the pinned static archive by default.\n"
+      "  build it once:   tools/sdl-from-source.sh            (prints the prefix, takes a few minutes)\n"
+      "  then configure:  -DCMAKE_PREFIX_PATH=<that prefix>\n"
+      "  or set SDL3_PREFIX in tools/port-build.sh / tools/game-build.sh, which do this for you.\n"
+      "  a link-only CI check may pass -DPORT_ALLOW_SHARED_SDL=ON.")
+  endif()
 else()
   message(STATUS "${PORT_TARGET}: no SDL3 found, built without the window front-end")
 endif()

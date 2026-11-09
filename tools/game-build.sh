@@ -175,8 +175,27 @@ DISC_REL="$(realpath --relative-to="$OUT" "$DISC_IMG")"
 printf 'FILE "%s" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n' "$DISC_REL" > "$OUT/disc.cue"
 say "cue       $OUT/disc.cue (track 1 only, resolving to $DISC_IMG)"
 
+# STATIC SDL3 BY DEFAULT, the same rule and the same resolution as tools/port-build.sh: a binary that needs
+# libSDL3 from the distro is not portable, and port/CMakeLists.txt refuses a shared one unless a caller says it is a
+# link check. The prefix is resolved here rather than passed down so that `tools/game-build.sh u3` is one command on
+# a fresh clone, building the pinned archive the first time and finding it every time after.
+SDL3_PREFIX="${SDL3_PREFIX:-$("$ROOT/tools/sdl-from-source.sh" --print-prefix)}"
+if [[ ! -f "$SDL3_PREFIX/lib/libSDL3.a" ]]; then
+	echo "no static SDL3 at $SDL3_PREFIX/lib/libSDL3.a, and every build links one by default." >&2
+	echo "run tools/sdl-from-source.sh, or set SDL3_PREFIX to a prefix that has the archive." >&2
+	exit 2
+fi
+say "sdl3      static archive at $SDL3_PREFIX"
+# SDL3_DIR as well, because it is a cache entry and a tree configured before this rule keeps the system's SDL3 in it.
+SDL3_CMAKE_DIR="$SDL3_PREFIX/lib/cmake/SDL3"
+if [[ ! -f "$SDL3_CMAKE_DIR/SDL3Config.cmake" ]]; then
+	echo "the static SDL3 prefix has no $SDL3_CMAKE_DIR/SDL3Config.cmake, so CMake cannot be pointed at it." >&2
+	exit 2
+fi
+
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" \
-	-DFMT_RUNTIME="$KIT/runtime" -DU2_FOREIGN_MODULE=ON -DPORT_TARGET="$GAME_ID" > "$OUT/cmake.log" 2>&1
+	-DFMT_RUNTIME="$KIT/runtime" -DU2_FOREIGN_MODULE=ON -DPORT_TARGET="$GAME_ID" \
+	-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
 	tail -20 "$OUT/build.log" >&2
