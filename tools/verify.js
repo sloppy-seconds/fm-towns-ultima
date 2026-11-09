@@ -254,6 +254,39 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP']) {
 		e.slice(h.eip, h.eip + 2).toString('hex'), '0203');
 }
 
+// Ultima III's container, entry and stack pointer, added 2026-11-10 with docs/recompile-ultima3-plan.md item
+// U3-0a. The same three claims as ENCHANT's above, made on a second title, because that plan rests on them
+// transferring. EXODUS.EXP is an `MP` header in the same 30-byte form, its entry field names an address (not a
+// file offset) whose bytes at `EIP + 0x200` are the same 18-byte High C start-up stub, and its stack field is
+// the loader's ESP.
+{
+	const x = disc.get(cat, 'EXODUS.EXP');
+	const h = mpHeader('EXODUS.EXP');
+	eq('EXODUS.EXP size', x.length, 904310);
+	eq('EXODUS lastPage', h.lastPage, 118);
+	eq('EXODUS blocks', h.blocks, 1767);
+	eq('EXODUS header size at 0x18', x.readUInt16LE(0x18), 0x1e);
+	eq('EXODUS relocCount is 0', x.readUInt16LE(0x06), 0);
+	eq('EXODUS entry field at 0x14', h.eip, 0xd8ab0);
+	eq('EXODUS entry instruction at EIP + 0x200', x.slice(h.eip + 0x200, h.eip + 0x202).toString('hex'), 'eb56');
+	// The control, as on ENCHANT: read as a file offset it is not a jump. It happens to be `02 03` in both
+	// binaries, and that is not a coincidence to be enjoyed but a second transfer signal: the 0x200 bytes before
+	// each entry are the same High C runtime block, byte for byte, so the entry sits at the same relative place
+	// inside the same library code. Asserted below as its own check.
+	eq('EXODUS entry read as a file offset is not a jump', x.slice(h.eip, h.eip + 2).toString('hex'), '0203');
+	// The 64 bytes before each entry, `0xd8aa0` on EXODUS and `0x101a10` on ENCHANT, are identical. This is what makes the entry
+	// convention a property of the toolchain rather than of one game, and it is the cheapest possible check
+	// that EXODUS.EXP really is the same CRT with a different program behind it.
+	const enTail = disc.get(cat, 'ENCHANT.EXP').slice(0x101a10, 0x101a10 + 0x40);
+	eq('EXODUS and ENCHANT share the 64 bytes before the entry',
+		x.slice(0xd8aa0, 0xd8aa0 + 0x40).equals(enTail), true);
+	// The stack field is checked on ENCHANT first, where a live `STA` reading exists (0x11EB10), so a wrong offset
+	// cannot pass on EXODUS alone. On ENCHANT this compares the field against the machine, not against prose.
+	const en = disc.get(cat, 'ENCHANT.EXP');
+	eq('ENCHANT stack field at 0x0e is the measured ESP', en.readUInt32LE(0x0e), 0x11eb10);
+	eq('EXODUS stack field at 0x0e', x.readUInt32LE(0x0e), 0xf5a78);
+}
+
 // Where the game code lives in memory, and how to read a captured address.
 //
 // `MD 000C:0` on a running game returns the ASCII text `KYB_init` followed by a

@@ -56,6 +56,7 @@ nav:
       - The C++ behavioural port: plan-port.md
       - The High C byte-identity track: plan-recomp.md
       - Attribution, the shared groundwork: plan-attribution.md
+      - Recompiling Ultima III: recompile-ultima3-plan.md
   - How this project plans: plan-process.md
   - Quickstart: quickstart.md
   - Getting set up: setup.md
