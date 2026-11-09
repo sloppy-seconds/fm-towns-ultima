@@ -1805,14 +1805,13 @@ named by the sub-block at `0xb94`. The request itself is six bytes at `0xCD4`, a
 `EDX`, `ESI` and `EDI` from the block at `0xe34` and executes `int 0x21`, then writes the registers and the carry flag back to
 `0xe50`. It is a register image, and `0x250F` and `0x2511` are `int 21h` `AX` values, neither of which appears as a constant anywhere
 in `IO.SYS` or the game image.
-5. **Get the original's requests at the Create Character screen.** The service word, the buffer contents and the minus-150 correction are
-all measured, and two suspects have been ruled out on the way: the table of contents header (`U2_TOC_HEADER=1`, which sends `01 08 08`
-instead of `03 01 08`, leaves the screen's request byte for byte identical) and the port's own decoding, which is the same code that gets
-the splash right. What remains is that the character screen asks `00:05:00` to `00:06:00`, a one-second window inside the data track,
-where the original plays track 7. Deciding whether that request means something else to the real BIOS, or whether the program made a
-different request because an earlier reply differed, needs the original's own requests at that screen. That is one drive through
-character creation with `TSG_CDDA_LOG=1`, and it needs a person at the emulator. Autonomy: `BLOCKED ON HUMAN` for that one run, autonomous
-for everything after it.
+5. **Test the position substitution at the Create Character screen.** The original's log settles the target: it plays `09:50:00` to
+`11:42:74` there, which is track 7's start to one sector before track 8's (`docs/audio-playback.md` 9.13). The port's table of contents is
+correct for all eight tracks, and the minus-150 adjustment is the CD lead-in rather than a fudge, so the table is not the suspect. What is
+left is the **position** service, which the port answers with its substitution. Run the same create route with `U2_CD_NOFALLBACK=1` and
+compare the request: if it changes, the substitution misleads the program and the fix is to answer position from the drive. If it does not,
+the request is built from something else on that screen and the next step is a monitor on the game's table at `0xCE0` during a create run.
+Both are port-side and autonomous, and the original's run is done: its log is `/home/paul/Downloads/ut-towns/cddacreate.log`.
 6. **Verify, then delete the workarounds.** With `U2_CD_NOFALLBACK=1` the character screen must play track 7 and the splash must still
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.

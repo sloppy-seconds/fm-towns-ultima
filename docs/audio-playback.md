@@ -600,3 +600,36 @@ that one with its substitution (`30225` to the end of the disc) rather than with
 different request because an earlier reply differed" requires the requests the original makes at that same screen, and no run of this
 port can supply them. That is one drive through character creation with `TSG_CDDA_LOG=1`, which needs a real click.
 
+### 9.13 The original's requests at that screen, and the disc's real track starts (measured 2026-11-09)
+
+One drive through character creation on the original, with the fork's `TSG_CDDA_LOG=1` and the `0xCE0` watch armed, logged four plays:
+
+```
+CDDASTOP
+CDDAPLAY 06:43:00 to 08:06:74      <- the menu
+CDDAPLAY 09:50:00 to 11:42:74      <- Create Character
+CDDAPLAY 06:43:00 to 08:06:74      <- back to the menu
+```
+
+So the original really does play track 7's region at that screen, which confirms the report the item was opened for, and the port's
+`00:05:00` to `00:06:00` there is wrong by any reading.
+
+`python3 /var/tmp/ccdtracks.py <ccd>` reads the disc's own `[Entry N]` blocks and gives:
+
+```
+  point 0x01  lba      0   00:02:00      point 0x05  lba  30225   06:45:00
+  point 0x02  lba   9000   02:02:00      point 0x06  lba  36525   08:09:00
+  point 0x03  lba  10800   02:26:00      point 0x07  lba  44250   09:52:00
+  point 0x04  lba  24300   05:26:00      point 0x08  lba  52725   11:45:00
+```
+
+Two things follow. The port's table of contents is **correct for all eight tracks**: entry 7 is `09:52:00`, and the original plays
+`09:50:00` to `11:42:74`, which is track 7's start to one sector before track 8's start once the two conventions are separated. And the
+minus-150 adjustment is not a fudge but the **lead-in**: a CD's MSF address is its LBA plus 150 sectors, the table of contents uses that
+convention, and the fork's `CDDAPLAY` prints the LBA directly. `06:45:00` and `06:43:00` are the same sector, stated two ways.
+
+So the port gives the program a correct table and the program still asks for `00:05:00` to `00:06:00`. The splash, with the same code and
+the same table, asks for the right range. The remaining difference is what precedes the request: at both screens a **position** ask comes
+first, and the port answers that one with its substitution rather than with anything derived from the drive. That is now the only suspect
+left, and it is testable by turning the substitution off.
+
