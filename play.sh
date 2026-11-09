@@ -91,11 +91,23 @@ fi
 echo "program   $PROG"
 echo "tbios     $TB ($(stat -c %s "$TB") bytes)"
 
-# 3. The one-track cue the kit's disc reader accepts. Relative to the cue, because that is how the reader
-#    resolves it: an absolute path gets joined onto the cue's directory and comes out doubled.
+# 3. The disc descriptor, and the AUDIO TRACKS ARE THE POINT. The .ccd states the layout: a Control byte and a
+#    PLBA per track plus the lead-out, which is how the seven CD-DA tracks survive and the program is handed a real
+#    table of contents. A one-track cue describing the data track alone is enough for the artwork and the font, and
+#    it is NOT enough for music: measured, the game then asks the CD to play 00:00:00 to 00:00:00 and plays nothing
+#    (port/main.cpp says the same where it prefers the .ccd). So the .ccd is used when the download's own is there,
+#    and when it is not, the cue is written and the silence is announced rather than left to look like a port bug.
 CUE="$WORK/disc.cue"
-printf 'FILE "%s" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n' \
-	"$(realpath --relative-to="$WORK" "$(realpath "$DISC_IMG")")" >"$CUE"
+CCD="$(dirname "$DISC_IMG")/$(basename "${DISC_IMG%.*}").ccd"
+if [[ -f "$CCD" ]]; then
+	CUE="$CCD"
+	echo "disc toc  $CUE (CloneCD, with the audio tracks)"
+else
+	printf 'FILE "%s" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n' \
+		"$(realpath --relative-to="$WORK" "$(realpath "$DISC_IMG")")" >"$CUE"
+	echo "disc toc  $CUE (ONE TRACK: no CD audio)"
+	echo "          the music is on tracks 2-8. Put the download's .ccd beside the .img, named after it, for sound."
+fi
 
 # 4. The font ROM. Without it the port runs and every glyph is blank, which reads as a broken renderer.
 #    One ships in this repository since 2026-11-02, at assets/font-rom/FMT_FNT.ROM, so the common case needs no network
