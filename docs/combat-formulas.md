@@ -507,6 +507,13 @@ address is wrong, and neither can be settled by assuming.
 encoding of a name that is already known, rather than trusting an address. `ドラゴン` is `83 68 5D 83 5A 83 53 83 8E`. Locating it by
 content also gives the table's stride and its base in one step, which an address guess cannot.
 
+**That search found nothing, measured.** The whole region was dumped, 31,936 of its 32,000 bytes collected, and `83 68 5D 83 5A 83 53 83 8E`
+occurs **zero times** in it, while walking in the open with a live character. So the names are not in that region in this state at all.
+
+**What that implies, and the next attempt.** The page that recorded the names read them from a **death-screen** snapshot, so the text is
+present in that state and not in this one: different states load different text. The next dump therefore has to be taken on a death screen or
+during a fight, not while walking, or the search has to run over the whole data segment rather than the region this page assumed.
+
 ---
 
 **[The RNG](rng-helpers.md)** **[Record layout](record-layout.md)** **[The tick](the-tick.md)** **[Plan](plan.md)**
