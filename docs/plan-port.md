@@ -1800,7 +1800,8 @@ the splash and gameplay music work.
 | translation taken at dump time | `Page Table Not Present`, so the dump is not the game's memory and proves nothing either way |
 | memory-write monitor on the assumed table address | only DMA-tagged writes with code-like values, which is the CD controller's transfer buffer |
 
-**The plan, written 2026-11-07, worked 2026-11-09.** Steps one to four are done or answered. What remains is steps five and six.
+**The plan that found it, kept as the record of the route rather than as work to do.** Steps one to four were done or answered, step five
+was replaced twice as measurements arrived, and step six is spent.
 
 1. **Find the file that contains the CD layer. DONE, with a correction.** There is no separate driver file and no `MSCDEX.EXE` on the
 disc. The layer is inside `IO.SYS`: 26 controller-port loads at file `0x4106` to `0x4CAC`, 32 `int 93h` instructions, and the strings
@@ -1826,13 +1827,12 @@ what asked for it.
 play track 5. Then remove the position substitution, the `U2_CD_NOFALLBACK` switch, the BCD table of contents and `to_msf_bcd` if they
 are unused, and the hand-written CD cases the new code replaces.
 
-**Verification is one listening run**, because the headless route never reached the character screen in any run this week. The port's own
-CD-DA log gives the range as a secondary check, and the range for track 7 is `44250` to `52724`.
+**Verification came from two sides.** The port's `CD-DA` log gives the range it asks for, and Paul listened: the title music and the
+Create Character music both play. The ranges are `30225` to `36524` and `44250` to `52724`, which are the original's own numbers.
 
-**Failure cases.** Two of the three are now spent. Step one found the layer and step four found that the extender owns the block, so the
-plan changed as it said it would rather than failing. The one that remains: if step five cannot be read far enough to play track 7
-without the substitution, the item closes with the driver's semantics recorded as far as they were read, and the port's approximation
-labelled as one.
+**No failure case applies.** None of the three stated cases was reached, because the causes were neither of the two predicted ones: not the
+block's ownership, and not the DOS layer behind the services, but a buffer the port never mapped and a table of contents in the wrong number
+format.
 
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 

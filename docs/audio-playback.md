@@ -470,6 +470,10 @@ and returns `CX=1` with carry set for a status nibble of 9, `CX=0x80` for 8.
 
 ### 9.9 The `0x2511` caller, read in full, and the port's real defect
 
+**Partly superseded by 9.15.** The register image below is right. The conclusion drawn from the word at sub-block `+0xA` was wrong and is
+corrected in 9.15: that word is the service selector, the port's reading of it was correct all along, and the real defects were a buffer that
+was never mapped and a table of contents sent in the wrong number format. Read 9.15 before acting on anything here.
+
 The function at `0xE06C0`, which is the character-screen path, builds the request explicitly:
 
 ```
@@ -509,7 +513,7 @@ that this was the port's defect is withdrawn.
 ### 9.10 The vector table, and the int 93h entry confirmed byte for byte
 
 A dump of the real-mode vector table at 40 seconds, 1,024 bytes, read with
-`python3 /var/tmp/parseivt.py`, gives:
+`python3 tools/ivt.py`, gives:
 
 | vector | value | linear | where |
 |---|---|---|---|
@@ -530,6 +534,10 @@ the code that runs. Any further reading of the `0x250F` and `0x2511` services ha
 from the file, and that is a different instrument from the ones used so far.
 
 ### 9.11 The port is now an instrument for the buffer, and the first byte is `0x06`
+
+**Superseded by 9.15.** This section read the buffer's first byte as a possible service selector and ruled the idea out on the grounds
+that the caller sets `DI` and the ROM dispatcher reads `SI`. The measurements below are sound and the conclusion in 9.15 does not need the
+ROM dispatcher at all.
 
 `towns_dos.cpp` `case 0x11` now names the block fields for what they are and, under `U2_TRACE_INT=1` with `--dev`, prints the block, the
 segment, the stack word and sixteen bytes at the target:
@@ -614,7 +622,7 @@ CDDAPLAY 06:43:00 to 08:06:74      <- back to the menu
 So the original really does play track 7's region at that screen, which confirms the report the item was opened for, and the port's
 `00:05:00` to `00:06:00` there is wrong by any reading.
 
-`python3 /var/tmp/ccdtracks.py <ccd>` reads the disc's own `[Entry N]` blocks and gives:
+`python3 tools/ccdtracks.py <ccd>` reads the disc's own `[Entry N]` blocks and gives:
 
 ```
   point 0x01  lba      0   00:02:00      point 0x05  lba  30225   06:45:00

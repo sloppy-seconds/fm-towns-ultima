@@ -49,6 +49,8 @@ that the port links, which is `ci-port-build.sh`.
 | `structmap.js` | Enumerates the fields of a strided array, searching both `[reg+disp32]` and `[base+index+disp]` encodings. The second form is what made the object array readable. |
 | `sndparse.js` | Establishes the `.SND` header layouts. Offset 12 equals `filesize - 32` in 15 of 15 files. |
 | `sndff.py` | Counts `0xFF` bytes inside each `.SND` payload over its declared length. That count is the answer to plan item 5o: thirteen of fifteen payloads contain `0xFF` as waveform data and the only two that do not, `BUMP` and `FIRE`, are the ones that play to the end, so the port's end-marker rule is what truncates the rest. Asserted in `tools/verify.js`. |
+| `ivt.py` | Reads the real-mode interrupt vector table out of a Tsugaru `MD 0:0000 16 64` log and says which side of IO.SYS's range each vector falls on. Int 93h resolving to IO.SYS file 0x2160, and Int 21h resolving to a region the file does not match, both came from this. `--all` prints every non-zero vector. |
+| `ccdtracks.py` | Prints each track's start from a CloneCD `.ccd` as LBA and as MSF, in the order the disc declares them. The LBA plus 150 is the MSF a table of contents carries, which is why a range can look 150 sectors off and be right. |
 | `sndrate.js` | Tests whether the `1960` rate field can be a frequency, by computing effect durations. |
 | `fontsheet.js` | Tests whether a greyscale PNG is a character sheet, by gutter and periodicity analysis. |
 | `fontgrid.js` | Finds the cell grid in a character sheet, and prints a coarse ASCII view. Used to rule out `GAI.TIF` as a font. |

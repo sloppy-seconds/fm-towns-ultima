@@ -122,6 +122,21 @@ That answers what executed without stopping anything. For device traffic, add a 
 write log for the ports in question in the fork itself rather than a breakpoint, because the
 fork is ours and a few lines there beat any script built around stops.
 
+## The scripts on the rig, and what each is for
+
+They live beside the emulator in `/home/paul/Downloads/ut-towns`, are not in this repository, and
+are listed here because the next session otherwise rebuilds one of them.
+
+| script | what it does |
+|---|---|
+| `cewatch.sh` | watches writes to the game's CD track table at `DS:0xCE0` with `MON MEMW`, on both the physical `0x77CE0` and the linear `0x400CE0` ranges, because the extender's page tables move the mapping. Needs a click and a drive to the splash |
+| `cddacreate.sh` | the same watch plus `TSG_CDDA_LOG=1`, held open for eight minutes, with the exact key route to the Create Character screen printed in its header. This is the script that recorded the original playing track 7 there, `09:50:00` to `11:42:74`, which is what plan item 5p was resolved against |
+| `dump50.sh`, `dump53.sh`, `dump54.sh`, `dump55.sh` | timed memory dumps with no typing needed: low memory and the `0x50` selector, the `0x68C50` region, and the interrupt vector table. `dump54.sh`'s log is the input to `tools/ivt.py` |
+| `dumptoc.sh` | dumps the CD BIOS's own parsed table of contents at physical `0x8BAE` |
+
+Every one of them writes a log beside itself and takes its console commands from a FIFO, so
+nothing has to be typed while the machine runs. The two that need hands say so in their headers.
+
 ## Not this fork
 
 `docs/geartowns.md` records a different rig: a separate emulator with a 106-tool MCP server,
