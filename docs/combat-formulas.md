@@ -497,6 +497,16 @@ and the log shows that region is `F3` fill, so `0x79300` is a linear address in 
 regions that are offsets (`0xD4A04`, `0xCE3C8`) and the region that is linear (`0x79300`) need to be dumped differently, which is exactly
 the kind of address mistake this repository records having made before.
 
+**The second dump found UI text, not names.** 512 bytes from linear `0x79360` decode as character-creation and status screen strings:
+`キャラクタ作成` at `0x793CD`, `何かキ－を押してください。` at `0x793F5`, `強さ` and `素早さ` at `0x794F0` and `0x79538`, with `0xEB`-prefixed
+blocks interleaved between them. So the address that this repository recorded for the sixteen monster names, `0x79377`, holds
+`0xEB` blocks and `登録しますか` in this state rather than a name list. Either the module layout differs between states or the recorded
+address is wrong, and neither can be settled by assuming.
+
+**The method that would settle it**, and the one to use next: dump the whole `0x79300` to `0x81000` and **search the bytes** for the Shift-JIS
+encoding of a name that is already known, rather than trusting an address. `ドラゴン` is `83 68 5D 83 5A 83 53 83 8E`. Locating it by
+content also gives the table's stride and its base in one step, which an address guess cannot.
+
 ---
 
 **[The RNG](rng-helpers.md)** **[Record layout](record-layout.md)** **[The tick](the-tick.md)** **[Plan](plan.md)**
