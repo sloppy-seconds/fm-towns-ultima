@@ -436,6 +436,43 @@ following it back needs a different method than the one this page proposed.
 The plan's acceptance criterion is "to-hit and damage stated exactly, and marked read-versus-verified".
 Neither is satisfied and the page says so rather than offering a plausible formula.
 
+## How a monster is chosen at spawn, read from the code (2026-11-09)
+
+Paul asked whether a dragon early in the game is the game's design or the port mis-picking. The choice is in two routines, and neither uses
+the player's level.
+
+**`0xF9CB8` returns a band 0 to 8 from a percentage roll.** It calls `randMod` (`0xE1C5C`) with `0x64` and compares the result against fixed
+thresholds:
+
+| roll (0 to 99) | band | share |
+|---|---|---|
+| 0 to 39 | 0 | 40% |
+| 40 to 69 | 1 | 30% |
+| 70 to 79 | 2 | 10% |
+| 80 to 81 | 3 | 2% |
+| 82 to 89 | 4 | 8% |
+| 90 to 91 | 5 | 2% |
+| 92 to 94 | 6 | 3% |
+| 95 to 96 | 7 | 2% |
+| 97 to 99 | 8 | 3% |
+
+Band 9 is unreachable, because the roll cannot reach 100. **There is no term for player level, map region or terrain anywhere in it.**
+
+**`0xF93AC` turns the band into a monster and decides how many.** It compares a player field at `[record + 0xCde99]` with 4: at or below 4
+the loop runs 12 times, above it 6. For each slot it calls `0xF9CB8`, reads one byte from `0xD4A04 + band` into that slot's byte at
+`0xCE3C8`, and a second byte from `0xD4A10 + band`. So the spawn **count** scales with a player field and the monster **type** does not.
+
+**Both tables are runtime data.** `0xD4A04` and the monster names are zero in `ENCHANT.EXP`: the names were read from a death-screen
+snapshot inside the runtime region `0x79300` to `0x81000` (`docs/game-text.md`), and the band table is filled at run time too. So which band
+holds the dragon cannot be read from the file, and the next step is a dump of `0xD4A00` while the machine runs.
+
+**The answer to the question, as far as the code goes:** with no level term, a high band is reachable in the first minute and the monster it
+holds can appear then. That is a dice roll rather than a rule. Whether it is fair is a design judgement, not something this code says.
+
+**One conflict, recorded rather than resolved.** This page already records that the bytes at `0xCE3C8` held map tile nibbles in the state it
+was read from, while the code above writes one monster byte per slot there. Either the region is reused for different things at different
+times, or the two readings were of different states, and a dump settles it.
+
 ---
 
 **[The RNG](rng-helpers.md)** **[Record layout](record-layout.md)** **[The tick](the-tick.md)** **[Plan](plan.md)**

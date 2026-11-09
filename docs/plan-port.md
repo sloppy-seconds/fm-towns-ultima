@@ -1874,6 +1874,31 @@ answers it. The rig script for that is `pcmwatch.sh` in `/home/paul/Downloads/ut
 **Why this is worth doing.** With `5o` closed, the remaining question about sample playback is not whether the marker rule truncates
 (twelve of fifteen payloads, measured) but which sounds are supposed to keep going, and that is what the register traffic says.
 
+### 5r. Do the original and the port spawn the same monsters early?
+
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | one emulator run for the original's slots, then autonomous |
+| depends on | nothing |
+| done when | the monster bytes the original writes into its slot array at `0xCE3C8` are dumped over the first turns of a fresh game and compared with the same array in the port driven the same way, and the page says whether they agree. The failure case is a recorded divergence: the band that differs, or a count that differs, named with the dump addresses |
+| blocked by | one emulator run with a fresh character, to dump `0xD4A00` (the band table) and `0xCE3C8` (the slots) |
+
+**Why this is the right question now.** The mechanism is measured (`docs/combat-formulas.md`): a percentage roll picks band 0 to 8, the band
+indexes a table at `0xD4A04` for the monster and `0xD4A10` for a second byte, and the slot count is 12 or 6 depending on whether a player
+field at `[record + 0xCde99]` is at or below 4. Both tables are runtime data, so nothing about which monster a band holds is readable from
+the file. That is also why the port could be picking a different monster with every rule correct: the table it fills may not be the table
+the original fills.
+
+**What the dump gives.** `0xD4A00` maps bands to monsters, which answers whether a dragon on an early band is the game's own table. `0xCE3C8`
+shows the slots the spawn routine writes, one byte per slot, and settling that also resolves the conflict recorded on the combat page, where
+the same address held map tiles in an earlier state.
+
+**The exact-sequence trap.** Both sides run the same RNG at `0xDFC78`, so matching sequences would need the same seed and the same inputs. If
+that cannot be arranged, the honest comparison is the band distribution over many spawns plus the table itself, and the page must say which
+was done.
+
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 
 **State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
