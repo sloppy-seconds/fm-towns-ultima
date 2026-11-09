@@ -473,6 +473,27 @@ holds can appear then. That is a dice roll rather than a rule. Whether it is fai
 was read from, while the code above writes one monster byte per slot there. Either the region is reused for different things at different
 times, or the two readings were of different states, and a dump settles it.
 
+### The dump: the tables, measured 2026-11-09
+
+One run on the original with `spawnwatch.sh`, a fresh character walking in the open. Paging decides which copy is live, and the answer was
+not the one the translation suggested: `ADTR 14:0CE3C8` reports physical `0x3693C8`, but the bytes that **change** are at physical
+`0x4CE3C0` and `0x4D4A00`, which are the linear addresses taken as physical. The translated window read all zeros at every timestamp, so the
+game's data is identity-mapped here.
+
+```
+0x4D4A00  00 00 00 00 | 30 FC 34 2C F0 48 38 F8 | 3C E0 00 00
+0x4D4A10  02 02 02 01 02 01 02 02 02 02 00 00 3C 00 00 00
+0x4CE3C0  00 00 00 00 00 00 00 00 | FC FC F0 34 FC FC FC 30 30 38 30 FC
+```
+
+Three things follow. The spawn slots at `0x4CE3C8` change between dumps, so the write path is confirmed live. The second table at
+`0x4D4A10` holds `02` for most bands and `01` for bands 3 and 5, which reads as the size of the group that band spawns. And the first table
+at `0x4D4A04` holds `30 FC 34 2C F0 48 38 F8 3C E0` for bands 0 to 9, **every value a multiple of four**, which is not a small monster id:
+they are offsets, so the id is scaled and the record they point at is not the name table.
+
+**What this does not yet say** is which band holds the dragon. That needs the name region, which is runtime data at linear `0x479300` to
+`0x481000` (`docs/game-text.md`), dumped in the same run. The next dump adds it, and then band, offset and name can be joined offline.
+
 ---
 
 **[The RNG](rng-helpers.md)** **[Record layout](record-layout.md)** **[The tick](the-tick.md)** **[Plan](plan.md)**
