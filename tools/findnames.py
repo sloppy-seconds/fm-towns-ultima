@@ -22,7 +22,7 @@ for line in open(path, errors='replace'):
     if not (LO <= a < HI):
         continue
     for i, tok in enumerate(m.group(2).split()):
-        mem.setdefault(a + i, int(tok, 16))
+        mem[a + i] = int(tok, 16)   # last sample wins: the log takes the region twice and the later one is the death screen
 
 have = len(mem)
 print(f"collected {have} bytes of the {HI - LO} in range")

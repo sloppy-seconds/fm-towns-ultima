@@ -514,6 +514,49 @@ occurs **zero times** in it, while walking in the open with a live character. So
 present in that state and not in this one: different states load different text. The next dump therefore has to be taken on a death screen or
 during a fight, not while walking, or the search has to run over the whole data segment rather than the region this page assumed.
 
+### The names are in the monster record area, and `0x79377` was a savestate offset
+
+Two failed dumps, then the state file explained both. `tools/savetext.py` reads a **Tsugaru savestate**, so the numbers in `docs/game-text.md`
+are offsets inside that file, not runtime addresses. The state is a flat copy of RAM, and the band table appears in it at file `0x363EB6` and
+group table at `0x363EC2`, twelve bytes later, exactly as at runtime `0x4D4A04` and `0x4D4A10`. That anchors the conversion:
+
+```
+runtime = state offset + 0x170B4E
+```
+
+With the anchor, the names were found by content in the same state, and they are **not** in the `0x79300` region at all. They are in the
+monster record area, contiguous with the band table that indexes it:
+
+```
+  state 0x36533c  runtime 0x4d5e8a  len  6  'オ－ク'
+  state 0x3653c0  runtime 0x4d5f0e  len  8  'ゴブリン'
+  state 0x365444  runtime 0x4d5f92  len  6  'デビル'
+```
+
+So the records live at roughly `0x4D5E47` upward with a stride near `0x41` to `0x43`. Reading the wider window shows why the stride looked
+irregular: **there are two interleaved arrays, each with a stride of `0x84`**, one `0xEB`-encoded and one plain Shift-JIS. The plain one
+starts at runtime `0x4D59E6`, and its entries step by `0x84`:
+
+```
+0x4D5C7A 僧兵          0x4D5C7A is index 5, so index 0 is 0x4D59E6
+0x4D5CFE 死霊使い       0x4D5D82 魔法使い    0x4D5E06 盗賊
+0x4D5E8A オ－ク        0x4D5F0E ゴブリン    0x4D5F92 デビル
+```
+
+That puts `warrior monk`, `necromancer`, `wizard`, `thief`, `orc` and `goblin` at indices 5, 6, 7, 8, 9 and 10, which agrees with the order
+the text page records. **But index 12 reads `デビル`, devil**, where that page has the Loch Ness dinosaur, so either the ordering shifts
+somewhere between 10 and 14 or the page's translation of one entry is wrong. That is a conflict between two measurements and it is recorded
+rather than smoothed over: the next read is indices 11 to 15 in the same window, which settles both the ordering and whether a dragon is in
+the list at all.
+
+**Also corrected:** the sixteen-name table in `docs/game-text.md` names a location that is a state offset, and three of my own Shift-JIS
+encodings for those names were written from memory and did not match anything, which is the mistake this repository records having made
+before. Two that were checked by content, `商人` and `ゴブリン`, both appear in the state, so the list is real and its position is the part
+that was wrong.
+
+**Next, and it is small:** dump runtime `0x4D5C00` to `0x4D6100` in the same state, read all sixteen names with their addresses, and the band
+values become bands of monsters. That answers whether an early dragon is the game's own design.
+
 ---
 
 **[The RNG](rng-helpers.md)** **[Record layout](record-layout.md)** **[The tick](the-tick.md)** **[Plan](plan.md)**
