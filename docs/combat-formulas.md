@@ -463,6 +463,39 @@ the same group size on both sides, because both read this table and both run the
 every other subsystem, so one extra or missing consumption anywhere diverges every later spawn while the spawn code stays perfect. Comparing
 rolls needs both sides at the same logical point, which means a savestate on each, and the original's needs a hand at the emulator.
 
+### The RNG is the C library's, and its state is 1 at 1,500 frames in two separate runs
+
+Before asking for a savestate it was worth knowing whether a sequence comparison is even possible, and that depends on the seed.
+
+**The pieces, read from the image.** State is the dword at game offset `0xDFC78`. `rand` is at virtual `0x101A54` and is three instructions: it
+loads the **high word** at `0xDFC7A`, masks `0x7F` off the top of `AH`, and returns. `srand` is at `0x101A68`: `mov eax,[esp+4]`, then
+`mov [0xDFC78],eax`. Four call sites, three of them shaped
+
+```
+call 0x10246C
+call 0x102268
+push eax
+call 0x101A68     <- srand(0x102268())
+```
+
+and the fourth seeds from a computed product of its own. What `0x102268` returns is not identified, which matters because that is the seed.
+
+**Measured instead of inferred.** Two separate port runs, `--graphics=none`, 1,500 frames, dumping linear `0x4DFC78`:
+
+```
+01 00 00 00
+01 00 00 00
+```
+
+Identical, and equal to the C library's default seed. That is consistent with a constant seed and inconsistent with a clock seed, but it does
+**not** prove `srand` has been reached: no `rand` call has necessarily happened by frame 1,500 either, since the game sits at the menu with no
+input. A dump after real gameplay is what would settle it, and the same dump taken twice would say whether the two sides can be compared as
+sequences or only as distributions.
+
+**Why that matters for the question.** If the seed is constant and the code and tables are identical, then the sequence of bands is identical
+too, provided the same number of `rand` calls happen, which they do when the same actions are taken. The comparison then reduces to the tables,
+which are measured identical, and to counting calls rather than comparing values.
+
 ## How a monster is chosen at spawn, read from the code (2026-11-09)
 
 Paul asked whether a dragon early in the game is the game's design or the port mis-picking. The choice is in two routines, and neither uses
