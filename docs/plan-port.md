@@ -1834,6 +1834,34 @@ Create Character music both play. The ranges are `30225` to `36524` and `44250` 
 block's ownership, and not the DOS layer behind the services, but a buffer the port never mapped and a table of contents in the wrong number
 format.
 
+### 5q. Sound looping: which samples loop, and who decides
+
+**State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | needs one run on the original with a hand at the emulator, then autonomous |
+| depends on | nothing |
+| done when | the RF5C68 register sequence for a looping sound is recorded on the original and the page says whether the game loops in hardware, re-triggers in software, or never loops at all, with the channel number, start, loop and step from the log. The failure case is a negative: if the original never leaves a channel running past its sample, then no sound loops on this machine and the port's stop-at-marker rule is exactly right, which closes the item as a finding |
+| blocked by | one run on the original with a hand at the emulator, to produce `pcmwatch.log` |
+
+**What is known, from three separate measurements.** The chip restarts a channel at its loop address when it reads an `0xFF` marker, and the
+port stops the channel there instead, because a run on 2026-11-05 showed the driver never releases it and the sound looped for ever
+(`docs/audio-playback.md` 3 and 104-130). The loop address the driver programs is `0xF000`, one page past the sample data, so for the
+sounds recorded there it is a stop configuration rather than a loop inside the sample. And separately, three files are a second header
+layout carrying a loop field: `BUMP`, `FIRE` and `WHAT`, where offset 16 is `length - 1` (`docs/sound.md`). Two of those three, `BUMP`
+and `FIRE`, are also the only samples whose payload contains **no** `0xFF` at all, so the marker rule never fires for them and the port
+cannot truncate them: it plays past the data into the FF fill instead.
+
+**So there are two mechanisms and they have not been separated.** The game may loop a sample in hardware by programming a loop address
+inside it, or it may re-trigger the same sample from software, and the port's marker rule only ever sees the first of those. The
+measurement that separates them is the register traffic: `TSG_IO_TRACE=1` logs every write in `0x4C0` to `0x4FF` with the instruction
+that made it, and `0x4F0` to `0x4F8` is the RF5C68 register file. One run with a sound that plausibly repeats, a torch or a footstep,
+answers it. The rig script for that is `pcmwatch.sh` in `/home/paul/Downloads/ut-towns`.
+
+**Why this is worth doing.** With `5o` closed, the remaining question about sample playback is not whether the marker rule truncates
+(twelve of fifteen payloads, measured) but which sounds are supposed to keep going, and that is what the register traffic says.
+
 ### 5n. Hardware interrupt delivery, attempted, reverted, and why
 
 **State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
