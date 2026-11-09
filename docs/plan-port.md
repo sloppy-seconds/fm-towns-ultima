@@ -1878,12 +1878,23 @@ answers it. The rig script for that is `pcmwatch.sh` in `/home/paul/Downloads/ut
 
 **State:** OPEN · **Autonomy:** PARTLY AUTONOMOUS
 
+**Updated 2026-11-09: most of it is answered, and the answer is by construction.** Three measurements now stand:
+
+- the band and group tables are **byte-identical** between the port and the original, 20 bytes at `0x4D4A00`, verified in code
+  (`docs/combat-formulas.md`)
+- the RNG is **seeded with a constant zero**, three writes from caller `0x000ebdaf` during a create route, so nothing clock-derived
+- the selection and spawn instructions are the original's own, recompiled
+
+Same seed, same tables, same code means the same band sequence given the same number of draws, so the port cannot pick a different monster
+with these three equal. What is left is therefore not "are they the same" but a **call count**: the LCG writes its state on every draw, so
+`U2_WATCH=4DFC78:4` on the port and `MON MEMW` on the original count the draws per spawn, and equal counts close the item.
+
 | field | value |
 |---|---|
-| autonomy | one emulator run for the original's slots, then autonomous |
+| autonomy | one gameplay run on each side, then autonomous |
 | depends on | nothing |
-| done when | the monster bytes the original writes into its slot array at `0xCE3C8` are dumped over the first turns of a fresh game and compared with the same array in the port driven the same way, and the page says whether they agree. The failure case is a recorded divergence: the band that differs, or a count that differs, named with the dump addresses |
-| blocked by | one emulator run with a fresh character, to dump `0xD4A00` (the band table) and `0xCE3C8` (the slots) |
+| done when | the draw count per spawn is compared between the two sides over the first turns of a fresh game. The failure case is a recorded divergence: a spawn where the counts differ, with the `rand` caller addresses from both sides |
+| blocked by | gameplay on the original, which needs a person at the emulator |
 
 **Why this is the right question now.** The mechanism is measured (`docs/combat-formulas.md`): a percentage roll picks band 0 to 8, the band
 indexes a table at `0xD4A04` for the monster and `0xD4A10` for a second byte, and the slot count is 12 or 6 depending on whether a player
