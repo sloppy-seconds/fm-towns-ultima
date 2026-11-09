@@ -77,6 +77,23 @@ binary and absent from this image. The next step is therefore not code: it is a 
 **original** game after it has begun a journey, which is what plan item U3-3b now waits on. Synthesising
 one would be guessing at a format nobody has read, which is the thing this repository forbids.
 
+### The attempt to make one, and where it stopped
+
+A second container was started to drive the original: the same image, its own ports, the disc mounted read
+only, and a **copy** of `saves/u3test.hdm` and `saves/CMOS.BIN` in `/var/tmp`, so nothing shared could be
+written. It booted to the TownsOS launcher and stopped there.
+
+That launcher is mouse-driven, which `tools/container-run.sh` already says in a comment about the disk
+selection menu, and the two things it needed were a coordinate nobody measured and a decision about which
+icon is which. A vision model asked for pixel positions answered in a space of its own (its `ULTIMA III`
+at 465,170 against a 640-wide screen, and an `EXIT` at 965), so clicking on that reading would have been a
+guess dressed as a measurement. The container was removed rather than driven blind, and the floppy copy
+was never written.
+
+What would finish it: a person at the screen for two minutes, or the same pixel discipline
+`tools/u2flow.py` uses, which means measuring the launcher's icon grid on this machine first. Neither is
+something this page can do from a shell.
+
 ## The DOS extender calls, counted
 
 26 `int 21h` sites in the emitted module. Fourteen carry an immediate:

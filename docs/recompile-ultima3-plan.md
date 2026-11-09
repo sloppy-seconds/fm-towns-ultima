@@ -24,6 +24,31 @@ docs tree rather than inferred from what the genre usually does.
 The failure case this plan is written to avoid is a port that boots the title screen and stops there
 while the document calls it done.
 
+## Where it stands, 2026-11-10
+
+| item | state | one line |
+|---|---|---|
+| U3-0a | DONE | `verify.js` asserts the container, the entry and the stack field, with two watched controls |
+| U3-0b | DONE | `tools/u3-build.sh`, one command, counts reproducible across runs |
+| U3-1a | DONE | CI links both module configurations and asserts the U3 build refuses with no game file |
+| U3-1b | DONE | the title screen draws, 800 frames, no fault |
+| U3-2a | OPEN | stack measured from the header, selectors moot because the game sets its own, base still assumed |
+| U3-2b | DONE | 26 `int 21h` sites, every immediate one served |
+| U3-2c | OPEN | the game has opened nothing from the disc yet, so there is nothing to test |
+| U3-3a | DONE | `--route title-to-register`, every screen read before the next key |
+| U3-3b | OPEN | the roster reads; `Journey Onward` says `A WRONG DISK` because `WORLD.UT3` is not on the image |
+| U3-3c | OPEN | no game screen with text has been reached yet |
+| U3-3d | OPEN | not attempted |
+| U3-4a | OPEN | 860 functions from 583 derived seeds and one measured, zero conflicts, no negatives |
+| U3-4b | OPEN | 86 tables, 83 bounded, 30 unresolved indirect transfers |
+| U3-4c | OPEN | not attempted |
+| U3-4d | OPEN | not attempted |
+| U3-5a-e | OPEN | blocked behind a playable save disk |
+
+The whole of the remainder hangs on one artefact: a save disk the **original** has begun a journey on.
+[u3-port.md](u3-port.md) records how that was attempted and why it stopped, and it is the first thing a
+person with two minutes at the emulator screen can unblock.
+
 ## What is already measured
 
 Every row was produced in the session that wrote this page, and the command is the evidence. Nothing
