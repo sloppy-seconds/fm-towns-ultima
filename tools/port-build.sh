@@ -252,7 +252,7 @@ if [[ ! -f "$SDL3_CMAKE_DIR/SDL3Config.cmake" ]]; then
 	exit 2
 fi
 
-cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" -DPORT_TARGET=u2 -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
+cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" -DPORT_TARGET=u2 -DPORT_PROGRAM=ENCHANT.EXP -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
 	tail -20 "$OUT/build.log" >&2

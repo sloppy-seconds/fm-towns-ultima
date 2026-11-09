@@ -43,10 +43,24 @@
 #include <fstream>
 #include <memory>
 #include <algorithm>
+#include <cctype>
 #include <string>
 #include <vector>
 
 extern const X86Module g_mod_p_game;
+
+// WHICH PROGRAM THIS BINARY RUNS, at compile time, because the module compiled into it is that title's code and
+// nothing else. The executable is named after its title (docs/port-structure.md), and so is the program it looks
+// for inside the disc image: `u3` wants EXODUS.EXP and `u2` wants ENCHANT.EXP. Without this, a per-title binary
+// still asked the disc for `\ENCHANT.EXP` and ran to `no recompiled function at 000C:101a20`, which is Ultima II's
+// entry inside a module that never contained it. Measured on jarvis 2026-11-10.
+//
+// The default is Ultima II's, so every existing doc, route and instrument that says ENCHANT.EXP still means what it
+// says, and the build passes -DPORT_PROGRAM for any other title.
+#ifndef PORT_PROGRAM
+#define PORT_PROGRAM "ENCHANT.EXP"
+#endif
+static const char *const kProgram = PORT_PROGRAM;
 
 // An instruction trace, for differential debugging against the machine. The kit calls this for every
 // instruction when the build defines X86_TRACE_ON (see x86.h), and the point is to compare the port's sequence
@@ -323,6 +337,27 @@ static std::string find_media(const std::vector<std::string> &dirs, std::initial
 	return std::string();
 }
 
+// Any floppy image in the media directories, when none of the conventional names is there. The retail UserDisk unpacks as
+// `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm`, which no fixed list of names is going to guess, and a tree
+// holding only the download is exactly the tree this port is handed. One image is used, several is no guess: the same rule
+// cue_from_image applies to the disc, for the same reason.
+static std::string floppy_from_dir(const std::vector<std::string> &dirs) {
+	for (const std::string &d : dirs) {
+		std::error_code ec;
+		std::vector<fs::path> found;
+		for (const auto &e : fs::directory_iterator(d, ec)) {
+			std::string ext = e.path().extension().string();
+			for (char &ch : ext) ch = (char)std::tolower((unsigned char)ch);
+			if (ext == ".hdm")
+				found.push_back(e.path());
+		}
+		if (ec || found.size() != 1)
+			continue;
+		return found.front().string();
+	}
+	return std::string();
+}
+
 // The archive.org zip unpacks to an .img and a .ccd, and the disc reader wants a cue. Writing `<image>.cue` beside the
 // image is what play.sh does in its work directory, and doing it here means a reader with only the unzipped download
 // can still run. It is written once and only when there is exactly one image, so a directory holding several cannot
@@ -385,7 +420,7 @@ static void report_media(const std::string &program, const std::string &tbios, c
 	// when they are not on disk. So the only thing that can be missing fatally here is the disc itself.
 	if (!cue.empty()) {
 		if (program.empty())
-			std::printf("media     program will be read from the disc (\\ENCHANT.EXP)\n");
+			std::printf("media     program will be read from the disc (\\%s)\n", kProgram);
 		if (tbios.empty())
 			std::printf("media     TBIOS will be read from the disc (\\TBIOS.BIN)\n");
 		if (disk.empty())
@@ -394,7 +429,7 @@ static void report_media(const std::string &program, const std::string &tbios, c
 	}
 	// No disc, but an earlier run kept what the disc was for. That is a success, and it must not print the block below,
 	// which reads as a failure.
-	if (!cache_dir.empty() && file_exists(cache_dir + "/ENCHANT.EXP")) {
+	if (!cache_dir.empty() && file_exists(cache_dir + "/" + kProgram)) {
 		std::printf("media     no disc, running from the cache at %s (put a disc image back to refresh it)\n",
 					cache_dir.c_str());
 		if (disk.empty())
@@ -407,7 +442,7 @@ static void report_media(const std::string &program, const std::string &tbios, c
 		std::printf(" %s", d.c_str());
 	std::printf("\n");
 	if (program.empty())
-		std::printf("media     ENCHANT.EXP is not there\n");
+		std::printf("media     %s is not there\n", kProgram);
 	if (tbios.empty())
 		std::printf("media     tbios.bin (or TBIOS.BIN) is not there\n");
 	if (cue.empty())
@@ -416,10 +451,10 @@ static void report_media(const std::string &program, const std::string &tbios, c
 		std::printf("media     save    no .hdm to seed from, so saves start empty in ./saves\n");
 	std::printf("\n");
 	std::printf("Put your own copy of the game in ./game/ and use the tools beside this binary:\n");
-	std::printf("  node tools/getfile.js ENCHANT.EXP --disc game/<image>.img --out game\n");
+	std::printf("  node tools/getfile.js %s --disc game/<image>.img --out game\n", kProgram);
 	std::printf("  node tools/getfile.js TBIOS.BIN   --disc game/<image>.img --out game\n");
 	std::printf("or pass the four paths yourself:\n");
-	std::printf("  u2port ENCHANT.EXP tbios.bin disc.cue userdisk.hdm\n");
+	std::printf("  <binary> %s tbios.bin disc.cue userdisk.hdm\n", kProgram);
 	std::printf("README.txt in this archive has the longer version.\n");
 }
 
@@ -622,10 +657,16 @@ int main(int argc, char **argv) {
 	std::vector<std::string> m_dirs;
 	if (pos.empty()) {
 		m_dirs = media_dirs(argv[0]);
-		m_program = find_media(m_dirs, {"ENCHANT.EXP", "enchant.exp"});
+		// The lower-case spelling is what a hand-copied tree tends to hold, and it is built from kProgram so a second
+		// title does not have to remember to add its own.
+		std::string progLower(kProgram);
+		for (char &ch : progLower) ch = (char)std::tolower((unsigned char)ch);
+		m_program = find_media(m_dirs, {kProgram, progLower.c_str()});
 		m_tbios = find_media(m_dirs, {"tbios.bin", "TBIOS.BIN"});
 		m_cue = find_media(m_dirs, {"disc.cue", "game.cue", "u2.cue"});
 		m_disk = find_media(m_dirs, {"userdisk.hdm", "save.hdm", "disk.hdm"});
+		if (m_disk.empty())
+			m_disk = floppy_from_dir(m_dirs);
 		if (m_cue.empty())
 			m_cue = cue_from_image(m_dirs);
 		// cache_dir has to be known before the report, because the report has to say whether a missing disc is a
@@ -642,8 +683,8 @@ int main(int argc, char **argv) {
 		report_media(m_program, m_tbios, m_cue, m_disk, m_dirs, cache_dir);
 		// NO DISC IS NOT FATAL IF THE CACHE ALREADY HOLDS WHAT THE DISC WAS FOR. That is the whole point of caching:
 		// run once with your own disc, and from then on the image is optional.
-		if (m_cue.empty() && !file_exists(cache_dir + "/ENCHANT.EXP")) {
-			std::printf("media     no disc image, and no cached copy at %s/ENCHANT.EXP\n", cache_dir.c_str());
+		if (m_cue.empty() && !file_exists(cache_dir + "/" + kProgram)) {
+			std::printf("media     no disc image, and no cached copy at %s/%s\n", cache_dir.c_str(), kProgram);
 			return 2;
 		}
 	}
@@ -724,11 +765,12 @@ int main(int argc, char **argv) {
 	};
 
 	std::vector<uint8_t> file = exp_path[0] ? read_file(exp_path) : std::vector<uint8_t>();
-	if (file.size() < 0x1000 && disc_or_cache("\\ENCHANT.EXP", file))
-		std::printf("media     program \\ENCHANT.EXP read from the disc or its cache (%zu bytes)\n", file.size());
+	const std::string program_on_disc = std::string("\\") + kProgram;
+	if (file.size() < 0x1000 && disc_or_cache(program_on_disc.c_str(), file))
+		std::printf("media     program %s read from the disc or its cache (%zu bytes)\n", program_on_disc.c_str(), file.size());
 	if (file.size() < 0x1000) {
-		std::fprintf(stderr, "%s: cannot read the executable, and \\ENCHANT.EXP is not on the disc\n",
-					 exp_path[0] ? exp_path : "ENCHANT.EXP");
+		std::fprintf(stderr, "%s: cannot read the executable, and %s is not on the disc\n",
+					 exp_path[0] ? exp_path : kProgram, program_on_disc.c_str());
 		return 2;
 	}
 

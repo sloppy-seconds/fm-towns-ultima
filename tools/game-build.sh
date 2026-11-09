@@ -194,7 +194,7 @@ if [[ ! -f "$SDL3_CMAKE_DIR/SDL3Config.cmake" ]]; then
 fi
 
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" \
-	-DFMT_RUNTIME="$KIT/runtime" -DU2_FOREIGN_MODULE=ON -DPORT_TARGET="$GAME_ID" \
+	-DFMT_RUNTIME="$KIT/runtime" -DU2_FOREIGN_MODULE=ON -DPORT_TARGET="$GAME_ID" -DPORT_PROGRAM="$GAME" \
 	-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2

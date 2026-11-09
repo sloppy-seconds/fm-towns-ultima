@@ -7,6 +7,11 @@ cmake_minimum_required(VERSION 3.20)
 # The RELEASE ASSET keeps its long name (dist/u2port-linux-x86_64): that name says what the file is to somebody who
 # downloads it, and tools/checkall.js asserts it, so renaming the executable deliberately does not move it.
 set(PORT_TARGET u2 CACHE STRING "name of the executable this build produces")
+# WHICH PROGRAM THE BINARY RUNS, because the module compiled into it is one title's code and nothing else. The port asks
+# the disc image for this name when it finds no executable beside itself, so a binary that says ENCHANT.EXP while holding
+# EXODUS.EXP's module runs Ultima II's entry address against code that never contained it: measured on jarvis, it stops at
+# `no recompiled function at 000C:101a20`. Set together with PORT_TARGET by tools/game-build.sh from tools/games.js.
+set(PORT_PROGRAM "ENCHANT.EXP" CACHE STRING "the .EXP inside the disc image that this binary runs")
 project(${PORT_TARGET} CXX)
 set(CMAKE_CXX_STANDARD 20)
 if(NOT CMAKE_BUILD_TYPE)
@@ -95,6 +100,8 @@ foreach(pair "LICENSE:g_licence_mit" "fmtownskit/LICENSE:g_licence_fmtownskit" "
 endforeach()
 
 add_executable(${PORT_TARGET} main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM} ${EMBEDDED_LICENCES})
+target_compile_definitions(${PORT_TARGET} PRIVATE "PORT_PROGRAM=\"${PORT_PROGRAM}\"")
+message(STATUS "${PORT_TARGET}: runs \\${PORT_PROGRAM} from the disc image")
 # The no-game CI check generates its module from 4 KB of zero fill, so the functions the native shadows name do not
 # exist there and the table cannot name them. Shadows are game-specific by construction, so that build compiles an
 # empty manifest instead of the real one. It is an option rather than a guess at the module's contents because the
