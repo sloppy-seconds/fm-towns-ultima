@@ -459,6 +459,23 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		else ok('the release refuses a binary that needs libSDL3', 'calls the source build, asserts on ldd, ships the licence');
 	}
 
+	// THE GLIBC FLOOR. Two things can rot here and both are silent: the release stops asking the question, or the
+	// number in the tool and the number in the doc drift apart, which is the count-in-two-places defect this project
+	// keeps finding. The floor is a maximum (Paul set 2.34 on 2026-11-10) and tools/glibcfloor.js owns it.
+	{
+		const floorDoc = read('docs/port-structure.md') || '';
+		const m = /GLIBC_(\d+\.\d+) \(the floor/.exec(floorDoc) || /floor is \*\*GLIBC_(\d+\.\d+)\*\*/.exec(floorDoc);
+		const inTool = read('tools/glibcfloor.js') || '';
+		const toolFloor = /const FLOOR = \[(\d+), (\d+)\];/.exec(inTool);
+		if (!m) fail('the glibc floor is stated once and checked', 'no floor found in docs/port-structure.md');
+		else if (!toolFloor) fail('the glibc floor is stated once and checked', 'no FLOOR constant in tools/glibcfloor.js');
+		else if (m[1] !== toolFloor[1] + '.' + toolFloor[2])
+			fail('the glibc floor is stated once and checked', `docs say ${m[1]}, the tool says ${toolFloor[1]}.${toolFloor[2]}`);
+		else if (!pkg || !pkg.includes('glibcfloor.js'))
+			fail('the glibc floor is stated once and checked', 'tools/release-package.sh does not call tools/glibcfloor.js');
+		else ok('the glibc floor is stated once and checked', 'GLIBC_' + m[1] + ', and the release refuses above it');
+	}
+
 	const cmake = read('port/CMakeLists.txt');
 	if (cmake === null) fail('the port asks for a relative rpath', 'port/CMakeLists.txt missing');
 	else if (cmake.includes('SDL3::SDL3-static') && cmake.includes('$ORIGIN'))

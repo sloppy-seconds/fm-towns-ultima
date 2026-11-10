@@ -133,6 +133,18 @@ target_link_libraries(${PORT_TARGET} game_recomp fmt_towns)
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_options(${PORT_TARGET} PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
+
+# THE C++ RUNTIME ON LINUX, and it is an option rather than unconditional because the static archive is not installed
+# everywhere. libstdc++ is the other library with a version floor of its own: this binary asked for GLIBCXX_3.4.31,
+# which is gcc 13's, before this existed. Linking it statically moves those symbols into the binary and leaves glibc
+# as the only floor, which is what tools/glibcfloor.js then checks. Fedora and Bazzite do not ship libstdc++.a in the
+# default toolchain (it is the libstdc++-static package), so a host build with this off still links and is simply not
+# shippable; the release build turns it on, and tools/release-package.sh refuses a binary that carries GLIBCXX_ needs.
+option(PORT_STATIC_CXX "link libstdc++ and libgcc statically, so glibc is the only version floor" OFF)
+if(PORT_STATIC_CXX AND NOT WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_options(${PORT_TARGET} PRIVATE -static-libgcc -static-libstdc++)
+  message(STATUS "${PORT_TARGET}: libstdc++ and libgcc linked statically")
+endif()
 if(TARGET fmt_towns_sdl)
   target_link_libraries(${PORT_TARGET} fmt_towns_sdl)
 endif()

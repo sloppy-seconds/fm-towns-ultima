@@ -48,6 +48,8 @@ while the document calls it done.
 | U3-6b | OPEN | two build scripts, one descriptor table, and the strip arithmetic in both |
 | U3-6c | OPEN | 30+ `U2_*` environment names are shared by U2 and U3 |
 | U3-6d | OPEN | `module/`, `extracted/` and the doc pages do not follow one pattern |
+| U3-6e | OPEN | the floor is 2.34 and every image here is 2.41 or newer, so the gate refuses all of them |
+| U3-6f | OPEN | the floor is not in the README or the quickstart, where a downloader would look |
 
 The whole of the remainder hangs on one artefact: a save disk the **original** has begun a journey on.
 [u3-port.md](u3-port.md) records how that was attempted and why it stopped, and it is the first thing a
@@ -608,6 +610,33 @@ More than thirty `U2_*` variables are shared by Ultima II and Ultima III today, 
 |---|---|
 | done when | the module lives at `module/<id>/` with Ultima II's moved there and the CMake default updated, extraction output goes to `extracted/<id>/`, the seeds files go to `tools/seeds/<id>.txt`, and the per-title pages are `docs/port-<id>.md`. The failure case: a move that leaves a script pointing at the old path, which `checkall` must catch rather than a user |
 | blocked by | U3-6b |
+
+#### U3-6e. A release base image whose libc is at or below the floor
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+The floor is `GLIBC_2.34` and `tools/glibcfloor.js` enforces it, but no image in this repository can meet it. Releases are
+built in `container/Containerfile.x`, which is Debian 13 trixie at glibc 2.41, and a host build asks for 2.43 through five
+float-math symbols. So the gate that was just added refuses every artefact this repository can currently produce, which is
+the correct behaviour and not yet a solution.
+
+| field | value |
+|---|---|
+| done when | the release builds on a base whose glibc is at or below 2.34, `tools/release-package.sh` produces a binary that passes `tools/glibcfloor.js`, and that binary runs on a machine with glibc 2.34. The failure case: a base chosen because it builds rather than because its libc is old enough, or a floor passed by disabling symbols one at a time in the source, which would change the arithmetic rather than the header |
+| blocked by | nothing. Candidate: Debian 11 bullseye at glibc 2.31, which is below the floor rather than on it, and whose gcc 10 needs checking against the C++20 the port uses |
+
+#### U3-6f. Say the floor where a reader looks for it
+
+**State:** OPEN · **Autonomy:** AUTONOMOUS
+
+The floor is in `docs/port-structure.md` and in `tools/glibcfloor.js`, and nowhere a person deciding whether to download the
+release will see it. The README and `docs/quickstart.md` are where a platform limitation belongs, per the rules in
+AGENTS.md, and they currently say only that Linux is the only tested platform.
+
+| field | value |
+|---|---|
+| done when | the README and `docs/quickstart.md` state the glibc floor with the versions that meet it, and `tools/checkall.js` fails if the number there disagrees with `tools/glibcfloor.js`. The failure case: the number written in three places without a check, which is the drift this project keeps paying for |
+| blocked by | U3-6e, so the statement is true of the artefact that exists |
 
 ## Do not do
 

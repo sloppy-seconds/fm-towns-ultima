@@ -68,7 +68,7 @@ if [[ ! -f "$SDL_LICENSE" ]]; then
 fi
 BUILD="$OUT/build-host"
 mkdir -p "$OUT"
-cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DPORT_TARGET=u2 -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake.log" 2>&1
+cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DPORT_TARGET=u2 -DPORT_STATIC_CXX=ON -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake.log" 2>&1
 cmake --build "$BUILD" -j"$(nproc)" >"$OUT/build.log" 2>&1 || {
 	echo "the release build failed. Last lines of $OUT/build.log:" >&2
 	tail -30 "$OUT/build.log" >&2
@@ -84,6 +84,18 @@ if ldd "$OUT/$NAME" | grep -qi "libsdl3"; then
 	echo "refusing to package: the binary loads libSDL3 at runtime, so it is not self-contained." >&2
 	ldd "$OUT/$NAME" | grep -i sdl3 >&2
 	echo "check that tools/sdl-from-source.sh built the static archive and that CMAKE_PREFIX_PATH reached cmake." >&2
+	exit 1
+fi
+
+# THE GLIBC FLOOR, and it is a refusal like the one above. A binary records, per imported symbol, the glibc version that
+# symbol appeared in, and the loader will not start it on a machine with an older libc. The version is decided by the
+# BUILD HOST: this port built on glibc 2.43 asked for 2.43 through five float-math calls, and the release built that way
+# could not run on Ubuntu 22.04, RHEL 9 or Debian 11 while nothing noticed. Paul set the floor at 2.34 on 2026-11-10.
+# tools/glibcfloor.js owns the number and prints the offending symbols, and tools/checkall.js fails if this script stops
+# calling it or if the documented floor and the tool's constant disagree.
+if ! node "$ROOT/tools/glibcfloor.js" "$OUT/$NAME"; then
+	echo "refusing to package: the binary needs a newer glibc than the floor this project ships against." >&2
+	echo "build the release on a base whose libc is at or below that floor; the symbol versions come from the build host." >&2
 	exit 1
 fi
 

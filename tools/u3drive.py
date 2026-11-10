@@ -83,7 +83,7 @@ def main():
     ap.add_argument("--exp", default=os.path.join(ROOT, "EXODUS.EXP"))
     ap.add_argument("--tbios", default=os.path.join(ROOT, "build", "u3", "TBIOS.BIN"))
     ap.add_argument("--cue", default=os.path.join(ROOT, "build", "u3", "disc.cue"))
-    ap.add_argument("--disk", default=os.path.join(ROOT, "saves", "u3test.hdm"))
+    ap.add_argument("--disk", default="", help="a floppy image; omit to let the port use its ./saves directory")
     args = ap.parse_args()
 
     if args.route is not None:
@@ -107,11 +107,13 @@ def main():
     env.update({"SDL_VIDEODRIVER": "dummy", "SDL_AUDIODRIVER": "dummy"})
     env.pop("DISPLAY", None)
     log = open(os.path.join(args.out, "run.log"), "w")
-    proc = subprocess.Popen(
-        [args.bin, "--graphics=sdl", "--frames=%d" % frames, "--control=127.0.0.1:0",
-         args.exp, args.tbios, args.cue, args.disk],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env,
-    )
+    argv = [args.bin, "--graphics=sdl", "--frames=%d" % frames, "--control=127.0.0.1:0",
+            args.exp, args.tbios, args.cue]
+    # The disk is optional because a tree can hold the game's own save files in ./saves instead, which is what a
+    # session that created characters writes. Passing "" would be a positional argument the port does not expect.
+    if args.disk:
+        argv.append(args.disk)
+    proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
     bound = None
     deadline = time.time() + 240
     while time.time() < deadline:

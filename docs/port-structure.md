@@ -92,6 +92,34 @@ Two cache traps were paid for here on 2026-11-10, both the same shape as the `FM
 that has a shared SDL3 and ships nothing. The release workflow builds the archive from source, so the static path is
 proven there rather than in the fast link job.
 
+## The glibc floor is 2.34
+
+The floor is **GLIBC_2.34**, set by Paul on 2026-11-10, and `tools/glibcfloor.js` owns the number. The release refuses to
+package a binary that needs a newer one, the same way it refuses a binary that wants `libSDL3` from the distro.
+
+**The floor is decided by the build host, not the source.** A binary records, per imported symbol, the glibc version that
+symbol appeared in, and the loader will not start it on a machine with an older libc. Measured on a host build of the port
+on 2026-11-10, on glibc 2.43:
+
+| needs | symbols | why |
+|---|---|---|
+| `GLIBC_2.43` | `acosf`, `asinf`, `atan2f`, `log10f`, `sqrtf` | single-precision float math, re-versioned in that release |
+| `GLIBC_2.38` | `__isoc23_strtol` and the scanf family, `strlcpy`, `strlcat`, `fmod`, `fmodf` | C23 strtol redirects, and `strlcpy` arriving |
+| `GLIBC_2.34` | 32 ordinary symbols | the newest version we accept |
+
+The same source compiled where libc is 2.31 binds `sqrtf` to `GLIBC_2.2.5` and costs nothing, so no source change is
+involved and none would help. What the floor needs is a base image at or below it, which is why the release build belongs
+in a container of its own rather than on a desktop that upgrades.
+
+**Two other libraries have floors of their own, and one is already fixed.** libstdc++ was asking for `GLIBCXX_3.4.31`,
+which is gcc 13's, so the release now links `libstdc++` and `libgcc` statically (`-DPORT_STATIC_CXX=ON`, passed by
+`tools/release-package.sh`). Those symbols then live in the binary and glibc is the only remaining floor. That option is
+not on by default because Fedora and Bazzite do not ship `libstdc++.a` without the `libstdc++-static` package, so a host
+build links dynamically and is simply not shippable, which `glibcfloor.js` says out loud.
+
+`node tools/glibcfloor.js build/u3/b/u3` prints the table above and exits non-zero. It has been watched failing, which is
+the only reason to trust it: the ceiling is a comparison, and lowering it to 2.30 makes 2.38 fail as well.
+
 ## The order, and why
 
 1. The descriptor table and the naming conventions. No behaviour change, and it is what stops the next title
