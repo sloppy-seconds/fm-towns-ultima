@@ -57,7 +57,7 @@ shipping the game.
 | game seeds | `tools/seeds.js --emit`, shifted by `0x200` into the runtime frame, plus the 88 machine-measured entries in `tools/runtime-seeds.txt`, plus the entry `0x101a20` |
 | no-code ranges | `tools/codelimits.js --args`, scoped per module |
 | TBIOS seeds | every distinct offset that executed in segment `0110` on the running game, checked in as `tools/tbios-seeds.txt` (5,395 of them), plus the offsets a title reaches that the capture, being one game's trace, never saw. `british` contributes one, `0x6864`, from `tools/tbios-british-seeds.txt`. The shared module carries the union, because a routine missing from it stops whichever title calls it |
-| what it emitted | game (`ENCHANT.EXP`): 865 functions, 43,016 instructions, 141,157 bytes, 0 refused, 0 conflicts. tbios: 5,574 functions, 15,398 instructions, 56,493 bytes, 0 refused, 0 conflicts |
+| what it emitted | game (`ENCHANT.EXP`, from `module/u2/report.txt` beside it): 875 functions, 43,117 instructions, 141,558 bytes, 0 refused, 0 conflicts. tbios: 5,574 functions, 15,398 instructions, 56,493 bytes, 0 refused, 0 conflicts, because the shared module now carries every title's seeds. `module/u2/report.txt` still prints the 5,573 it was produced with, which is what that run measured and not a mistake in it |
 
 ## Regenerating it
 

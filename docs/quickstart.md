@@ -157,7 +157,9 @@ distro has none. It extracts what it needs from your disc into
 `build/play/`, fetches the font ROM, and unpacks a save disk with three characters on it
 if you have none. A published release ships the same binary already built, with SDL linked
 in and no compiler needed at all, and that binary takes no arguments: unpack it, put your copy
-of the disc image in `game/` beside it, and run `./u2port`. It reads the program, TBIOS and the
+of the disc image in `game/` beside it, and run it. The asset is named for the title it carries
+(`fm-u2-linux-x86_64`, `fm-u1demo-linux-x86_64`, and so on), and a build from a clone produces
+`./u2`, `./u1`, `./british` instead, so run whichever of those you have. It reads the program, TBIOS and the
 game's graphics and sounds out of the image itself and keeps them under `game/extracted/`, so
 after the first run the image can be removed. Characters are plain files in `game/saves/`, not a
 floppy image, so there is nothing to format before you can save one.

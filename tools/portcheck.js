@@ -8,8 +8,9 @@
 // half: assert the measured values on the source that carries them, so a later edit that reverts one fails
 // `node tools/checkall.js` in a second rather than surviving until the next emulator session.
 //
-// What it can and cannot see. It reads `port/`, `tools/` and `docs/`, plus the two files in `module/` that the
-// shadow checks need (`modules.cpp` and `p_game_funcs.h`). `module/` is committed and is itself the recompiler's
+// What it can and cannot see. It reads `port/`, `tools/` and `docs/`, plus every recompiler source under `module/`,
+// which is what lets it scan each title's translated code for game text and check that the shared TBIOS module covers
+// every title's measured seeds. `module/` is committed and is itself the recompiler's
 // output, so reading it costs nothing: there is still no ENCHANT.EXP, no TBIOS image, no emulator and no built
 // binary, which is what makes this runnable by a stranger who has cloned the repository and downloaded nothing. What it therefore cannot check is the port's runtime
 // behaviour: that is `tools/divergence.py` against a capture, and it needs the machine.

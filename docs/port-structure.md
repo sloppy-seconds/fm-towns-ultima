@@ -52,7 +52,7 @@ from their committed modules since 2026-11-12, and what that took is in [docs/po
 | the save disk | `saves/<id>-test.hdm` | partly: `saves/u3test.hdm` |
 | the doc page | `docs/port-<id>.md` | begun: `docs/port-british.md` and `docs/port-demos.md` follow the spelling, `docs/u1-port.md` and `docs/u3-port.md` do not |
 | environment variables | one neutral `PORT_*` namespace | not done, 30+ `U2_*` names are shared by U2 and U3 today |
-| release assets | `<id>port-<os>-<arch>` | not done, and deliberately unchanged by the executable's rename: `dist/u2port-linux-x86_64` still says what it is to somebody who downloads it |
+| release assets | `fm-<id>-<os>-<arch>` | done: `tools/release-package.sh` builds one binary per id from `tools/games.js --ids`, so all seven Linux titles ship. Windows carries the three games only, and the release notes say so |
 | the link mode | static SDL3 from `tools/sdl-from-source.sh`, shared refused | done: CMake stops on a shared SDL3, `-DPORT_ALLOW_SHARED_SDL=ON` is for a link check that ships nothing |
 
 The environment variables are the ones that will hurt first, because U3 already uses `U2_SHOT` and `U2_STACK` and

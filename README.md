@@ -41,16 +41,23 @@ is fine.
 ./play.sh
 ```
 
-The release is one file, not an archive: `u2port-linux-x86_64` or, on Windows,
-`u2port-windows-x86_64.exe`. Put your copy of the disc image beside it and run it. It reads
+The release is one file per title, not an archive: `fm-u1-linux-x86_64`, `fm-u2-linux-x86_64`
+and the rest, or the matching `.exe` on Windows. Put your copy of the disc image beside one
+and run it. It reads
 the program, TBIOS and the game's own graphics and sounds out of that image, keeps what it
 reads under `extracted/`, and after the first run the image is optional. Characters live as
 plain files in `saves/`, so there is no floppy image to create either. Nothing else is
 required: SDL and the glyph ROM are inside the binary, and `--licences` prints every notice
 compiled into it.
 
-The Linux binaries are the tested ones. There are three of them now, one per game, and all three play.
-The Windows builds are checked under Wine, where all three load and a game can be launched and played,
+The Linux binaries are the tested ones. There are seven, one per title on the disc: the three
+games, the publisher's splash `fm-british-linux-x86_64` (the message from Lord British), and
+`fm-u1demo-linux-x86_64`, `fm-u2demo-linux-x86_64` and `fm-u3demo-linux-x86_64`, the slideshow
+that introduces each episode. **The three games play. The other four are not games**: they run
+their real translated code and show what they were built to show, which is the cheapest
+demonstration that the machine layer underneath the games is right.
+
+The Windows builds are the three games only, checked under Wine, where all three load and a game can be launched and played,
 but none has run on a real Windows machine, because this project has no access to one. Treat them as
 likely to work rather than supported, and a failure on real hardware is the most useful report.
 
@@ -100,7 +107,7 @@ machine code into C++, and a binary preserves nothing. The module is measured ra
 assumed to be code and not media, and the measurement is a gate. This repository's own work
 is under the **MIT licence** in `LICENSE`, which covers the scripts, the docs, the port
 front-end and the translation, and covers nothing else. SDL3 and fmtownskit are linked into
-the binary, so their notices are compiled in as well, and `u2port --licences` prints all
+the binary, so their notices are compiled in as well, and `<binary> --licences` prints all
 three from the executable itself.
 
 **Trademarks.** *Ultima* is a trademark and copyright of its respective owners (Origin
@@ -314,7 +321,7 @@ Same platform caveat as the emulator container: it has only been run on Linux.
 
 If a release has been published, `IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest
 ./tools/x-run.sh start` uses the published toolchain image instead of building one, and the
-release archive ships a built `u2port` that needs no compiler at all. What a release carries,
+release archive ships a binary that needs no compiler at all. What a release carries,
 and what it never will: [licensing and preservation](docs/licensing.md).
 
 ### Does this work on macOS or Windows?

@@ -43,6 +43,8 @@ Derived from the items below, not maintained separately. `node tools/plancheck.j
 | 10f `state`, the roster and world parsed for the caller | AUTONOMOUS | **done**, three characters named and every compared field agrees with `savedisk.js` |
 | 10g The MCP wrapper | PARTLY AUTONOMOUS | no, depends on 10b, and the harness wiring needs Paul |
 | 10h Tier 3, listed and not scheduled | AUTONOMOUS | no, and it is deliberately not scheduled |
+| 13a One release binary per title, not three of seven | AUTONOMOUS | **done**, seven binaries from `tools/games.js --ids`, each run, each framebuffer identical to a dev build |
+| 13b The seven binaries in the pages a reader arrives at | AUTONOMOUS | **done**, the front door lists what the release publishes |
 | 5m Music: where it comes from, and when it starts | AUTONOMOUS | **partly known**, the port's side is measured and recorded in `docs/music.md`, the original's side has no sound device to measure |
 | 5o Some samples are cut off at the end marker | AUTONOMOUS | **open**, the marker stop fixes the repeat and the sample data is the suspect; `docs/audio-playback.md` holds the measurements |
 | 5n Hardware interrupt delivery, attempted and reverted | PARTLY AUTONOMOUS | **open**, the attempt silenced the FM music and was bisected out; next is a bounded retry or a CUT, and `docs/interrupts.md` holds the numbers |
@@ -2060,3 +2062,64 @@ worth knowing before another fifty are added.
 
 One trap found by using it: `U2_MEM_DUMP` parses its length as **hex**, so `65536` means 414,518 bytes rather than
 65,536. The dump that found the 172 bytes covered a third of a megabyte because of it.
+
+## The four titles outside the three games
+
+`BRITISH.EXP` and the three `UT*DEMO.EXP` files were put in scope by Paul on 2026-11-10
+(`docs/port-structure.md`) and all four were built and playable by 2026-11-12. This is what the last step of that,
+and the release, needed.
+
+### 13a. One release binary per title, not three of seven
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous. The title table already existed, the packaging was already per-title, and the only thing missing was that the last step listed three ids as literals instead of asking |
+| done when | `tools/release-package.sh` produces one binary per id from `tools/games.js --ids` and every binary it produces runs without a fault. The failure case it must not have: a title present in `module/` and absent from the release, because nothing compares the two lists |
+| blocked by | nothing |
+
+**What was wrong.** `package_one` was written per title and then called three times, `u2`, `u3`, `u1`, at the bottom
+of the file. Four titles were added to `module/` on 2026-11-12 and the release still shipped three binaries, because
+the id list existed twice and only one copy grew.
+
+**What closed it.** `tools/games.js --ids` prints the ids in disc order, which is `GAMES` order and therefore the order
+a reader meets them. `release-package.sh` reads that list twice, once to refuse early if a committed module is missing
+and once to package, so the release now ships whatever `module/` holds. Windows stays at the three games deliberately
+and the release notes say so: the four extra titles have not been cross-built or run under Wine, and a Windows file
+nobody has executed would be claiming more than has been measured.
+
+**Measured, in the AlmaLinux 9 container the release is built in, mounted read-write and given its own SDL3 cache so
+it does not link a desktop-built archive:**
+
+| title | binary | bytes | runs | framebuffer against a dev build |
+|---|---|---|---|---|
+| `u1` | `fm-u1-linux-x86_64` | 46,219,528 | exit 0, no fault | identical |
+| `u2` | `fm-u2-linux-x86_64` | 46,404,584 | exit 0, no fault | identical |
+| `u3` | `fm-u3-linux-x86_64` | 46,346,264 | exit 0, no fault | identical |
+| `british` | `fm-british-linux-x86_64` | 43,619,264 | exit 0, no fault | identical |
+| `u1demo` | `fm-u1demo-linux-x86_64` | 43,873,104 | exit 0, no fault | identical at 9,000 frames |
+| `u2demo` | `fm-u2demo-linux-x86_64` | 43,877,200 | exit 0, no fault | identical at 9,000 frames |
+| `u3demo` | `fm-u3demo-linux-x86_64` | 43,881,296 | exit 0, no fault | identical at 9,000 frames |
+
+Each binary's `ldd` is `libm`, `libc` and the loader, so libstdc++ and libgcc are static and SDL is linked from the
+source build. The glibc floor check and the four-section licence check both passed for all seven, and both are
+refusals in the script rather than notes.
+
+### 13b. The seven binaries in the pages a reader arrives at
+
+**State:** DONE · **Autonomy:** AUTONOMOUS
+
+| field | value |
+|---|---|
+| autonomy | autonomous |
+| done when | `README.md`, `docs/quickstart.md` and `docs/index.md` each name the binaries that exist, and no page still says three. The failure case: a page that lists the three games while the release publishes seven files |
+| blocked by | 13a |
+
+**What changed.** The front-door pages described a release of three games because that is what there was. They now
+list the seven Linux binaries, and say what the four extra ones are: `fm-british` is the publisher's splash with the
+message from Lord British, and the three `demo` binaries introduce each episode. Those four are not games and the
+pages do not present them as playable games.
+
+**What was already correct and left alone.** The Windows bullet, which names three `.exe` files and calls them
+untested on real hardware, because Windows still carries the three games only.
