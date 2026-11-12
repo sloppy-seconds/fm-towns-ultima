@@ -28,7 +28,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/dist}"
-NAME="u2port-linux-x86_64"
+# NAMED FOR PROVENANCE, decided by Paul on 2026-11-10: `fm` for FM Towns, then the title. Two titles ship, so a
+# name that says only "u2port" no longer identifies the thing, and the asset is what a reader sees first. The
+# executable inside keeps the title's id (`u2`), which is what tools/games.js and the build both use.
+NAME="fm-u2-linux-x86_64"
 
 if [[ ! -f "$ROOT/fmtownskit/runtime/towns.cmake" ]]; then
 	echo "the toolkit is not at $ROOT/fmtownskit. Run: git submodule update --init fmtownskit" >&2

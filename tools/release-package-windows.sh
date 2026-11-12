@@ -21,7 +21,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/dist}"
-NAME="u2port-windows-x86_64.exe"
+# Named for provenance, the same as the Linux asset: `fm` is FM Towns, then the title. See tools/release-package.sh.
+NAME="fm-u2-windows-x86_64.exe"
 CXX_TRIPLE=x86_64-w64-mingw32
 
 if [[ ! -f "$ROOT/fmtownskit/runtime/towns.cmake" ]]; then

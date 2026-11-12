@@ -87,12 +87,12 @@ jobs:
 
       - name: Record the digest
         id: sum
-        run: echo "sha256=$(sha256sum dist/u2port-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "sha256=$(sha256sum dist/fm-u2-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: u2port-linux-x86_64
-          path: dist/u2port-linux-x86_64
+          name: fm-u2-linux-x86_64
+          path: dist/fm-u2-linux-x86_64
 
     outputs:
       sha256: ${{ steps.sum.outputs.sha256 }}
@@ -125,12 +125,12 @@ jobs:
 
       - name: Record the digest
         id: sum
-        run: echo "sha256=$(sha256sum dist/u2port-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "sha256=$(sha256sum dist/fm-u2-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: u2port-windows-x86_64.exe
-          path: dist/u2port-windows-x86_64.exe
+          name: fm-u2-windows-x86_64.exe
+          path: dist/fm-u2-windows-x86_64.exe
 
     outputs:
       sha256: ${{ steps.sum.outputs.sha256 }}
@@ -143,11 +143,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: u2port-linux-x86_64
+          name: fm-u2-linux-x86_64
 
       - uses: actions/download-artifact@v4
         with:
-          name: u2port-windows-x86_64.exe
+          name: fm-u2-windows-x86_64.exe
 
       # Two binaries and nothing else. The rule this step enforces: a release publishes files a player runs, not
       # archives they have to unpack, and not a support kit beside it. If a third asset ever appears here it is either
@@ -158,7 +158,7 @@ jobs:
           ls -l
           for f in *; do
             case "$f" in
-              u2port-linux-x86_64 | u2port-windows-x86_64.exe) ;;
+              fm-u2-linux-x86_64 | fm-u2-windows-x86_64.exe) ;;
               *) echo "refusing to publish: $f is not one of the two binaries" >&2; exit 1 ;;
             esac
           done
@@ -166,8 +166,8 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            u2port-linux-x86_64
-            u2port-windows-x86_64.exe
+            fm-u2-linux-x86_64
+            fm-u2-windows-x86_64.exe
           body: |
             Early, and honest about it. The port reaches the title screen, the game menu and the overworld, characters can be
             created and played, and music and sound effects work. What is still broken is listed with the observation that found
@@ -195,18 +195,20 @@ jobs:
 
             ## The binaries
 
-            `u2port-linux-x86_64`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** One file, no archive
+            `fm-u2-linux-x86_64`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** One file, no archive
             to unpack: put your own copy of the disc image beside it and run it. It reads `ENCHANT.EXP`, TBIOS, the
             graphics, the sounds and the kanji font out of that image, keeps what it reads under `extracted/`, and
             creates `saves/` for characters as plain files, so the image is optional after a first run. At the game
-            menu pick *Journey Onward*, or *Generate Character* to make one. `u2port-linux-x86_64 --licences` prints
+            menu pick *Journey Onward*, or *Generate Character* to make one. `fm-u2-linux-x86_64 --licences` prints
             every licence and provenance notice compiled into it. SDL is linked statically from the pinned upstream release, so there is
-            no `libSDL3` to install and nothing to apt first: the binary's whole dynamic list is libc, libstdc++, libm
-            and libgcc. What SDL loads at run time is the desktop's own (X11 or Wayland, GL, and one of ALSA, Pulse or
-            PipeWire), and the binary was checked on a bare Debian trixie container with no SDL installed at all,
-            where it mapped a 640x480 window and drew the title screen.
+            no `libSDL3` to install and nothing to apt first: the binary's whole dynamic list is `libc`, `libm` and the
+            loader, because libstdc++ and libgcc are static too. It needs glibc 2.34 or newer, which is RHEL 9, Ubuntu
+            22.04 and Debian 12 and later, and `tools/glibcfloor.js` is the check that keeps that true. What SDL loads
+            at run time is the desktop's own (X11 or Wayland, GL, and one of ALSA, Pulse or PipeWire); the binary was
+            built and checked in an AlmaLinux 9 container with no SDL installed at all, where it drew the title screen
+            and served it over noVNC.
 
-            `u2port-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256 }}`. The same program for Windows,
+            `fm-u2-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256 }}`. The same program for Windows,
             cross-built with mingw-w64 and statically linked, so its import table is Windows' own libraries and no DLL
             travels with it. **It has never been run on a real Windows machine**, because this project has no access to
             one. Every check it has is from Wine: it starts there, prints its licences, and draws frames byte-identical
