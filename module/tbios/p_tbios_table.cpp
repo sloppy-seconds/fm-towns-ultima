@@ -5310,6 +5310,7 @@ static const X86FuncEntry k_funcs[] = {
     {0x659cu, p_tbios::f_0000659c},
     {0x65a3u, p_tbios::f_000065a3},
     {0x65a6u, p_tbios::f_000065a6},
+    {0x6864u, p_tbios::f_00006864},
     {0x6a41u, p_tbios::f_00006a41},
     {0x6a46u, p_tbios::f_00006a46},
     {0x6a48u, p_tbios::f_00006a48},
@@ -8990,4 +8991,4 @@ static const X86FuncEntry k_funcs[] = {
     {0x137d2u, p_tbios::f_000137d2},
     {0x137dfu, p_tbios::f_000137df},
 };
-extern const X86Module g_mod_p_tbios = {"TBIOS", 0x110, 81920u, 0x3409cc57u, k_funcs, 5573u, 0x0u, k_image};
+extern const X86Module g_mod_p_tbios = {"TBIOS", 0x110, 81920u, 0x3409cc57u, k_funcs, 5574u, 0x0u, k_image};

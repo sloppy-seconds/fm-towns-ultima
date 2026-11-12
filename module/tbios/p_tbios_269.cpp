@@ -147,23 +147,23 @@ L_1025c:
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -334,23 +334,23 @@ L_1025c:
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -515,23 +515,23 @@ void f_0001022a(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -693,23 +693,23 @@ void f_0001022b(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -868,23 +868,23 @@ void f_0001022c(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -1040,23 +1040,23 @@ void f_0001022e(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -1209,23 +1209,23 @@ void f_00010232(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -1375,23 +1375,23 @@ void f_00010233(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -1538,23 +1538,23 @@ void f_00010236(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -1698,23 +1698,23 @@ void f_0001023a(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -1855,23 +1855,23 @@ void f_0001023b(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -2009,23 +2009,23 @@ void f_0001023e(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -2160,23 +2160,23 @@ void f_00010242(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -2308,23 +2308,23 @@ void f_00010243(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -2453,23 +2453,23 @@ void f_00010246(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -2595,23 +2595,23 @@ void f_0001024a(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -2734,23 +2734,23 @@ void f_0001024b(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -2870,23 +2870,23 @@ void f_0001024d(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3003,23 +3003,23 @@ void f_00010251(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3133,23 +3133,23 @@ void f_00010252(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3260,23 +3260,23 @@ void f_00010255(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3384,23 +3384,23 @@ void f_00010259(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3505,23 +3505,23 @@ void f_0001025a(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3623,23 +3623,23 @@ void f_0001025b(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3738,23 +3738,23 @@ void f_0001025c(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3850,23 +3850,23 @@ void f_0001025d(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -3959,23 +3959,23 @@ void f_0001025e(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4065,23 +4065,23 @@ void f_00010262(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4168,23 +4168,23 @@ void f_00010263(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4268,23 +4268,23 @@ void f_00010266(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4365,23 +4365,23 @@ void f_0001026a(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4459,23 +4459,23 @@ void f_0001026b(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4550,23 +4550,23 @@ void f_0001026e(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4638,23 +4638,23 @@ void f_00010272(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4723,23 +4723,23 @@ void f_00010273(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4805,23 +4805,23 @@ void f_00010276(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4884,23 +4884,23 @@ void f_0001027a(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -4960,23 +4960,23 @@ void f_0001027b(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5033,23 +5033,23 @@ void f_0001027d(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5103,23 +5103,23 @@ void f_00010281(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5170,23 +5170,23 @@ void f_00010282(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5234,23 +5234,23 @@ void f_00010285(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5295,23 +5295,23 @@ void f_00010289(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5353,23 +5353,23 @@ void f_0001028a(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5408,23 +5408,23 @@ void f_0001028c(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5460,23 +5460,23 @@ void f_0001028d(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5509,23 +5509,23 @@ void f_0001028e(X86Cpu& c) {
     X86_AT(c, 0x1028eu);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x102A8u))); push32(c, 0x10296u);
       switch (t) {
-      case 0x102ecu: f_000102ec(c); break;
-      case 0x1033du: f_0001033d(c); break;
-      case 0x10353u: f_00010353(c); break;
-      case 0x10384u: f_00010384(c); break;
-      case 0x1039au: f_0001039a(c); break;
-      case 0x103bbu: f_000103bb(c); break;
-      case 0x103c3u: f_000103c3(c); break;
-      case 0x10400u: f_00010400(c); break;
-      case 0x10408u: f_00010408(c); break;
-      case 0x10459u: f_00010459(c); break;
-      case 0x1050au: f_0001050a(c); break;
-      case 0x1051fu: f_0001051f(c); break;
-      case 0x10532u: f_00010532(c); break;
-      case 0x1054cu: f_0001054c(c); break;
-      case 0x106f4u: f_000106f4(c); break;
-      case 0x107a8u: f_000107a8(c); break;
-      case 0x107dfu: f_000107df(c); break;
+      case 0x102ecu: x86_call_known(c, 0x102ecu, f_000102ec); break;
+      case 0x1033du: x86_call_known(c, 0x1033du, f_0001033d); break;
+      case 0x10353u: x86_call_known(c, 0x10353u, f_00010353); break;
+      case 0x10384u: x86_call_known(c, 0x10384u, f_00010384); break;
+      case 0x1039au: x86_call_known(c, 0x1039au, f_0001039a); break;
+      case 0x103bbu: x86_call_known(c, 0x103bbu, f_000103bb); break;
+      case 0x103c3u: x86_call_known(c, 0x103c3u, f_000103c3); break;
+      case 0x10400u: x86_call_known(c, 0x10400u, f_00010400); break;
+      case 0x10408u: x86_call_known(c, 0x10408u, f_00010408); break;
+      case 0x10459u: x86_call_known(c, 0x10459u, f_00010459); break;
+      case 0x1050au: x86_call_known(c, 0x1050au, f_0001050a); break;
+      case 0x1051fu: x86_call_known(c, 0x1051fu, f_0001051f); break;
+      case 0x10532u: x86_call_known(c, 0x10532u, f_00010532); break;
+      case 0x1054cu: x86_call_known(c, 0x1054cu, f_0001054c); break;
+      case 0x106f4u: x86_call_known(c, 0x106f4u, f_000106f4); break;
+      case 0x107a8u: x86_call_known(c, 0x107a8u, f_000107a8); break;
+      case 0x107dfu: x86_call_known(c, 0x107dfu, f_000107df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x10296u); }
     X86_TICK(c, 52);
@@ -5714,7 +5714,7 @@ void f_000102ec(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 010310  call 0x1054c
     X86_AT(c, 0x10310u);
-    push32(c, 0x10315u); f_0001054c(c); X86_RET(c, 0x10315u);
+    push32(c, 0x10315u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10315u);
     X86_TICK(c, 11);
     // 010315  mov al, 0
     X86_AT(c, 0x10315u);
@@ -5724,21 +5724,21 @@ void f_000102ec(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 01031b  call 0x1054c
     X86_AT(c, 0x1031bu);
-    push32(c, 0x10320u); f_0001054c(c); X86_RET(c, 0x10320u);
+    push32(c, 0x10320u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10320u);
     X86_TICK(c, 9);
     // 010320  mov al, 0
     X86_AT(c, 0x10320u);
     s8(c, 0, 0x0u);
     // 010322  call 0x106f4
     X86_AT(c, 0x10322u);
-    push32(c, 0x10327u); f_000106f4(c); X86_RET(c, 0x10327u);
+    push32(c, 0x10327u); x86_call_known(c, 0x106f4u, f_000106f4); X86_RET(c, 0x10327u);
     X86_TICK(c, 9);
     // 010327  mov dword ptr [edi + 0x5e], 0x80008
     X86_AT(c, 0x10327u);
     wr32((c.sbase[3] + (uint32_t)(c.r[7] + 0x5Eu)), 0x80008u);
     // 01032e  call 0x10b22
     X86_AT(c, 0x1032eu);
-    push32(c, 0x10333u); f_00010b22(c); X86_RET(c, 0x10333u);
+    push32(c, 0x10333u); x86_call_known(c, 0x10b22u, f_00010b22); X86_RET(c, 0x10333u);
     X86_TICK(c, 12);
     // 010333  mov byte ptr [edi + 0x17], 1
     X86_AT(c, 0x10333u);
@@ -5803,7 +5803,7 @@ void f_000102f0(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 010310  call 0x1054c
     X86_AT(c, 0x10310u);
-    push32(c, 0x10315u); f_0001054c(c); X86_RET(c, 0x10315u);
+    push32(c, 0x10315u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10315u);
     X86_TICK(c, 11);
     // 010315  mov al, 0
     X86_AT(c, 0x10315u);
@@ -5813,21 +5813,21 @@ void f_000102f0(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 01031b  call 0x1054c
     X86_AT(c, 0x1031bu);
-    push32(c, 0x10320u); f_0001054c(c); X86_RET(c, 0x10320u);
+    push32(c, 0x10320u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10320u);
     X86_TICK(c, 9);
     // 010320  mov al, 0
     X86_AT(c, 0x10320u);
     s8(c, 0, 0x0u);
     // 010322  call 0x106f4
     X86_AT(c, 0x10322u);
-    push32(c, 0x10327u); f_000106f4(c); X86_RET(c, 0x10327u);
+    push32(c, 0x10327u); x86_call_known(c, 0x106f4u, f_000106f4); X86_RET(c, 0x10327u);
     X86_TICK(c, 9);
     // 010327  mov dword ptr [edi + 0x5e], 0x80008
     X86_AT(c, 0x10327u);
     wr32((c.sbase[3] + (uint32_t)(c.r[7] + 0x5Eu)), 0x80008u);
     // 01032e  call 0x10b22
     X86_AT(c, 0x1032eu);
-    push32(c, 0x10333u); f_00010b22(c); X86_RET(c, 0x10333u);
+    push32(c, 0x10333u); x86_call_known(c, 0x10b22u, f_00010b22); X86_RET(c, 0x10333u);
     X86_TICK(c, 12);
     // 010333  mov byte ptr [edi + 0x17], 1
     X86_AT(c, 0x10333u);
@@ -5888,7 +5888,7 @@ void f_000102f2(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 010310  call 0x1054c
     X86_AT(c, 0x10310u);
-    push32(c, 0x10315u); f_0001054c(c); X86_RET(c, 0x10315u);
+    push32(c, 0x10315u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10315u);
     X86_TICK(c, 11);
     // 010315  mov al, 0
     X86_AT(c, 0x10315u);
@@ -5898,21 +5898,21 @@ void f_000102f2(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 01031b  call 0x1054c
     X86_AT(c, 0x1031bu);
-    push32(c, 0x10320u); f_0001054c(c); X86_RET(c, 0x10320u);
+    push32(c, 0x10320u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10320u);
     X86_TICK(c, 9);
     // 010320  mov al, 0
     X86_AT(c, 0x10320u);
     s8(c, 0, 0x0u);
     // 010322  call 0x106f4
     X86_AT(c, 0x10322u);
-    push32(c, 0x10327u); f_000106f4(c); X86_RET(c, 0x10327u);
+    push32(c, 0x10327u); x86_call_known(c, 0x106f4u, f_000106f4); X86_RET(c, 0x10327u);
     X86_TICK(c, 9);
     // 010327  mov dword ptr [edi + 0x5e], 0x80008
     X86_AT(c, 0x10327u);
     wr32((c.sbase[3] + (uint32_t)(c.r[7] + 0x5Eu)), 0x80008u);
     // 01032e  call 0x10b22
     X86_AT(c, 0x1032eu);
-    push32(c, 0x10333u); f_00010b22(c); X86_RET(c, 0x10333u);
+    push32(c, 0x10333u); x86_call_known(c, 0x10b22u, f_00010b22); X86_RET(c, 0x10333u);
     X86_TICK(c, 12);
     // 010333  mov byte ptr [edi + 0x17], 1
     X86_AT(c, 0x10333u);
@@ -5962,7 +5962,7 @@ void f_000102f6(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 010310  call 0x1054c
     X86_AT(c, 0x10310u);
-    push32(c, 0x10315u); f_0001054c(c); X86_RET(c, 0x10315u);
+    push32(c, 0x10315u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10315u);
     X86_TICK(c, 11);
     // 010315  mov al, 0
     X86_AT(c, 0x10315u);
@@ -5972,21 +5972,21 @@ void f_000102f6(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 01031b  call 0x1054c
     X86_AT(c, 0x1031bu);
-    push32(c, 0x10320u); f_0001054c(c); X86_RET(c, 0x10320u);
+    push32(c, 0x10320u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10320u);
     X86_TICK(c, 9);
     // 010320  mov al, 0
     X86_AT(c, 0x10320u);
     s8(c, 0, 0x0u);
     // 010322  call 0x106f4
     X86_AT(c, 0x10322u);
-    push32(c, 0x10327u); f_000106f4(c); X86_RET(c, 0x10327u);
+    push32(c, 0x10327u); x86_call_known(c, 0x106f4u, f_000106f4); X86_RET(c, 0x10327u);
     X86_TICK(c, 9);
     // 010327  mov dword ptr [edi + 0x5e], 0x80008
     X86_AT(c, 0x10327u);
     wr32((c.sbase[3] + (uint32_t)(c.r[7] + 0x5Eu)), 0x80008u);
     // 01032e  call 0x10b22
     X86_AT(c, 0x1032eu);
-    push32(c, 0x10333u); f_00010b22(c); X86_RET(c, 0x10333u);
+    push32(c, 0x10333u); x86_call_known(c, 0x10b22u, f_00010b22); X86_RET(c, 0x10333u);
     X86_TICK(c, 12);
     // 010333  mov byte ptr [edi + 0x17], 1
     X86_AT(c, 0x10333u);
@@ -6033,7 +6033,7 @@ void f_000102f7(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 010310  call 0x1054c
     X86_AT(c, 0x10310u);
-    push32(c, 0x10315u); f_0001054c(c); X86_RET(c, 0x10315u);
+    push32(c, 0x10315u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10315u);
     X86_TICK(c, 11);
     // 010315  mov al, 0
     X86_AT(c, 0x10315u);
@@ -6043,21 +6043,21 @@ void f_000102f7(X86Cpu& c) {
     s16(c, 2, 0x3u);
     // 01031b  call 0x1054c
     X86_AT(c, 0x1031bu);
-    push32(c, 0x10320u); f_0001054c(c); X86_RET(c, 0x10320u);
+    push32(c, 0x10320u); x86_call_known(c, 0x1054cu, f_0001054c); X86_RET(c, 0x10320u);
     X86_TICK(c, 9);
     // 010320  mov al, 0
     X86_AT(c, 0x10320u);
     s8(c, 0, 0x0u);
     // 010322  call 0x106f4
     X86_AT(c, 0x10322u);
-    push32(c, 0x10327u); f_000106f4(c); X86_RET(c, 0x10327u);
+    push32(c, 0x10327u); x86_call_known(c, 0x106f4u, f_000106f4); X86_RET(c, 0x10327u);
     X86_TICK(c, 9);
     // 010327  mov dword ptr [edi + 0x5e], 0x80008
     X86_AT(c, 0x10327u);
     wr32((c.sbase[3] + (uint32_t)(c.r[7] + 0x5Eu)), 0x80008u);
     // 01032e  call 0x10b22
     X86_AT(c, 0x1032eu);
-    push32(c, 0x10333u); f_00010b22(c); X86_RET(c, 0x10333u);
+    push32(c, 0x10333u); x86_call_known(c, 0x10b22u, f_00010b22); X86_RET(c, 0x10333u);
     X86_TICK(c, 12);
     // 010333  mov byte ptr [edi + 0x17], 1
     X86_AT(c, 0x10333u);

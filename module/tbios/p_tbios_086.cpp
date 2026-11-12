@@ -1258,7 +1258,7 @@ void f_00008b0c(X86Cpu& c) {
     X86_TICK(c, 7);
     // 008b0c  call 0xb930
     X86_AT(c, 0x8b0cu);
-    push32(c, 0x8b11u); f_0000b930(c); X86_RET(c, 0x8b11u);
+    push32(c, 0x8b11u); x86_call_known(c, 0xb930u, f_0000b930); X86_RET(c, 0x8b11u);
     X86_TICK(c, 20);
     // 008b11  setb bl
     X86_AT(c, 0x8b11u);

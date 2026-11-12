@@ -435,6 +435,45 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	}
 }
 
+// ---- the shared TBIOS module covers every title's measured extra seeds ----
+// module/tbios is regenerated on purpose and it is shared, so a regeneration that was run before somebody added a
+// title's seed silently drops a function and every title keeps building, because a missing function is a runtime
+// fault rather than a link error. That is exactly how BRITISH.EXP stopped at frame 1297 with
+// `no recompiled function at 0110:00006864`, while Ultima II, III and the demos ran fine. The addresses are read
+// from the files tools/games.js names, so this needs no list of its own and covers the next title for free.
+{
+	const games = require('./games.js').GAMES;
+	const funcs = read('module/tbios/p_tbios_funcs.h');
+	if (funcs === null) fail('the shared TBIOS module covers every title\'s extra seeds', 'module/tbios/p_tbios_funcs.h missing');
+	else {
+		const missing = [];
+		let wanted = 0;
+		for (const g of games) {
+			if (!g.tbiosSeeds) continue;
+			const list = read(g.tbiosSeeds);
+			if (list === null) {
+				fail('the shared TBIOS module covers every title\'s extra seeds', g.id + ' names ' + g.tbiosSeeds + ' and it is missing');
+				continue;
+			}
+			for (const line of list.split('\n')) {
+				const hex = line.replace(/#.*/, '').trim();
+				if (!hex) continue;
+				wanted++;
+				const addr = parseInt(hex, 16);
+				if (!Number.isFinite(addr)) {
+					missing.push(g.id + ': ' + JSON.stringify(hex) + ' is not an address');
+					continue;
+				}
+				// The recompiler names a function after its runtime address, eight lower-case hex digits.
+				const name = 'f_' + addr.toString(16).padStart(8, '0');
+				if (!new RegExp('\\b' + name + '\\b').test(funcs)) missing.push(g.id + ' needs ' + name);
+			}
+		}
+		if (missing.length) fail('the shared TBIOS module covers every title\'s extra seeds', missing.join(' | ') + ' (regenerate module/tbios with the union of the seeds)');
+		else ok('the shared TBIOS module covers every title\'s extra seeds', wanted + ' addresses from the titles that name one, all present in p_tbios_funcs.h');
+	}
+}
+
 // The release binary's portability rests on SDL being linked static, and the real proof is `ldd` on a built
 // binary, which release-package.sh does and refuses on. What lives here is the silent-failure version: a pin that
 // lost its hash, a script that stopped asserting, a CMake that stopped preferring the static target. Each of these

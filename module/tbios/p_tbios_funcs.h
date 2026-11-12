@@ -1895,6 +1895,7 @@ void f_00006575(X86Cpu& c);
 void f_0000659c(X86Cpu& c);
 void f_000065a3(X86Cpu& c);
 void f_000065a6(X86Cpu& c);
+void f_00006864(X86Cpu& c);
 void f_00006a41(X86Cpu& c);
 void f_00006a46(X86Cpu& c);
 void f_00006a48(X86Cpu& c);

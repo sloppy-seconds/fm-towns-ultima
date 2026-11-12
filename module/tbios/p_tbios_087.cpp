@@ -4307,7 +4307,7 @@ void f_00008b54(X86Cpu& c) {
     wr16((c.sbase[5] + (uint32_t)(c.r[5] + 0x418u)), (c.r[0] & 0xFFFFu));
     // 008b6e  call 0xb930
     X86_AT(c, 0x8b6eu);
-    push32(c, 0x8b73u); f_0000b930(c); X86_RET(c, 0x8b73u);
+    push32(c, 0x8b73u); x86_call_known(c, 0xb930u, f_0000b930); X86_RET(c, 0x8b73u);
     X86_TICK(c, 20);
     // 008b73  setb bl
     X86_AT(c, 0x8b73u);

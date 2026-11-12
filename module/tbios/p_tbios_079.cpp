@@ -2570,6 +2570,367 @@ void f_000065a6(X86Cpu& c) {
     c.eip = pop32(c); return;
     x86_fault(c, 0x65a6u, "ran off the end of a function");
 }
+void f_00006864(X86Cpu& c) {
+    X86_TICK(c, 107);
+    // 006864  mov ebx, dword ptr gs:[ebp + 0x1d8]
+    X86_AT(c, 0x6864u);
+    c.r[3] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1D8u)));
+    // 00686b  sub bx, 0xf
+    X86_AT(c, 0x686bu);
+    { uint32_t v = (c.r[3] & 0xFFFFu); s16(c, 3, x86_sub(c, v, 0xFu, 0, 2)); }
+    // 00686f  shld edx, ebx, 0x10
+    X86_AT(c, 0x686fu);
+    { uint32_t v = c.r[2]; bool w; uint32_t r = x86_double(c, true, v, c.r[3], 0x10u, 4, w); if (w) c.r[2] = r; }
+    // 006873  sub dx, 0xf
+    X86_AT(c, 0x6873u);
+    { uint32_t v = (c.r[2] & 0xFFFFu); s16(c, 2, x86_sub(c, v, 0xFu, 0, 2)); }
+    // 006877  movsx ecx, dx
+    X86_AT(c, 0x6877u);
+    c.r[1] = (uint32_t)(int32_t)(int16_t)(c.r[2] & 0xFFFFu);
+    // 00687a  imul ecx, dword ptr gs:[ebp + 0x1c]
+    X86_AT(c, 0x687au);
+    c.r[1] = x86_imul2(c, c.r[1], rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1Cu))), 4);
+    // 00687f  movsx edi, bx
+    X86_AT(c, 0x687fu);
+    c.r[7] = (uint32_t)(int32_t)(int16_t)(c.r[3] & 0xFFFFu);
+    // 006882  sar edi, 3
+    X86_AT(c, 0x6882u);
+    { uint32_t v = c.r[7]; bool w; uint32_t r = x86_shift(c, 7, v, 0x3u, 4, w); if (w) c.r[7] = r; }
+    // 006885  and edi, 0xfffffffc
+    X86_AT(c, 0x6885u);
+    { uint32_t v = c.r[7]; c.r[7] = x86_logic(c, v & 0xFFFFFFFCu, 4); }
+    // 006888  add edi, ecx
+    X86_AT(c, 0x6888u);
+    { uint32_t v = c.r[7]; c.r[7] = x86_add(c, v, c.r[1], 0, 4); }
+    // 00688a  add edi, dword ptr gs:[ebp + 8]
+    X86_AT(c, 0x688au);
+    { uint32_t v = c.r[7]; c.r[7] = x86_add(c, v, rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x8u))), 0, 4); }
+    // 00688e  mov dword ptr gs:[ebp + 0x1d0], edi
+    X86_AT(c, 0x688eu);
+    wr32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u)), c.r[7]);
+    // 006895  mov cl, bl
+    X86_AT(c, 0x6895u);
+    s8(c, 1, g8(c, 3));
+    // 006897  and cl, 0x1f
+    X86_AT(c, 0x6897u);
+    { uint32_t v = g8(c, 1); s8(c, 1, x86_logic(c, v & 0x1Fu, 1)); }
+    // 00689a  mov byte ptr gs:[ebp + 0x22b], cl
+    X86_AT(c, 0x689au);
+    wr8((c.sbase[5] + (uint32_t)(c.r[5] + 0x22Bu)), g8(c, 1));
+    // 0068a1  movsx eax, dx
+    X86_AT(c, 0x68a1u);
+    c.r[0] = (uint32_t)(int32_t)(int16_t)(c.r[2] & 0xFFFFu);
+    // 0068a4  imul eax, dword ptr gs:[ebp + 0x20]
+    X86_AT(c, 0x68a4u);
+    c.r[0] = x86_imul2(c, c.r[0], rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x20u))), 4);
+    // 0068a9  add eax, dword ptr gs:[ebp]
+    X86_AT(c, 0x68a9u);
+    { uint32_t v = c.r[0]; c.r[0] = x86_add(c, v, rd32((c.sbase[5] + (uint32_t)(c.r[5]))), 0, 4); }
+    // 0068ad  mov dword ptr gs:[ebp + 0x1cc], eax
+    X86_AT(c, 0x68adu);
+    wr32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1CCu)), c.r[0]);
+    // 0068b4  and bl, 0xe0
+    X86_AT(c, 0x68b4u);
+    { uint32_t v = g8(c, 3); s8(c, 3, x86_logic(c, v & 0xE0u, 1)); }
+    // 0068b7  test byte ptr gs:[ebp + 0x22a], 0x80
+    X86_AT(c, 0x68b7u);
+    (void)x86_logic(c, rd8((c.sbase[5] + (uint32_t)(c.r[5] + 0x22Au))) & 0x80u, 1);
+    // 0068bf  jne 0x6948
+    X86_AT(c, 0x68bfu);
+    if (x86_cc(c, 5)) { goto L_6948; }
+    X86_TICK(c, 4);
+    // 0068c5  mov esi, 0x234
+    X86_AT(c, 0x68c5u);
+    c.r[6] = 0x234u;
+    // 0068ca  push 0x20
+    X86_AT(c, 0x68cau);
+    { uint32_t v = 0x20u; push32(c, v); }
+L_68cf:
+    X86_TICK(c, 20);
+    // 0068cf  push dword ptr gs:[ebp + 0x1d0]
+    X86_AT(c, 0x68cfu);
+    { uint32_t v = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u))); push32(c, v); }
+    // 0068d6  push esi
+    X86_AT(c, 0x68d6u);
+    { uint32_t v = c.r[6]; push32(c, v); }
+    // 0068d7  push ebx
+    X86_AT(c, 0x68d7u);
+    { uint32_t v = c.r[3]; push32(c, v); }
+    // 0068d8  mov eax, dword ptr gs:[ebp + esi*1]
+    X86_AT(c, 0x68d8u);
+    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + c.r[6])));
+    // 0068dd  test eax, eax
+    X86_AT(c, 0x68ddu);
+    (void)x86_logic(c, c.r[0] & c.r[0], 4);
+    // 0068df  je 0x6918
+    X86_AT(c, 0x68dfu);
+    if (x86_cc(c, 4)) { goto L_6918; }
+    X86_TICK(c, 14);
+    // 0068e1  push eax
+    X86_AT(c, 0x68e1u);
+    { uint32_t v = c.r[0]; push32(c, v); }
+    // 0068e2  mov cl, byte ptr gs:[ebp + 0x22b]
+    X86_AT(c, 0x68e2u);
+    s8(c, 1, rd8((c.sbase[5] + (uint32_t)(c.r[5] + 0x22Bu))));
+    // 0068e9  shr eax, cl
+    X86_AT(c, 0x68e9u);
+    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_shift(c, 5, v, g8(c, 1), 4, w); if (w) c.r[0] = r; }
+    // 0068eb  je 0x68f6
+    X86_AT(c, 0x68ebu);
+    if (x86_cc(c, 4)) { goto L_68f6; }
+    X86_TICK(c, 11);
+    // 0068ed  push ebx
+    X86_AT(c, 0x68edu);
+    { uint32_t v = c.r[3]; push32(c, v); }
+    // 0068ee  push edx
+    X86_AT(c, 0x68eeu);
+    { uint32_t v = c.r[2]; push32(c, v); }
+    // 0068ef  call 0x6a41
+    X86_AT(c, 0x68efu);
+    push32(c, 0x68f4u); x86_call_known(c, 0x6a41u, f_00006a41); X86_RET(c, 0x68f4u);
+    X86_TICK(c, 8);
+    // 0068f4  pop edx
+    X86_AT(c, 0x68f4u);
+    { uint32_t v = pop32(c); c.r[2] = v; }
+    // 0068f5  pop ebx
+    X86_AT(c, 0x68f5u);
+    { uint32_t v = pop32(c); c.r[3] = v; }
+L_68f6:
+    X86_TICK(c, 27);
+    // 0068f6  add dword ptr gs:[ebp + 0x1d0], 4
+    X86_AT(c, 0x68f6u);
+    { uint32_t ea = (c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u)); uint32_t v = rd32(ea); wr32(ea, x86_add(c, v, 0x4u, 0, 4)); }
+    // 0068fe  add bx, 0x20
+    X86_AT(c, 0x68feu);
+    { uint32_t v = (c.r[3] & 0xFFFFu); s16(c, 3, x86_add(c, v, 0x20u, 0, 2)); }
+    // 006902  pop edi
+    X86_AT(c, 0x6902u);
+    { uint32_t v = pop32(c); c.r[7] = v; }
+    // 006903  sub eax, eax
+    X86_AT(c, 0x6903u);
+    { uint32_t v = c.r[0]; c.r[0] = x86_sub(c, v, c.r[0], 0, 4); }
+    // 006905  mov cl, byte ptr gs:[ebp + 0x22b]
+    X86_AT(c, 0x6905u);
+    s8(c, 1, rd8((c.sbase[5] + (uint32_t)(c.r[5] + 0x22Bu))));
+    // 00690c  shrd eax, edi, cl
+    X86_AT(c, 0x690cu);
+    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_double(c, false, v, c.r[7], g8(c, 1), 4, w); if (w) c.r[0] = r; }
+    // 00690f  je 0x6918
+    X86_AT(c, 0x690fu);
+    if (x86_cc(c, 4)) { goto L_6918; }
+    X86_TICK(c, 9);
+    // 006911  push edx
+    X86_AT(c, 0x6911u);
+    { uint32_t v = c.r[2]; push32(c, v); }
+    // 006912  call 0x6a41
+    X86_AT(c, 0x6912u);
+    push32(c, 0x6917u); x86_call_known(c, 0x6a41u, f_00006a41); X86_RET(c, 0x6917u);
+    X86_TICK(c, 4);
+    // 006917  pop edx
+    X86_AT(c, 0x6917u);
+    { uint32_t v = pop32(c); c.r[2] = v; }
+L_6918:
+    X86_TICK(c, 50);
+    // 006918  pop ebx
+    X86_AT(c, 0x6918u);
+    { uint32_t v = pop32(c); c.r[3] = v; }
+    // 006919  inc dx
+    X86_AT(c, 0x6919u);
+    { uint32_t v = (c.r[2] & 0xFFFFu); s16(c, 2, x86_inc(c, v, 2)); }
+    // 00691b  pop esi
+    X86_AT(c, 0x691bu);
+    { uint32_t v = pop32(c); c.r[6] = v; }
+    // 00691c  add esi, 4
+    X86_AT(c, 0x691cu);
+    { uint32_t v = c.r[6]; c.r[6] = x86_add(c, v, 0x4u, 0, 4); }
+    // 00691f  pop dword ptr gs:[ebp + 0x1d0]
+    X86_AT(c, 0x691fu);
+    { uint32_t v = pop32(c); wr32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u)), v); }
+    // 006926  mov eax, dword ptr gs:[ebp + 0x1c]
+    X86_AT(c, 0x6926u);
+    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1Cu)));
+    // 00692a  add dword ptr gs:[ebp + 0x1d0], eax
+    X86_AT(c, 0x692au);
+    { uint32_t ea = (c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u)); uint32_t v = rd32(ea); wr32(ea, x86_add(c, v, c.r[0], 0, 4)); }
+    // 006931  mov eax, dword ptr gs:[ebp + 0x20]
+    X86_AT(c, 0x6931u);
+    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x20u)));
+    // 006935  add dword ptr gs:[ebp + 0x1cc], eax
+    X86_AT(c, 0x6935u);
+    { uint32_t ea = (c.sbase[5] + (uint32_t)(c.r[5] + 0x1CCu)); uint32_t v = rd32(ea); wr32(ea, x86_add(c, v, c.r[0], 0, 4)); }
+    // 00693c  dec dword ptr [esp]
+    X86_AT(c, 0x693cu);
+    { uint32_t ea = (c.sbase[2] + (uint32_t)(c.r[4])); uint32_t v = rd32(ea); wr32(ea, x86_dec(c, v, 4)); }
+    // 00693f  jne 0x68cf
+    X86_AT(c, 0x693fu);
+    if (x86_cc(c, 5)) { X86_POLL(c, 0x68cfu); goto L_68cf; }
+    X86_TICK(c, 12);
+    // 006941  add esp, 4
+    X86_AT(c, 0x6941u);
+    { uint32_t v = c.r[4]; c.r[4] = x86_add(c, v, 0x4u, 0, 4); }
+    // 006944  ret 
+    X86_AT(c, 0x6944u);
+    c.eip = pop32(c); return;
+L_6948:
+    X86_TICK(c, 10);
+    // 006948  sub esi, esi
+    X86_AT(c, 0x6948u);
+    { uint32_t v = c.r[6]; c.r[6] = x86_sub(c, v, c.r[6], 0, 4); }
+    // 00694a  lds edi, fword ptr gs:[ebp + 0x22c]
+    X86_AT(c, 0x694au);
+    { uint32_t ea = (c.sbase[5] + (uint32_t)(c.r[5] + 0x22Cu)); uint32_t o = rd32(ea); uint32_t s = rd16(ea + 4); x86_load_seg(c, 3, s); c.r[7] = o; }
+    // 006951  push 0x20
+    X86_AT(c, 0x6951u);
+    { uint32_t v = 0x20u; push32(c, v); }
+L_6956:
+    X86_TICK(c, 35);
+    // 006956  push dword ptr gs:[ebp + 0x1d0]
+    X86_AT(c, 0x6956u);
+    { uint32_t v = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u))); push32(c, v); }
+    // 00695d  push esi
+    X86_AT(c, 0x695du);
+    { uint32_t v = c.r[6]; push32(c, v); }
+    // 00695e  push edi
+    X86_AT(c, 0x695eu);
+    { uint32_t v = c.r[7]; push32(c, v); }
+    // 00695f  push ebx
+    X86_AT(c, 0x695fu);
+    { uint32_t v = c.r[3]; push32(c, v); }
+    // 006960  mov ecx, dword ptr [edi]
+    X86_AT(c, 0x6960u);
+    c.r[1] = rd32((c.sbase[3] + (uint32_t)(c.r[7])));
+    // 006962  xchg cl, ch
+    X86_AT(c, 0x6962u);
+    { uint32_t t = g8(c, 1); s8(c, 1, g8(c, 5)); s8(c, 5, t); }
+    // 006964  rol ecx, 0x10
+    X86_AT(c, 0x6964u);
+    { uint32_t v = c.r[1]; bool w; uint32_t r = x86_shift(c, 0, v, 0x10u, 4, w); if (w) c.r[1] = r; }
+    // 006967  xchg cl, ch
+    X86_AT(c, 0x6967u);
+    { uint32_t t = g8(c, 1); s8(c, 1, g8(c, 5)); s8(c, 5, t); }
+    // 006969  mov eax, dword ptr gs:[ebp + esi*1 + 0x234]
+    X86_AT(c, 0x6969u);
+    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + c.r[6] + 0x234u)));
+    // 006971  and eax, ecx
+    X86_AT(c, 0x6971u);
+    { uint32_t v = c.r[0]; c.r[0] = x86_logic(c, v & c.r[1], 4); }
+    // 006973  je 0x69ac
+    X86_AT(c, 0x6973u);
+    if (x86_cc(c, 4)) { goto L_69ac; }
+    X86_TICK(c, 14);
+    // 006975  push eax
+    X86_AT(c, 0x6975u);
+    { uint32_t v = c.r[0]; push32(c, v); }
+    // 006976  mov cl, byte ptr gs:[ebp + 0x22b]
+    X86_AT(c, 0x6976u);
+    s8(c, 1, rd8((c.sbase[5] + (uint32_t)(c.r[5] + 0x22Bu))));
+    // 00697d  shr eax, cl
+    X86_AT(c, 0x697du);
+    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_shift(c, 5, v, g8(c, 1), 4, w); if (w) c.r[0] = r; }
+    // 00697f  je 0x698a
+    X86_AT(c, 0x697fu);
+    if (x86_cc(c, 4)) { goto L_698a; }
+    X86_TICK(c, 11);
+    // 006981  push ebx
+    X86_AT(c, 0x6981u);
+    { uint32_t v = c.r[3]; push32(c, v); }
+    // 006982  push edx
+    X86_AT(c, 0x6982u);
+    { uint32_t v = c.r[2]; push32(c, v); }
+    // 006983  call 0x6a41
+    X86_AT(c, 0x6983u);
+    push32(c, 0x6988u); x86_call_known(c, 0x6a41u, f_00006a41); X86_RET(c, 0x6988u);
+    X86_TICK(c, 8);
+    // 006988  pop edx
+    X86_AT(c, 0x6988u);
+    { uint32_t v = pop32(c); c.r[2] = v; }
+    // 006989  pop ebx
+    X86_AT(c, 0x6989u);
+    { uint32_t v = pop32(c); c.r[3] = v; }
+L_698a:
+    X86_TICK(c, 27);
+    // 00698a  add dword ptr gs:[ebp + 0x1d0], 4
+    X86_AT(c, 0x698au);
+    { uint32_t ea = (c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u)); uint32_t v = rd32(ea); wr32(ea, x86_add(c, v, 0x4u, 0, 4)); }
+    // 006992  add bx, 0x20
+    X86_AT(c, 0x6992u);
+    { uint32_t v = (c.r[3] & 0xFFFFu); s16(c, 3, x86_add(c, v, 0x20u, 0, 2)); }
+    // 006996  pop edi
+    X86_AT(c, 0x6996u);
+    { uint32_t v = pop32(c); c.r[7] = v; }
+    // 006997  sub eax, eax
+    X86_AT(c, 0x6997u);
+    { uint32_t v = c.r[0]; c.r[0] = x86_sub(c, v, c.r[0], 0, 4); }
+    // 006999  mov cl, byte ptr gs:[ebp + 0x22b]
+    X86_AT(c, 0x6999u);
+    s8(c, 1, rd8((c.sbase[5] + (uint32_t)(c.r[5] + 0x22Bu))));
+    // 0069a0  shrd eax, edi, cl
+    X86_AT(c, 0x69a0u);
+    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_double(c, false, v, c.r[7], g8(c, 1), 4, w); if (w) c.r[0] = r; }
+    // 0069a3  je 0x69ac
+    X86_AT(c, 0x69a3u);
+    if (x86_cc(c, 4)) { goto L_69ac; }
+    X86_TICK(c, 9);
+    // 0069a5  push edx
+    X86_AT(c, 0x69a5u);
+    { uint32_t v = c.r[2]; push32(c, v); }
+    // 0069a6  call 0x6a41
+    X86_AT(c, 0x69a6u);
+    push32(c, 0x69abu); x86_call_known(c, 0x6a41u, f_00006a41); X86_RET(c, 0x69abu);
+    X86_TICK(c, 4);
+    // 0069ab  pop edx
+    X86_AT(c, 0x69abu);
+    { uint32_t v = pop32(c); c.r[2] = v; }
+L_69ac:
+    X86_TICK(c, 56);
+    // 0069ac  pop ebx
+    X86_AT(c, 0x69acu);
+    { uint32_t v = pop32(c); c.r[3] = v; }
+    // 0069ad  inc dx
+    X86_AT(c, 0x69adu);
+    { uint32_t v = (c.r[2] & 0xFFFFu); s16(c, 2, x86_inc(c, v, 2)); }
+    // 0069af  pop edi
+    X86_AT(c, 0x69afu);
+    { uint32_t v = pop32(c); c.r[7] = v; }
+    // 0069b0  add edi, 4
+    X86_AT(c, 0x69b0u);
+    { uint32_t v = c.r[7]; c.r[7] = x86_add(c, v, 0x4u, 0, 4); }
+    // 0069b3  pop esi
+    X86_AT(c, 0x69b3u);
+    { uint32_t v = pop32(c); c.r[6] = v; }
+    // 0069b4  add esi, 4
+    X86_AT(c, 0x69b4u);
+    { uint32_t v = c.r[6]; c.r[6] = x86_add(c, v, 0x4u, 0, 4); }
+    // 0069b7  pop dword ptr gs:[ebp + 0x1d0]
+    X86_AT(c, 0x69b7u);
+    { uint32_t v = pop32(c); wr32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u)), v); }
+    // 0069be  mov eax, dword ptr gs:[ebp + 0x1c]
+    X86_AT(c, 0x69beu);
+    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x1Cu)));
+    // 0069c2  add dword ptr gs:[ebp + 0x1d0], eax
+    X86_AT(c, 0x69c2u);
+    { uint32_t ea = (c.sbase[5] + (uint32_t)(c.r[5] + 0x1D0u)); uint32_t v = rd32(ea); wr32(ea, x86_add(c, v, c.r[0], 0, 4)); }
+    // 0069c9  mov eax, dword ptr gs:[ebp + 0x20]
+    X86_AT(c, 0x69c9u);
+    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x20u)));
+    // 0069cd  add dword ptr gs:[ebp + 0x1cc], eax
+    X86_AT(c, 0x69cdu);
+    { uint32_t ea = (c.sbase[5] + (uint32_t)(c.r[5] + 0x1CCu)); uint32_t v = rd32(ea); wr32(ea, x86_add(c, v, c.r[0], 0, 4)); }
+    // 0069d4  dec dword ptr [esp]
+    X86_AT(c, 0x69d4u);
+    { uint32_t ea = (c.sbase[2] + (uint32_t)(c.r[4])); uint32_t v = rd32(ea); wr32(ea, x86_dec(c, v, 4)); }
+    // 0069d7  jne 0x6956
+    X86_AT(c, 0x69d7u);
+    if (x86_cc(c, 5)) { X86_POLL(c, 0x6956u); goto L_6956; }
+    X86_TICK(c, 12);
+    // 0069dd  add esp, 4
+    X86_AT(c, 0x69ddu);
+    { uint32_t v = c.r[4]; c.r[4] = x86_add(c, v, 0x4u, 0, 4); }
+    // 0069e0  ret 
+    X86_AT(c, 0x69e0u);
+    c.eip = pop32(c); return;
+    x86_fault(c, 0x6864u, "ran off the end of a function");
+}
 void f_00006a41(X86Cpu& c) {
     X86_TICK(c, 12);
     // 006a41  cmp byte ptr gs:[ebp + 0x10], 0
@@ -5655,401 +6016,5 @@ void f_00006e01(X86Cpu& c) {
     X86_AT(c, 0x6e11u);
     c.eip = pop32(c); return;
     x86_fault(c, 0x6e01u, "ran off the end of a function");
-}
-void f_00006e03(X86Cpu& c) {
-    X86_TICK(c, 24);
-    // 006e03  mov ebx, dword ptr es:[edi]
-    X86_AT(c, 0x6e03u);
-    c.r[3] = rd32((c.sbase[0] + (uint32_t)(c.r[7])));
-    // 006e06  and ebx, ecx
-    X86_AT(c, 0x6e06u);
-    { uint32_t v = c.r[3]; c.r[3] = x86_logic(c, v & c.r[1], 4); }
-    // 006e08  not ecx
-    X86_AT(c, 0x6e08u);
-    { uint32_t v = c.r[1]; c.r[1] = ~v & 0xFFFFFFFFu; }
-    // 006e0a  and ecx, esi
-    X86_AT(c, 0x6e0au);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 006e0c  or ebx, ecx
-    X86_AT(c, 0x6e0cu);
-    { uint32_t v = c.r[3]; c.r[3] = x86_logic(c, v | c.r[1], 4); }
-    // 006e0e  mov dword ptr es:[edi], ebx
-    X86_AT(c, 0x6e0eu);
-    wr32((c.sbase[0] + (uint32_t)(c.r[7])), c.r[3]);
-    // 006e11  ret 
-    X86_AT(c, 0x6e11u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e03u, "ran off the end of a function");
-}
-void f_00006e06(X86Cpu& c) {
-    X86_TICK(c, 20);
-    // 006e06  and ebx, ecx
-    X86_AT(c, 0x6e06u);
-    { uint32_t v = c.r[3]; c.r[3] = x86_logic(c, v & c.r[1], 4); }
-    // 006e08  not ecx
-    X86_AT(c, 0x6e08u);
-    { uint32_t v = c.r[1]; c.r[1] = ~v & 0xFFFFFFFFu; }
-    // 006e0a  and ecx, esi
-    X86_AT(c, 0x6e0au);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 006e0c  or ebx, ecx
-    X86_AT(c, 0x6e0cu);
-    { uint32_t v = c.r[3]; c.r[3] = x86_logic(c, v | c.r[1], 4); }
-    // 006e0e  mov dword ptr es:[edi], ebx
-    X86_AT(c, 0x6e0eu);
-    wr32((c.sbase[0] + (uint32_t)(c.r[7])), c.r[3]);
-    // 006e11  ret 
-    X86_AT(c, 0x6e11u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e06u, "ran off the end of a function");
-}
-void f_00006e08(X86Cpu& c) {
-    X86_TICK(c, 18);
-    // 006e08  not ecx
-    X86_AT(c, 0x6e08u);
-    { uint32_t v = c.r[1]; c.r[1] = ~v & 0xFFFFFFFFu; }
-    // 006e0a  and ecx, esi
-    X86_AT(c, 0x6e0au);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 006e0c  or ebx, ecx
-    X86_AT(c, 0x6e0cu);
-    { uint32_t v = c.r[3]; c.r[3] = x86_logic(c, v | c.r[1], 4); }
-    // 006e0e  mov dword ptr es:[edi], ebx
-    X86_AT(c, 0x6e0eu);
-    wr32((c.sbase[0] + (uint32_t)(c.r[7])), c.r[3]);
-    // 006e11  ret 
-    X86_AT(c, 0x6e11u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e08u, "ran off the end of a function");
-}
-void f_00006e0a(X86Cpu& c) {
-    X86_TICK(c, 16);
-    // 006e0a  and ecx, esi
-    X86_AT(c, 0x6e0au);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 006e0c  or ebx, ecx
-    X86_AT(c, 0x6e0cu);
-    { uint32_t v = c.r[3]; c.r[3] = x86_logic(c, v | c.r[1], 4); }
-    // 006e0e  mov dword ptr es:[edi], ebx
-    X86_AT(c, 0x6e0eu);
-    wr32((c.sbase[0] + (uint32_t)(c.r[7])), c.r[3]);
-    // 006e11  ret 
-    X86_AT(c, 0x6e11u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e0au, "ran off the end of a function");
-}
-void f_00006e0c(X86Cpu& c) {
-    X86_TICK(c, 14);
-    // 006e0c  or ebx, ecx
-    X86_AT(c, 0x6e0cu);
-    { uint32_t v = c.r[3]; c.r[3] = x86_logic(c, v | c.r[1], 4); }
-    // 006e0e  mov dword ptr es:[edi], ebx
-    X86_AT(c, 0x6e0eu);
-    wr32((c.sbase[0] + (uint32_t)(c.r[7])), c.r[3]);
-    // 006e11  ret 
-    X86_AT(c, 0x6e11u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e0cu, "ran off the end of a function");
-}
-void f_00006e0e(X86Cpu& c) {
-    X86_TICK(c, 12);
-    // 006e0e  mov dword ptr es:[edi], ebx
-    X86_AT(c, 0x6e0eu);
-    wr32((c.sbase[0] + (uint32_t)(c.r[7])), c.r[3]);
-    // 006e11  ret 
-    X86_AT(c, 0x6e11u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e0eu, "ran off the end of a function");
-}
-void f_00006e11(X86Cpu& c) {
-    X86_TICK(c, 10);
-    // 006e11  ret 
-    X86_AT(c, 0x6e11u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e11u, "ran off the end of a function");
-}
-void f_00006e14(X86Cpu& c) {
-    X86_TICK(c, 23);
-    // 006e14  mov ecx, 4
-    X86_AT(c, 0x6e14u);
-    c.r[1] = 0x4u;
-    // 006e19  mov eax, dword ptr gs:[ebp + 0x10c]
-    X86_AT(c, 0x6e19u);
-    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x10Cu)));
-    // 006e20  stosd dword ptr es:[edi], eax
-    X86_AT(c, 0x6e20u);
-    x86_string(c, 2, 4, 243, 4, 3);
-    // 006e22  ret 
-    X86_AT(c, 0x6e22u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e14u, "ran off the end of a function");
-}
-void f_00006e19(X86Cpu& c) {
-    X86_TICK(c, 21);
-    // 006e19  mov eax, dword ptr gs:[ebp + 0x10c]
-    X86_AT(c, 0x6e19u);
-    c.r[0] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x10Cu)));
-    // 006e20  stosd dword ptr es:[edi], eax
-    X86_AT(c, 0x6e20u);
-    x86_string(c, 2, 4, 243, 4, 3);
-    // 006e22  ret 
-    X86_AT(c, 0x6e22u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e19u, "ran off the end of a function");
-}
-void f_00006e20(X86Cpu& c) {
-    X86_TICK(c, 17);
-    // 006e20  stosd dword ptr es:[edi], eax
-    X86_AT(c, 0x6e20u);
-    x86_string(c, 2, 4, 243, 4, 3);
-    // 006e22  ret 
-    X86_AT(c, 0x6e22u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e20u, "ran off the end of a function");
-}
-void f_00006e22(X86Cpu& c) {
-    X86_TICK(c, 10);
-    // 006e22  ret 
-    X86_AT(c, 0x6e22u);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x6e22u, "ran off the end of a function");
-}
-void f_000070b4(X86Cpu& c) {
-    X86_TICK(c, 79);
-    // 0070b4  mov esi, dword ptr gs:[ebp + 0x10c]
-    X86_AT(c, 0x70b4u);
-    c.r[6] = rd32((c.sbase[5] + (uint32_t)(c.r[5] + 0x10Cu)));
-    // 0070bb  sub edx, edx
-    X86_AT(c, 0x70bbu);
-    { uint32_t v = c.r[2]; c.r[2] = x86_sub(c, v, c.r[2], 0, 4); }
-    // 0070bd  mov dl, al
-    X86_AT(c, 0x70bdu);
-    s8(c, 2, g8(c, 0));
-    // 0070bf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70bfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070c7  and ecx, esi
-    X86_AT(c, 0x70c7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070c9  xor dword ptr es:[edi + 0xc], ecx
-    X86_AT(c, 0x70c9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0xCu)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070cd  mov dl, ah
-    X86_AT(c, 0x70cdu);
-    s8(c, 2, g8(c, 4));
-    // 0070cf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70cfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070d7  and ecx, esi
-    X86_AT(c, 0x70d7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070d9  xor dword ptr es:[edi + 8], ecx
-    X86_AT(c, 0x70d9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x8u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070dd  rol eax, 0x10
-    X86_AT(c, 0x70ddu);
-    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_shift(c, 0, v, 0x10u, 4, w); if (w) c.r[0] = r; }
-    // 0070e0  mov dl, al
-    X86_AT(c, 0x70e0u);
-    s8(c, 2, g8(c, 0));
-    // 0070e2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70e2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070ea  and ecx, esi
-    X86_AT(c, 0x70eau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070ec  xor dword ptr es:[edi + 4], ecx
-    X86_AT(c, 0x70ecu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x4u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070f0  mov dl, ah
-    X86_AT(c, 0x70f0u);
-    s8(c, 2, g8(c, 4));
-    // 0070f2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70f2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070fa  and ecx, esi
-    X86_AT(c, 0x70fau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070fc  xor dword ptr es:[edi], ecx
-    X86_AT(c, 0x70fcu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7])); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070ff  ret 
-    X86_AT(c, 0x70ffu);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x70b4u, "ran off the end of a function");
-}
-void f_000070bb(X86Cpu& c) {
-    X86_TICK(c, 75);
-    // 0070bb  sub edx, edx
-    X86_AT(c, 0x70bbu);
-    { uint32_t v = c.r[2]; c.r[2] = x86_sub(c, v, c.r[2], 0, 4); }
-    // 0070bd  mov dl, al
-    X86_AT(c, 0x70bdu);
-    s8(c, 2, g8(c, 0));
-    // 0070bf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70bfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070c7  and ecx, esi
-    X86_AT(c, 0x70c7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070c9  xor dword ptr es:[edi + 0xc], ecx
-    X86_AT(c, 0x70c9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0xCu)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070cd  mov dl, ah
-    X86_AT(c, 0x70cdu);
-    s8(c, 2, g8(c, 4));
-    // 0070cf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70cfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070d7  and ecx, esi
-    X86_AT(c, 0x70d7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070d9  xor dword ptr es:[edi + 8], ecx
-    X86_AT(c, 0x70d9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x8u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070dd  rol eax, 0x10
-    X86_AT(c, 0x70ddu);
-    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_shift(c, 0, v, 0x10u, 4, w); if (w) c.r[0] = r; }
-    // 0070e0  mov dl, al
-    X86_AT(c, 0x70e0u);
-    s8(c, 2, g8(c, 0));
-    // 0070e2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70e2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070ea  and ecx, esi
-    X86_AT(c, 0x70eau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070ec  xor dword ptr es:[edi + 4], ecx
-    X86_AT(c, 0x70ecu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x4u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070f0  mov dl, ah
-    X86_AT(c, 0x70f0u);
-    s8(c, 2, g8(c, 4));
-    // 0070f2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70f2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070fa  and ecx, esi
-    X86_AT(c, 0x70fau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070fc  xor dword ptr es:[edi], ecx
-    X86_AT(c, 0x70fcu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7])); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070ff  ret 
-    X86_AT(c, 0x70ffu);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x70bbu, "ran off the end of a function");
-}
-void f_000070bd(X86Cpu& c) {
-    X86_TICK(c, 73);
-    // 0070bd  mov dl, al
-    X86_AT(c, 0x70bdu);
-    s8(c, 2, g8(c, 0));
-    // 0070bf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70bfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070c7  and ecx, esi
-    X86_AT(c, 0x70c7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070c9  xor dword ptr es:[edi + 0xc], ecx
-    X86_AT(c, 0x70c9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0xCu)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070cd  mov dl, ah
-    X86_AT(c, 0x70cdu);
-    s8(c, 2, g8(c, 4));
-    // 0070cf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70cfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070d7  and ecx, esi
-    X86_AT(c, 0x70d7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070d9  xor dword ptr es:[edi + 8], ecx
-    X86_AT(c, 0x70d9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x8u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070dd  rol eax, 0x10
-    X86_AT(c, 0x70ddu);
-    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_shift(c, 0, v, 0x10u, 4, w); if (w) c.r[0] = r; }
-    // 0070e0  mov dl, al
-    X86_AT(c, 0x70e0u);
-    s8(c, 2, g8(c, 0));
-    // 0070e2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70e2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070ea  and ecx, esi
-    X86_AT(c, 0x70eau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070ec  xor dword ptr es:[edi + 4], ecx
-    X86_AT(c, 0x70ecu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x4u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070f0  mov dl, ah
-    X86_AT(c, 0x70f0u);
-    s8(c, 2, g8(c, 4));
-    // 0070f2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70f2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070fa  and ecx, esi
-    X86_AT(c, 0x70fau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070fc  xor dword ptr es:[edi], ecx
-    X86_AT(c, 0x70fcu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7])); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070ff  ret 
-    X86_AT(c, 0x70ffu);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x70bdu, "ran off the end of a function");
-}
-void f_000070bf(X86Cpu& c) {
-    X86_TICK(c, 71);
-    // 0070bf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70bfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070c7  and ecx, esi
-    X86_AT(c, 0x70c7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070c9  xor dword ptr es:[edi + 0xc], ecx
-    X86_AT(c, 0x70c9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0xCu)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070cd  mov dl, ah
-    X86_AT(c, 0x70cdu);
-    s8(c, 2, g8(c, 4));
-    // 0070cf  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70cfu);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070d7  and ecx, esi
-    X86_AT(c, 0x70d7u);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070d9  xor dword ptr es:[edi + 8], ecx
-    X86_AT(c, 0x70d9u);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x8u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070dd  rol eax, 0x10
-    X86_AT(c, 0x70ddu);
-    { uint32_t v = c.r[0]; bool w; uint32_t r = x86_shift(c, 0, v, 0x10u, 4, w); if (w) c.r[0] = r; }
-    // 0070e0  mov dl, al
-    X86_AT(c, 0x70e0u);
-    s8(c, 2, g8(c, 0));
-    // 0070e2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70e2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070ea  and ecx, esi
-    X86_AT(c, 0x70eau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070ec  xor dword ptr es:[edi + 4], ecx
-    X86_AT(c, 0x70ecu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7] + 0x4u)); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070f0  mov dl, ah
-    X86_AT(c, 0x70f0u);
-    s8(c, 2, g8(c, 4));
-    // 0070f2  mov ecx, dword ptr cs:[edx*4 + 0xbf34]
-    X86_AT(c, 0x70f2u);
-    c.r[1] = rd32((c.sbase[1] + (uint32_t)(c.r[2] * 4 + 0xBF34u)));
-    // 0070fa  and ecx, esi
-    X86_AT(c, 0x70fau);
-    { uint32_t v = c.r[1]; c.r[1] = x86_logic(c, v & c.r[6], 4); }
-    // 0070fc  xor dword ptr es:[edi], ecx
-    X86_AT(c, 0x70fcu);
-    { uint32_t ea = (c.sbase[0] + (uint32_t)(c.r[7])); uint32_t v = rd32(ea); wr32(ea, x86_logic(c, v ^ c.r[1], 4)); }
-    // 0070ff  ret 
-    X86_AT(c, 0x70ffu);
-    c.eip = pop32(c); return;
-    x86_fault(c, 0x70bfu, "ran off the end of a function");
 }
 }

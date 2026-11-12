@@ -4793,10 +4793,10 @@ void f_00013680(X86Cpu& c) {
     X86_AT(c, 0x13697u);
     { uint32_t t = rd32((c.sbase[1] + (uint32_t)(c.r[1] * 4 + 0x136AEu))); push32(c, 0x1369fu);
       switch (t) {
-      case 0x136beu: f_000136be(c); break;
-      case 0x13721u: f_00013721(c); break;
-      case 0x137d2u: f_000137d2(c); break;
-      case 0x137dfu: f_000137df(c); break;
+      case 0x136beu: x86_call_known(c, 0x136beu, f_000136be); break;
+      case 0x13721u: x86_call_known(c, 0x13721u, f_00013721); break;
+      case 0x137d2u: x86_call_known(c, 0x137d2u, f_000137d2); break;
+      case 0x137dfu: x86_call_known(c, 0x137dfu, f_000137df); break;
       default: x86_call(c, t); }
       X86_RET(c, 0x1369fu); }
 L_1369f:
@@ -5169,7 +5169,7 @@ void f_000137d2(X86Cpu& c) {
     s16(c, 0, (c.r[3] & 0xFFFFu));
     // 0137d5  call 0x101b4
     X86_AT(c, 0x137d5u);
-    push32(c, 0x137dau); f_000101b4(c); X86_RET(c, 0x137dau);
+    push32(c, 0x137dau); x86_call_known(c, 0x101b4u, f_000101b4); X86_RET(c, 0x137dau);
     X86_TICK(c, 12);
     // 0137da  mov word ptr [ebp + 0x14], ax
     X86_AT(c, 0x137dau);
@@ -5186,7 +5186,7 @@ void f_000137df(X86Cpu& c) {
     s16(c, 0, (c.r[3] & 0xFFFFu));
     // 0137e2  call 0x101d4
     X86_AT(c, 0x137e2u);
-    push32(c, 0x137e7u); f_000101d4(c); X86_RET(c, 0x137e7u);
+    push32(c, 0x137e7u); x86_call_known(c, 0x101d4u, f_000101d4); X86_RET(c, 0x137e7u);
     X86_TICK(c, 12);
     // 0137e7  mov word ptr [ebp + 0x14], ax
     X86_AT(c, 0x137e7u);

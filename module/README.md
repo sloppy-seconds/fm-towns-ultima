@@ -2,7 +2,7 @@
 
 This directory holds the recompiler's output: each title's own 386 code, and the TBIOS layer every title calls,
 translated mechanically into C++. Since 2026-11-12 it is split by owner, because the TBIOS half is the same program
-for every title and 84 MB:
+for every title and 85 MB:
 
 | directory | what | size |
 |---|---|---|
@@ -11,7 +11,7 @@ for every title and 84 MB:
 | `u3/` | Ultima III's game module, 33 files | 8.5 MB |
 | `british/` | the Lord British message's game module, 10 files | 2.3 MB |
 | `u1demo/`, `u2demo/`, `u3demo/` | the three demo modules, 10 files each | 2.9 MB each |
-| `tbios/` | the TBIOS module, 304 files, **shared by every title** | 84 MB |
+| `tbios/` | the TBIOS module, 304 files, **shared by every title** | 85 MB |
 
 Each game directory carries `p_game_*.cpp`, `p_game_funcs.h`, `p_game_table.cpp` and the `modules.cpp` the recompiler
 wrote for it. `tbios/` carries `p_tbios_*.cpp`, `p_tbios_funcs.h` and `p_tbios_table.cpp`. They are built together, never
@@ -56,19 +56,26 @@ shipping the game.
 | recompiler | `fmtownskit` at `acecc30d6ac1cb196dd6a38bb1e9d25454c9199b`, branch `mp-support` |
 | game seeds | `tools/seeds.js --emit`, shifted by `0x200` into the runtime frame, plus the 88 machine-measured entries in `tools/runtime-seeds.txt`, plus the entry `0x101a20` |
 | no-code ranges | `tools/codelimits.js --args`, scoped per module |
-| TBIOS seeds | every distinct offset that executed in segment `0110` on the running game, checked in as `tools/tbios-seeds.txt` (5,395 of them). One more is measured but **not** in this directory: `0x6864`, which only `BRITISH.EXP` reaches. See [docs/port-british.md](../docs/port-british.md) |
-| what it emitted | game: 865 functions, 43,016 instructions, 141,157 bytes, 0 refused, 0 conflicts. tbios: 5,573 functions, 15,288 instructions, 56,115 bytes, 0 refused, 0 conflicts |
+| TBIOS seeds | every distinct offset that executed in segment `0110` on the running game, checked in as `tools/tbios-seeds.txt` (5,395 of them), plus the offsets a title reaches that the capture, being one game's trace, never saw. `british` contributes one, `0x6864`, from `tools/tbios-british-seeds.txt`. The shared module carries the union, because a routine missing from it stops whichever title calls it |
+| what it emitted | game (`ENCHANT.EXP`): 865 functions, 43,016 instructions, 141,157 bytes, 0 refused, 0 conflicts. tbios: 5,574 functions, 15,398 instructions, 56,493 bytes, 0 refused, 0 conflicts |
 
 ## Regenerating it
 
+One title at a time, because each has its own game module and they all share the TBIOS one:
+
 ```bash
-./tools/port-build.sh --no-run --no-coverage --out build/port
-diff -r build/port/recomp module
+./tools/port-build.sh u2 --no-run            # writes build/u2/recomp
+cp build/u2/recomp/p_game_* module/u2/       # the title's half
 ```
 
+A TBIOS recompilation is title-independent given the seed union, and `tools/port-build.sh british` is the run that
+produces it, because `british` is the title whose extra seed is in the set. `cp build/british/recomp/p_tbios_*
+module/tbios/` after that build is the regeneration, and it rewrites most of the 302 files even though only one
+function is added, because the recompiler splits its output by function count.
+
 That needs the disc, because the seeds and the ranges are derived from the image. Nobody has to regenerate it to
-build or play the port, which is the entire point of it being here: `cmake -S port -B build -DRECOMP_DIR=$PWD/module`
-is a complete build of the port with no recompile and no game file involved.
+build or play the port, which is the entire point of it being here: `cmake -S port -B build -DRECOMP_DIR=$PWD/module/u2
+-DTBIOS_DIR=$PWD/module/tbios` is a complete build of that title with no recompile and no game file involved.
 
 ## What is deliberately not committed
 

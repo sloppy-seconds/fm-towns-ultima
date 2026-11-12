@@ -7,7 +7,7 @@ void f_00003e4c(X86Cpu& c) {
     wr32((c.sbase[5] + (uint32_t)(c.r[5] + 0x330u)), 0x5B18u);
     // 003e57  call 0x3983
     X86_AT(c, 0x3e57u);
-    push32(c, 0x3e5cu); f_00003983(c); X86_RET(c, 0x3e5cu);
+    push32(c, 0x3e5cu); x86_call_known(c, 0x3983u, f_00003983); X86_RET(c, 0x3e5cu);
     X86_TICK(c, 19);
     // 003e5c  mov es, word ptr gs:[ebp + 4]
     X86_AT(c, 0x3e5cu);
@@ -225,7 +225,7 @@ void f_00003e57(X86Cpu& c) {
     X86_TICK(c, 7);
     // 003e57  call 0x3983
     X86_AT(c, 0x3e57u);
-    push32(c, 0x3e5cu); f_00003983(c); X86_RET(c, 0x3e5cu);
+    push32(c, 0x3e5cu); x86_call_known(c, 0x3983u, f_00003983); X86_RET(c, 0x3e5cu);
     X86_TICK(c, 19);
     // 003e5c  mov es, word ptr gs:[ebp + 4]
     X86_AT(c, 0x3e5cu);
