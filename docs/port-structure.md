@@ -123,7 +123,6 @@ ldd       linux-vdso.so.1 libm.so.6 libc.so.6 /lib64/ld-linux-x86-64.so.2
 Two libraries beyond libc are all it needs, and the whole build takes 2m08s in the container once SDL is cached.
 
 **Three things had to be right for it to work, and each failed first.**
-
 | what | measured failure | fix |
 |---|---|---|
 | the base's libc | Debian 11 bullseye is 2.31 and compiles, but its gcc 10.2 has no `std::chrono::clock_cast` | Alma 9, whose glibc is exactly 2.34 |
@@ -132,6 +131,19 @@ Two libraries beyond libc are all it needs, and the whole build takes 2m08s in t
 
 A fourth was found in passing: the image had no `diffutils`, and the licence comparison then reported the two texts as
 different because `cmp` was missing rather than because they differed.
+
+**The display path was tested too, because that image is also `tools/x-run.sh`.** On Alma 9 the viewers come from EPEL,
+which is the part a build alone would not prove. Measured 2026-11-10, in that image:
+
+| what | result |
+|---|---|
+| `Xvfb :99` | up at 1024x768x24 |
+| `x11vnc` | running, port 5900 |
+| noVNC | `/usr/share/novnc` present, `websockify` serving, `GET /vnc.html` answers **200** |
+| ImageMagick | `import -window root` captures the display |
+| the port with `--graphics=sdl` | draws Ultima II's title on that display, captured and read back |
+
+So EPEL's noVNC does land in the path `x-entry.sh` looks for, and nothing silently fell back to raw VNC.
 
 **Two other libraries have floors of their own, and one is already fixed.** libstdc++ was asking for `GLIBCXX_3.4.31`,
 which is gcc 13's, so the release links `libstdc++` and `libgcc` statically (`-DPORT_STATIC_CXX=ON`, passed by
