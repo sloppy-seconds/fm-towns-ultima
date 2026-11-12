@@ -68,7 +68,7 @@ SDL3_DIR="$SDL3_PREFIX/lib/cmake/SDL3"
 echo "sdl3        $SDL3_PREFIX"
 
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release \
-	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
+	-DRECOMP_DIR="$OUT/recomp" -DTBIOS_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
 	-DU2_SYNTHETIC_MODULE=ON -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_DIR" \
 	> "$OUT/cmake.log" 2>&1 || {
 	echo "cmake configure failed, last lines of $OUT/cmake.log:" >&2
@@ -92,7 +92,7 @@ echo "linked      $OUT/b/u2 ($(stat -c %s "$OUT/b/u2") bytes)"
 # name is what keeps two binaries from calling themselves the same thing. The first is the gate doing its job, and
 # this step proves the second does its own. A link check and nothing more: no game is played, no disc is read.
 cmake -S "$ROOT/port" -B "$OUT/b-foreign" -DCMAKE_BUILD_TYPE=Release \
-	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
+	-DRECOMP_DIR="$OUT/recomp" -DTBIOS_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
 	-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3 -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_DIR" \
 	> "$OUT/cmake-foreign.log" 2>&1 || {
 	echo "the foreign-module configure failed, last lines of $OUT/cmake-foreign.log:" >&2

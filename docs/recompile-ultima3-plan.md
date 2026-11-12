@@ -624,12 +624,14 @@ More than thirty `U2_*` variables are shared by Ultima II and Ultima III today, 
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS
 
-`module/` is Ultima II's committed module under a generic name, `extracted/` mixes `u2`, `u2-colour`, `GRAPH`,
-`SOUND` and `UT2`, and the two doc pages this session added do not follow one pattern.
+Half of this is done. `module/` is now `module/u1`, `module/u2`, `module/u3` and the shared `module/tbios`, CMake takes
+`-DRECOMP_DIR` and `-DTBIOS_DIR`, and the release builds all three titles from them. What is left is the extraction
+directories (`extracted/` still mixes `u2`, `u2-colour`, `GRAPH`, `SOUND` and `UT2`), the seeds files moving to
+`tools/seeds/<id>.txt`, and the per-title pages following one pattern.
 
 | field | value |
 |---|---|
-| done when | the module lives at `module/<id>/` with Ultima II's moved there and the CMake default updated, extraction output goes to `extracted/<id>/`, the seeds files go to `tools/seeds/<id>.txt`, and the per-title pages are `docs/port-<id>.md`. The failure case: a move that leaves a script pointing at the old path, which `checkall` must catch rather than a user |
+| done when | every title's committed module lives at `module/<id>/` with the shared halves where they are shared, extraction output goes to `extracted/<id>/`, the seeds files go to `tools/seeds/<id>.txt`, and the per-title pages are `docs/port-<id>.md`. The failure case: a move that leaves a script pointing at the old path, which `checkall` must catch rather than a user |
 | blocked by | U3-6b |
 
 #### U3-6e. A release base image whose libc is at or below the floor

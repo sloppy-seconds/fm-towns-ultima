@@ -29,8 +29,9 @@ if [[ ! -f "$ROOT/fmtownskit/runtime/towns.cmake" ]]; then
 	echo "the toolkit is not at $ROOT/fmtownskit. Run: git submodule update --init fmtownskit" >&2
 	exit 2
 fi
-if [[ ! -f "$ROOT/module/modules.cpp" ]]; then
-	echo "no committed module at $ROOT/module, and without it there is nothing playable to ship." >&2
+# The Windows binary is Ultima II's, so it needs that title's game module and the shared TBIOS one.
+if [[ ! -f "$ROOT/module/u2/modules.cpp" || ! -f "$ROOT/module/tbios/p_tbios_funcs.h" ]]; then
+	echo "no committed module at $ROOT/module/u2 plus $ROOT/module/tbios, and without it there is nothing playable to ship." >&2
 	exit 2
 fi
 for tool in "${CXX_TRIPLE}-g++" "${CXX_TRIPLE}-objdump" cmake; do

@@ -305,9 +305,9 @@ const runNode = (script, args = []) => {
 	const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
 	const bad = [];
 	if (/\.tar\.gz|tar -czf|tar --create/.test(wf)) bad.push('the workflow makes or ships a tarball');
-	for (const asset of ['fm-u2-linux-x86_64', 'fm-u2-windows-x86_64.exe'])
+	for (const asset of ['fm-u1-linux-x86_64', 'fm-u2-linux-x86_64', 'fm-u3-linux-x86_64', 'fm-u2-windows-x86_64.exe'])
 		if (!wf.includes(asset)) bad.push(`${asset} is not built and published by the workflow`);
-	if (!/is not one of the two binaries/.test(wf)) bad.push('the step that refuses a third release asset is gone');
+	if (!/is not one of the four binaries/.test(wf)) bad.push('the step that refuses an unexpected release asset is gone');
 	record('a release publishes binaries only', bad);
 }
 

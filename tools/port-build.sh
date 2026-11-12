@@ -248,7 +248,10 @@ if [[ ! -f "$SDL3_CMAKE_DIR/SDL3Config.cmake" ]]; then
 	exit 2
 fi
 
-cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" \
+# TBIOS_DIR is passed as the same directory because a recompilation writes both halves into one place, and the port's
+# default is the committed module/tbios. Without this a development build would glob the committed TBIOS as well as the
+# fresh one and CMake would see every tbios function twice.
+cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DTBIOS_DIR="$RECOMP" \
 	-DFMT_RUNTIME="$KIT/runtime" $SHADOW_FLAG -DPORT_TARGET="$GAME_ID" -DPORT_PROGRAM="$GAME" \
 	-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {

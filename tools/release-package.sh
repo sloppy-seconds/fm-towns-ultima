@@ -31,16 +31,26 @@ OUT="${1:-$ROOT/dist}"
 # NAMED FOR PROVENANCE, decided by Paul on 2026-11-10: `fm` for FM Towns, then the title. Two titles ship, so a
 # name that says only "u2port" no longer identifies the thing, and the asset is what a reader sees first. The
 # executable inside keeps the title's id (`u2`), which is what tools/games.js and the build both use.
+# NAME is set per title inside package_one; this is the default the header text refers to.
 NAME="fm-u2-linux-x86_64"
 
 if [[ ! -f "$ROOT/fmtownskit/runtime/towns.cmake" ]]; then
 	echo "the toolkit is not at $ROOT/fmtownskit. Run: git submodule update --init fmtownskit" >&2
 	exit 2
 fi
-if [[ ! -f "$ROOT/module/modules.cpp" ]]; then
-	echo "no committed module at $ROOT/module, and without it there is nothing playable to ship." >&2
+# ONE SHARED TBIOS MODULE AND ONE GAME MODULE PER TITLE, all committed, because the release builds with no disc and no
+# recompiler. The TBIOS half is the same program for every title and 84 MB, so it is stored once; each title's own code is
+# 8 to 9 MB in module/<id>/. A missing directory is a refusal here rather than a link error four minutes later.
+if [[ ! -f "$ROOT/module/tbios/p_tbios_funcs.h" ]]; then
+	echo "no shared TBIOS module at $ROOT/module/tbios, and without it there is nothing playable to ship." >&2
 	exit 2
 fi
+for id in u2 u3 u1; do
+	if [[ ! -f "$ROOT/module/$id/modules.cpp" ]]; then
+		echo "no committed module for $id at $ROOT/module/$id, and without it there is nothing playable to ship." >&2
+		exit 2
+	fi
+done
 
 rm -rf "$OUT/build-host"
 
@@ -69,16 +79,31 @@ if [[ ! -f "$SDL_LICENSE" ]]; then
 	echo "The binary embeds SDL's notice and the archive has to carry the same text." >&2
 	exit 2
 fi
-BUILD="$OUT/build-host"
-mkdir -p "$OUT"
-cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DPORT_TARGET=u2 -DPORT_STATIC_CXX=ON -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake.log" 2>&1
-cmake --build "$BUILD" -j"$(nproc)" >"$OUT/build.log" 2>&1 || {
-	echo "the release build failed. Last lines of $OUT/build.log:" >&2
-	tail -30 "$OUT/build.log" >&2
-	exit 1
-}
-cp "$BUILD/u2" "$OUT/$NAME"
-chmod 0755 "$OUT/$NAME"
+# ONE FUNCTION, ONE TITLE, THREE CALLS AT THE END. Every check below is per binary, because a release now carries three
+# of them: Ultima II, III and I, each built from its own committed game module plus the one shared TBIOS module, and each
+# has to pass the ldd, glibc and licence assertions on its own. A loop that checked only the first binary would let the
+# others through.
+package_one() {
+	local id="$1"
+	local exp
+	exp=$(node "$ROOT/tools/games.js" --get "$id" exp) || exit 2
+	NAME="fm-$id-linux-x86_64"
+	# The native shadows name routines of ENCHANT.EXP, so every title but Ultima II compiles an empty manifest.
+	local shadow_flag=""
+	[[ "$id" != "u2" ]] && shadow_flag="-DU2_FOREIGN_MODULE=ON"
+	local BUILD="$OUT/build-$id"
+	mkdir -p "$OUT"
+	cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
+		-DPORT_TARGET="$id" -DPORT_PROGRAM="$exp" -DPORT_STATIC_CXX=ON $shadow_flag \
+		-DRECOMP_DIR="$ROOT/module/$id" -DTBIOS_DIR="$ROOT/module/tbios" \
+		-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake-$id.log" 2>&1
+	cmake --build "$BUILD" -j"$(nproc)" >"$OUT/build-$id.log" 2>&1 || {
+		echo "the $id release build failed. Last lines of $OUT/build-$id.log:" >&2
+		tail -30 "$OUT/build-$id.log" >&2
+		exit 1
+	}
+	cp "$BUILD/$id" "$OUT/$NAME"
+	chmod 0755 "$OUT/$NAME"
 
 # The portability assertion. A binary that needs libSDL3 from the distro is not the thing this release claims to
 # be, so this is a refusal and not a note, and it was demonstrated by pointing SDL3_PREFIX at the system prefix and
@@ -125,3 +150,12 @@ rm -rf "$BUILD"
 
 echo "binary    $OUT/$NAME, $(stat -c %s "$OUT/$NAME") bytes"
 echo "sha256    $(sha256sum "$OUT/$NAME" | cut -d' ' -f1)"
+echo
+}
+
+# The three playable titles, in the order a reader meets them on the disc.
+package_one u2
+package_one u3
+package_one u1
+
+rm -rf "$OUT/build-u2" "$OUT/build-u3" "$OUT/build-u1"

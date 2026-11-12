@@ -85,17 +85,24 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/work" --entrypoint bash u2port-ci \
             -lc 'cd /work && ./tools/release-package.sh'
 
-      - name: Record the digest
+      # Three binaries from one packaging run: each title is built from its own committed game module plus the one shared
+      # TBIOS module, so this job needs no disc and no recompiler, which is the whole point of committing them.
+      - name: Record the digests
         id: sum
-        run: echo "sha256=$(sha256sum dist/fm-u2-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "u2=$(sha256sum dist/fm-u2-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "u3=$(sha256sum dist/fm-u3-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "u1=$(sha256sum dist/fm-u1-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fm-u2-linux-x86_64
-          path: dist/fm-u2-linux-x86_64
+          name: linux-binaries
+          path: dist/fm-*-linux-x86_64
 
     outputs:
-      sha256: ${{ steps.sum.outputs.sha256 }}
+      sha256_u2: ${{ steps.sum.outputs.u2 }}
+      sha256_u3: ${{ steps.sum.outputs.u3 }}
+      sha256_u1: ${{ steps.sum.outputs.u1 }}
 
   windows:
     name: Build the Windows binary
@@ -143,30 +150,32 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: fm-u2-linux-x86_64
+          name: linux-binaries
 
       - uses: actions/download-artifact@v4
         with:
           name: fm-u2-windows-x86_64.exe
 
-      # Two binaries and nothing else. The rule this step enforces: a release publishes files a player runs, not
-      # archives they have to unpack, and not a support kit beside it. If a third asset ever appears here it is either
-      # a mistake or a decision, and this makes it a decision.
+      # Binaries and nothing else, and now four of them: three Linux titles and one Windows build of Ultima II. The rule
+      # this step enforces is unchanged: a release publishes files a player runs, not archives they have to unpack, and
+      # not a support kit beside it. Any other name here is either a mistake or a decision, and this makes it a decision.
       - name: Confirm the release is binaries only
         run: |
           set -eu
           ls -l
           for f in *; do
             case "$f" in
-              fm-u2-linux-x86_64 | fm-u2-windows-x86_64.exe) ;;
-              *) echo "refusing to publish: $f is not one of the two binaries" >&2; exit 1 ;;
+              fm-u1-linux-x86_64 | fm-u2-linux-x86_64 | fm-u3-linux-x86_64 | fm-u2-windows-x86_64.exe) ;;
+              *) echo "refusing to publish: $f is not one of the four binaries" >&2; exit 1 ;;
             esac
           done
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
+            fm-u1-linux-x86_64
             fm-u2-linux-x86_64
+            fm-u3-linux-x86_64
             fm-u2-windows-x86_64.exe
           body: |
             Early, and honest about it. The port reaches the title screen, the game menu and the overworld, characters can be
@@ -195,12 +204,24 @@ jobs:
 
             ## The binaries
 
-            `fm-u2-linux-x86_64`, sha256 `${{ needs.host.outputs.sha256 }}`. **This one plays.** One file, no archive
-            to unpack: put your own copy of the disc image beside it and run it. It reads `ENCHANT.EXP`, TBIOS, the
-            graphics, the sounds and the kanji font out of that image, keeps what it reads under `extracted/`, and
-            creates `saves/` for characters as plain files, so the image is optional after a first run. At the game
-            menu pick *Journey Onward*, or *Generate Character* to make one. `fm-u2-linux-x86_64 --licences` prints
-            every licence and provenance notice compiled into it. SDL is linked statically from the pinned upstream release, so there is
+            Three games, one file each, and no archive to unpack. Put your own copy of the disc image beside the binary you
+            want and run it: each reads its own executable, TBIOS, the graphics, the sounds and the kanji font out of that
+            image, keeps what it reads under `extracted/`, and creates `saves/` for characters as plain files, so the image
+            is optional after a first run. Each accepts `--licences` and prints every notice compiled into it.
+
+            | binary | game | reads | sha256 |
+            |---|---|---|---|
+            | `fm-u1-linux-x86_64` | Ultima I, *The First Age of Darkness* | `\DARKNESS.EXP` | `${{ needs.host.outputs.sha256_u1 }}` |
+            | `fm-u2-linux-x86_64` | Ultima II, *Revenge of the Enchantress* | `\ENCHANT.EXP` | `${{ needs.host.outputs.sha256_u2 }}` |
+            | `fm-u3-linux-x86_64` | Ultima III, *Exodus* | `\EXODUS.EXP` | `${{ needs.host.outputs.sha256_u3 }}` |
+
+            All three play: characters can be created, parties formed, `Journey Onward` starts the game, and towns,
+            dungeons, combat and death all run. Ultima II is the one with the most measured behaviour behind it and the one
+            whose hand-written rules have been checked against their own translations; Ultima I and III run entirely on the
+            original's translated instructions.
+
+            Ultima II in detail, as the title this project has played longest. At the game menu pick *Journey Onward*, or
+            *Generate Character* to make one. SDL is linked statically from the pinned upstream release, so there is
             no `libSDL3` to install and nothing to apt first: the binary's whole dynamic list is `libc`, `libm` and the
             loader, because libstdc++ and libgcc are static too. It needs glibc 2.34 or newer, which is RHEL 9, Ubuntu
             22.04 and Debian 12 and later, and `tools/glibcfloor.js` is the check that keeps that true. What SDL loads

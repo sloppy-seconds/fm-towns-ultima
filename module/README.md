@@ -1,11 +1,26 @@
-# The recompiled module
+# The recompiled modules
 
-This directory holds the recompiler's output: Ultima II's own 386 code, and the TBIOS layer it calls, translated
-mechanically into C++. 331 source files, `p_game_*` for the game and `p_tbios_*` for TBIOS, plus `modules.cpp` which
-registers both, `report.txt` which is the recompiler's own account of what it emitted, and `coverage.txt` which is
-the instruction map item 7c diffs against.
+This directory holds the recompiler's output: each title's own 386 code, and the TBIOS layer every title calls,
+translated mechanically into C++. Since 2026-11-12 it is split by owner, because the TBIOS half is the same program
+for every title and 84 MB:
 
-It is in git on purpose, and that is a decision rather than an oversight.
+| directory | what | size |
+|---|---|---|
+| `u1/` | Ultima I's game module, 30 files | 8.2 MB |
+| `u2/` | Ultima II's game module, 32 files, plus `report.txt` and `coverage.txt` | 9.0 MB |
+| `u3/` | Ultima III's game module, 33 files | 8.5 MB |
+| `tbios/` | the TBIOS module, 304 files, **shared by every title** | 84 MB |
+
+Each game directory carries `p_game_*.cpp`, `p_game_funcs.h`, `p_game_table.cpp` and the `modules.cpp` the recompiler
+wrote for it. `tbios/` carries `p_tbios_*.cpp`, `p_tbios_funcs.h` and `p_tbios_table.cpp`. They are built together, never
+merged: `port/CMakeLists.txt` globs both `RECOMP_DIR` (the title) and `TBIOS_DIR` (shared), and `port/modules.cpp`
+names the two modules in the order the lookup needs.
+
+The split is what lets a release build all three binaries with no disc, no recompiler and no game byte read, and it is
+why `module/tbios` has one owner: a recompilation of TBIOS changes what every title runs, so it is regenerated on
+purpose rather than as a side effect of somebody's build.
+
+It is all in git on purpose, and that is a decision rather than an oversight.
 
 ## The policy, stated
 

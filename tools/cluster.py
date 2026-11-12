@@ -50,7 +50,9 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODULE_DIR = os.path.join(ROOT, 'module')
+# The game module of the title this tool works on, which is Ultima II: the corpus census and the attribution ledger are
+# ENCHANT.EXP's. Since the modules were split by owner on 2026-11-12, that is module/u2 rather than module/.
+MODULE_DIR = os.path.join(ROOT, 'module', 'u2')
 
 FUNC_RE = re.compile(r'^void f_([0-9a-f]{8})\(')
 INSN_RE = re.compile(r'^\s*//\s*([0-9a-f]{6})\s+(.*?)\s*$')

@@ -43,7 +43,7 @@ difference in one 44 KB region. Seven ids is the right table size, but the demos
 |---|---|---|
 | the title's executable and entry | `tools/games.js` | done |
 | the build stage | `build/<id>/` | done for `u3`, `u2` still uses `build/port/` |
-| the committed module | `module/<id>/` | not done, `module/` is U2's today |
+| the committed module | `module/<id>/` per title, `module/tbios/` shared | done for u1, u2 and u3: 8 to 9 MB each plus one 84 MB TBIOS, which is why it is shared |
 | the binary | the title's id, via a CMake `PORT_TARGET` cache variable | done: `u3` builds `u3`, `u2` builds `u2` |
 | measured seeds | `tools/seeds/<id>.txt` | partly: `tools/u3-seeds.txt` and `tools/runtime-seeds.txt` |
 | extracted asset output | `extracted/<id>/` | not done, `extracted/u2` and `extracted/GRAPH` coexist |

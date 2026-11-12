@@ -395,14 +395,17 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 {
 	let names = null;
 	try {
-		names = fs.readdirSync(path.join(ROOT, 'module'));
+		// TWO DIRECTORIES SINCE 2026-11-12: each title's game module under module/<id>, and the one shared TBIOS module.
+		// The counts below are Ultima II's, because that is the title whose module this gate was written against.
+		names = fs.readdirSync(path.join(ROOT, 'module', 'u2'))
+			.concat(fs.readdirSync(path.join(ROOT, 'module', 'tbios')));
 	} catch (e) {
-		fail('the committed module is present', 'module/ missing');
+		fail('the committed module is present', 'module/u2 or module/tbios missing');
 	}
 	if (names) {
 		const game = names.filter((f) => /^p_game_(\d+|table)\.cpp$/.test(f));
 		const tbios = names.filter((f) => /^p_tbios_(\d+|table)\.cpp$/.test(f));
-		const mods = read('module/modules.cpp') || '';
+		const mods = read('module/u2/modules.cpp') || '';
 		const registered = /g_mod_p_game/.test(mods) && /g_mod_p_tbios/.test(mods);
 		if (game.length === 28 && tbios.length === 303 && registered)
 			ok('the committed module holds both modules', game.length + ' game and ' + tbios.length + ' tbios sources, both registered in modules.cpp');
@@ -413,7 +416,8 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		const found = new Set();
 		const extra = [];
 		for (const f of game.concat(tbios)) {
-			const src = read('module/' + f) || '';
+			const dir = /^p_tbios/.test(f) ? 'module/tbios/' : 'module/u2/';
+			const src = read(dir + f) || '';
 			for (const m of src.matchAll(/"([^"\\]{6,})"/g)) {
 				if (allowed.has(m[1])) found.add(m[1]);
 				else if (extra.length < 5) extra.push(f + ': ' + JSON.stringify(m[1]));
@@ -496,8 +500,8 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 {
 	const shim = stripComments(read('port/native_shadows.cpp'));
 	const order = stripComments(read('port/modules.cpp'));
-	const generated = stripComments(read('module/modules.cpp'));
-	const funcsHdr = read('module/p_game_funcs.h');
+	const generated = stripComments(read('module/u2/modules.cpp'));
+	const funcsHdr = read('module/u2/p_game_funcs.h');
 
 	// Parse `{ 0xADDR, symbol }` entries from the table.
 	const entries = [];
@@ -522,7 +526,7 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 
 	// 2. Every module the recompiler generated must still be in the port's list. A recompile that adds a module
 	//    would otherwise drop it from the build with nothing to say so.
-	if (!genOrder) fail('the port list covers every generated module', 'no g_x86_modules[] in module/modules.cpp');
+	if (!genOrder) fail('the port list covers every generated module', 'no g_x86_modules[] in module/u2/modules.cpp');
 	else {
 		const missing = genOrder.filter((m) => !(portOrder || []).includes(m));
 		if (missing.length) fail('the port list covers every generated module', 'missing ' + missing.join(' '));

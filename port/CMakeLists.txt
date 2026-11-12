@@ -28,13 +28,22 @@ set(FMT_RUNTIME ${CMAKE_CURRENT_SOURCE_DIR}/../fmtownskit/runtime CACHE PATH "fm
 # The recompiler's output: python -m fmtownskit.recomp --out <dir> --exp game=stripped@0x0 ...
 # It defaults to this repository's committed module, which is what makes a plain `cmake -S port -B build` a complete
 # build with no recompile and no game file. Point it elsewhere to build against a fresh recompilation.
-set(RECOMP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../module CACHE PATH "the recompiler's output")
+#
+# THE MODULE IS TWO DIRECTORIES, because the TBIOS half is the same program for every title and is 84 MB. It is
+# committed once under module/tbios and shared, while each title's own code lives in module/<id>. A recompilation writes
+# both halves into one directory, so RECOMP_DIR works alone when TBIOS_DIR is not given, and the glob below removes the
+# duplicates that would otherwise be listed twice.
+set(RECOMP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../module/u2 CACHE PATH "the recompiler's output for this title's game module")
+set(TBIOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../module/tbios CACHE PATH "the shared TBIOS module, the same for every title")
 
 if(NOT EXISTS ${FMT_RUNTIME}/towns.cmake)
   message(FATAL_ERROR "no fmtownskit runtime at ${FMT_RUNTIME}. Run git submodule update --init fmtownskit, or pass -DFMT_RUNTIME=.")
 endif()
 if(NOT EXISTS ${RECOMP_DIR}/modules.cpp)
-  message(FATAL_ERROR "no recompiler output at ${RECOMP_DIR}. The committed module lives in module/ next to this directory; pass -DRECOMP_DIR=<dir> holding p_game_*.cpp and modules.cpp.")
+  message(FATAL_ERROR "no game module at ${RECOMP_DIR}. The committed modules live under module/<id>/ next to this directory; pass -DRECOMP_DIR=<dir> holding p_game_*.cpp and modules.cpp.")
+endif()
+if(NOT EXISTS ${TBIOS_DIR}/p_tbios_funcs.h)
+  message(FATAL_ERROR "no TBIOS module at ${TBIOS_DIR}. It is committed once at module/tbios/, or pass -DTBIOS_DIR=<dir> holding p_tbios_*.cpp.")
 endif()
 
 include(${FMT_RUNTIME}/towns.cmake)
@@ -60,7 +69,11 @@ endif()
 # list in order and takes the FIRST module with a function at an address, so a hand-written replacement shadows
 # the recompiled function only if its module comes first. The recompiler writes ${RECOMP_DIR}/modules.cpp from the
 # modules it compiled and its order is the recompiler's, so the port owns the list. See port/native_shadows.h.
-file(GLOB RECOMP_SRC ${RECOMP_DIR}/p_*.cpp)
+file(GLOB RECOMP_SRC ${RECOMP_DIR}/p_*.cpp ${TBIOS_DIR}/p_*.cpp)
+# A recompilation writes the game and TBIOS halves into one directory, so the two globs return the same files when
+# TBIOS_DIR is not given. CMake refuses a source listed twice for one target, and this removes that case rather than
+# relying on the caller to know which directories to pass.
+list(REMOVE_DUPLICATES RECOMP_SRC)
 add_library(game_recomp STATIC ${RECOMP_SRC})
 target_include_directories(game_recomp PUBLIC ${FMT_RUNTIME})
 target_compile_options(game_recomp PRIVATE -Wno-unused-label -Wno-unused-variable)
@@ -126,7 +139,9 @@ endif()
 # RECOMP_DIR is on the include path for p_game_funcs.h, which native_shadows.cpp needs to name the recompiled
 # twin when U2_SHADOW_OFF gives the baseline. It is a generated header, but the module is always linked, so the
 # symbol always exists; tools/portcheck.js asserts the address is still declared there.
-target_include_directories(${PORT_TARGET} PRIVATE ${RECOMP_DIR})
+# Both, because p_game_funcs.h is what the native shadows name their recompiled twins by and p_tbios_funcs.h is the
+# other half's; a build from two directories needs both on the include path.
+target_include_directories(${PORT_TARGET} PRIVATE ${RECOMP_DIR} ${TBIOS_DIR})
 target_link_libraries(${PORT_TARGET} game_recomp fmt_towns)
 
 # A WINDOWS BUILD HAS TO CARRY ITS RUNTIME, because mingw's would otherwise be two DLLs nobody has. The first cross
