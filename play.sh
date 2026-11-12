@@ -95,6 +95,10 @@ if ! node "$ROOT/tools/games.js" --ids | grep -qx "$TITLE"; then
 fi
 EXP=$(node "$ROOT/tools/games.js" --get "$TITLE" exp)
 WIN=$(node "$ROOT/tools/games.js" --get "$TITLE" window)
+# The speed this title runs at unless --cpu-rate says otherwise: 100 for the games, 20 for the three demos, where the
+# narration scrolls faster than it can be read. It is the build's default rather than this script's, so a binary from
+# the release behaves the same as one built here.
+DEF_RATE=$(node "$ROOT/tools/games.js" --get "$TITLE" cpuRate)
 SAVE=$(node "$ROOT/tools/games.js" --get "$TITLE" saveDisk)
 WORK="$PLAY_ROOT/$TITLE"
 
@@ -267,7 +271,7 @@ else
 	FOREIGN=""
 	[[ "$TITLE" != "u2" ]] && FOREIGN="-DU2_FOREIGN_MODULE=ON"
 	cmake -S "$ROOT/port" -B "$WORK" -DCMAKE_BUILD_TYPE=Release "${SDL_ARGS[@]}" \
-		-DPORT_TARGET="$TITLE" -DPORT_PROGRAM="$EXP" -DPORT_TITLE="$WIN" $FOREIGN \
+		-DPORT_TARGET="$TITLE" -DPORT_PROGRAM="$EXP" -DPORT_TITLE="$WIN" -DPORT_CPU_RATE="$DEF_RATE" $FOREIGN \
 		-DRECOMP_DIR="$ROOT/module/$TITLE" -DTBIOS_DIR="$ROOT/module/tbios" >"$WORK/cmake.log" 2>&1
 	cmake --build "$WORK" -j"$(nproc)" >"$WORK/build.log" 2>&1 || {
 		echo "the port failed to build. Last lines of $WORK/build.log:" >&2

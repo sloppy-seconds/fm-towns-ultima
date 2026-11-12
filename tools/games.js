@@ -39,6 +39,10 @@
 // others until each is measured, which is stated per title rather than implied.
 // `window` is what the SDL window's title bar says, so a player can tell seven binaries apart in a window list. It is
 // short on purpose: the full `title` carries the executable's name, which is noise in a title bar.
+// `cpuRate` is the default percentage of the FM Towns clock the binary runs at, before any --cpu-rate on the command
+// line. 100 is the machine's own speed and is what the three games run at. The three demos default to 20 because their
+// narration scrolls faster than it can be read at full speed, and because they end the run on any key press, so F5 is
+// not a lever a player can reach for (docs/port-demos.md). Decided by Paul on 2026-11-13.
 // `seeds` is where the addresses no static rule finds live, relative to the repository.
 // `tbiosSeeds` is the same thing for the shared TBIOS module: offsets in segment `0110` that a title reaches and the
 // live U2 capture in `tools/tbios-seeds.txt` never saw. They are per title because the capture is one game's trace,
@@ -53,6 +57,7 @@ const GAMES = [
 		id: 'u1',
 		title: 'Ultima I (DARKNESS.EXP)',
 		window: 'Ultima I',
+		cpuRate: 100,
 		exp: 'DARKNESS.EXP',
 		bytes: 965986,
 		entry: 0xe7a74,
@@ -68,6 +73,7 @@ const GAMES = [
 		id: 'u2',
 		title: 'Ultima II (ENCHANT.EXP)',
 		window: 'Ultima II',
+		cpuRate: 100,
 		exp: 'ENCHANT.EXP',
 		bytes: 1072398,
 		entry: 0x101a20,
@@ -83,6 +89,7 @@ const GAMES = [
 		id: 'u3',
 		title: 'Ultima III (EXODUS.EXP)',
 		window: 'Ultima III',
+		cpuRate: 100,
 		exp: 'EXODUS.EXP',
 		bytes: 904310,
 		entry: 0xd8ab0,
@@ -98,6 +105,7 @@ const GAMES = [
 		id: 'british',
 		title: 'British (BRITISH.EXP)',
 		window: 'Lord British',
+		cpuRate: 100,
 		exp: 'BRITISH.EXP',
 		bytes: 360481,
 		entry: 0x54094,
@@ -113,6 +121,7 @@ const GAMES = [
 		id: 'u1demo',
 		title: 'Ultima I demo (UT1DEMO.EXP)',
 		window: 'Ultima I demo',
+		cpuRate: 20,
 		exp: 'UT1DEMO.EXP',
 		bytes: 618433,
 		entry: 0x93034,
@@ -128,6 +137,7 @@ const GAMES = [
 		id: 'u2demo',
 		title: 'Ultima II demo (UT2DEMO.EXP)',
 		window: 'Ultima II demo',
+		cpuRate: 20,
 		exp: 'UT2DEMO.EXP',
 		bytes: 618849,
 		entry: 0x931d4,
@@ -143,6 +153,7 @@ const GAMES = [
 		id: 'u3demo',
 		title: 'Ultima III demo (UT3DEMO.EXP)',
 		window: 'Ultima III demo',
+		cpuRate: 20,
 		exp: 'UT3DEMO.EXP',
 		bytes: 619297,
 		entry: 0x93394,
@@ -194,7 +205,12 @@ function main(argv) {
 			return 2;
 		}
 		const v = g[field];
-		console.log(v === null ? '' : typeof v === 'number' ? '0x' + v.toString(16) : String(v));
+		// Hex is for the fields that are addresses or byte counts, which is most of them. A percentage is not one, and
+		// `-DPORT_CPU_RATE=0x14` reads as a riddle in a build log and in a message that prints it as a percentage.
+		const decimal = field === 'cpuRate';
+		console.log(
+			v === null ? '' : typeof v === 'number' ? (decimal ? String(v) : '0x' + v.toString(16)) : String(v)
+		);
 		return 0;
 	}
 	console.error('usage: node tools/games.js --list | --ids | --table | --get <id> [field]');

@@ -106,6 +106,7 @@ package_one() {
 	cmake -S "$ROOT/port" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
 		-DPORT_TARGET="$id" -DPORT_PROGRAM="$exp" -DPORT_STATIC_CXX=ON $shadow_flag \
 		-DPORT_TITLE="$(node "$ROOT/tools/games.js" --get "$id" window)" \
+		-DPORT_CPU_RATE="$(node "$ROOT/tools/games.js" --get "$id" cpuRate)" \
 		-DRECOMP_DIR="$ROOT/module/$id" -DTBIOS_DIR="$ROOT/module/tbios" \
 		-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" >"$OUT/cmake-$id.log" 2>&1
 	cmake --build "$BUILD" -j"$(nproc)" >"$OUT/build-$id.log" 2>&1 || {

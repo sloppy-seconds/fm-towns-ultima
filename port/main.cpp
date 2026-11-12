@@ -71,6 +71,14 @@ static const char *const kProgram = PORT_PROGRAM;
 #endif
 static const char *const kTitle = PORT_TITLE;
 
+// THE SPEED THIS BINARY STARTS AT, in percent of the FM Towns clock, set by the build from tools/games.js `cpuRate`.
+// The three demos default to 20 because their narration scrolls faster than it can be read, and because a demo ends the
+// run on any key press, so the kit's F5 cannot be used on them. The fallback is the machine's own speed, which is what
+// every measurement in this repository was taken at, so a build that forgets is fast rather than mysteriously slow.
+#ifndef PORT_CPU_RATE
+#define PORT_CPU_RATE 100
+#endif
+
 // An instruction trace, for differential debugging against the machine. The kit calls this for every
 // instruction when the build defines X86_TRACE_ON (see x86.h), and the point is to compare the port's sequence
 // with a control-flow capture taken off the emulator: the first place they part is the bug. Without it the
@@ -559,7 +567,8 @@ int main(int argc, char **argv) {
 	// read is slowed down. The kit models the rate (Machine::cpu_rate) and its window binds F5/F6/F7 to it, but a
 	// keystroke is not available here: the demos end the run on any key press, so reaching for F5 closes the thing
 	// being watched. This makes the rate a start-up fact instead, and the window's title shows it like the keys do.
-	int cpu_rate_arg = 100;
+	// The starting value is the build's, from the title table, and --cpu-rate overrides it.
+	int cpu_rate_arg = PORT_CPU_RATE;
 	std::string control_spec;
 	// The save disk takes writes by default, because a created character that cannot be saved does not exist. The
 	// flag is the escape hatch for a run that must not touch an image, and it is what the older guardrail was.

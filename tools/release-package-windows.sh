@@ -78,6 +78,7 @@ package_one() {
 		-DCMAKE_CXX_COMPILER="${CXX_TRIPLE}-g++" \
 		-DPORT_TARGET="$id" -DPORT_PROGRAM="$exp" $shadow_flag \
 		-DPORT_TITLE="$(node "$ROOT/tools/games.js" --get "$id" window)" \
+		-DPORT_CPU_RATE="$(node "$ROOT/tools/games.js" --get "$id" cpuRate)" \
 		-DRECOMP_DIR="$ROOT/module/$id" -DTBIOS_DIR="$ROOT/module/tbios" \
 		-DCMAKE_PREFIX_PATH="$SDL3_WIN_PREFIX" >"$OUT/cmake-win-$id.log" 2>&1 || {
 		echo "the $id Windows configure failed. Last lines of $OUT/cmake-win-$id.log:" >&2

@@ -20,6 +20,11 @@ set(PORT_PROGRAM "ENCHANT.EXP" CACHE STRING "the .EXP inside the disc image that
 # in every binary, and a default that cannot be the same for two titles makes that failure impossible rather than
 # merely fixed. tools/games.js `window` supplies the short name where a build passes this.
 set(PORT_TITLE "${PORT_PROGRAM}" CACHE STRING "the window title bar's text, before the kit appends the CPU rate")
+# THE SPEED THE BINARY STARTS AT, as a percentage of the FM Towns clock. 100 is the machine's own speed and is the
+# default here so that a build path nobody updated runs at the speed everything was measured at. tools/games.js
+# `cpuRate` supplies the title's own value, and the three demos use 20: their narration scrolls faster than it can be
+# read, and they end the run on any key press, so the kit's F5 cannot be used on them. --cpu-rate=N still overrides.
+set(PORT_CPU_RATE 100 CACHE STRING "the percentage of the FM Towns clock this binary starts at")
 project(${PORT_TARGET} CXX)
 set(CMAKE_CXX_STANDARD 20)
 if(NOT CMAKE_BUILD_TYPE)
@@ -143,7 +148,8 @@ endforeach()
 add_executable(${PORT_TARGET} main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM} ${EMBEDDED_LICENCES})
 target_compile_definitions(${PORT_TARGET} PRIVATE "PORT_PROGRAM=\"${PORT_PROGRAM}\"")
 target_compile_definitions(${PORT_TARGET} PRIVATE "PORT_TITLE=\"${PORT_TITLE}\"")
-message(STATUS "${PORT_TARGET}: runs \\${PORT_PROGRAM} from the disc image, window titled \"${PORT_TITLE}\"")
+target_compile_definitions(${PORT_TARGET} PRIVATE PORT_CPU_RATE=${PORT_CPU_RATE})
+message(STATUS "${PORT_TARGET}: runs \\${PORT_PROGRAM} from the disc image, window titled \"${PORT_TITLE}\", CPU rate ${PORT_CPU_RATE}%")
 # The no-game CI check generates its module from 4 KB of zero fill, so the functions the native shadows name do not
 # exist there and the table cannot name them. Shadows are game-specific by construction, so that build compiles an
 # empty manifest instead of the real one. It is an option rather than a guess at the module's contents because the

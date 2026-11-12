@@ -481,6 +481,27 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	else ok('the CPU rate can be set on the command line', '--cpu-rate=N is range-checked and reaches Machine::cpu_rate');
 }
 
+// ---- each title starts at the speed the table gives it, and the demos start slow ----
+// The three demos read at 20 percent and the four other titles at 100, and that is a per-title fact in tools/games.js
+// rather than a constant in the port. Both halves are asserted, because a table that says 20 while no build passes it
+// produces a binary that runs at full speed, which looks like the rate feature not working rather than like a missing
+// define. The games are checked too: a rate accidentally inherited from a demo would make a game crawl, and this is the
+// one place the two cannot drift apart again.
+{
+	const games = require('./games.js').GAMES;
+	const bad = [];
+	if (!/PORT_CPU_RATE/.test(read('port/CMakeLists.txt') || '')) bad.push('CMake carries no PORT_CPU_RATE');
+	if (!/#ifndef PORT_CPU_RATE[\s\S]{0,80}#define PORT_CPU_RATE 100/.test(main)) bad.push('port/main.cpp has no default of 100 when the build says nothing');
+	const slow = games.filter((g) => g.cpuRate !== 100).map((g) => g.id);
+	if (slow.join(',') !== 'u1demo,u2demo,u3demo') bad.push('the titles below full speed are ' + slow.join(',') + ', not the three demos');
+	for (const g of games)
+		if (typeof g.cpuRate !== 'number') bad.push(g.id + ' has no cpuRate');
+	for (const script of ['tools/port-build.sh', 'tools/release-package.sh', 'tools/release-package-windows.sh', 'play.sh'])
+		if (!/PORT_CPU_RATE/.test(read(script) || '')) bad.push(script + ' does not pass the rate');
+	if (bad.length) fail('the demos start at the speed the table gives them', bad.slice(0, 4).join(' | '));
+	else ok('the demos start at the speed the table gives them', 'the three demos at 20, the other four at 100, and every build path passes it');
+}
+
 // ---- the locale tables are well formed, checked with no disc and no executable present ----
 // A table is the one file in this scheme whose loss cannot be recovered by re-running a tool, so the things that make it
 // usable are asserted: the header, six columns every row, a room that is a number, a hash that is eight hex digits, and
