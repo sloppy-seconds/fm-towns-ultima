@@ -35,6 +35,7 @@ KIT="$ROOT/fmtownskit"
 
 REUSE=0
 FRAMES=120
+NO_COVERAGE=0
 NO_RUN=0
 QUIET=0
 GAME_ID=""
@@ -45,8 +46,9 @@ while [[ $# -gt 0 ]]; do
 		--frames) FRAMES="$2"; shift 2 ;;
 		--no-run) NO_RUN=1; shift ;;
 		--quiet) QUIET=1; shift ;;
+		--no-coverage) NO_COVERAGE=1; shift ;;
 		--game) GAME_ID="$2"; shift 2 ;;
-		-*) echo "usage: tools/game-build.sh <title> [--reuse] [--frames N] [--no-run] [--quiet]" >&2; exit 2 ;;
+		-*) echo "usage: tools/game-build.sh <title> [--reuse] [--frames N] [--no-run] [--quiet] [--no-coverage]" >&2; exit 2 ;;
 		*) GAME_ID="$1"; shift ;;
 	esac
 done
@@ -56,6 +58,13 @@ GAME_ID="${GAME_ID:-u3}"
 GAME=$(node "$ROOT/tools/games.js" --get "$GAME_ID" exp) || exit 2
 SELECTOR=$(node "$ROOT/tools/games.js" --get "$GAME_ID" selector) || exit 2
 SEED_FILE=$(node "$ROOT/tools/games.js" --get "$GAME_ID" seeds) || exit 2
+SHADOWS=$(node "$ROOT/tools/games.js" --get "$GAME_ID" shadows) || exit 2
+# THE NATIVE SHADOWS ARE TRUE FOR ULTIMA II ALONE, and the field says so rather than this script assuming it. Every
+# entry in port/native_shadows.cpp names a routine of ENCHANT.EXP, so a build for another title compiles that file with
+# an empty manifest or it does not link at all. Reading the field also makes the day a second title earns a table a data
+# change instead of a second special case here.
+SHADOW_FLAG=""
+if [[ "$SHADOWS" != "true" ]]; then SHADOW_FLAG="-DU2_FOREIGN_MODULE=ON"; fi
 SAVE_DISK=$(node "$ROOT/tools/games.js" --get "$GAME_ID" saveDisk) || exit 2
 OUT="$ROOT/build/$GAME_ID"
 RECOMP="$OUT/recomp"
@@ -141,11 +150,19 @@ if [[ $REUSE -eq 0 ]]; then
 	TB_NO_CODE=$(cd "$ROOT" && node tools/codelimits.js --file "$OUT/TBIOS.BIN" --args | sed 's/--no-code /--no-code tbios=/g')
 	say "ranges    $(grep -o ':' <<< "$GAME_NO_CODE" | wc -l) for the game and $(grep -o ':' <<< "$TB_NO_CODE" | wc -l) for tbios"
 
-	# 5. TBIOS seeds: the same derivation Ultima II's build uses, because it is the same TBIOS.BIN on the same
-	#    disc. The file is checked in and asserted against the live capture by tools/tbios-seeds.py --check.
+	# 5. TBIOS seeds. The live capture first, because every distinct offset that executed in segment 0110 is a function
+	#    the game really called, which beats guessing at its entry table. The capture is 3.2 MB of emulator trace and is
+	#    gitignored, so a clean clone falls back to tools/tbios-seeds.txt, which is the same derivation checked in and
+	#    asserted against the capture by tools/tbios-seeds.py --check. Ultima II's build has always chosen this way, so
+	#    this script does too rather than taking the file alone.
+	TB_CAPTURE="$ROOT/saves/analysis/entry-boot-tool.txt"
 	TB_SEEDS=""
-	if [[ -f "$ROOT/tools/tbios-seeds.txt" ]]; then
+	if [[ -f "$TB_CAPTURE" ]]; then
+		TB_SEEDS=$(python3 "$ROOT/tools/tbios-seeds.py" "$TB_CAPTURE")
+		say "tbios     $(python3 "$ROOT/tools/tbios-seeds.py" --count "$TB_CAPTURE") distinct 0110 offsets as seeds, from the live capture"
+	elif [[ -f "$ROOT/tools/tbios-seeds.txt" ]]; then
 		TB_SEEDS=$(grep -v '^#' "$ROOT/tools/tbios-seeds.txt" | tr -d ' \t\n')
+		say "tbios     $(tr ',' '\n' <<< "$TB_SEEDS" | grep -c .) seeds from tools/tbios-seeds.txt (the capture is not present)"
 	fi
 	TB_SPEC="tbios=$OUT/TBIOS.BIN@110:20-100"
 	[[ -n "$TB_SEEDS" ]] && TB_SPEC="$TB_SPEC+$TB_SEEDS"
@@ -171,6 +188,26 @@ if [[ $REUSE -eq 0 ]]; then
 		exit 1
 	fi
 	printf '%s\n' "$COUNTS" | tee "$OUT/recomp-summary.txt"
+
+	# Instruction coverage, from the same walk, the same seeds and the same ranges as the module. That is what lets the
+	# port tell a patched instruction from a data write, and item 7c's diff cannot run without it, so a title that has
+	# it needs it here rather than only in the old Ultima II script. Skipped on request, and the skip says what it costs.
+	# The ranges are passed WITHOUT the module prefix: tools/insncoverage.py walks one image and takes --no-code lo:hi,
+	# while the recompiler wants --no-code game=lo:hi. Handing it the scoped form raised on int('game=…', 16) the first
+	# time this ran, which is why the two forms are named apart here.
+	COV_RANGES="${GAME_NO_CODE//game=/}"
+	if [[ $NO_COVERAGE -eq 1 ]]; then
+		say "coverage  skipped (--no-coverage), so $RECOMP/coverage.txt is absent"
+	elif [[ -x "$ROOT/tools/.venv/bin/python3" ]]; then
+		if PYTHONPATH="$ROOT" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
+			--image "$STRIPPED" --seeds "$SEEDS" $COV_RANGES --out "$RECOMP/coverage.txt"; then
+			say "coverage  $(wc -l < "$RECOMP/coverage.txt") instruction addresses in $RECOMP/coverage.txt"
+		else
+			echo "the coverage pass failed; the module is built, but item 7c's diff cannot run on it" >&2
+		fi
+	else
+		say "coverage  skipped: no tools/.venv (run tools/decode-setup.sh); item 7c's diff cannot run on this module"
+	fi
 else
 	say "reuse     using the module already in $RECOMP"
 	[[ -f "$OUT/recomp-summary.txt" ]] && cat "$OUT/recomp-summary.txt"
@@ -201,7 +238,7 @@ if [[ ! -f "$SDL3_CMAKE_DIR/SDL3Config.cmake" ]]; then
 fi
 
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" \
-	-DFMT_RUNTIME="$KIT/runtime" -DU2_FOREIGN_MODULE=ON -DPORT_TARGET="$GAME_ID" -DPORT_PROGRAM="$GAME" \
+	-DFMT_RUNTIME="$KIT/runtime" $SHADOW_FLAG -DPORT_TARGET="$GAME_ID" -DPORT_PROGRAM="$GAME" \
 	-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2

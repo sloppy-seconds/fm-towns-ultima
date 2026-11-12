@@ -587,6 +587,22 @@ the frame shift and the module key, which is the failure case U3-0b named.
 | done when | `tools/port-build.sh --game <id>` builds every title, `tools/game-build.sh` is gone, and Ultima II's build produces the same counts and the same `counts` line it produces today. The failure case: two scripts that each own half of the strip arithmetic, or a merged script whose Ultima II path differs from the recorded numbers |
 | blocked by | U3-6a |
 
+**Half done, 2026-11-12.** `tools/game-build.sh` can now build Ultima II and produces the *same binary*: with the
+native shadows switched on from a new `shadows` field in `tools/games.js`, the live-capture TBIOS seeds preferred over
+the checked-in file, and the coverage pass ported across, both scripts recompile to
+
+```
+counts    functions=875 instructions=43117 bytes=141558 jump_tables=90 bounded=87 indirect=30 refused=0 conflicts=0
+```
+
+and link to `build/port/b/u2` and `build/u2/b/u2` with the same sha256,
+`ff4d3b36b40559219afdc46a86672e078146936aa8d993287b2207c031c74e11`. That is the acceptance test for the merge passed
+before anything was deleted, which is the order that keeps the reference binary available.
+
+What is left is the second half: make one name the entry point (`tools/port-build.sh --game <id>`), remove the other,
+and move the four references to `build/port/b/u2` (`tools/checkall.js`, `tools/controlsmoke.py`, `tools/drive.py` and
+`tools/shadow-diff.py`) to `build/u2/b/u2`.
+
 #### U3-6c. One environment namespace
 
 **State:** OPEN · **Autonomy:** AUTONOMOUS

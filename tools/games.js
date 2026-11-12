@@ -37,6 +37,10 @@
 // `selector` is the code selector the module is registered at. 0x0c is measured on ENCHANT and used for the
 // others until each is measured, which is stated per title rather than implied.
 // `seeds` is where the addresses no static rule finds live, relative to the repository.
+// `shadows` says whether the port's hand-written replacement table applies to this title. It is true for Ultima II
+// only, because every entry in port/native_shadows.cpp names a routine of ENCHANT.EXP; a build for any other title
+// compiles that file with an empty manifest, or it would not link. tools/game-build.sh reads this field rather than
+// assuming, so the day a second title earns its own table is a one-line change here plus the table itself.
 // `saveDisk` is a disk image this project keeps for that title, or null.
 const GAMES = [
 	{
@@ -49,6 +53,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: 'tools/u1-seeds.txt',
 		saveDisk: null,
+		shadows: false,
 		note: 'playable on jarvis: creation, Journey Onward and play, on two seeds, the second shared with U3',
 	},
 	{
@@ -61,6 +66,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: 'tools/runtime-seeds.txt',
 		saveDisk: 'saves/userdisk.hdm',
+		shadows: true,
 		note: 'the only title with live-measured selectors and a played-through route',
 	},
 	{
@@ -73,6 +79,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: 'tools/u3-seeds.txt',
 		saveDisk: 'saves/u3test.hdm',
+		shadows: false,
 		note: 'reaches the title and the register, stops at a disk validation',
 	},
 	{
@@ -85,6 +92,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: null,
 		saveDisk: null,
+		shadows: false,
 		note: 'not a game: a publisher splash, 360 KB, the U2 sound bank plus HEADTTL and BRIBRI artwork',
 	},
 	{
@@ -97,6 +105,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: null,
 		saveDisk: null,
+		shadows: false,
 		note: 'the shared slideshow shell, 91.8 percent identical to the other two demos',
 	},
 	{
@@ -109,6 +118,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: null,
 		saveDisk: null,
+		shadows: false,
 		note: 'same shell as UT1DEMO, different 44 KB content region',
 	},
 	{
@@ -121,6 +131,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: null,
 		saveDisk: null,
+		shadows: false,
 		note: 'same shell as the other two demos',
 	},
 ];
