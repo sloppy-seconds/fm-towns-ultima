@@ -49,7 +49,7 @@ const GAMES = [
 		selector: 0x0c,
 		seeds: 'tools/u1-seeds.txt',
 		saveDisk: null,
-		note: 'the first title on the disc; recompiled and booting, stops at frame 98 on a function the walk misses',
+		note: 'playable on jarvis: creation, Journey Onward and play, on two seeds, the second shared with U3',
 	},
 	{
 		id: 'u2',

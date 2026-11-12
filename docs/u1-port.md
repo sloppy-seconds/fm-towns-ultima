@@ -35,12 +35,29 @@ Ultima III. Added to `tools/u1-seeds.txt` with that fault beside it, one rebuild
 **It draws its title screen.** `Ultima Trilogy`, `Ultima I - The First Age of Darkness -`, `FUJITSU`, and the title
 art, read off the capture rather than inferred.
 
-## What is not done
+## It is playable, on a player's report
 
-The game has not been driven past the title. Nothing has pressed a key at it, so the menu, character creation,
-`A:\ROSTER.UT1` and the whole of the game are untested, and any of them may want another seed. The save disk is
-`null` in `tools/games.js` because no U1 floppy exists yet; [save-files.md](save-files.md) records `ROSTER.UT1` at
-9,676 bytes and says it is plain text, so the same directory-backed A: that serves U2 and U3 should serve it.
+Paul played it on jarvis on 2026-11-12: created a character, chose `Journey Onward`, and played. That is a player's
+observation and it is the oracle, so it is recorded as one rather than as a measurement of this project's.
+
+Two seeds got it there, and the second is the interesting one:
+
+| seal | fault | what it is |
+|---|---|---|
+| `0x0ca9a0` | frame 98, from `0x0e3d37` | `inc dword [0x4c6e0]`, after a `ret` and the two-byte nop |
+| `0x0e5d8a` | frame 1779, from `0x0e4c17`, on `Journey Onward` | `cmp byte [0xc3e81], 2`, after the same shape |
+
+The second is **the same routine as Ultima III's seed `0xd6f4a`**, which opens `cmp byte [0xb4131], 2` behind the same
+`ret; mov; inc; ret`. Two games, one High C library function, both invisible to the static rules for the same reason:
+a leaf with no prologue. That is the first cross-title confirmation of the pattern, and it suggests the next title's
+first seed is worth looking for in the same place.
+
+**What still is not established.** Whether every U1 screen works. Character creation, `Journey Onward` and play are
+confirmed by a player. Towns, dungeons, the shops and the endgame are not, and no save of U1's own has been read
+back: `ROSTER.UT1` is 9,682 bytes for his character against the 9,676 [save-files.md](save-files.md) records for the
+original's, so the two agree in size but the fields have not been compared.
+
+## Reproducing
 
 ## Reproducing
 
