@@ -92,7 +92,7 @@ Two cache traps were paid for here on 2026-11-10, both the same shape as the `FM
 that has a shared SDL3 and ships nothing. The release workflow builds the archive from source, so the static path is
 proven there rather than in the fast link job.
 
-## The glibc floor is 2.34
+## The glibc floor is 2.34, and the release base is AlmaLinux 9
 
 The floor is **GLIBC_2.34**, set by Paul on 2026-11-10, and `tools/glibcfloor.js` owns the number. The release refuses to
 package a binary that needs a newer one, the same way it refuses a binary that wants `libSDL3` from the distro.
@@ -107,12 +107,34 @@ on 2026-11-10, on glibc 2.43:
 | `GLIBC_2.38` | `__isoc23_strtol` and the scanf family, `strlcpy`, `strlcat`, `fmod`, `fmodf` | C23 strtol redirects, and `strlcpy` arriving |
 | `GLIBC_2.34` | 32 ordinary symbols | the newest version we accept |
 
-The same source compiled where libc is 2.31 binds `sqrtf` to `GLIBC_2.2.5` and costs nothing, so no source change is
-involved and none would help. What the floor needs is a base image at or below it, which is why the release build belongs
-in a container of its own rather than on a desktop that upgrades.
+The same source compiled where libc is older binds `sqrtf` to `GLIBC_2.2.5` and costs nothing, so no source change is
+involved and none would help. What the floor needs is a base image at or below it.
+
+**The base is AlmaLinux 9, measured.** `container/Containerfile.x` moved there on 2026-11-10 and the release it produces
+passes the gate:
+
+```
+binary    dist/u2port-linux-x86_64, 45,681,016 bytes
+highest   GLIBC_2.34  within the floor
+libstdc++ none: linked statically, so libc is the only floor
+ldd       linux-vdso.so.1 libm.so.6 libc.so.6 /lib64/ld-linux-x86-64.so.2
+```
+
+Two libraries beyond libc are all it needs, and the whole build takes 2m08s in the container once SDL is cached.
+
+**Three things had to be right for it to work, and each failed first.**
+
+| what | measured failure | fix |
+|---|---|---|
+| the base's libc | Debian 11 bullseye is 2.31 and compiles, but its gcc 10.2 has no `std::chrono::clock_cast` | Alma 9, whose glibc is exactly 2.34 |
+| the base's compiler | Alma 9's own gcc 11.5 **also** lacks `clock_cast`, so the same one line in `towns_dos.cpp` failed twice | `gcc-toolset-13` from AppStream, first on `PATH` |
+| where SDL installs | `GNUInstallDirs` puts `libSDL3.a` in `lib64` on the Red Hat family, so the prefix was unusable | `tools/sdl-from-source.sh` forces `CMAKE_INSTALL_LIBDIR=lib` |
+
+A fourth was found in passing: the image had no `diffutils`, and the licence comparison then reported the two texts as
+different because `cmp` was missing rather than because they differed.
 
 **Two other libraries have floors of their own, and one is already fixed.** libstdc++ was asking for `GLIBCXX_3.4.31`,
-which is gcc 13's, so the release now links `libstdc++` and `libgcc` statically (`-DPORT_STATIC_CXX=ON`, passed by
+which is gcc 13's, so the release links `libstdc++` and `libgcc` statically (`-DPORT_STATIC_CXX=ON`, passed by
 `tools/release-package.sh`). Those symbols then live in the binary and glibc is the only remaining floor. That option is
 not on by default because Fedora and Bazzite do not ship `libstdc++.a` without the `libstdc++-static` package, so a host
 build links dynamically and is simply not shippable, which `glibcfloor.js` says out loud.

@@ -190,8 +190,13 @@ else
 	          -DSDL_KMSDRM=OFF -DSDL_HIDAPI_LIBUSB=OFF -DSDL_LIBUDEV=ON
 	          -DSDL_WAYLAND_LIBDECOR=OFF)
 fi
+# THE INSTALL LIBDIR IS FORCED TO lib, and that is a portability fix rather than a preference. GNUInstallDirs puts
+# libraries in lib64 on the Red Hat family and in lib/<triplet> on Debian, so a prefix built on AlmaLinux 9 landed
+# libSDL3.a where this script and the port's CMAKE_PREFIX_PATH both look in vain: "the install did not produce a usable
+# prefix", measured 2026-11-10 on the first Alma build after the base image moved there. One path for every host.
 cmake -S "$SRC" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX="$PREFIX" \
+	-DCMAKE_INSTALL_LIBDIR=lib \
 	"${CROSS[@]}" \
 	-DSDL_SHARED=OFF -DSDL_STATIC=ON \
 	-DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
@@ -227,6 +232,7 @@ fi
 
 artefacts_ok || {
 	echo "the install did not produce a usable prefix at $PREFIX" >&2
+	echo "looked for $PREFIX/lib/libSDL3.a, $PREFIX/lib/cmake/SDL3/SDL3Config.cmake and $PREFIX/LICENSE.SDL3" >&2
 	exit 1
 }
 echo "$SDL_VERSION $SDL_SHA256" >"$STAMP"

@@ -4,38 +4,42 @@
 # Tsugaru and wrong for anything else. This image owns nothing: it starts a display, two viewers and then runs
 # whatever command it is given, so a project mount can be built and watched from a browser on another machine.
 #
-# Why Debian trixie and not the Ubuntu 24.04 the emulator image uses. The port links SDL3, and 24.04 has no
-# libsdl3-dev (checked: no candidate). trixie has 3.2.10, so this image can compile the port itself rather than
-# depend on a host build, which matters because a binary built on the host needs a newer glibc (2.43 there) than
-# any of these bases ship.
-FROM debian:trixie-slim
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-# The display and its viewers, the toolchain, and the two tools worth having inside: xdotool to type into the
-# guest and ImageMagick to capture the virtual screen for evidence.
+# WHY ALMALINUX 9 AND NOT A DEBIAN. The floor is glibc 2.34 (tools/glibcfloor.js, docs/port-structure.md), and a
+# binary records the glibc version of every symbol it imports, so the BASE decides what the release can run on.
+# Measured 2026-11-10: Debian bullseye is 2.31, bookworm 2.36, trixie 2.41, Ubuntu 22.04 2.35. Alma 9 is 2.34,
+# exactly the floor, and unlike bullseye it is supported until 2032 and not archived.
 #
-# nodejs is here because the container does the recompile as well as the C++ build, and the seed derivation runs
-# through tools/seeds.js, tools/codelimits.js and the disc reader in tools/cd.js. It arrived as somebody else's
-# dependency before, which is not a thing to build an image on.
+# Why not bullseye, which was tried first. It builds, at 2.31 and below the floor, but its gcc is 10.2 and the kit
+# uses std::chrono::clock_cast, which libstdc++ only gained in gcc 11. The failure is one line in
+# fmtownskit/runtime/towns_dos.cpp, measured, and it is a compiler-version fact rather than a code fact. Alma 9
+# ships gcc 11.
 #
-# The -dev packages below are for tools/sdl-from-source.sh, which builds SDL3 static so the release binary carries
-# no libSDL3 dependency. SDL dlopens these libraries at runtime, so the headers are a build-time need and the
-# runtime libraries come from whatever desktop the binary lands on. libdecor is deliberately absent and switched
-# off in the script rather than pulled in for a server-side-decoration nicety.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        xvfb x11vnc novnc websockify xauth xdotool imagemagick \
-        cmake g++ make pkg-config libsdl3-dev \
-        libx11-dev libxext-dev libxi-dev libxrandr-dev libxss-dev libxcursor-dev libxfixes-dev libxtst-dev \
-        libwayland-dev libxkbcommon-dev wayland-protocols \
-        libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev \
-        python3 python3-venv nodejs ca-certificates curl xz-utils \
-    && rm -rf /var/lib/apt/lists/*
+# SDL comes from source, not from the distribution: tools/sdl-from-source.sh builds the pinned release statically, so
+# the base only has to supply a compiler and the headers SDL links against.
+FROM almalinux:9
+
+# EPEL carries what RHEL's own repositories dropped: x11vnc, xdotool, noVNC and its websockify. Everything else is
+# AppStream.
+RUN dnf install -y epel-release && dnf install -y \
+        xorg-x11-server-Xvfb x11vnc novnc python3-websockify xorg-x11-xauth xdotool ImageMagick \
+        gcc-c++ gcc make cmake pkgconf-pkg-config \
+        gcc-toolset-13 \
+        libX11-devel libXext-devel libXi-devel libXrandr-devel libXScrnSaver-devel libXcursor-devel \
+        libXfixes-devel libXtst-devel libXinerama-devel libXrender-devel \
+        wayland-devel libxkbcommon-devel wayland-protocols-devel \
+        alsa-lib-devel pulseaudio-libs-devel pipewire-devel systemd-devel \
+        python3 nodejs ca-certificates xz tar diffutils \
+    && dnf clean all
 
 COPY x-entry.sh /usr/local/bin/x-entry.sh
 RUN chmod 0755 /usr/local/bin/x-entry.sh
 
-ENV DISPLAY=:99 \
+# gcc 11 IS NOT ENOUGH, measured: its libstdc++ has no std::chrono::clock_cast, which the kit uses, and the
+# build stops on one line of fmtownskit/runtime/towns_dos.cpp. Alma 9 ships gcc 11 in the base and gcc 13 as
+# gcc-toolset-13, which is the combination this base was chosen for: glibc 2.34 with a compiler new enough for the
+# C++20 the kit actually uses. The toolset goes first on PATH so cmake finds it without any flags.
+ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin:$PATH \
+    DISPLAY=:99 \
     RESOLUTION=1024x768x24
 
 EXPOSE 6080 5900

@@ -59,12 +59,18 @@ echo "module      $(ls "$OUT/recomp"/p_*.cpp | wc -l) source file(s), modules.cp
 
 # The same two cache variables a human passes, for the same reason port-build.sh passes them: RECOMP_DIR has no
 # default worth guessing, and FMT_RUNTIME is cached, so a stale build tree keeps pointing at an old path.
-# -DPORT_ALLOW_SHARED_SDL because this container has a shared SDL3 and this job ships nothing: its only claim is that
-# the port links. The static archive is built and used by the release workflow, which is where portability matters, so
-# making this job compile SDL from source would add minutes to every push to prove something already proved.
+#
+# SDL IS BUILT FROM SOURCE HERE NOW, not taken from the distribution. The image is AlmaLinux 9, whose glibc 2.34 is the
+# portability floor, and which ships no SDL3 at all, so -DPORT_ALLOW_SHARED_SDL would link nothing and quietly produce a
+# headless build that proves less. One extra minute per push buys a check of the configuration the release actually uses.
+SDL3_PREFIX="$("$ROOT/tools/sdl-from-source.sh" --print-prefix)"
+SDL3_DIR="$SDL3_PREFIX/lib/cmake/SDL3"
+echo "sdl3        $SDL3_PREFIX"
+
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release \
 	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
-	-DU2_SYNTHETIC_MODULE=ON -DPORT_ALLOW_SHARED_SDL=ON > "$OUT/cmake.log" 2>&1 || {
+	-DU2_SYNTHETIC_MODULE=ON -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_DIR" \
+	> "$OUT/cmake.log" 2>&1 || {
 	echo "cmake configure failed, last lines of $OUT/cmake.log:" >&2
 	tail -20 "$OUT/cmake.log" >&2
 	exit 1
@@ -87,7 +93,8 @@ echo "linked      $OUT/b/u2 ($(stat -c %s "$OUT/b/u2") bytes)"
 # this step proves the second does its own. A link check and nothing more: no game is played, no disc is read.
 cmake -S "$ROOT/port" -B "$OUT/b-foreign" -DCMAKE_BUILD_TYPE=Release \
 	-DRECOMP_DIR="$OUT/recomp" -DFMT_RUNTIME="$ROOT/fmtownskit/runtime" \
-	-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3 -DPORT_ALLOW_SHARED_SDL=ON > "$OUT/cmake-foreign.log" 2>&1 || {
+	-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3 -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_DIR" \
+	> "$OUT/cmake-foreign.log" 2>&1 || {
 	echo "the foreign-module configure failed, last lines of $OUT/cmake-foreign.log:" >&2
 	tail -20 "$OUT/cmake-foreign.log" >&2
 	exit 1

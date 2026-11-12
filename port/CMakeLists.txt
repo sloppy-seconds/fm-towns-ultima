@@ -1,4 +1,7 @@
-cmake_minimum_required(VERSION 3.20)
+# 3.18, not 3.20, because the release builds on Debian bullseye, which ships 3.18.4, and the portability floor is
+# decided by the base image rather than by this file (docs/port-structure.md). Nothing here uses a feature newer than
+# 3.13: add_custom_command, target_link_options and target_compile_definitions are all that it takes.
+cmake_minimum_required(VERSION 3.18)
 # THE EXECUTABLE IS NAMED AFTER THE TITLE IT RUNS (docs/recompile-ultima3-plan.md, item U3-6a, and
 # docs/port-structure.md). Seven titles are in scope and the module is compiled in, so one binary per title is the
 # shape, which means the names have to differ: two releases, two play.sh trees, or one folder holding both

@@ -48,7 +48,7 @@ while the document calls it done.
 | U3-6b | OPEN | two build scripts, one descriptor table, and the strip arithmetic in both |
 | U3-6c | OPEN | 30+ `U2_*` environment names are shared by U2 and U3 |
 | U3-6d | OPEN | `module/`, `extracted/` and the doc pages do not follow one pattern |
-| U3-6e | OPEN | the floor is 2.34 and every image here is 2.41 or newer, so the gate refuses all of them |
+| U3-6e | DONE | AlmaLinux 9 plus gcc-toolset-13 produces a 2.34 binary that passes the gate |
 | U3-6f | OPEN | the floor is not in the README or the quickstart, where a downloader would look |
 
 The whole of the remainder hangs on one artefact: a save disk the **original** has begun a journey on.
@@ -613,17 +613,44 @@ More than thirty `U2_*` variables are shared by Ultima II and Ultima III today, 
 
 #### U3-6e. A release base image whose libc is at or below the floor
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
-The floor is `GLIBC_2.34` and `tools/glibcfloor.js` enforces it, but no image in this repository can meet it. Releases are
-built in `container/Containerfile.x`, which is Debian 13 trixie at glibc 2.41, and a host build asks for 2.43 through five
-float-math symbols. So the gate that was just added refuses every artefact this repository can currently produce, which is
-the correct behaviour and not yet a solution.
+The floor is `GLIBC_2.34` and `tools/glibcfloor.js` enforces it, but no image in this repository could meet it. Releases are
+built in `container/Containerfile.x`, which was Debian 13 trixie at glibc 2.41, and a host build asks for 2.43 through five
+float-math symbols. So the gate refused every artefact this repository could produce, which was the correct behaviour and
+not yet a solution.
 
 | field | value |
 |---|---|
 | done when | the release builds on a base whose glibc is at or below 2.34, `tools/release-package.sh` produces a binary that passes `tools/glibcfloor.js`, and that binary runs on a machine with glibc 2.34. The failure case: a base chosen because it builds rather than because its libc is old enough, or a floor passed by disabling symbols one at a time in the source, which would change the arithmetic rather than the header |
-| blocked by | nothing. Candidate: Debian 11 bullseye at glibc 2.31, which is below the floor rather than on it, and whose gcc 10 needs checking against the C++20 the port uses |
+| blocked by | nothing |
+
+**What is now known, measured 2026-11-10.** The base is AlmaLinux 9, whose glibc is exactly 2.34, and the release it
+produces passes the gate:
+
+```
+binary    dist/u2port-linux-x86_64, 45,681,016 bytes
+highest   GLIBC_2.34  within the floor
+libstdc++ none: linked statically, so libc is the only floor
+ldd       linux-vdso.so.1 libm.so.6 libc.so.6 /lib64/ld-linux-x86-64.so.2
+```
+
+It runs in that container, 30 frames, with the register dump every other run of the port produces. The whole build is
+2m08s in the container once SDL is cached, and 56s of that is SDL the first time.
+
+Three things failed before it worked, and the failures are the useful part:
+
+- Debian 11 bullseye compiles and is below the floor at 2.31, but its gcc 10.2 has no `std::chrono::clock_cast`. One line
+  of `fmtownskit/runtime/towns_dos.cpp`, and a compiler-version fact rather than a code fact.
+- Alma 9's own gcc 11.5 **also** lacks it, so the same line failed a second time. `gcc-toolset-13` from AppStream is the
+  combination: glibc 2.34 with a compiler new enough for the C++20 the kit uses.
+- `GNUInstallDirs` installs to `lib64` on the Red Hat family, so the SDL prefix was unusable until
+  `tools/sdl-from-source.sh` forced `CMAKE_INSTALL_LIBDIR=lib`. A portability bug in the tool that Debian had hidden.
+
+A fourth, in passing: the image had no `diffutils`, and the licence comparison read that as the two texts differing.
+
+`tools/ci-port-build.sh` now builds SDL from source in that image too, rather than passing `-DPORT_ALLOW_SHARED_SDL`,
+because Alma 9 has no SDL3 to share and the old flag would have quietly tested a headless build.
 
 #### U3-6f. Say the floor where a reader looks for it
 
