@@ -11,3 +11,9 @@
 # `ff 05 e0 c6 04 00` (inc dword [0x4c6e0]), and the two bytes before it are `c3 8b c0`, a ret and the two-byte nop.
 # That is why no static rule has it, the same shape as the two U3 seeds.
 0xca9a0
+
+# port, frame 1779: after choosing the player, `Y`, and `SPACE`, reached from guest 0x0e4c17. The same function shape
+# as the U3 seed 0xd6f4a: `cmp byte [0xc3e81], 2` at 0x0e5d8a, preceded by `ret; mov [0xc3e82], al; inc byte [0xc3e81];
+# ret`. Two different games with the same routine at different addresses is the shared High C library showing through.
+0xe5d8a
+
