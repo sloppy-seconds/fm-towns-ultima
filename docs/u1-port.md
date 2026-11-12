@@ -52,10 +52,34 @@ The second is **the same routine as Ultima III's seed `0xd6f4a`**, which opens `
 a leaf with no prologue. That is the first cross-title confirmation of the pattern, and it suggests the next title's
 first seed is worth looking for in the same place.
 
-**What still is not established.** Whether every U1 screen works. Character creation, `Journey Onward` and play are
-confirmed by a player. Towns, dungeons, the shops and the endgame are not, and no save of U1's own has been read
-back: `ROSTER.UT1` is 9,682 bytes for his character against the 9,676 [save-files.md](save-files.md) records for the
-original's, so the two agree in size but the fields have not been compared.
+**What still is not established.** Whether every U1 screen works. Character creation, `Journey Onward`, play, a town
+and a dungeon are confirmed by a player. The shops, the endgame and a save read back field by field are not:
+`ROSTER.UT1` is 9,682 bytes for his character against the 9,676 [save-files.md](save-files.md) records for the
+original's, so the two agree in size but their fields have not been compared.
+
+## An open question from play: monsters and closed doors
+
+Paul's report, 2026-11-12: in a dungeon, **monsters attacked him through closed doors**. Whether that is the
+original's behaviour is not known, and this page will not guess. What can be said now is where the answer will come
+from, and it is a shorter search than it looks.
+
+**The `u1` binary contains no hand-written replacement code.** `tools/game-build.sh` builds every title but Ultima II
+with `-DU2_FOREIGN_MODULE=ON`, which compiles `port/native_shadows.cpp` with an empty manifest, because those shadows
+name routines of `ENCHANT.EXP`. So the dungeon rules that ran are the original's own instructions, translated
+mechanically. A divergence from the machine therefore has only four plausible sources, and three of them are the
+port's own machinery rather than the game's logic:
+
+| possible source | why it can still be a port defect |
+|---|---|
+| the random number generator | the port's RNG is the C library's, seeded the way the original seeds it, and a different sequence would change which monster steps where |
+| timing | a turn driven by an interrupt arriving at a different point in the frame |
+| the machine layer | an I/O or BIOS answer the program reads and acts on |
+| the original itself | monsters in U1 may genuinely be able to attack through a door |
+
+**How to settle it, cheapest first.** Read the dungeon's monster-move rule in the recompiled code: it is a small amount
+of arithmetic, it is in the module already, and it either forbids entering a door tile or it does not. That is the
+corpus answer and it needs no emulator. The emulator is the fallback, and `tools/container-run.sh` or the `jarvis`
+copy both run the original.
 
 ## Reproducing
 
