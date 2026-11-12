@@ -84,3 +84,25 @@ instructions to 5,574 and 15,398.
 All seven titles were rebuilt against the regenerated module and compared at the same frame count. Ultima I, II,
 III and the three demos produce byte-identical screenshots before and after, so the extra function changed nothing
 they reach, and `british` is the only one whose behaviour moves.
+
+## Translating it, and why it is not the demos' problem
+
+This title carries **two** blocks of the same message: a Japanese one of 24 lines in Shift-JIS, and beside it an English
+one of 13 lines in ASCII, drawn one after the other. So the demos' workbook has no direct equivalent here: English already
+exists, and a workbook is for a third language.
+
+Measured 2026-11-13 from the executable:
+
+| block | lines | characters per line | encoding |
+|---|---|---|---|
+| Japanese | 24 | 4 to 16 | Shift-JIS pairs |
+| English | 13 | 14 to 30 | ASCII |
+
+**There is no room to grow.** Each line ends either at `0x0A` or at a run of `0x00`, with 0 to 4 bytes of padding after
+it, so a replacement must be at most as long as the line it replaces. That is unlike the demos, whose strings are all
+followed by `00 00` and which `tools/demopatch.js` sizes from the gap to the next string.
+
+Two consequences for anyone patching this. The Japanese block is the harder target because half its lines are under ten
+characters, which a Latin script cannot say anything in. And the patcher does not accept `BRITISH.EXP` today: it is
+limited to the three demos, and a british table would also need the mixed `0x0A`/`0x00` terminators written back
+unchanged rather than one terminator assumed for the block.
