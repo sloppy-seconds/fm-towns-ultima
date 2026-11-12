@@ -10,6 +10,7 @@ for every title and 84 MB:
 | `u2/` | Ultima II's game module, 32 files, plus `report.txt` and `coverage.txt` | 9.0 MB |
 | `u3/` | Ultima III's game module, 33 files | 8.5 MB |
 | `british/` | the Lord British message's game module, 10 files | 2.3 MB |
+| `u1demo/`, `u2demo/`, `u3demo/` | the three demo modules, 10 files each | 2.9 MB each |
 | `tbios/` | the TBIOS module, 304 files, **shared by every title** | 84 MB |
 
 Each game directory carries `p_game_*.cpp`, `p_game_funcs.h`, `p_game_table.cpp` and the `modules.cpp` the recompiler
@@ -37,7 +38,7 @@ Full policy, with the takedown route: [docs/licensing.md](../docs/licensing.md).
 
 ## Why this is code and not the game in disguise
 
-Measured, not asserted. Across all 398 module sources, every title's game module and the shared TBIOS module, there
+Measured, not asserted. Across all 422 module sources, every title's game module and the shared TBIOS module, there
 are three string literals of six characters or more:
 `"p_game_funcs.h"`, `"p_tbios_funcs.h"` and `"ran off the end of a function"`, the last two of which are the
 recompiler's own. The recompiler translates instructions. The game's text, art and maps live in its data segment and
