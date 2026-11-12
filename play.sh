@@ -15,6 +15,10 @@
 #                                 whose text scrolls faster than it can be read, which is what the three demos did.
 #                                 F5/F6/F7 in the window do the same thing by hand, but the demos end the run on any
 #                                 key press, so a key is not a lever you can use on them.
+#   ./play.sh u1demo --locale en  translate the demo's narration from locale/en/u1demo.tsv before running it, which
+#                                 writes a patched copy under build/play/<title>/i18n and runs that. The demos only:
+#                                 their narration is data in the executable, the games' text is not handled this way.
+#                                 A language is a directory of tables, so adding one costs a table and no code.
 #   ./play.sh --rebuild           force the C++ build even if the binary exists
 #
 # ONE TITLE PER RUN, and the title is the build's target. The module compiled in is that title's code and nothing
@@ -52,6 +56,8 @@ DISK_SET=0
 # Empty means "say nothing about the rate", which leaves the port's own default of 100 alone rather than restating it
 # here and letting the two disagree.
 RATE=""
+# Empty means "run the title as the disc has it". Otherwise a locale table is applied to the executable before it runs.
+LOCALE=""
 HEADLESS=0
 REBUILD=0
 FRAMES=120
@@ -70,7 +76,8 @@ while [[ $# -gt 0 ]]; do
 		--rebuild) REBUILD=1; shift ;;
 		--cpu-rate) RATE="$2"; shift 2 ;;
 		--cpu-rate=*) RATE="${1#*=}"; shift ;;
-		--help | -h) sed -n '2,32p' "$0"; exit 0 ;;
+		--locale) LOCALE="$2"; shift 2 ;;
+		--help | -h) sed -n '2,38p' "$0"; exit 0 ;;
 		-*) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
 		*) TITLE="$1"; shift ;;
 	esac
@@ -133,6 +140,22 @@ else
 	TB="$WORK/TBIOS.BIN"
 fi
 [[ -s "$TB" ]] || { echo "TBIOS did not come off the disc at $DISC_IMG" >&2; exit 1; }
+
+# 2b. The narration, in another language, when one is asked for. Only the demos: their text is Shift-JIS data in the
+#     executable and a table rewrites it in place (docs/port-demos.md). The games are a different problem and this is
+#     not the tool for them, so an unknown title is refused here rather than silently running untranslated.
+if [[ -n "$LOCALE" ]]; then
+	case "$TITLE" in
+		u1demo | u2demo | u3demo) ;;
+		*)
+			echo "--locale applies to the three demos (u1demo, u2demo, u3demo), not $TITLE." >&2
+			echo "Their narration is data in the executable; $TITLE's text is not handled this way." >&2
+			exit 2
+			;;
+	esac
+	node "$ROOT/tools/demopatch.js" --demo "$TITLE" --locale "$LOCALE" --src "$PROG" --out "$WORK/i18n" || exit 1
+	PROG="$WORK/i18n/$EXP"
+fi
 echo "program   $PROG"
 echo "tbios     $TB ($(stat -c %s "$TB") bytes)"
 

@@ -481,6 +481,65 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 	else ok('the CPU rate can be set on the command line', '--cpu-rate=N is range-checked and reaches Machine::cpu_rate');
 }
 
+// ---- the locale tables are well formed, checked with no disc and no executable present ----
+// A table is the one file in this scheme whose loss cannot be recovered by re-running a tool, so the things that make it
+// usable are asserted: the header, six columns every row, a room that is a number, a hash that is eight hex digits, and
+// indices that run 0,1,2,... with no repeats and no holes. The text column is deliberately not checked for content. A
+// table with some rows empty is a partial translation and is legal by design.
+{
+	const dir = path.join(ROOT, 'locale');
+	const bad = [];
+	let tables = 0;
+	let rows = 0;
+	let langs = [];
+	if (!fs.existsSync(dir)) bad.push('no locale/ directory');
+	else {
+		for (const lang of fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
+			langs.push(lang);
+			for (const f of fs.readdirSync(path.join(dir, lang)).filter((n) => n.endsWith('.tsv'))) {
+				tables++;
+				const lines = (read('locale/' + lang + '/' + f) || '').split('\n').filter((l) => l.trim() !== '');
+				const head = (lines[0] || '').split('\t');
+				const need = ['idx', 'file_offset', 'runtime_addr', 'room', 'sha8', 'text'];
+				const missing = need.filter((n) => !head.includes(n));
+				if (missing.length) {
+					bad.push(`locale/${lang}/${f} is missing the ${missing.join(', ')} column`);
+					continue;
+				}
+				const col = (n) => head.indexOf(n);
+				const seen = [];
+				for (const l of lines.slice(1)) {
+					rows++;
+					const f6 = l.split('\t');
+					if (f6.length !== head.length) {
+						bad.push(`locale/${lang}/${f} row ${f6[0]}: ${f6.length} columns, header has ${head.length}`);
+						continue;
+					}
+					seen.push(Number(f6[col('idx')]));
+					if (!/^[0-9]+$/.test(f6[col('room')])) bad.push(`locale/${lang}/${f} row ${f6[0]}: room ${JSON.stringify(f6[col('room')])} is not a number`);
+					if (!/^[0-9a-f]{8}$/.test(f6[col('sha8')])) bad.push(`locale/${lang}/${f} row ${f6[0]}: sha8 ${JSON.stringify(f6[col('sha8')])} is not eight hex digits`);
+				}
+				seen.forEach((v, i) => {
+					if (v !== i) bad.push(`locale/${lang}/${f}: idx runs ${seen.slice(0, 5).join(',')}..., so row ${i} is ${v}`);
+				});
+			}
+		}
+	}
+	if (bad.length) fail('the locale tables are well formed', bad.slice(0, 4).join(' | '));
+	else ok('the locale tables are well formed', `${tables} table(s) across ${langs.join(', ') || 'no'} language(s), ${rows} rows, indices contiguous`);
+}
+{
+	const bad = [];
+	const patch = read('tools/demopatch.js');
+	if (!patch) bad.push('tools/demopatch.js is missing');
+	if (!/characters into a room of/.test(patch || '')) bad.push('the overlong check is gone from demopatch.js');
+	if (!/different copy/.test(patch || '')) bad.push('the hash mismatch check is gone from demopatch.js');
+	if (!/nothing written/.test(patch || '')) bad.push('the all-or-nothing rule is gone from demopatch.js');
+	if (!/--locale/.test(read('play.sh') || '')) bad.push('play.sh does not pass a locale');
+	if (bad.length) fail('a translation cannot half-apply', bad.join(' | '));
+	else ok('a translation cannot half-apply', 'demopatch validates every row before writing, and play.sh passes the locale');
+}
+
 // ---- the shared TBIOS module covers every title's measured extra seeds ----
 // module/tbios is regenerated on purpose and it is shared, so a regeneration that was run before somebody added a
 // title's seed silently drops a function and every title keeps building, because a missing function is a runtime
