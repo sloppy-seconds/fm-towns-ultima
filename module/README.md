@@ -9,6 +9,7 @@ for every title and 84 MB:
 | `u1/` | Ultima I's game module, 30 files | 8.2 MB |
 | `u2/` | Ultima II's game module, 32 files, plus `report.txt` and `coverage.txt` | 9.0 MB |
 | `u3/` | Ultima III's game module, 33 files | 8.5 MB |
+| `british/` | the Lord British message's game module, 10 files | 2.3 MB |
 | `tbios/` | the TBIOS module, 304 files, **shared by every title** | 84 MB |
 
 Each game directory carries `p_game_*.cpp`, `p_game_funcs.h`, `p_game_table.cpp` and the `modules.cpp` the recompiler
@@ -36,11 +37,13 @@ Full policy, with the takedown route: [docs/licensing.md](../docs/licensing.md).
 
 ## Why this is code and not the game in disguise
 
-Measured, not asserted. Across all 331 sources there are three string literals of six characters or more:
+Measured, not asserted. Across all 398 module sources, every title's game module and the shared TBIOS module, there
+are three string literals of six characters or more:
 `"p_game_funcs.h"`, `"p_tbios_funcs.h"` and `"ran off the end of a function"`, the last two of which are the
 recompiler's own. The recompiler translates instructions. The game's text, art and maps live in its data segment and
-on its disc, and none of that is emitted here. `tools/portcheck.js` re-runs that measurement on every check, so a
-future recompile that started embedding game strings fails a gate instead of quietly shipping the game.
+on its disc, and none of that is emitted here. `tools/portcheck.js` re-runs that measurement over every module
+directory on every check, so a future recompile that started embedding game strings fails a gate instead of quietly
+shipping the game.
 
 ## Provenance
 
@@ -52,7 +55,7 @@ future recompile that started embedding game strings fails a gate instead of qui
 | recompiler | `fmtownskit` at `acecc30d6ac1cb196dd6a38bb1e9d25454c9199b`, branch `mp-support` |
 | game seeds | `tools/seeds.js --emit`, shifted by `0x200` into the runtime frame, plus the 88 machine-measured entries in `tools/runtime-seeds.txt`, plus the entry `0x101a20` |
 | no-code ranges | `tools/codelimits.js --args`, scoped per module |
-| TBIOS seeds | every distinct offset that executed in segment `0110` on the running game, checked in as `tools/tbios-seeds.txt` (5,395 of them) |
+| TBIOS seeds | every distinct offset that executed in segment `0110` on the running game, checked in as `tools/tbios-seeds.txt` (5,395 of them). One more is measured but **not** in this directory: `0x6864`, which only `BRITISH.EXP` reaches. See [docs/port-british.md](../docs/port-british.md) |
 | what it emitted | game: 865 functions, 43,016 instructions, 141,157 bytes, 0 refused, 0 conflicts. tbios: 5,573 functions, 15,288 instructions, 56,115 bytes, 0 refused, 0 conflicts |
 
 ## Regenerating it

@@ -659,8 +659,9 @@ intended for people who own the game, non-commercial, and a takedown contact is 
 the repository or the release comes down. That is the whole position and it is stated in
 [docs/licensing.md](docs/licensing.md), in `README.md`, and in the release notes the workflow publishes beside the binary. Since 2026-11-03 the same terms are also compiled into the binary and printed by `u2port --licences`, so they survive somebody copying only the file.
 
-**Why the split is defensible rather than convenient.** The module is code, and the claim is measured: across all 331
-generated sources there are three string literals of six characters or more, all of them the recompiler's own, because
+**Why the split is defensible rather than convenient.** The module is code, and the claim is measured: across all 398
+generated sources, every title's game module and the shared TBIOS module, there are three string literals of six
+characters or more, all of them the recompiler's own, because
 the recompiler translates instructions and the game's text and art live in its data segment and on its disc. That is
 not an assumption anyone has to keep remembering, it is an assertion in `tools/portcheck.js`, so a recompile that
 started embedding game content fails a gate instead of quietly shipping the game.

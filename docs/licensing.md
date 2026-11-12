@@ -84,8 +84,9 @@ rather than a legal argument:
 
 ## Why the split is defensible rather than convenient
 
-The claim that the module is code and not the game in another box is measured, not asserted. Across all 331 generated
-sources there are three string literals of six characters or more: `"p_game_funcs.h"`, `"p_tbios_funcs.h"` and
+The claim that the module is code and not the game in another box is measured, not asserted. Across all 398 generated
+sources, every title's game module and the shared TBIOS module, there are three string literals of six characters or
+more: `"p_game_funcs.h"`, `"p_tbios_funcs.h"` and
 `"ran off the end of a function"`. The recompiler translates instructions, and the game's text, art and maps live in
 its data segment and on its disc, none of which is emitted.
 

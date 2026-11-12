@@ -415,16 +415,23 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		const allowed = new Set(['p_game_funcs.h', 'p_tbios_funcs.h', 'ran off the end of a function']);
 		const found = new Set();
 		const extra = [];
-		for (const f of game.concat(tbios)) {
-			const dir = /^p_tbios/.test(f) ? 'module/tbios/' : 'module/u2/';
-			const src = read(dir + f) || '';
-			for (const m of src.matchAll(/"([^"\\]{6,})"/g)) {
-				if (allowed.has(m[1])) found.add(m[1]);
-				else if (extra.length < 5) extra.push(f + ': ' + JSON.stringify(m[1]));
+		// EVERY committed module directory, not only Ultima II's. What is being gated is that no recompiled module
+		// carries the game's text, and a title committed without this scan is a title nobody checked. The directory
+		// list is read rather than written out, so the next one is covered the day it lands.
+		let scanned = 0;
+		for (const dir of fs.readdirSync(path.join(ROOT, 'module'), { withFileTypes: true }).filter((d) => d.isDirectory())) {
+			for (const f of fs.readdirSync(path.join(ROOT, 'module', dir.name))) {
+				if (!/^p_(game|tbios)_(\d+|table)\.cpp$/.test(f)) continue;
+				scanned++;
+				const src = read('module/' + dir.name + '/' + f) || '';
+				for (const m of src.matchAll(/"([^"\\]{6,})"/g)) {
+					if (allowed.has(m[1])) found.add(m[1]);
+					else if (extra.length < 5) extra.push(dir.name + '/' + f + ': ' + JSON.stringify(m[1]));
+				}
 			}
 		}
 		if (extra.length) fail('the module holds translated code and no game text', extra.join(' | '));
-		else ok('the module holds translated code and no game text', found.size + ' literals, all the recompiler\'s own');
+		else ok('the module holds translated code and no game text', found.size + ' literals across ' + scanned + ' sources, all the recompiler\'s own');
 	}
 }
 
