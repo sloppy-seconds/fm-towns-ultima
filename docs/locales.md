@@ -61,6 +61,28 @@ ASCII has been demonstrated in that panel by patching every string and photograp
 letters would need Shift-JIS encoding, which has not been tried there, so the patcher refuses them rather than emitting
 them and hoping.
 
+## The panel is 72 columns, and English wraps mid-word
+
+Measured 2026-11-13: two independent long lines break after exactly **72 characters**, so that is the panel's width.
+The renderer wraps on the column count and has no notion of a word, because it was written for Japanese, which needs no
+spaces. A translation longer than 72 characters therefore breaks mid-word, `stran` then `ge`, and that is what the
+screen does with it.
+
+The Japanese never triggered this: a 116-byte string is 58 characters, which is under the panel, so the original always
+fitted on one line. English of the same meaning usually does not, so this is a difference the original does not show.
+
+It is **not** a refusal, because a wrapped line still draws correctly. `--check` reports the count and names the rows,
+which makes "shorten it until it fits the screen" a decision rather than a surprise:
+
+| table | rows over 72 columns |
+|---|---|
+| `locale/en/u1demo.tsv` | 7 of 21 |
+| `locale/en/u2demo.tsv` | 16 of 20 |
+| `locale/en/u3demo.tsv` | 15 of 24 |
+
+Shortening one costs words, so it is a translation decision and not a tool setting. The alternative is to accept the
+breaks, which read as a hyphen-less line split rather than as an error.
+
 ## What is not translated this way
 
 The three games. Their text is a different mechanism in a different program, and the demos are the case that has been

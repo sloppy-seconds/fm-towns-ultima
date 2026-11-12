@@ -1,25 +1,25 @@
 idx	file_offset	runtime_addr	room	sha8	text
-0	0x0014b4	0x0012b4	86	cb511d78	
-1	0x00150c	0x00130c	130	e101499f	
-2	0x001590	0x001390	114	bcbf6bc5	
-3	0x001604	0x001404	130	e1aab812	
-4	0x001688	0x001488	114	a3f4dacc	
-5	0x0016fc	0x0014fc	34	8c545744	
-6	0x001720	0x001520	82	2248fa62	
-7	0x001774	0x001574	90	83019657	
-8	0x0017d0	0x0015d0	66	2ef48a1c	
-9	0x001814	0x001614	150	b6bad5ea	
-10	0x0018ac	0x0016ac	54	5df38301	
-11	0x0018e4	0x0016e4	86	d9fbfaa0	
-12	0x00193c	0x00173c	86	1f62b359	
-13	0x001994	0x001794	90	eba8a08e	
-14	0x0019f0	0x0017f0	102	f4ab8929	
-15	0x001a58	0x001858	66	079d9f15	
-16	0x001a9c	0x00189c	62	867f0ff8	
-17	0x001adc	0x0018dc	130	8ee9d0ec	
-18	0x001b60	0x001960	90	ca0eefcb	
-19	0x001bbc	0x0019bc	54	455cb525	
-20	0x001bf4	0x0019f4	94	580a97ae	
-21	0x001c54	0x001a54	46	4772da2b	
-22	0x001c84	0x001a84	34	bc51e1c1	
-23	0x001ca8	0x001aa8	134	d58bb669	
+0	0x0014b4	0x0012b4	86	cb511d78	The third tale begins decades after Minax fell and her evil world was undone.
+1	0x00150c	0x00130c	130	e101499f	With evil vanquished, the orc hordes vanished without a trace, and gentle peace once more flowed across the realm.
+2	0x001590	0x001390	114	bcbf6bc5	One day, an adventurer keeping watch over the realm brought back a strange inscribed tablet from Minax's ruins.
+3	0x001604	0x001404	130	e1aab812	Wise priests and monks of Yew studied it, finding that Mondain and Minax had used it in dark rituals to awaken something.
+4	0x001688	0x001488	114	a3f4dacc	Yet whether that thing was mortal, object, or demon, not even the greatest priest could ever determine.
+5	0x0016fc	0x0014fc	34	8c545744	Decades more passed after that.
+6	0x001720	0x001520	82	2248fa62	Slowly, ominous events began plaguing the once-peaceful kingdom.
+7	0x001774	0x001574	90	83019657	It began when a red comet appeared in the sky beside the twin moons Trammel and Felucca.
+8	0x0017d0	0x0015d0	66	2ef48a1c	That ill-omened star shattered, raining fragments upon the earth.
+9	0x001814	0x001614	150	b6bad5ea	Shards gouged the land as eerie rumbles echoed below. Endless quakes shook Sosaria, and orc hordes once again threatened travelers.
+10	0x0018ac	0x0016ac	54	5df38301	Folk fled to towns guarded by thick walls and moats.
+11	0x0018e4	0x0016e4	86	d9fbfaa0	Sea lanes closed as fierce sea beasts and pirates appeared. Evil had returned!
+12	0x00193c	0x00173c	86	1f62b359	Amid quakes and rumbles, an eerie island rose from the sea in torrents of lava.
+13	0x001994	0x001794	90	eba8a08e	Some claimed to see a castle within the steam, though not a single soul believed them.
+14	0x0019f0	0x0017f0	102	f4ab8929	 Yet sensing a dark presence upon that isle, the wise ruler Lord British ordered an expedition.
+15	0x001a58	0x001858	66	079d9f15	None of the party ever returned, save for a single survivor...
+16	0x001a9c	0x00189c	62	867f0ff8	Gravely wounded, that lone explorer repeated in delirium:
+17	0x001adc	0x0018dc	130	8ee9d0ec	"From the depths of hell... Vengeance!... It awakens... No! Hurry... Must stop it... Quickly... To the castle of lava!"
+18	0x001b60	0x001960	90	ca0eefcb	Facing this new peril to his realm, Lord British resolved once more to summon heroes.
+19	0x001bbc	0x0019bc	54	455cb525	Yet the quest laid before these heroes is perilous.
+20	0x001bf4	0x0019f4	94	580a97ae	Monsters roam the land unchecked, and countless dungeons wait to swallow them whole.
+21	0x001c54	0x001a54	46	4772da2b	Worse still, the foe's true nature is unknown.
+22	0x001c84	0x001a84	34	bc51e1c1	The sole remaining clue is...
+23	0x001ca8	0x001aa8	134	d58bb669	A single word scrawled in blood upon the deck of a ship whose crew vanished as if taken by demons... "EXODUS".

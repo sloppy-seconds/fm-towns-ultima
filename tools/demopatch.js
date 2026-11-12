@@ -40,6 +40,12 @@ const DEMOS = ['u1demo', 'u2demo', 'u3demo'];
 const EXP_OF = { u1demo: 'UT1DEMO.EXP', u2demo: 'UT2DEMO.EXP', u3demo: 'UT3DEMO.EXP' };
 const MP_HEADER = 0x200;
 const TERMINATOR = 2; // every string in this pool ends with 00 00
+// THE PANEL IS 72 COLUMNS, measured 2026-11-13 from where two independent long lines break: both first lines are exactly
+// 72 characters. The renderer wraps on the column count and has no idea what a word is, because it was written for
+// Japanese, so a line over 72 breaks mid-word. That is not a refusal: a wrapped line still draws correctly and the
+// meaning survives. It is reported so that "make it fit the screen" is a decision somebody can make rather than a
+// surprise on screen.
+const PANEL_COLUMNS = 72;
 
 // A row is one string the game draws. `room` is what a translation may occupy, which is the distance to the next string
 // less the terminator, measured from the executable rather than copied from a doc.
@@ -205,8 +211,12 @@ function main(argv) {
 	}
 
 	if (argv.includes('--check')) {
+		const wrapping = patches.filter((p) => p.text.length > PANEL_COLUMNS);
 		console.log(`${demo} / ${locale}: ${filled} of ${rows.length} strings translated, all fit, nothing written`);
-		for (const p of patches) console.log(`  row ${String(p.idx).padStart(2)}  ${String(p.text.length).padStart(3)}/${String(p.room).padStart(3)}  ${p.text}`);
+		if (wrapping.length)
+			console.log(`  ${wrapping.length} of ${filled} exceed the panel's ${PANEL_COLUMNS} columns and will wrap mid-word: rows ${wrapping.map((p) => p.idx).join(', ')}`);
+		for (const p of patches)
+			console.log(`  row ${String(p.idx).padStart(2)}  ${String(p.text.length).padStart(3)}/${String(p.room).padStart(3)}${p.text.length > PANEL_COLUMNS ? ' wraps' : '      '}  ${p.text}`);
 		return 0;
 	}
 
@@ -220,6 +230,8 @@ function main(argv) {
 	const dest = path.join(outDir, EXP_OF[demo]);
 	fs.writeFileSync(dest, buf);
 	console.log(`${demo} / ${locale}: ${filled} of ${rows.length} strings translated, wrote ${dest}`);
+	const wrapped = patches.filter((p) => p.text.length > PANEL_COLUMNS).length;
+	if (wrapped) console.log(`  ${wrapped} line(s) are longer than the panel's ${PANEL_COLUMNS} columns and wrap mid-word, which is legal and is what the renderer does with Japanese-less text`);
 	console.log(`  run it with: <port> ${path.relative(ROOT, dest)} <TBIOS.BIN> <disc.cue>`);
 	return 0;
 }
