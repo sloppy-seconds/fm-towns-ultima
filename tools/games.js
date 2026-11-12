@@ -37,6 +37,8 @@
 // `exp` is the name on the disc, not a path.
 // `selector` is the code selector the module is registered at. 0x0c is measured on ENCHANT and used for the
 // others until each is measured, which is stated per title rather than implied.
+// `window` is what the SDL window's title bar says, so a player can tell seven binaries apart in a window list. It is
+// short on purpose: the full `title` carries the executable's name, which is noise in a title bar.
 // `seeds` is where the addresses no static rule finds live, relative to the repository.
 // `tbiosSeeds` is the same thing for the shared TBIOS module: offsets in segment `0110` that a title reaches and the
 // live U2 capture in `tools/tbios-seeds.txt` never saw. They are per title because the capture is one game's trace,
@@ -50,6 +52,7 @@ const GAMES = [
 	{
 		id: 'u1',
 		title: 'Ultima I (DARKNESS.EXP)',
+		window: 'Ultima I',
 		exp: 'DARKNESS.EXP',
 		bytes: 965986,
 		entry: 0xe7a74,
@@ -64,6 +67,7 @@ const GAMES = [
 	{
 		id: 'u2',
 		title: 'Ultima II (ENCHANT.EXP)',
+		window: 'Ultima II',
 		exp: 'ENCHANT.EXP',
 		bytes: 1072398,
 		entry: 0x101a20,
@@ -78,6 +82,7 @@ const GAMES = [
 	{
 		id: 'u3',
 		title: 'Ultima III (EXODUS.EXP)',
+		window: 'Ultima III',
 		exp: 'EXODUS.EXP',
 		bytes: 904310,
 		entry: 0xd8ab0,
@@ -92,6 +97,7 @@ const GAMES = [
 	{
 		id: 'british',
 		title: 'British (BRITISH.EXP)',
+		window: 'Lord British',
 		exp: 'BRITISH.EXP',
 		bytes: 360481,
 		entry: 0x54094,
@@ -106,6 +112,7 @@ const GAMES = [
 	{
 		id: 'u1demo',
 		title: 'Ultima I demo (UT1DEMO.EXP)',
+		window: 'Ultima I demo',
 		exp: 'UT1DEMO.EXP',
 		bytes: 618433,
 		entry: 0x93034,
@@ -120,6 +127,7 @@ const GAMES = [
 	{
 		id: 'u2demo',
 		title: 'Ultima II demo (UT2DEMO.EXP)',
+		window: 'Ultima II demo',
 		exp: 'UT2DEMO.EXP',
 		bytes: 618849,
 		entry: 0x931d4,
@@ -134,6 +142,7 @@ const GAMES = [
 	{
 		id: 'u3demo',
 		title: 'Ultima III demo (UT3DEMO.EXP)',
+		window: 'Ultima III demo',
 		exp: 'UT3DEMO.EXP',
 		bytes: 619297,
 		entry: 0x93394,

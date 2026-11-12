@@ -62,6 +62,15 @@ extern const X86Module g_mod_p_game;
 #endif
 static const char *const kProgram = PORT_PROGRAM;
 
+// WHAT THE WINDOW SAYS IT IS. This was a literal, `"Ultima II - FM Towns, recompiled"`, and every one of the seven
+// binaries said it, because a title written into the source is a title nobody has to choose. The build now passes
+// this from the title table, and the CMake default is PORT_PROGRAM rather than a fixed string, so a build that forgets
+// gets a title bar that is wrong-looking but still its own rather than one shared with six other titles.
+#ifndef PORT_TITLE
+#define PORT_TITLE PORT_PROGRAM
+#endif
+static const char *const kTitle = PORT_TITLE;
+
 // An instruction trace, for differential debugging against the machine. The kit calls this for every
 // instruction when the build defines X86_TRACE_ON (see x86.h), and the point is to compare the port's sequence
 // with a control-flow capture taken off the emulator: the first place they part is the bug. Without it the
@@ -1353,14 +1362,15 @@ int main(int argc, char **argv) {
 	towns::SdlHost host;
 	if (use_sdl) {
 		towns::SdlOptions o;
-		o.title = "Ultima II - FM Towns, recompiled";
+		o.title = std::string(kTitle) + " - FM Towns, recompiled";
 		o.scale = scale;
 		o.fullscreen = fullscreen;
 		o.letterbox = letterbox;
 		std::string err;
 		if (host.open(o, err)) {
 			host.on_key = [&m](uint8_t scan, uint8_t ascii) { m.press_key(scan, ascii); };
-			std::printf("graphics  sdl, window open, Ctrl-Q or closing the window ends the run\n");
+			std::printf("graphics  sdl, window open as \"%s\", Ctrl-Q or closing the window ends the run\n",
+						o.title.c_str());
 		} else {
 			// A display that is missing costs a picture and not a measurement, so this falls back rather than
 			// refusing. It says so, because "the window did not open" and "the window opened and showed nothing"

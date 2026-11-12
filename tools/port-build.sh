@@ -265,6 +265,7 @@ fi
 # fresh one and CMake would see every tbios function twice.
 cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DTBIOS_DIR="$RECOMP" \
 	-DFMT_RUNTIME="$KIT/runtime" $SHADOW_FLAG -DPORT_TARGET="$GAME_ID" -DPORT_PROGRAM="$GAME" \
+	-DPORT_TITLE="$(node "$ROOT/tools/games.js" --get "$GAME_ID" window)" \
 	-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2

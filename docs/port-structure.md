@@ -47,6 +47,7 @@ from their committed modules since 2026-11-12, and what that took is in [docs/po
 | the build stage | `build/<id>/` | done for `u3`, `u2` still uses `build/port/` |
 | the committed module | `module/<id>/` per title, `module/tbios/` shared | done for all seven: u1, u2, u3 at 8 to 9 MB each, the three demos at 2.9 MB each, british at 2.3 MB, plus one 84 MB TBIOS, which is why it is shared |
 | the binary | the title's id, via a CMake `PORT_TARGET` cache variable | done: `u3` builds `u3`, `u2` builds `u2` |
+| the window title bar | `PORT_TITLE`, from `tools/games.js` `window` | done: CMake defaults it to `PORT_PROGRAM` so a build path nobody updated still gets a bar of its own rather than a shared one |
 | measured seeds | `tools/seeds/<id>.txt` | partly: `tools/u3-seeds.txt` and `tools/runtime-seeds.txt` |
 | extracted asset output | `extracted/<id>/` | not done, `extracted/u2` and `extracted/GRAPH` coexist |
 | the save disk | `saves/<id>-test.hdm` | partly: `saves/u3test.hdm` |

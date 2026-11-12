@@ -15,6 +15,11 @@ set(PORT_TARGET u2 CACHE STRING "name of the executable this build produces")
 # EXODUS.EXP's module runs Ultima II's entry address against code that never contained it: measured on jarvis, it stops at
 # `no recompiled function at 000C:101a20`. Set together with PORT_TARGET by tools/game-build.sh from tools/games.js.
 set(PORT_PROGRAM "ENCHANT.EXP" CACHE STRING "the .EXP inside the disc image that this binary runs")
+# WHAT THE WINDOW'S TITLE BAR SAYS. The kit appends the CPU rate, so the rest is the title's own name. It defaults to the
+# executable's name rather than to a fixed string, because the failure this replaced was one hard-coded Ultima II title
+# in every binary, and a default that cannot be the same for two titles makes that failure impossible rather than
+# merely fixed. tools/games.js `window` supplies the short name where a build passes this.
+set(PORT_TITLE "${PORT_PROGRAM}" CACHE STRING "the window title bar's text, before the kit appends the CPU rate")
 project(${PORT_TARGET} CXX)
 set(CMAKE_CXX_STANDARD 20)
 if(NOT CMAKE_BUILD_TYPE)
@@ -117,7 +122,8 @@ endforeach()
 
 add_executable(${PORT_TARGET} main.cpp modules.cpp native_shadows.cpp ${EMBEDDED_FONT_ROM} ${EMBEDDED_LICENCES})
 target_compile_definitions(${PORT_TARGET} PRIVATE "PORT_PROGRAM=\"${PORT_PROGRAM}\"")
-message(STATUS "${PORT_TARGET}: runs \\${PORT_PROGRAM} from the disc image")
+target_compile_definitions(${PORT_TARGET} PRIVATE "PORT_TITLE=\"${PORT_TITLE}\"")
+message(STATUS "${PORT_TARGET}: runs \\${PORT_PROGRAM} from the disc image, window titled \"${PORT_TITLE}\"")
 # The no-game CI check generates its module from 4 KB of zero fill, so the functions the native shadows name do not
 # exist there and the table cannot name them. Shadows are game-specific by construction, so that build compiles an
 # empty manifest instead of the real one. It is an option rather than a guess at the module's contents because the

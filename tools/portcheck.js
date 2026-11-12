@@ -88,6 +88,15 @@ requireText(main, 'set_desc(0x0120, 0x80000000', 'the screen selector is the mea
 requireText(main, 'graphics = "sdl"', 'the default graphics backend is sdl');
 requireText(main, 'graphics != "sdl" && graphics != "none"', 'an unknown backend is refused rather than ignored');
 requireText(read('tools/port-build.sh'), '--graphics=none', 'the build script pins the measurement path to no graphics');
+// THE WINDOW'S TITLE BAR BELONGS TO THE TITLE. It was the literal "Ultima II - FM Towns, recompiled" and all seven
+// binaries carried it, so a task bar or a window list showed seven identical entries and Paul could not tell which game
+// he had launched. The bar is now PORT_TITLE, which tools/games.js supplies per title, and CMake's default for it is
+// PORT_PROGRAM, so a build path nobody updated still gets a bar of its own rather than the shared one.
+forbidText(main, '"Ultima II - FM Towns, recompiled"', 'one title bar for every binary');
+requireText(main, 'kTitle', 'the title bar is built from PORT_TITLE');
+requireText(read('port/CMakeLists.txt'), 'set(PORT_TITLE', 'CMake carries the title, with a per-title default');
+for (const script of ['tools/port-build.sh', 'tools/release-package.sh', 'tools/release-package-windows.sh'])
+	requireText(read(script), '-DPORT_TITLE=', script + ' passes the title from the table');
 // The entry is the MP header's own field, not a literal, which is what let BRITISH.EXP run unedited.
 requireText(main, 'ENTRY_FROM_HEADER', 'entry comes from the header');
 requireText(main, 'file[0x14]', 'the header field read is dword at 0x14');
