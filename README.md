@@ -38,7 +38,8 @@ is fine.
 
 ```bash
 # your own copy of the game goes in ./game/
-./play.sh
+./play.sh                       # Ultima II, the default
+./play.sh u3                    # or u1, british, u1demo, u2demo, u3demo
 ```
 
 The release is one file per title, not an archive: `fm-u1-linux-x86_64`, `fm-u2-linux-x86_64`
@@ -288,13 +289,16 @@ in `module/`, so there is nothing to recompile:
 
 ```bash
 ./play.sh                       # your own copy of the game in ./game/
-./play.sh --headless 120        # no window, writes build/play/shot.png
+./play.sh u3                    # any title: u1, u3, british, u1demo, u2demo, u3demo
+./play.sh --headless 120        # no window, writes build/play/<title>/shot.png
 ```
 
-`play.sh` builds the port with cmake, which needs a C++20 compiler and SDL3. If the distro
-has an SDL3 it uses that, and if it does not it builds the pinned SDL3 as a static archive
-first, so a plain clone on a plain machine still gets a binary. It extracts `ENCHANT.EXP`
-and `TBIOS.BIN` from your disc into `build/play/`, and fetches the font ROM.
+`play.sh` builds the port with cmake, which needs a C++20 compiler and an SDL3, and it builds
+the pinned SDL3 as a static archive first when the distro's is missing or shared, so a plain
+clone on a plain machine still gets a binary. The title word is the build's target: it compiles
+that title's committed module from `module/<title>`, asks the disc for that title's executable,
+and gives the window that title's name. It extracts the program and `TBIOS.BIN` from your disc
+into `build/play/<title>/`, and fetches the font ROM.
 
 For a headless or remote machine the container serves the same port over noVNC, and it is
 also the route for regenerating the module from the disc:

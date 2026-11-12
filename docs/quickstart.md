@@ -148,8 +148,9 @@ The recompiled port is the game's own 386 code running on the toolkit's FM Towns
 and its module is committed in `module/`, so there is nothing to recompile:
 
 ```bash
-./play.sh                        # your own copy of the game in ./game/
-./play.sh --headless 120         # no window, writes build/play/shot.png
+./play.sh                        # your own copy of the game in ./game/, Ultima II
+./play.sh u3                     # any title from tools/games.js: u1, u3, british, u1demo, u2demo, u3demo
+./play.sh --headless 120         # no window, writes build/play/<title>/shot.png
 ```
 
 It needs a C++20 compiler, and SDL3 from the distro or built from the pinned source if the

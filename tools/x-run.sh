@@ -24,6 +24,8 @@
 #   PLAY_ARGS   arguments for play.sh itself: --disk, --headless, --rebuild. These are play.sh's own flags and
 #               putting them in ARGS sends them to the port, which answers "cannot read the executable" and stops.
 #               They were unreachable from here before, so a container could not choose its save disk at all.
+#   TITLE       which title to play, by id from tools/games.js (default u2). Seven titles share one image and one
+#               script, so this is the only thing that has to change to serve a different one.
 #   NOBUILD=1   accepted and ignored. play.sh already rebuilds only when the binary is missing, and --rebuild is
 #               the way to force it. The flag stays so old invocations do not break.
 #   IMAGE       the image to use      (default u2-x, built locally from container/Containerfile.x). Point it at
@@ -72,7 +74,7 @@ do_build() {
 # container just started. U2_WORK points its working files at the writable volume, because /src is mounted read-only
 # on purpose and nothing here should land in the working tree as root-owned.
 session_cmd() {
-	printf 'set -e\nU2_WORK=/build U2_ARGS="%s" /src/play.sh %s\n' "$ARGS" "$PLAY_ARGS"
+	printf 'set -e\nU2_WORK=/build U2_ARGS="%s" /src/play.sh %s %s\n' "$ARGS" "${TITLE:-u2}" "$PLAY_ARGS"
 }
 
 do_start() {

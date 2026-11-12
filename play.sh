@@ -6,11 +6,18 @@
 # downloads the release binary), drops their own files in, and plays. No recompile, no container, no toolkit.
 # The container and tools/port-build.sh are the from-source route now, which is where they always belonged.
 #
-#   ./play.sh                     build if needed, then play with a window
+#   ./play.sh                     build if needed, then play Ultima II with a window
+#   ./play.sh u3                  the same for any title in tools/games.js: u1, u2, u3, british, u1demo, u2demo, u3demo
 #   ./play.sh --game DIR          where your game files are (default ./game)
-#   ./play.sh --disk FILE         which save floppy to use (default saves/userdisk.hdm)
+#   ./play.sh --disk FILE         which save floppy to use (default: the title's own, from tools/games.js)
 #   ./play.sh --headless N        run N frames with no window, write a PNG, and exit
 #   ./play.sh --rebuild           force the C++ build even if the binary exists
+#
+# ONE TITLE PER RUN, and the title is the build's target. The module compiled in is that title's code and nothing
+# else, so `./play.sh u3` builds `u3` from module/u3 and runs it. All seven share one TBIOS module, which is why
+# every title's code is already committed and none of this needs the disc for anything but the media.
+#
+#   ./play.sh u1demo --headless 9000    builds the Ultra I demo and photographs frame 9000
 #
 # WHAT IT NEEDS FROM YOU. The unpacked archive.org zip in ./game/, which means at least the disc image
 # (`*.img`), because the port opens the disc at run time for its artwork and its kanji font. And the FM Towns
@@ -28,16 +35,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -d "$ROOT/game" ]]; then GAME="$ROOT/game"; else GAME="$ROOT"; fi
 # U2_WORK lets a container point the build and the extracted files somewhere writable while the project itself is
 # mounted read-only. tools/x-run.sh uses it for exactly that.
-WORK="${U2_WORK:-$ROOT/build/play}"
-# The save disk has to live somewhere the tree can write, and in a container that is not beside the repository. The
-# port opens this image for writing by default, so putting it on a read-only mount makes a created character fail to
-# persist with no error that names the cause. The font ROM block further down has guarded against exactly this since
-# it was written. The disk default did not, which is why tools/x-run.sh needed a flag to work at all.
-if [[ -w "$ROOT/saves" ]]; then
-	DISK="$ROOT/saves/userdisk.hdm"
-else
-	DISK="$WORK/userdisk.hdm"
-fi
+PLAY_ROOT="${U2_WORK:-$ROOT/build/play}"
+# THE SDL3 ARCHIVE IS SHARED AND THE BUILD TREE IS NOT. cmake caches PORT_TARGET inside the build directory, so a
+# build tree reused for a second title keeps the first one's target and quietly produces the first one's binary
+# under the second one's name. One directory per title. The pinned SDL3 archive is the same archive for all seven,
+# so it stays at the root and is built once.
+SDL_CACHE="$PLAY_ROOT/sdl3"
+# THE TITLE, before anything is read from the disc. Ultima II is the default because it is the title every number,
+# route and document in this project was measured on, so a bare `./play.sh` still means what it always meant.
+TITLE=u2
+DISK_SET=0
 HEADLESS=0
 REBUILD=0
 FRAMES=120
@@ -45,7 +52,7 @@ FRAMES=120
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--game) GAME="$2"; shift 2 ;;
-		--disk) DISK="$2"; shift 2 ;;
+		--disk) DISK="$2"; DISK_SET=1; shift 2 ;;
 		--headless)
 			HEADLESS=1
 			# The frame count is optional and only taken if it is a number, so `--headless --rebuild` does not
@@ -54,10 +61,37 @@ while [[ $# -gt 0 ]]; do
 			shift
 			;;
 		--rebuild) REBUILD=1; shift ;;
-		--help | -h) sed -n '2,26p' "$0"; exit 0 ;;
-		*) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
+		--help | -h) sed -n '2,28p' "$0"; exit 0 ;;
+		-*) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
+		*) TITLE="$1"; shift ;;
 	esac
 done
+
+# THE TITLE IS CHECKED AGAINST THE TABLE, not against a list written here. An unknown word is refused with the seven
+# ids named, because the alternative is what this script used to do: build Ultima II and leave the caller believing
+# they had asked for something else.
+if ! node "$ROOT/tools/games.js" --ids | grep -qx "$TITLE"; then
+	echo "no title \"$TITLE\". This builds one of: $(node "$ROOT/tools/games.js" --ids | paste -sd' ' -)" >&2
+	exit 2
+fi
+EXP=$(node "$ROOT/tools/games.js" --get "$TITLE" exp)
+WIN=$(node "$ROOT/tools/games.js" --get "$TITLE" window)
+SAVE=$(node "$ROOT/tools/games.js" --get "$TITLE" saveDisk)
+WORK="$PLAY_ROOT/$TITLE"
+
+# The save disk has to live somewhere the tree can write, and in a container that is not beside the repository. The
+# port opens this image for writing by default, so putting it on a read-only mount makes a created character fail to
+# persist with no error that names the cause. The title's own disk is used when the repository has it, which matters
+# now that the default is chosen by title rather than being Ultima II's.
+if [[ $DISK_SET -eq 0 ]]; then
+	if [[ -n "$SAVE" && -f "$ROOT/$SAVE" ]]; then
+		DISK="$ROOT/$SAVE"
+	elif [[ -w "$ROOT/saves" ]]; then
+		DISK="$ROOT/saves/userdisk.hdm"
+	else
+		DISK="$WORK/userdisk.hdm"
+	fi
+fi
 
 [[ -d "$GAME" ]] || {
 	echo "no game directory at $GAME. Unpack the archive.org zip into ./game/ (see README), or pass --game DIR." >&2
@@ -74,12 +108,14 @@ if [[ -z "$DISC_IMG" ]]; then
 fi
 echo "disc      $DISC_IMG"
 
-# 2. The program image and TBIOS, taken from the disc rather than copied into the tree.
-if [[ -f "$GAME/ENCHANT.EXP" ]]; then
-	PROG="$GAME/ENCHANT.EXP"
+# 2. The program image and TBIOS, taken from the disc rather than copied into the tree. The program's name is the
+#    title's, so `u3` asks the disc for EXODUS.EXP and the demo ids ask for their own screensaver shell.
+echo "title     $TITLE ($EXP)"
+if [[ -f "$GAME/$EXP" ]]; then
+	PROG="$GAME/$EXP"
 else
-	node "$ROOT/tools/getfile.js" ENCHANT.EXP --disc "$DISC_IMG" --out "$WORK" >/dev/null
-	PROG="$WORK/ENCHANT.EXP"
+	node "$ROOT/tools/getfile.js" "$EXP" --disc "$DISC_IMG" --out "$WORK" >/dev/null
+	PROG="$WORK/$EXP"
 fi
 if [[ -f "$WORK/tbios.bin" ]]; then
 	TB="$WORK/tbios.bin"
@@ -149,24 +185,26 @@ else
 	echo "saves     the port creates ./saves on first run, and no image was found to seed it from"
 fi
 
-# 6. The binary. A release tarball ships the port next to this script under its release name, and then there is
-#    nothing to build: that is the whole point of the release. A clone has no binary at the root, so it builds one
-#    from module/ with cmake, which needs a compiler and SDL3 but no recompiler and no toolkit beyond its runtime
-#    headers. The NAME OF THE EXECUTABLE IS THE TITLE'S, so this looks for `u2` first (docs/port-structure.md): the
-#    release asset keeps its long name and is found too, and `u2port` is what builds called it before the rename.
+# 6. The binary. A release carries the port beside this script under its release name, and then there is nothing to
+#    build: that is at least part of the point of the release. A clone has no binary at the root, so it builds one
+#    from module/<title> with cmake, which needs a compiler and SDL3 but no recompiler and no toolkit beyond its
+#    runtime headers. THE NAME OF THE EXECUTABLE IS THE TITLE'S, so every lookup below is per title: a build produces
+#    `u3` for u3, the release asset is `fm-u3-linux-x86_64`, and `u3port` is the spelling builds used before the
+#    rename and is still honoured. Looking for a single fixed name here is how this script came to build only
+#    Ultima II while claiming to run whatever was in ./game/.
 #    There is no probe for a distro SDL3 any more: every build links the pinned static archive, because a binary that
 #    needs libSDL3 from the package manager is the thing this whole script exists to avoid handing to somebody.
-if [[ -x "$ROOT/u2" ]]; then
-	PORT_BIN="$ROOT/u2"
+if [[ -x "$ROOT/$TITLE" ]]; then
+	PORT_BIN="$ROOT/$TITLE"
 	echo "binary    $PORT_BIN (shipped with this archive, nothing built)"
-elif [[ -x "$ROOT/u2port" ]]; then
-	PORT_BIN="$ROOT/u2port"
-	echo "binary    $PORT_BIN (shipped with this archive, nothing built)"
-elif [[ -x "$ROOT/u2port-linux-x86_64" ]]; then
-	PORT_BIN="$ROOT/u2port-linux-x86_64"
+elif [[ -x "$ROOT/fm-$TITLE-linux-x86_64" ]]; then
+	PORT_BIN="$ROOT/fm-$TITLE-linux-x86_64"
 	echo "binary    $PORT_BIN (the release asset, nothing built)"
-elif [[ $REBUILD -eq 0 && -x "$WORK/u2" ]]; then
-	PORT_BIN="$WORK/u2"
+elif [[ -x "$ROOT/${TITLE}port" ]]; then
+	PORT_BIN="$ROOT/${TITLE}port"
+	echo "binary    $PORT_BIN (the name builds used before the rename, nothing built)"
+elif [[ $REBUILD -eq 0 && -x "$WORK/$TITLE" ]]; then
+	PORT_BIN="$WORK/$TITLE"
 	echo "binary    $PORT_BIN (built earlier, --rebuild to force)"
 else
 	[[ -d "$ROOT/port" ]] || {
@@ -183,19 +221,26 @@ else
 		exit 2
 	fi
 	echo "sdl3      building or reusing the pinned static archive (a few minutes the first time)"
-	SDL_PREFIX="$(SDL3_CACHE="$WORK/sdl3" "$ROOT/tools/sdl-from-source.sh")" || {
+	SDL_PREFIX="$(SDL3_CACHE="$SDL_CACHE" "$ROOT/tools/sdl-from-source.sh")" || {
 		echo "the SDL3 source build failed. Run tools/sdl-from-source.sh to see why." >&2
 		exit 1
 	}
 	SDL_ARGS=(-DCMAKE_PREFIX_PATH="$SDL_PREFIX")
-	cmake -S "$ROOT/port" -B "$WORK" -DCMAKE_BUILD_TYPE=Release "${SDL_ARGS[@]}" >"$WORK/cmake.log" 2>&1
+	# THE TITLE'S THREE FACTS, passed rather than defaulted: the target name, the program it asks the disc for, and
+	# the window title. -DU2_FOREIGN_MODULE is what compiles an empty shadow manifest for every title but Ultima II,
+	# because the hand-written shadows name routines of ENCHANT.EXP and no other title has a table yet.
+	FOREIGN=""
+	[[ "$TITLE" != "u2" ]] && FOREIGN="-DU2_FOREIGN_MODULE=ON"
+	cmake -S "$ROOT/port" -B "$WORK" -DCMAKE_BUILD_TYPE=Release "${SDL_ARGS[@]}" \
+		-DPORT_TARGET="$TITLE" -DPORT_PROGRAM="$EXP" -DPORT_TITLE="$WIN" $FOREIGN \
+		-DRECOMP_DIR="$ROOT/module/$TITLE" -DTBIOS_DIR="$ROOT/module/tbios" >"$WORK/cmake.log" 2>&1
 	cmake --build "$WORK" -j"$(nproc)" >"$WORK/build.log" 2>&1 || {
 		echo "the port failed to build. Last lines of $WORK/build.log:" >&2
 		tail -20 "$WORK/build.log" >&2
 		exit 1
 	}
-	PORT_BIN="$WORK/u2"
-	echo "built     $PORT_BIN from module/ ($(ls "$ROOT"/module/p_*.cpp | wc -l) sources, no recompile)"
+	PORT_BIN="$WORK/$TITLE"
+	echo "built     $PORT_BIN from module/$TITLE ($(ls "$ROOT"/module/"$TITLE"/p_game_*.cpp "$ROOT"/module/tbios/p_tbios_*.cpp | wc -l) sources, no recompile)"
 fi
 
 # 7. Play.

@@ -97,6 +97,28 @@ requireText(main, 'kTitle', 'the title bar is built from PORT_TITLE');
 requireText(read('port/CMakeLists.txt'), 'set(PORT_TITLE', 'CMake carries the title, with a per-title default');
 for (const script of ['tools/port-build.sh', 'tools/release-package.sh', 'tools/release-package-windows.sh'])
 	requireText(read(script), '-DPORT_TITLE=', script + ' passes the title from the table');
+// PLAY.SH BUILDS WHATEVER TITLE IT IS GIVEN, and it did not: it passed no -DPORT_TARGET and no -DRECOMP_DIR, so cmake's
+// defaults (u2 and module/u2) decided for it and every other title's disc program was handed to Ultima II's module. The
+// first thing wrong was that the program it looked for was the literal ENCHANT.EXP, so `./play.sh` with a U3 disc found
+// nothing and built Ultima II. These are the four lines that make the title the argument rather than the default.
+{
+	const play = read('play.sh') || '';
+	const bad = [];
+	if (!/node "\$ROOT\/tools\/games\.js" --ids/.test(play)) bad.push('the title is not validated against tools/games.js --ids');
+	if (!/-DPORT_TARGET="\$TITLE"/.test(play)) bad.push('-DPORT_TARGET is not the title, so cmake builds its default instead');
+	if (!/-DPORT_PROGRAM="\$EXP"/.test(play)) bad.push('-DPORT_PROGRAM is not the title\'s executable');
+	if (!/-DRECOMP_DIR="\$ROOT\/module\/\$TITLE"/.test(play)) bad.push('-DRECOMP_DIR is not module/<title>, so the wrong module is linked');
+	if (/\$GAME\/ENCHANT\.EXP/.test(play)) bad.push('play.sh still looks for ENCHANT.EXP by name');
+	if (!/\$WORK\/\$TITLE/.test(play)) bad.push('the binary is not looked for under the title\'s name');
+	if (bad.length) fail('play.sh builds the title it is given', bad.join(' | '));
+	else ok('play.sh builds the title it is given', 'the id is validated, and target, program and module all come from it');
+}
+{
+	const xrun = read('tools/x-run.sh') || '';
+	if (/play\.sh %s/.test(xrun) && !/\$\{TITLE:-u2\}/.test(xrun))
+		fail('the browser route can choose a title', 'tools/x-run.sh runs play.sh with no title, so the container can only serve Ultima II');
+	else ok('the browser route can choose a title', 'TITLE reaches play.sh, defaulting to u2');
+}
 // The entry is the MP header's own field, not a literal, which is what let BRITISH.EXP run unedited.
 requireText(main, 'ENTRY_FROM_HEADER', 'entry comes from the header');
 requireText(main, 'file[0x14]', 'the header field read is dword at 0x14');

@@ -6,7 +6,7 @@ the outputs below are what it printed.
 
 **This is the from-source route, and since 2026-10-30 it is not the only one.** The recompiled module is committed
 under `module/`, so a person who owns the game does not need any of steps 4 to 7 to play: put the files in `game/`
-and run `./play.sh`. What follows is for regenerating the module itself, which needs the toolkit, the venv and the
+and run `./play.sh`, or `./play.sh u3` for any other title. What follows is for regenerating the module itself, which needs the toolkit, the venv and the
 disc, and for anyone who wants to check that the committed module is what the disc produces. The policy behind that
 split is [licensing and preservation](licensing.md).
 
