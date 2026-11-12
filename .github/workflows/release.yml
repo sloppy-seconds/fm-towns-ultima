@@ -85,14 +85,16 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/work" --entrypoint bash u2port-ci \
             -lc 'cd /work && ./tools/release-package.sh'
 
-      # Three binaries from one packaging run: each title is built from its own committed game module plus the one shared
-      # TBIOS module, so this job needs no disc and no recompiler, which is the whole point of committing them.
+      # One binary per title, in disc order, from one packaging run: each title is built from its own committed game module
+      # plus the one shared TBIOS module, so this job needs no disc and no recompiler, which is the whole point of committing
+      # them. The id list comes from tools/games.js rather than from a list written here, so a title added to module/ cannot
+      # be left out of the release by accident again.
       - name: Record the digests
         id: sum
         run: |
-          echo "u2=$(sha256sum dist/fm-u2-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "u3=$(sha256sum dist/fm-u3-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "u1=$(sha256sum dist/fm-u1-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          for id in $(node tools/games.js --ids); do
+            echo "$id=$(sha256sum dist/fm-$id-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -103,6 +105,10 @@ jobs:
       sha256_u2: ${{ steps.sum.outputs.u2 }}
       sha256_u3: ${{ steps.sum.outputs.u3 }}
       sha256_u1: ${{ steps.sum.outputs.u1 }}
+      sha256_british: ${{ steps.sum.outputs.british }}
+      sha256_u1demo: ${{ steps.sum.outputs.u1demo }}
+      sha256_u2demo: ${{ steps.sum.outputs.u2demo }}
+      sha256_u3demo: ${{ steps.sum.outputs.u3demo }}
 
   windows:
     name: Build the Windows binary
@@ -163,7 +169,7 @@ jobs:
         with:
           name: windows-binaries
 
-      # Binaries and nothing else, and now four of them: three Linux titles and one Windows build of Ultima II. The rule
+      # Binaries and nothing else, and now ten of them: seven Linux titles and three Windows builds. The rule
       # this step enforces is unchanged: a release publishes files a player runs, not archives they have to unpack, and
       # not a support kit beside it. Any other name here is either a mistake or a decision, and this makes it a decision.
       - name: Confirm the release is binaries only
@@ -173,8 +179,10 @@ jobs:
           for f in *; do
             case "$f" in
               fm-u1-linux-x86_64 | fm-u2-linux-x86_64 | fm-u3-linux-x86_64 | \
+              fm-british-linux-x86_64 | fm-u1demo-linux-x86_64 | fm-u2demo-linux-x86_64 | \
+              fm-u3demo-linux-x86_64 | \
               fm-u1-windows-x86_64.exe | fm-u2-windows-x86_64.exe | fm-u3-windows-x86_64.exe) ;;
-              *) echo "refusing to publish: $f is not one of the six binaries" >&2; exit 1 ;;
+              *) echo "refusing to publish: $f is not one of the ten binaries" >&2; exit 1 ;;
             esac
           done
 
@@ -184,8 +192,11 @@ jobs:
             fm-u1-linux-x86_64
             fm-u2-linux-x86_64
             fm-u3-linux-x86_64
-            fm-u1-windows-x86_64.exe
-            fm-u2-windows-x86_64.exe
+            fm-british-linux-x86_64
+            fm-u1demo-linux-x86_64
+            fm-u2demo-linux-x86_64
+            fm-u3demo-linux-x86_64
+            fm-u1-windows-x86_64.exe            fm-u2-windows-x86_64.exe
             fm-u3-windows-x86_64.exe
           body: |
             Early, and honest about it. The port reaches the title screen, the game menu and the overworld, characters can be
@@ -214,21 +225,34 @@ jobs:
 
             ## The binaries
 
-            Three games, one file each, and no archive to unpack. Put your own copy of the disc image beside the binary you
-            want and run it: each reads its own executable, TBIOS, the graphics, the sounds and the kanji font out of that
-            image, keeps what it reads under `extracted/`, and creates `saves/` for characters as plain files, so the image
-            is optional after a first run. Each accepts `--licences` and prints every notice compiled into it.
+            Seven files for Linux, one per title, and no archive to unpack. Put your own copy of the disc image beside
+            the binary you want and run it: each reads its own executable, TBIOS, the graphics, the sounds and the kanji
+            font out of that image, keeps what it reads under `extracted/`, and creates `saves/` for characters as plain
+            files, so the image is optional after a first run. Each accepts `--licences` and prints every notice compiled
+            into it.
 
-            | binary | game | reads | sha256 |
+            | binary | title | reads | sha256 |
             |---|---|---|---|
             | `fm-u1-linux-x86_64` | Ultima I, *The First Age of Darkness* | `\DARKNESS.EXP` | `${{ needs.host.outputs.sha256_u1 }}` |
             | `fm-u2-linux-x86_64` | Ultima II, *Revenge of the Enchantress* | `\ENCHANT.EXP` | `${{ needs.host.outputs.sha256_u2 }}` |
             | `fm-u3-linux-x86_64` | Ultima III, *Exodus* | `\EXODUS.EXP` | `${{ needs.host.outputs.sha256_u3 }}` |
+            | `fm-british-linux-x86_64` | the message from Lord British | `\BRITISH.EXP` | `${{ needs.host.outputs.sha256_british }}` |
+            | `fm-u1demo-linux-x86_64` | the Ultima I demo, Episode I | `\UT1DEMO.EXP` | `${{ needs.host.outputs.sha256_u1demo }}` |
+            | `fm-u2demo-linux-x86_64` | the Ultima II demo, Episode II | `\UT2DEMO.EXP` | `${{ needs.host.outputs.sha256_u2demo }}` |
+            | `fm-u3demo-linux-x86_64` | the Ultima III demo, Episode III | `\UT3DEMO.EXP` | `${{ needs.host.outputs.sha256_u3demo }}` |
 
-            All three play: characters can be created, parties formed, `Journey Onward` starts the game, and towns,
+            The three games play: characters can be created, parties formed, `Journey Onward` starts the game, and towns,
             dungeons, combat and death all run. Ultima II is the one with the most measured behaviour behind it and the one
             whose hand-written rules have been checked against their own translations; Ultima I and III run entirely on the
             original's translated instructions.
+
+            **The other four are not games and are not offered as such.** `fm-british` is the publisher's splash, the
+            header, the photograph and the message that scrolls past before any of the three games starts. The three
+            `demo` binaries are the slideshow that introduces each episode: a header, a picture and a panel of Japanese
+            narration. All four run their real code and stop when they have finished showing you what they came to show,
+            and they are shipped because they are the cheapest demonstration that the machine layer underneath the games
+            is right. Measured when they were added: 9,000 frames each, no fault, and the same framebuffer as a
+            from-source build of the same module.
 
             Ultima II in detail, as the title this project has played longest. At the game menu pick *Journey Onward*, or
             *Generate Character* to make one. SDL is linked statically from the pinned upstream release, so there is
@@ -241,9 +265,11 @@ jobs:
 
             The three Windows binaries are `fm-u1-windows-x86_64.exe`, `fm-u2-windows-x86_64.exe` and
             `fm-u3-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256_u1 }}`,
-            `${{ needs.windows.outputs.sha256_u2 }}` and `${{ needs.windows.outputs.sha256_u3 }}`. The same three programs,
+            `${{ needs.windows.outputs.sha256_u2 }}` and `${{ needs.windows.outputs.sha256_u3 }}`. The same three games,
             cross-built with mingw-w64 and statically linked, so each import table is Windows' own libraries and no DLL
-            travels with any of them.
+            travels with any of them. **Windows has the games and not the four extra titles**: those four are new on Linux
+            and have not been cross-built or run under Wine, and shipping a Windows file nobody has executed would be
+            claiming more than has been tested.
 
             **None of the three has ever been run on a real Windows machine**, because this project has no access to one.
             What there is instead is Wine, and it now covers all three: each loads, and a game can be launched and played.
@@ -252,7 +278,7 @@ jobs:
             are likely to work rather than supported ones, and a failure on real hardware is the most useful report you
             can send.
 
-            None of the six files is an archive, and nothing else is published here: the licence texts and the glyph ROM's
+            None of the ten files is an archive, and nothing else is published here: the licence texts and the glyph ROM's
             provenance are compiled into every binary, and `--licences` prints them.
 
             ## The image
@@ -274,7 +300,7 @@ jobs:
 
             ## What is in git that was not before
 
-            `module/`: the recompiled C++, 331 generated sources, the game and its TBIOS layer translated from machine
+            `module/`: the recompiled C++, 422 generated sources, the game and its TBIOS layer translated from machine
             code into something a person can read and diff. That is the artefact this project exists to preserve. Its
             provenance, its regeneration command, and the measurement showing it holds code rather than media are in
             [`module/README.md`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/module/README.md).

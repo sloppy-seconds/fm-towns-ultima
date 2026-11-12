@@ -27,6 +27,7 @@
 //
 // USAGE
 //   node tools/games.js --list            one line per title
+//   node tools/games.js --ids             the ids alone, in disc order, for a script that loops
 //   node tools/games.js --table           a markdown table, for a doc
 //   node tools/games.js --get u3 exp      one field, for a shell script
 //   node tools/games.js --get u3          the whole descriptor, as JSON
@@ -153,6 +154,13 @@ function main(argv) {
 		for (const g of GAMES) console.log(g.id.padEnd(9) + g.exp.padEnd(14) + String(g.bytes).padStart(8) + '  ' + g.title);
 		return 0;
 	}
+	// Just the ids, in the GAMES order, which is the order a reader meets them on the disc. This is what a script that
+	// has to do something to every title iterates: tools/release-package.sh builds and ships one binary per id, and it
+	// reads the list from here rather than writing a second copy of it that can fall behind by four titles.
+	if (argv.includes('--ids')) {
+		for (const g of GAMES) console.log(g.id);
+		return 0;
+	}
 	if (argv.includes('--table')) {
 		console.log('| id | title | executable | bytes | entry | esp |');
 		console.log('|---|---|---|---|---|---|');
@@ -180,7 +188,7 @@ function main(argv) {
 		console.log(v === null ? '' : typeof v === 'number' ? '0x' + v.toString(16) : String(v));
 		return 0;
 	}
-	console.error('usage: node tools/games.js --list | --table | --get <id> [field]');
+	console.error('usage: node tools/games.js --list | --ids | --table | --get <id> [field]');
 	return 2;
 }
 

@@ -28,24 +28,29 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/dist}"
-# NAMED FOR PROVENANCE, decided by Paul on 2026-11-10: `fm` for FM Towns, then the title. Two titles ship, so a
-# name that says only "u2port" no longer identifies the thing, and the asset is what a reader sees first. The
+# NAMED FOR PROVENANCE, decided by Paul on 2026-11-10: `fm` for FM Towns, then the title. One title no longer ships
+# alone, so a name that says only "u2port" would not identify the thing, and the asset is what a reader sees first. The
 # executable inside keeps the title's id (`u2`), which is what tools/games.js and the build both use.
 # NAME is set per title inside package_one; this is the default the header text refers to.
 NAME="fm-u2-linux-x86_64"
+
+# THE TITLES, FROM ONE TABLE. `--ids` prints them in disc order, which is the order a reader meets them and therefore
+# the order the release body lists them. This used to be three literals at the bottom of the file, and four titles were
+# added to module/ without anybody noticing the release still shipped three.
+GAME_IDS=$(node "$ROOT/tools/games.js" --ids)
 
 if [[ ! -f "$ROOT/fmtownskit/runtime/towns.cmake" ]]; then
 	echo "the toolkit is not at $ROOT/fmtownskit. Run: git submodule update --init fmtownskit" >&2
 	exit 2
 fi
 # ONE SHARED TBIOS MODULE AND ONE GAME MODULE PER TITLE, all committed, because the release builds with no disc and no
-# recompiler. The TBIOS half is the same program for every title and 84 MB, so it is stored once; each title's own code is
-# 8 to 9 MB in module/<id>/. A missing directory is a refusal here rather than a link error four minutes later.
+# recompiler. The TBIOS half is the same program for every title and 85 MB, so it is stored once; each title's own code is
+# 2.3 to 9 MB in module/<id>/. A missing directory is a refusal here rather than a link error four minutes later.
 if [[ ! -f "$ROOT/module/tbios/p_tbios_funcs.h" ]]; then
 	echo "no shared TBIOS module at $ROOT/module/tbios, and without it there is nothing playable to ship." >&2
 	exit 2
 fi
-for id in u2 u3 u1; do
+for id in $GAME_IDS; do
 	if [[ ! -f "$ROOT/module/$id/modules.cpp" ]]; then
 		echo "no committed module for $id at $ROOT/module/$id, and without it there is nothing playable to ship." >&2
 		exit 2
@@ -153,9 +158,11 @@ echo "sha256    $(sha256sum "$OUT/$NAME" | cut -d' ' -f1)"
 echo
 }
 
-# The three playable titles, in the order a reader meets them on the disc.
-package_one u2
-package_one u3
-package_one u1
+# EVERY TITLE, in the order a reader meets them on the disc, which is the order tools/games.js lists them in.
+for id in $GAME_IDS; do
+	package_one "$id"
+done
 
-rm -rf "$OUT/build-u2" "$OUT/build-u3" "$OUT/build-u1"
+for id in $GAME_IDS; do
+	rm -rf "$OUT/build-$id"
+done

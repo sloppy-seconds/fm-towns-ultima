@@ -305,10 +305,26 @@ const runNode = (script, args = []) => {
 	const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
 	const bad = [];
 	if (/\.tar\.gz|tar -czf|tar --create/.test(wf)) bad.push('the workflow makes or ships a tarball');
-	for (const asset of ['fm-u1-linux-x86_64', 'fm-u2-linux-x86_64', 'fm-u3-linux-x86_64',
-		'fm-u1-windows-x86_64.exe', 'fm-u2-windows-x86_64.exe', 'fm-u3-windows-x86_64.exe'])
-		if (!wf.includes(asset)) bad.push(`${asset} is not built and published by the workflow`);
-	if (!/is not one of the six binaries/.test(wf)) bad.push('the step that refuses an unexpected release asset is gone');
+	// THE ASSET LIST COMES FROM THE TITLE TABLE, not from a second list here. It was six literals and that is how the
+	// release shipped three binaries while module/ held seven: two lists, one of which grew. Windows carries the three
+	// games only, deliberately, so the ids it does not build are named as the exception rather than left to look like
+	// an oversight.
+	const ids = require('./games.js').GAMES.map((g) => g.id);
+	const winIds = ids.filter((id) => /^u[123]$/.test(id));
+	// THE LIST THAT MATTERS IS THE `files:` BLOCK, not the whole workflow. Every asset name also appears in the allowlist
+	// that refuses an unexpected file, so grepping the file for a name answers "is it mentioned" rather than "is it
+	// published", and a title dropped from `files:` while its allowlist entry stayed would pass. Demonstrated by deleting
+	// a title from `files:` and watching this fail.
+	const block = /files: \|\n([\s\S]*?)\n\s*body:/.exec(wf);
+	const published = block ? block[1] : '';
+	if (!block) bad.push('the workflow has no files: block, so nothing is published');
+	for (const asset of ids.map((id) => `fm-${id}-linux-x86_64`))
+		if (!published.split(/\s+/).includes(asset)) bad.push(`${asset} is not published by the workflow`);
+	for (const asset of winIds.map((id) => `fm-${id}-windows-x86_64.exe`))
+		if (!published.split(/\s+/).includes(asset)) bad.push(`${asset} is not published by the workflow`);
+	for (const id of ids.filter((id) => !winIds.includes(id)))
+		if (published.includes(`fm-${id}-windows-x86_64.exe`)) bad.push(`fm-${id}-windows-x86_64.exe is published but has never been built or run`);
+	if (!/refusing to publish: \$f is not one of the/.test(wf)) bad.push('the step that refuses an unexpected release asset is gone');
 	record('a release publishes binaries only', bad);
 }
 
