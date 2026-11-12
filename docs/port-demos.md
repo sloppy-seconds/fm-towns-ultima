@@ -52,15 +52,19 @@ their runtime address somewhere in the image, and the first five of those sit at
 immediate. So a longer translation can be put in free space, of which this binary has plenty, and the immediate that
 points at the old address patched to match. That is one edit per string rather than one edit per pool.
 
-**What this does not establish.** That the code takes a length at all, rather than reading to the NUL: the 2-byte
-terminator and the tight packing are consistent with either, and it was not traced. It does not change the arithmetic,
-because the next string starts where it starts.
+**What this does not establish.** That the code takes a length argument. It does not: the call site pushes the address and
+a panel index and nothing else, and `0x8d772` tests the first byte for zero, so the string ends at its NUL. That is also
+why a translation cannot be longer than its span rather than merely discouraged from being.
 
-**Why the output is not in this repository.** The strings are the game's dialogue, and the rule in
-[licensing](licensing.md) is that dialogue and long strings never go into documentation. `tools/demotext.js` takes an
-executable and prints the table, and `--out` writes under `extracted/`, which is gitignored. The tool is the only thing
-committed. A translated executable would be a modified copy of the original and could not be hosted either, so the shape
-that fits is a table the reader translates plus a tool that rewrites their own disc into a build directory.
+**Where the translations live.** In this repository, by Paul's decision of 2026-11-12, as tables under `locale/<lang>/`
+with one directory per language and one file per demo. What a table does **not** contain is the Japanese it replaces: rows
+are keyed by index, address and a hash of the original bytes. The format is on [Translations](locales.md), and
+`node tools/demopatch.js --demo u1demo --template --locale en` writes a table from your own executable for a translator to
+fill in. `./play.sh u1demo --locale en` patches into `build/play/u1demo/i18n/` and runs that.
+
+The reason it is tables rather than a patched executable is that a patched executable is a modified copy of the game and
+could not be hosted. The reason it is one directory per language is that adding a language should cost a table and no
+code.
 
 ## Running them at a readable speed
 
