@@ -4,11 +4,14 @@ What `EXODUS.EXP` does under this project's machine, as of 2026-11-10. The plan 
 [recompile-ultima3-plan.md](recompile-ultima3-plan.md), item ids below are its ids, and the numbers here
 are the ones it asked for.
 
-**Where it stands: the port boots Ultima III, draws the title, walks its menus, reads a character off a
-save floppy, creates characters, forms a party, writes all four of the game's save files, and `Journey Onward`
-now starts the game: the map draws with the party on it.** No fault,
-no workaround, 800 frames of attract loop. What it does not yet do is start a journey from that party, and
-the four file formats are unread.
+**Where it stands: the game is playable.** Paul played it on 2026-11-10 over noVNC in the container and reports
+entering a town, getting into a fight, and dying. Add to that what this page measured: the port boots Ultima III,
+draws the title, walks its menus, reads a character off a save floppy, creates characters, forms a party, writes all
+four of the game's save files, and `Journey Onward` starts the journey with the map and the party on it.
+
+That is the plan's goal sentence, met, for the part of the game a player reaches first. What is still unproven is
+narrower than it used to be: saving from inside the game (`Q`), dungeons, and the four file formats, which remain
+unread even though the port reads and writes them correctly.
 
 ## The build, in one command
 
@@ -122,6 +125,24 @@ because the first version gave it two and the thread swallowed the `control` lin
 `0x0d5dd7` at frame 1551. It is a leaf with no prologue, opening `cmp byte [0xb4131], 2`, which is why no static rule found
 it: the same shape as the four callbacks already in `tools/u3-seeds.txt`. One line in that file, one rebuild, and the game
 started. The record of that seed, with the fault that produced it, is in the file beside it.
+
+## A played session, 2026-11-10
+
+Paul played the port over noVNC in the container and reports reaching a town, getting into a fight, and dying. That
+is a player's observation and it is the oracle, so it is recorded as such rather than as one of this page's
+measurements.
+
+What it puts beyond doubt, because each of these is a screen or a code path nobody had reached before:
+
+| what | where it is exercised |
+|---|---|
+| town entry and the town screen | the town renderer, its NPCs and its tiles |
+| combat | a fight started, rounds resolved, damage applied |
+| death | the party died and the game handled it |
+
+What that leaves as genuinely unknown, and it is a shorter list than yesterday: `Q` (Quit and Save) from inside the
+game, which is the only path that writes the four save files from a *played* state, dungeons, and the four file
+formats themselves.
 
 ## The DOS extender calls, counted
 
