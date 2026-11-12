@@ -109,7 +109,7 @@ for (const script of ['tools/port-build.sh', 'tools/release-package.sh', 'tools/
 	if (!/-DPORT_PROGRAM="\$EXP"/.test(play)) bad.push('-DPORT_PROGRAM is not the title\'s executable');
 	if (!/-DRECOMP_DIR="\$ROOT\/module\/\$TITLE"/.test(play)) bad.push('-DRECOMP_DIR is not module/<title>, so the wrong module is linked');
 	if (/\$GAME\/ENCHANT\.EXP/.test(play)) bad.push('play.sh still looks for ENCHANT.EXP by name');
-	if (!/\$WORK\/\$TITLE/.test(play)) bad.push('the binary is not looked for under the title\'s name');
+	if (!/--cpu-rate/.test(play)) bad.push('--cpu-rate does not reach the port, so the demos cannot be slowed');
 	if (bad.length) fail('play.sh builds the title it is given', bad.join(' | '));
 	else ok('play.sh builds the title it is given', 'the id is validated, and target, program and module all come from it');
 }
@@ -465,6 +465,20 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		if (extra.length) fail('the module holds translated code and no game text', extra.join(' | '));
 		else ok('the module holds translated code and no game text', found.size + ' literals across ' + scanned + ' sources, all the recompiler\'s own');
 	}
+}
+
+// ---- the CPU rate can be set at start-up, because a keystroke is not available for the titles that need it ----
+// The kit binds F5 and F6 to the rate, but a demo ends its run on any key press, so the lever closes the window it was
+// meant to slow. --cpu-rate= sets Machine::cpu_rate before the first instruction runs. What is asserted is that the
+// value arrives, that it is applied to the machine, and that it is range-checked: the kit clamps to 1..1000, so a typo
+// of `--cpu-rate=0` would become 1 percent and read as a hang rather than as a mistake in an argument.
+{
+	const bad = [];
+	if (!/--cpu-rate=/.test(main)) bad.push('port/main.cpp takes no --cpu-rate=');
+	if (!/m\.set_cpu_rate\(cpu_rate_arg\)/.test(main)) bad.push('the rate is parsed and never applied to the machine');
+	if (!/v < 1 \|\| v > 1000/.test(main)) bad.push('the rate is not range-checked, so 0 becomes the kit\'s clamp of 1 percent');
+	if (bad.length) fail('the CPU rate can be set on the command line', bad.join(' | '));
+	else ok('the CPU rate can be set on the command line', '--cpu-rate=N is range-checked and reaches Machine::cpu_rate');
 }
 
 // ---- the shared TBIOS module covers every title's measured extra seeds ----

@@ -11,6 +11,10 @@
 #   ./play.sh --game DIR          where your game files are (default ./game)
 #   ./play.sh --disk FILE         which save floppy to use (default: the title's own, from tools/games.js)
 #   ./play.sh --headless N        run N frames with no window, write a PNG, and exit
+#   ./play.sh --cpu-rate N        run the guest at N percent of the FM Towns clock (default 100). This is for a title
+#                                 whose text scrolls faster than it can be read, which is what the three demos did.
+#                                 F5/F6/F7 in the window do the same thing by hand, but the demos end the run on any
+#                                 key press, so a key is not a lever you can use on them.
 #   ./play.sh --rebuild           force the C++ build even if the binary exists
 #
 # ONE TITLE PER RUN, and the title is the build's target. The module compiled in is that title's code and nothing
@@ -45,6 +49,9 @@ SDL_CACHE="$PLAY_ROOT/sdl3"
 # route and document in this project was measured on, so a bare `./play.sh` still means what it always meant.
 TITLE=u2
 DISK_SET=0
+# Empty means "say nothing about the rate", which leaves the port's own default of 100 alone rather than restating it
+# here and letting the two disagree.
+RATE=""
 HEADLESS=0
 REBUILD=0
 FRAMES=120
@@ -61,7 +68,9 @@ while [[ $# -gt 0 ]]; do
 			shift
 			;;
 		--rebuild) REBUILD=1; shift ;;
-		--help | -h) sed -n '2,28p' "$0"; exit 0 ;;
+		--cpu-rate) RATE="$2"; shift 2 ;;
+		--cpu-rate=*) RATE="${1#*=}"; shift ;;
+		--help | -h) sed -n '2,32p' "$0"; exit 0 ;;
 		-*) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
 		*) TITLE="$1"; shift ;;
 	esac
@@ -248,10 +257,10 @@ if [[ $HEADLESS -eq 1 ]]; then
 	SHOT="${SHOT:-$WORK/shot.png}"
 	echo "running   $FRAMES frames headless, shot to $SHOT"
 	# shellcheck disable=SC2086
-	U2_SHOT="$SHOT" exec "$PORT_BIN" --graphics=none --frames="$FRAMES" ${U2_ARGS:-} "${DISK_ARGS[@]}"
+	U2_SHOT="$SHOT" exec "$PORT_BIN" --graphics=none --frames="$FRAMES" ${RATE:+--cpu-rate="$RATE"} ${U2_ARGS:-} "${DISK_ARGS[@]}"
 fi
 echo "playing   at the game menu pick Journey Onward, or Generate Character to make one."
 echo "          Saves live in $ROOT/saves as plain files, writable, so a created character persists."
 echo "          Ctrl-Q or closing the window ends the run. Known bugs: docs/port-defects.md"
 # shellcheck disable=SC2086
-exec "$PORT_BIN" --graphics=sdl ${U2_ARGS:-} "${DISK_ARGS[@]}"
+exec "$PORT_BIN" --graphics=sdl ${RATE:+--cpu-rate="$RATE"} ${U2_ARGS:-} "${DISK_ARGS[@]}"

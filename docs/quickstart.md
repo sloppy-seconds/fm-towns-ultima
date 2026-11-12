@@ -151,6 +151,7 @@ and its module is committed in `module/`, so there is nothing to recompile:
 ./play.sh                        # your own copy of the game in ./game/, Ultima II
 ./play.sh u3                     # any title from tools/games.js: u1, u3, british, u1demo, u2demo, u3demo
 ./play.sh --headless 120         # no window, writes build/play/<title>/shot.png
+./play.sh u1demo --cpu-rate=25   # slows the guest; the demos end on any key, so F5 cannot be used on them
 ```
 
 It needs a C++20 compiler, and SDL3 from the distro or built from the pinned source if the

@@ -555,6 +555,11 @@ int main(int argc, char **argv) {
 	// does not was a real report. This flag is the other answer: fill the window and keep the aspect ratio.
 	bool letterbox = false;
 	long frames_flag = -1;
+	// THE CPU'S RATE, in percent of the FM Towns clock, which is how a title that scrolls faster than a person can
+	// read is slowed down. The kit models the rate (Machine::cpu_rate) and its window binds F5/F6/F7 to it, but a
+	// keystroke is not available here: the demos end the run on any key press, so reaching for F5 closes the thing
+	// being watched. This makes the rate a start-up fact instead, and the window's title shows it like the keys do.
+	int cpu_rate_arg = 100;
 	std::string control_spec;
 	// The save disk takes writes by default, because a created character that cannot be saved does not exist. The
 	// flag is the escape hatch for a run that must not touch an image, and it is what the older guardrail was.
@@ -581,6 +586,17 @@ int main(int argc, char **argv) {
 			scale = std::atoi(argv[i] + 8);
 		else if (!std::strncmp(argv[i], "--frames=", 9))
 			frames_flag = std::atol(argv[i] + 9);
+		else if (!std::strncmp(argv[i], "--cpu-rate=", 11)) {
+			// Refused rather than clamped. The kit clamps to 1..1000, and a typo of `--cpu-rate=0` becoming 1 percent
+			// is a run that looks like a hang rather than a mistake in an argument.
+			char *end = nullptr;
+			const long v = std::strtol(argv[i] + 11, &end, 10);
+			if (!end || *end || v < 1 || v > 1000) {
+				std::fprintf(stderr, "--cpu-rate= takes a percentage of the FM Towns clock, 1 to 1000. Got %s\n", argv[i] + 11);
+				return 2;
+			}
+			cpu_rate_arg = (int)v;
+		}
 		else if (!std::strncmp(argv[i], "--control=", 10))
 			control_spec = argv[i] + 10;
 		else if (!std::strcmp(argv[i], "--read-only-disk"))
@@ -1179,6 +1195,13 @@ int main(int argc, char **argv) {
 	print_instruments();
 
 	std::printf("entry     000C:%x  esp 0x%x  cs base 0x%x\n", ENTRY, STACK, PROGRAM_BASE);
+	// Applied here rather than at construction, so it is set once everything else about the machine is and before the
+	// first instruction runs. 100 is also applied when asked for, because a run that says nothing about the rate and a
+	// run that asks for full speed should not be distinguishable only by reading the argument list.
+	m.set_cpu_rate(cpu_rate_arg);
+	if (cpu_rate_arg != 100)
+		std::printf("cpu rate  %d%% of the FM Towns clock, so the guest runs %s than real time\n", m.cpu_rate,
+					cpu_rate_arg < 100 ? "slower" : "faster");
 	// The VRAM access counters have to be on before the program runs, not after it has finished.
 	// U2_TRACE_FILE=<path> writes the instruction trace, and U2_TRACE_LIMIT caps it (default two million
 	// instructions, which is a few hundred MB of text at worst and enough to cover start-up).

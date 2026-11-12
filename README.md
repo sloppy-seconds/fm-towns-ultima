@@ -291,6 +291,7 @@ in `module/`, so there is nothing to recompile:
 ./play.sh                       # your own copy of the game in ./game/
 ./play.sh u3                    # any title: u1, u3, british, u1demo, u2demo, u3demo
 ./play.sh --headless 120        # no window, writes build/play/<title>/shot.png
+./play.sh u1demo --cpu-rate=25  # slows the guest, for a title whose text scrolls too fast to read
 ```
 
 `play.sh` builds the port with cmake, which needs a C++20 compiler and an SDL3, and it builds

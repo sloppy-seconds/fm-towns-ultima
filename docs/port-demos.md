@@ -9,6 +9,36 @@ They are also the cheapest possible check on the port, because they exercise the
 rules. Nothing about Ultima's code can be concluded from them (`docs/three-games-compared.md`) and that has not
 changed.
 
+## Running them at a readable speed
+
+The demos scroll their text faster than a person can read, and the obvious lever does not work on them. The kit binds
+**F5** and **F6** to the CPU's rate, but **a demo ends its run on any key press**, so reaching for F5 closes the thing
+being watched. That was measured by Paul on 2026-11-12.
+
+The rate is therefore a start-up argument. `--cpu-rate=N` sets it as a percentage of the FM Towns clock before the
+first instruction runs, and the window's title bar shows it, the same as the keys do in a title that accepts them:
+
+```bash
+./play.sh u1demo --cpu-rate=25       # a quarter of the machine's clock
+./play.sh u3demo --headless 9000 --cpu-rate=25
+```
+
+Measured on `u1demo`, `--graphics=none`, the same 900 frames either way:
+
+| rate | guest clocks the 900 frames consumed |
+|---|---|
+| 100% | 239,999,420 |
+| 25% | 59,999,979 |
+
+The guest gets a quarter of the work done per frame, which is what makes the text advance more slowly in wall time.
+What that measurement does **not** say is how the picture compares at a fixed frame index: it differs, because the
+demo is a quarter as far along, and how far along it *should* be for comfortable reading is a judgement about reading
+rather than a number. 25 percent is a starting point, not a measured answer, and the rate is a percentage of a clock
+this port reproduces, so anything between 1 and 1000 is accepted and refused only outside that range.
+
+An argument that cannot be parsed, or 0, is **refused rather than clamped**. The kit clamps to 1 percent, and a typo
+of `--cpu-rate=0` silently becoming 1 percent is a run that looks like a hang.
+
 ## How to run them
 
 From a checkout, with the unpacked archive.org zip beside the repository:
