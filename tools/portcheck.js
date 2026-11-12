@@ -87,6 +87,20 @@ requireText(main, 'set_desc(0x0120, 0x80000000', 'the screen selector is the mea
 // Graphics: a window by default for a person, none for a measurement, and no third behaviour.
 requireText(main, 'graphics = "sdl"', 'the default graphics backend is sdl');
 requireText(main, 'graphics != "sdl" && graphics != "none"', 'an unknown backend is refused rather than ignored');
+// AN EXPLICIT --graphics=sdl IS REFUSED WHEN IT CANNOT OPEN, and the default still falls back. Both halves matter: a
+// measurement run must not need a display, and a person who typed --graphics=sdl must not be left with a terminal and no
+// picture. Measured on jarvis 2026-11-13: DISPLAY=:0 with a stale X cookie printed "Invalid MIT-MAGIC-COOKIE-1 key", the
+// port fell back to none, and the run read as a crash rather than as a display problem.
+{
+	const bad = [];
+	if (!/bool graphics_explicit = false/.test(main)) bad.push('there is no record of whether --graphics= was given');
+	if (!/if \(graphics_explicit\)/.test(main)) bad.push('the refusal is gone, so an explicit sdl request falls back silently');
+	if (!/could not open a window/.test(main)) bad.push('the refusal does not say what went wrong');
+	if (!/XAUTHORITY/.test(main)) bad.push('the refusal does not name the usual cause over ssh');
+	if (!/falling back to none/.test(main)) bad.push('the default no longer falls back, so a headless run needs --graphics=none to work');
+	if (bad.length) fail('an explicit window request is refused, the default still falls back', bad.join(' | '));
+	else ok('an explicit window request is refused, the default still falls back', 'graphics_explicit separates the two cases');
+}
 requireText(read('tools/port-build.sh'), '--graphics=none', 'the build script pins the measurement path to no graphics');
 // THE WINDOW'S TITLE BAR BELONGS TO THE TITLE. It was the literal "Ultima II - FM Towns, recompiled" and all seven
 // binaries carried it, so a task bar or a window list showed seven identical entries and Paul could not tell which game

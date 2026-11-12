@@ -155,7 +155,10 @@ and its module is committed in `module/`, so there is nothing to recompile:
 ```
 
 It needs a C++20 compiler, and SDL3 from the distro or built from the pinned source if the
-distro has none. It extracts what it needs from your disc into
+distro has none. **If no window appears, run with `--graphics=sdl` explicitly**: the answer is a
+refusal naming the cause, where the default quietly falls back to no graphics. Over ssh the cause
+is almost always the X cookie rather than `DISPLAY`, and the refusal prints the two lines that find
+it. It extracts what it needs from your disc into
 `build/play/`, fetches the font ROM, and unpacks a save disk with three characters on it
 if you have none. A published release ships the same binary already built, with SDL linked
 in and no compiler needed at all, and that binary takes no arguments: unpack it, put your copy

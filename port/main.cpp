@@ -569,6 +569,12 @@ int main(int argc, char **argv) {
 	// being watched. This makes the rate a start-up fact instead, and the window's title shows it like the keys do.
 	// The starting value is the build's, from the title table, and --cpu-rate overrides it.
 	int cpu_rate_arg = PORT_CPU_RATE;
+	// WHETHER THE CALLER NAMED --graphics=, as opposed to taking the default. It decides what an unavailable window
+	// means: a default that cannot open falls back to none, because a measurement must not need a display, and an
+	// explicit request that cannot open is refused, because somebody who typed `--graphics=sdl` wants a window and
+	// nothing else. Measured the hard way on jarvis 2026-11-13: `DISPLAY=:0` without the X cookie printed
+	// `Invalid MIT-MAGIC-COOKIE-1 key`, fell back to none, and the run looked like a program that had crashed.
+	bool graphics_explicit = false;
 	std::string control_spec;
 	// The save disk takes writes by default, because a created character that cannot be saved does not exist. The
 	// flag is the escape hatch for a run that must not touch an image, and it is what the older guardrail was.
@@ -586,7 +592,7 @@ int main(int argc, char **argv) {
 	std::vector<const char *> pos;
 	for (int i = 1; i < argc; ++i) {
 		if (!std::strncmp(argv[i], "--graphics=", 11))
-			graphics = argv[i] + 11;
+			graphics = argv[i] + 11, graphics_explicit = true;
 		else if (!std::strcmp(argv[i], "--fullscreen"))
 			fullscreen = true;
 		else if (!std::strcmp(argv[i], "--letterbox"))
@@ -1404,9 +1410,19 @@ int main(int argc, char **argv) {
 			std::printf("graphics  sdl, window open as \"%s\", Ctrl-Q or closing the window ends the run\n",
 						o.title.c_str());
 		} else {
-			// A display that is missing costs a picture and not a measurement, so this falls back rather than
-			// refusing. It says so, because "the window did not open" and "the window opened and showed nothing"
-			// must not look the same.
+			// A display that is missing costs a picture and not a measurement, so the DEFAULT falls back rather than
+			// refusing. An explicit --graphics=sdl does not: the caller asked for a window, so a silent fallback leaves
+			// them looking at a terminal with no picture and nothing saying why, which is indistinguishable from a
+			// crash. The hint names XAUTHORITY because that, not DISPLAY, is the usual cause over ssh.
+			if (graphics_explicit) {
+				std::fprintf(stderr, "graphics  --graphics=sdl could not open a window: %s\n", err.c_str());
+				std::fprintf(stderr,
+							 "          DISPLAY is \"%s\". Over ssh the usual cause is the X cookie rather than the display:\n"
+							 "          export XAUTHORITY=$(ps -eo cmd | grep -oE '\\-auth [^ ]+' | head -1 | cut -d' ' -f2)\n"
+							 "          Use --graphics=none for a headless run.\n",
+							 std::getenv("DISPLAY") ? std::getenv("DISPLAY") : "(unset)");
+				return 2;
+			}
 			std::printf("graphics  sdl unavailable (%s), falling back to none\n", err.c_str());
 			use_sdl = false;
 		}
