@@ -9,12 +9,14 @@ They are also the cheapest possible check on the port, because they exercise the
 rules. Nothing about Ultima's code can be concluded from them (`docs/three-games-compared.md`) and that has not
 changed.
 
-## The narration is text, and it is not in the pictures
+## Can it be English
 
-The demos scroll their narration faster than it can be read, and the question that follows is whether it could be
-English. The answer turns on where the text lives, and it lives in the executable rather than in the artwork.
+The narration is **not** in the artwork. It is Shift-JIS in the executable, drawn with the kanji font TownsOS places
+at `0x3b7e1`, which is the `kanji font 188 glyphs ... from \UTFONT.FNT` line in a run's log and why the demos reference
+no font file of their own. The only pictures they load are `HEADTTL.TIF` and `UT1_1.TIF` to `UT1_4.TIF`, and none of
+those holds a word of it.
 
-**Measured 2026-11-12, with `node tools/demotext.js --compare`:**
+**Measured 2026-11-12 with `node tools/demotext.js --compare`:**
 
 | demo | decodable Shift-JIS runs | total bytes | from | to |
 |---|---|---|---|---|
@@ -22,22 +24,41 @@ English. The answer turns on where the text lives, and it lives in the executabl
 | `UT2DEMO.EXP` | 20 | 1,764 | `0x0014b4` | `0x001bce` |
 | `UT3DEMO.EXP` | 24 | 2,102 | `0x0014b4` | `0x001d2e` |
 
-A run here is a maximal sequence of two-byte characters, four characters or longer, that decodes as strict Shift-JIS.
-The strings are drawn with the kanji font TownsOS places in low memory at `0x3b7e1`, which is the `kanji font 188
-glyphs ... from \UTFONT.FNT` line in a run's log, and which is why the demos reference no font file of their own. The
-only pictures they load are `HEADTTL.TIF` and `UT1_1.TIF` to `UT1_4.TIF`, and none of those holds the narration.
+A run is a maximal sequence of two-byte characters, four characters or longer, that decodes as strict Shift-JIS. The
+table starts at the **same file offset in all three** and the counts differ, so the shell is shared and the narration
+is not: English is a translation per episode, not one table used three times.
 
-The table starts at the **same file offset in all three** and the counts differ, 21 against 20 against 24. So the
-slideshow shell is shared and the narration is not: an English version is a translation per episode, not one table
-used three times. That also means a string pool of fixed offsets cannot be reused across the three.
+### ASCII draws in that panel
 
-**What this does not establish.** That ASCII renders correctly in the narration panel, and whether the code takes a
-length or reads to a terminator, which decides whether a translation can be longer than the original. The games draw
-English with the same renderer, so the glyphs exist; the panel's line pitch is untested.
+Patching all 21 runs of a scratch copy with plain Latin letters, at the same byte lengths, and photographing the run at
+frames 1,500 and 2,400 shows the narration panel full of `ABCDEFGHIJKLMNOP...`. So the renderer handles ASCII and an
+English string would draw. The renderer's glyph source is the same font either way. The panel is not a picture.
+
+### A translation has to fit, and the fit is tight
+
+Every string is followed by `00 00` and the next one begins 2 to 4 bytes later, so the room for a replacement is the
+original span less that 2-byte terminator. Measured over the pool: 18 to 82 bytes per line and **1,370 bytes over 21
+strings** for Ultima I's demo, which is 30 bytes more than the Japanese occupies.
+
+That is the constraint that matters, and it is why the answer is "yes, if the English is terse". Twenty-two Japanese
+characters occupy 44 bytes, and the same sentence in English usually needs more than 46 characters. Some lines will fit in
+place and some will not, and the ones that do not have to move.
+
+### Moving a string is possible, and it is per string
+
+Each string is referenced by a 32-bit literal in the code, not through a table: 19 of the 21 have a dword equal to
+their runtime address somewhere in the image, and the first five of those sit at `0x8f02d`, `0x8f047`, `0x8f05a`,
+`0x8f077` and `0x8f091`, between 19 and 32 bytes apart, which is the shape of a run of draw calls each carrying its own
+immediate. So a longer translation can be put in free space, of which this binary has plenty, and the immediate that
+points at the old address patched to match. That is one edit per string rather than one edit per pool.
+
+**What this does not establish.** That the code takes a length at all, rather than reading to the NUL: the 2-byte
+terminator and the tight packing are consistent with either, and it was not traced. It does not change the arithmetic,
+because the next string starts where it starts.
 
 **Why the output is not in this repository.** The strings are the game's dialogue, and the rule in
 [licensing](licensing.md) is that dialogue and long strings never go into documentation. `tools/demotext.js` takes an
-executable and prints the table; `--out` writes under `extracted/`, which is gitignored, and the tool is the only thing
+executable and prints the table, and `--out` writes under `extracted/`, which is gitignored. The tool is the only thing
 committed. A translated executable would be a modified copy of the original and could not be hosted either, so the shape
 that fits is a table the reader translates plus a tool that rewrites their own disc into a build directory.
 

@@ -126,9 +126,16 @@ function main(argv) {
 			return 2;
 		}
 		const r = runs(buf);
-		const lines = ['idx\tfile_offset\truntime_addr\tbytes\tchars\ttext'];
-		for (const [i, x] of r.entries())
-			lines.push([i, hex(x.file, 6), hex(x.file - MP_HEADER, 6), x.bytes, x.chars, x.text].join('\t'));
+		const lines = ['idx\tfile_offset\truntime_addr\tbytes\tchars\troom\ttext'];
+		for (const [i, x] of r.entries()) {
+			// `room` is how many bytes a replacement may occupy: everything up to the next string, less the 2-byte
+			// terminator this pool uses. Measured on UT1DEMO.EXP, every string is followed by 00 00 and the next one
+			// begins 2 to 4 bytes later, so a translation can never be longer than the Japanese it replaces unless
+			// it is moved, which means patching the immediate that points at it.
+			const end = i + 1 < r.length ? r[i + 1].file : x.file + x.bytes + 2;
+			const room = end - x.file - 2;
+			lines.push([i, hex(x.file, 6), hex(x.file - MP_HEADER, 6), x.bytes, x.chars, room, x.text].join('\t'));
+		}
 		const body = lines.join('\n') + '\n';
 		if (outFile) {
 			// Under extracted/ by default when the caller names a bare file, because the text is the game's.
