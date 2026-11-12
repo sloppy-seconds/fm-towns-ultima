@@ -241,6 +241,7 @@ functions over and above these two rules.
 |---|---|---|---|---|---|
 | the kit's far table `@110:20-100` | 307 | 12,590 | 39 | 0 | 0 |
 | plus 5,395 capture offsets | 5,573 | 15,288 | 67 | 0 | 0 |
+| plus `0x6864`, which only `BRITISH.EXP` reaches | 5,574 | 15,398 | 67 | 0 | 0 |
 
 Earlier in this session the far table was recorded as giving **6 functions with 2,166 refusals**. That run had
 the game's `--no-code` ranges applied to TBIOS, which is exactly the bug item 8a fixed, so the number described

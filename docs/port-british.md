@@ -33,7 +33,7 @@ Every number below came from a command run on 2026-11-12, on the disc image
 | seeds | `tools/seeds.js --bin BRITISH.EXP --emit --shift 0x200` plus the entry | 213 in the runtime frame, no measured seed file for this title |
 | no-code ranges | `tools/codelimits.js --args` | 12 for the game, 3 for TBIOS |
 | recompile, game | `python3 -m fmtownskit.recomp` | 395 functions, 11,503 instructions, 35,676 bytes, 9 jump tables (6 bounded), 30 indirect unresolved, 0 refused, 0 conflicts |
-| recompile, tbios | same pass | 5,574 functions, 15,398 instructions, 56,493 bytes. Without the title's extra seed it is 5,573 / 15,288 / 56,115 |
+| recompile, tbios | same pass | 5,574 functions, 15,398 instructions, 56,493 bytes. That is the union of the titles' seeds, which is what `module/tbios` now holds |
 | coverage | `tools/insncoverage.py` | 11,504 instruction addresses |
 | run, 120 frames | `--graphics=none` | exit 0, no fault |
 | run, 9,000 frames | `--graphics=none` | exit 0, zero faults, message displayed in full |
@@ -61,21 +61,26 @@ The fix is per title, because the trace it is missing from is one game's trace. 
 TBIOS spec. `british` is the first title to need one and its file is `tools/tbios-british-seeds.txt`. With that
 single seed the same run reaches frame 9,000 with zero faults.
 
-## The gap that is still open
+## The gap, closed on 2026-11-12
 
-`module/tbios` is the committed TBIOS module and it was regenerated from the Ultima II capture, so it has no
-function at `0x6864`. A build from the committed modules therefore still stops at frame 1297:
+`module/tbios` used to be the Ultima II capture's module, with no function at `0x6864`, so a build from the
+committed modules stopped at frame 1297 with `no recompiled function at 0110:00006864`. That was measured on the
+binary built from `module/british` and `module/tbios` alone, before the fix below, and it exit 3.
+
+It now carries the union of every title's seeds, so the same committed-module build runs to frame 9,000 with zero
+faults, and its screenshot is sha256-identical to the from-disc recompile's:
 
 ```bash
 cmake -S port -B build/british-release -DPORT_TARGET=british -DPORT_PROGRAM=BRITISH.EXP \
 	-DRECOMP_DIR=$PWD/module/british -DTBIOS_DIR=$PWD/module/tbios -DU2_FOREIGN_MODULE=ON
 ```
 
-Closing it means regenerating `module/tbios` with the union of the titles' seeds, and that is not a small or a
-local act. Measured with `diff -rq module/tbios <fresh recomp>`, adding one function rewrites 292 of the 302
-`p_tbios_*.cpp` files, because the split of functions across files moves with the count, and that module is shared
-by every title. It needs doing on purpose, with Ultima I, II and III re-verified afterwards, and not as a side
-effect of a branch that set out to play a splash screen.
+The cost was measured before it was paid, and it is why the regeneration was done on purpose rather than as a side
+effect. Adding one function rewrites **290 of the 302** `p_tbios_*.cpp` files, and 292 of the directory's 304 files
+once `p_tbios_funcs.h` and `p_tbios_table.cpp` are counted, because the recompiler splits its
+output by function count and one more entry moves the boundaries. The module goes from 5,573 functions and 15,288
+instructions to 5,574 and 15,398.
 
-`module/british` is committed regardless. It is the game half, it is what the recompiler emitted for
-`BRITISH.EXP`, and the fault above is not in it.
+All seven titles were rebuilt against the regenerated module and compared at the same frame count. Ultima I, II,
+III and the three demos produce byte-identical screenshots before and after, so the extra function changed nothing
+they reach, and `british` is the only one whose behaviour moves.

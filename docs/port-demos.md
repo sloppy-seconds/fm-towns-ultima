@@ -21,7 +21,8 @@ U2_SHOT=/var/tmp/u1demo.png ./build/u1demo/b/u1demo --graphics=none --frames=900
 Drop `--graphics=none` for `--graphics=sdl` and a window opens. Run from the directory holding the five media
 files, or pass the three paths the way `tools/port-build.sh` does.
 
-**These build from the committed module without a disc**, which `british` does not. `module/u1demo`,
+**These build from the committed modules without a disc**, and so does every other title now that `module/tbios`
+carries the union of the seeds. `module/u1demo`,
 `module/u2demo` and `module/u3demo` hold the game halves and every title shares `module/tbios`, so
 `-DRECOMP_DIR=$PWD/module/u2demo -DTBIOS_DIR=$PWD/module/tbios` is a complete build. Measured: the binaries from the
 committed modules and from the from-disc recompile produce sha256-identical screenshots at 9,000 frames, for all
@@ -39,11 +40,13 @@ Every number below came from a command run on 2026-11-12 on
 | `u3demo` | `UT3DEMO.EXP` | 619,297 | `0x93394` | `0xb0124` | 393 | 11,517 | 35,741 |
 
 All three: 211 seeds in the runtime frame, 11 no-code ranges for the game and 3 for TBIOS, 9 jump tables (6
-bounded), 30 indirect transfers unresolved, 0 refused, 0 conflicts. The TBIOS half is unchanged at 5,573 functions.
+bounded), 30 indirect transfers unresolved, 0 refused, 0 conflicts. The TBIOS half is the shared 5,574 functions,
+because a demo does not reach anything the other titles do not, so nothing per-title is contributed there.
 
-**The extra TBIOS seed is not needed here.** `BRITISH.EXP` stops at frame 1297 without `0x6864`
-([docs/port-british.md](port-british.md)). All three demos run 9,000 machine frames with the stock seed set and
-zero faults, so they never reach that routine and `tools/games.js` leaves `tbiosSeeds` null for them.
+**The extra TBIOS seed is not needed here.** `BRITISH.EXP` stopped at frame 1297 without `0x6864` before the shared
+module was regenerated ([docs/port-british.md](port-british.md)). All three demos run 9,000 machine frames with the
+stock seed set and zero faults, so they never reach that routine and `tools/games.js` leaves `tbiosSeeds` null for
+them.
 
 Runs, `--graphics=none`, at 300, 1,400, 4,000 and 9,000 frames: exit 0 and `grep -c 'fault at'` zero every time.
 

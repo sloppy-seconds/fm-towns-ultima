@@ -36,7 +36,7 @@ Do not size the funnel to a claim bigger than the evidence.
 | population | size | what is known |
 |---|---|---|
 | `ENCHANT.EXP` game module | 818 functions, 41,847 instructions, 137,253 bytes | the scope of the first pass. TBIOS is deferred, see below |
-| `TBIOS.BIN` | 5,573 functions, 15,288 instructions | a different binary and a different question. TownsOS is not a High C build target, so mixing it in pollutes every feature vector |
+| `TBIOS.BIN` | 5,574 functions, 15,398 instructions | a different binary and a different question. TownsOS is not a High C build target, so mixing it in pollutes every feature vector |
 | the `enter` cluster | **41 routines in 2,260 bytes**, `0xfdb9a..0x105000` | two idioms, both clustered on the same address boundary, neither reproducible by 1.73 under any source shape or flag set tried. That is a coherent signature of a **separately built region** |
 | unresolved indirect transfers | 30 in the game module | first-class ledger category, not a footnote. See the defect 1 note below |
 

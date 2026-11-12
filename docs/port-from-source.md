@@ -112,9 +112,10 @@ strip and asserts the size difference rather than trusting it.
 
 **The one thing that used to make this step un-reproducible, and no longer does.** TBIOS is seeded from a live
 capture of the running game, `saves/analysis/entry-boot-tool.txt`, which is 3.2 MB of emulator trace and is
-gitignored. Without it the TBIOS module has 307 functions instead of 5,573 and the run faults at `0110:6d73` on
-frame 80. That derivation is now checked in as `tools/tbios-seeds.txt`, `port-build.sh` falls back to it when the
-capture is absent, and `tools/tbios-seeds.py --check` asserts the two still agree wherever the trace exists.
+gitignored. Without it the TBIOS module has 308 functions instead of 5,574, and a run built that way faults at the
+first routine it needs and does not have, which for Ultima II is `0110:6d73` on frame 80 (measured 2026-11-08,
+before the seed union). That derivation is now checked in as `tools/tbios-seeds.txt`, `port-build.sh` falls back to it
+when the capture is absent, and `tools/tbios-seeds.py --check` asserts the two still agree wherever the trace exists.
 
 ## 8. Run it
 
