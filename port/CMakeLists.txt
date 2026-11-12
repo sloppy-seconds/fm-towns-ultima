@@ -148,8 +148,14 @@ target_link_libraries(${PORT_TARGET} game_recomp fmt_towns)
 # build imported libgcc_s_seh-1.dll and libstdc++-6.dll, which is the same defect as a binary that needs libSDL3: it
 # looks self-contained and is not. Static linking here matches what SDL already does on every platform, so the
 # artefact is one file.
+#
+# --no-insert-timestamp BECAUSE A DIGEST HAS TO MEAN SOMETHING. mingw writes the build time into the PE header, so two
+# builds of identical source differ in sha256 and a published digest describes one build rather than the code. Measured
+# 2026-11-12: two Windows builds of the same tree produced f4a764f4… and bf42537d… before this flag existed. With it the
+# header's timestamp is zero and the same source should produce the same bytes, which is the property the Linux binaries
+# already have.
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_link_options(${PORT_TARGET} PRIVATE -static -static-libgcc -static-libstdc++)
+  target_link_options(${PORT_TARGET} PRIVATE -static -static-libgcc -static-libstdc++ -Wl,--no-insert-timestamp)
 endif()
 
 # THE C++ RUNTIME ON LINUX, and it is an option rather than unconditional because the static archive is not installed
