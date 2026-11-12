@@ -699,6 +699,53 @@ Practical routes for a user who wants a save disk:
 
 ---
 
+### 8.9 Ultima III's four save files are plain text, and they name their own fields
+
+**Tried:** read the four files `EXODUS.EXP` writes, rather than treating them as binary because nobody had looked.
+
+**Measured 2026-11-10**, from a save the port wrote after a played session (entered a town, fought, died, `Q` to save):
+
+| file | size | first line | shape |
+|---|---|---|---|
+| `ROSTER.UT3` | 14,676 B | `Roster data:ULTIMA III for FM-TOWNS` | 20 records, `(n)NAME=` then 56 indented `KEY=value` lines |
+| `PARTY.UT3` | 197-199 B | `Party data:ULTIMA III for FM-TOWNS` | 17 `KEY=value` lines |
+| `PLAYERS.UT3` | 3,050 B | `Player data:ULTIMA III for FM-TOWNS` | one block per party member |
+| `WORLD.UT3` | 4,787-4,856 B | `World data:ULTIMA III for FM-TOWNS` | 301 `KEY=value` lines |
+
+All four are ASCII with `\r\n` line endings, a `Header:...` first line, and then `KEY=value` throughout. Nothing needs
+disassembling: **the format names its own fields.**
+
+**The roster record**, in file order: `NAME`, then the eight shrine flags `KING`, `SNAKE`, `FIRE`, `FORCE`, `DEATH`,
+`MOON`, `SOL`, `LOVE`, then `TORCHES`, `MEMBER`, `STATUS`, the four attributes `STRENGTH`, `DEXTERITY`,
+`INTELLIGENCE`, `WISDOM`, then `RACE`, `PROFESSION`, `SEX`, `MAGIC`, `HITPOINT`, `MAXHIT`, `EXPERIENCE`,
+`FOOD1`, `FOOD2`, `GOLD`, `GEM`, `KEY`, `POWDER`, `ARMOUR` with `ARMOUR1` to `ARMOUR8`, `WEAPON` with `WEAPON01` to
+`WEAPON18`. Twenty records, so `(0)` is slot 1 in the game's own numbering.
+
+**The world file** carries `MonsterToken00` upward, `ChestTime00` upward, `Whirl_X`, `Whirl_Y`, `Whirl_d_X`,
+`Whirl_d_Y`, `Moon1`, `Moon2`, `Moon1time`, `Moon2time`, `Gate_X`, `Gate_Y`, `Gatetime`.
+
+**That last group is corroboration from an independent direction.** [disc-and-binaries.md](disc-and-binaries.md)
+records six symbols that exist in `EXODUS.EXP` and in no other binary on the disc: `Whirl_X`, `Whirl_Y`, `Whirl_d_X`,
+`Whirl_d_Y`, `Gate_X`, `Gate_Y`. The save file and the symbol table use the same names for the same quantities, which
+is what a text format written by dumping named globals looks like from the outside.
+
+**What `Q` actually rewrites**, measured by comparing the file from character creation against the one after play:
+
+| file | before | after |
+|---|---|---|
+| `PARTY.UT3` | `PLAYER=0`, `SCORE=0000000`, `X=44`, `Y=20` | `PLAYER=157`, `SCORE=0000050`, `X=42`, `Y=20` |
+| `WORLD.UT3` | 4,787 B | 4,856 B, 65 differing runs in the common part plus 69 new bytes ending `Gatetime=0` |
+| `ROSTER.UT3` | 14,676 B | unchanged, timestamp untouched |
+| `PLAYERS.UT3` | 3,050 B | rewritten, same size |
+
+The roster is not rewritten by a save because the characters did not change. That is the useful negative: `Q` writes
+three of the four, and the roster is written on creation and on whatever changes a character rather than on save.
+
+**Verdict:** POSITIVE, and it changes the shape of the work. [u3-port.md](u3-port.md) said the four formats were unread
+and that reading them was the remaining item. Their *structure* is now read, in an afternoon, because they are text. What
+remains is semantics: which numbers are coordinates, what `MonsterToken00` means to the monster table, and how
+`PLAYERS.UT3` differs from the corresponding roster record.
+
 ---
 
 **[The save disk](save-disk.md)** **[Open questions](open-questions.md)**

@@ -140,9 +140,9 @@ What it puts beyond doubt, because each of these is a screen or a code path nobo
 | combat | a fight started, rounds resolved, damage applied |
 | death | the party died and the game handled it |
 
-What that leaves as genuinely unknown, and it is a shorter list than yesterday: `Q` (Quit and Save) from inside the
-game, which is the only path that writes the four save files from a *played* state, dungeons, and the four file
-formats themselves.
+What that leaves as genuinely unknown: dungeons, and the *meaning* of the save fields. `Q` was exercised too, on
+2026-11-10, and the four files turned out to be plain text with self-describing names (save-files.md 8.9), so the
+formats are read as far as their structure goes.
 
 ## The DOS extender calls, counted
 
