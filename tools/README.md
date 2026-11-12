@@ -45,6 +45,7 @@ that the port links, which is `ci-port-build.sh`.
 | `statedump.js` | Compares the file against the runtime image at specific addresses. Its first version used a probe that does not survive; `statefind.js` supersedes its base-finding. |
 | `overlays.js` | Maps which image regions are resident, and tests whether the binary is overlayed. |
 | `extractstrings.js` | Extracts every string reachable from a renderer call site, classified by encoding. Writes `extracted/strings.json`, which is gitignored. |
+| `demotext.js` | The three demos' narration as a table: Shift-JIS runs with file offset, runtime address, byte length and character count, because the text is data rather than artwork and a translation has to fit those lengths. `--compare` reports all three side by side and shows they are not one text: 21, 20 and 24 runs, all starting at `0x0014b4`. `--out` writes under `extracted/`, gitignored, because the strings are the game's dialogue. |
 | `msgtable.js` | Tests whether register-supplied string arguments come from constant-address loads. Found zero, which is a real negative. |
 | `structmap.js` | Enumerates the fields of a strided array, searching both `[reg+disp32]` and `[base+index+disp]` encodings. The second form is what made the object array readable. |
 | `sndparse.js` | Establishes the `.SND` header layouts. Offset 12 equals `filesize - 32` in 15 of 15 files. |

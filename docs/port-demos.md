@@ -9,6 +9,38 @@ They are also the cheapest possible check on the port, because they exercise the
 rules. Nothing about Ultima's code can be concluded from them (`docs/three-games-compared.md`) and that has not
 changed.
 
+## The narration is text, and it is not in the pictures
+
+The demos scroll their narration faster than it can be read, and the question that follows is whether it could be
+English. The answer turns on where the text lives, and it lives in the executable rather than in the artwork.
+
+**Measured 2026-11-12, with `node tools/demotext.js --compare`:**
+
+| demo | decodable Shift-JIS runs | total bytes | from | to |
+|---|---|---|---|---|
+| `UT1DEMO.EXP` | 21 | 1,340 | `0x0014b4` | `0x001a36` |
+| `UT2DEMO.EXP` | 20 | 1,764 | `0x0014b4` | `0x001bce` |
+| `UT3DEMO.EXP` | 24 | 2,102 | `0x0014b4` | `0x001d2e` |
+
+A run here is a maximal sequence of two-byte characters, four characters or longer, that decodes as strict Shift-JIS.
+The strings are drawn with the kanji font TownsOS places in low memory at `0x3b7e1`, which is the `kanji font 188
+glyphs ... from \UTFONT.FNT` line in a run's log, and which is why the demos reference no font file of their own. The
+only pictures they load are `HEADTTL.TIF` and `UT1_1.TIF` to `UT1_4.TIF`, and none of those holds the narration.
+
+The table starts at the **same file offset in all three** and the counts differ, 21 against 20 against 24. So the
+slideshow shell is shared and the narration is not: an English version is a translation per episode, not one table
+used three times. That also means a string pool of fixed offsets cannot be reused across the three.
+
+**What this does not establish.** That ASCII renders correctly in the narration panel, and whether the code takes a
+length or reads to a terminator, which decides whether a translation can be longer than the original. The games draw
+English with the same renderer, so the glyphs exist; the panel's line pitch is untested.
+
+**Why the output is not in this repository.** The strings are the game's dialogue, and the rule in
+[licensing](licensing.md) is that dialogue and long strings never go into documentation. `tools/demotext.js` takes an
+executable and prints the table; `--out` writes under `extracted/`, which is gitignored, and the tool is the only thing
+committed. A translated executable would be a modified copy of the original and could not be hosted either, so the shape
+that fits is a table the reader translates plus a tool that rewrites their own disc into a build directory.
+
 ## Running them at a readable speed
 
 The demos scroll their text faster than a person can read, and the obvious lever does not work on them. The kit binds
