@@ -49,8 +49,10 @@ plain files in `saves/`, so there is no floppy image to create either. Nothing e
 required: SDL and the glyph ROM are inside the binary, and `--licences` prints every notice
 compiled into it.
 
-The Linux binary is the tested one. The Windows build is checked under Wine only, because
-this project has no Windows machine, so it is an untested build rather than a supported one.
+The Linux binaries are the tested ones. There are three of them now, one per game, and all three play.
+The Windows builds are checked under Wine, where all three load and a game can be launched and played,
+but none has run on a real Windows machine, because this project has no access to one. Treat them as
+likely to work rather than supported, and a failure on real hardware is the most useful report.
 
 One command. It builds the port from the recompiled module that is committed in `module/`,
 so there is no recompile, no container and no toolkit needed, and it fetches the font ROM

@@ -246,11 +246,11 @@ jobs:
             travels with any of them.
 
             **None of the three has ever been run on a real Windows machine**, because this project has no access to one.
-            The only Windows evidence there is comes from Wine, and it is all for Ultima II: it starts there, prints its
-            licences, and draws frames byte-identical to the Linux build's at 700 and at 5,800 frames. Ultima I and III
-            have not been started under Wine at all, so for those the build itself and its import table are the entire
-            claim. Wine is a proxy and not the thing itself, so treat all three as untested builds that are likely to
-            work rather than supported ones, and a failure on real hardware is the most useful report you can send.
+            What there is instead is Wine, and it now covers all three: each loads, and a game can be launched and played.
+            Ultima II goes further, and has been checked there against the Linux build frame for frame, byte-identical at
+            700 and at 5,800 frames. Wine is a proxy and not the thing itself, so treat all three as untested builds that
+            are likely to work rather than supported ones, and a failure on real hardware is the most useful report you
+            can send.
 
             None of the six files is an archive, and nothing else is published here: the licence texts and the glyph ROM's
             provenance are compiled into every binary, and `--licences` prints them.
