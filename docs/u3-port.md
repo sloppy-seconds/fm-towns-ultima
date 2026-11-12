@@ -15,7 +15,7 @@ unread even though the port reads and writes them correctly.
 
 ## The build, in one command
 
-`tools/game-build.sh u3` extracts `EXODUS.EXP` and `TBIOS.BIN` from the disc, strips the 512-byte `MP` header
+`tools/port-build.sh u3` extracts `EXODUS.EXP` and `TBIOS.BIN` from the disc, strips the 512-byte `MP` header
 and loader stub, derives a seed set, recompiles two modules, builds the port against them and runs.
 
 ```
@@ -180,8 +180,8 @@ live `STA` reported at that game's entry, so the field is the loader's value whe
 ## Reproducing
 
 ```
-tools/game-build.sh u3                    # recompile, build, run 120 frames
-tools/game-build.sh u3 --reuse --frames 200  # with a shot, if you set U2_SHOT
+tools/port-build.sh u3                    # recompile, build, run 120 frames
+tools/port-build.sh u3 --reuse --frames 200  # with a shot, if you set U2_SHOT
 ./tools/u3drive.py --keys "space@500,Down@800,Return@1100,Return@1400" --frames 1900
 ./tools/look.py analysis/u3drive/final.png "read every word"
 ```

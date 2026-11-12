@@ -39,7 +39,7 @@
 // `seeds` is where the addresses no static rule finds live, relative to the repository.
 // `shadows` says whether the port's hand-written replacement table applies to this title. It is true for Ultima II
 // only, because every entry in port/native_shadows.cpp names a routine of ENCHANT.EXP; a build for any other title
-// compiles that file with an empty manifest, or it would not link. tools/game-build.sh reads this field rather than
+// compiles that file with an empty manifest, or it would not link. tools/port-build.sh reads this field rather than
 // assuming, so the day a second title earns its own table is a one-line change here plus the table itself.
 // `saveDisk` is a disk image this project keeps for that title, or null.
 const GAMES = [

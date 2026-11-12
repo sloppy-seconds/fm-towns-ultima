@@ -87,7 +87,7 @@ fi
 echo "linked      $OUT/b/u2 ($(stat -c %s "$OUT/b/u2") bytes)"
 
 # THE SAME MODULE, BUILT THE WAY A SECOND TITLE BUILDS IT. `-DU2_FOREIGN_MODULE=ON -DPORT_TARGET=u3` is what
-# tools/game-build.sh passes: the option compiles port/native_shadows.cpp with an empty manifest, because every entry
+# tools/port-build.sh passes: the option compiles port/native_shadows.cpp with an empty manifest, because every entry
 # in the real one names a function of ENCHANT.EXP and a module from another title has none of them, and the target
 # name is what keeps two binaries from calling themselves the same thing. The first is the gate doing its job, and
 # this step proves the second does its own. A link check and nothing more: no game is played, no disc is read.
@@ -110,14 +110,14 @@ if [[ ! -x "$OUT/b-foreign/u3" ]]; then
 fi
 echo "linked      $OUT/b-foreign/u3, no native shadows, named after its title (a second title's configuration)"
 
-# AND A TITLE'S BUILD MUST REFUSE TO RUN WITHOUT ITS OWN BINARY. tools/game-build.sh extracts the title's `.EXP`
+# AND A TITLE'S BUILD MUST REFUSE TO RUN WITHOUT ITS OWN BINARY. tools/port-build.sh extracts the title's `.EXP`
 # from the disc and checks that the entry field lands on the start-up stub. With no disc and no binary there is
 # nothing to check, so it must stop with a message rather than build a module from whatever is lying around. Named
 # by a title id that does not exist, which is the state a fresh clone is in for every title but Ultima II.
-if "$ROOT/tools/game-build.sh" no-such-title --no-run --quiet > "$OUT/title-refusal.log" 2>&1; then
-	echo "tools/game-build.sh exited 0 for a title that does not exist, so it built something out of nothing" >&2
+if "$ROOT/tools/port-build.sh" no-such-title --no-run --quiet > "$OUT/title-refusal.log" 2>&1; then
+	echo "tools/port-build.sh exited 0 for a title that does not exist, so it built something out of nothing" >&2
 	exit 1
 fi
-echo "refused     tools/game-build.sh for an unknown title, as it must"
+echo "refused     tools/port-build.sh for an unknown title, as it must"
 
 echo "the port links with no game present, in both configurations. It does not play, and nothing in CI can make it play."

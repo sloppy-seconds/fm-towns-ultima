@@ -55,9 +55,9 @@ if (have('clang-format')) {
 	skipped.push('clang-format not installed');
 }
 
-const cc = path.join(ROOT, 'build', 'port', 'b', 'compile_commands.json');
+const cc = path.join(ROOT, 'build', 'u2', 'b', 'compile_commands.json');
 if (!have('clang-tidy')) skipped.push('clang-tidy not installed');
-else if (!fs.existsSync(cc)) skipped.push('clang-tidy needs build/port/b/compile_commands.json (-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)');
+else if (!fs.existsSync(cc)) skipped.push('clang-tidy needs build/u2/b/compile_commands.json (-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)');
 else {
 	const r = spawnSync('clang-tidy', ['-p', path.dirname(cc), '--quiet', ...sources], { cwd: ROOT, encoding: 'utf8' });
 	if (r.status !== 0) {

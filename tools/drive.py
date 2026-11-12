@@ -63,8 +63,8 @@ class Port:
             # --dev, because everything this driver does with the port is instrumentation: it reads shadow entries from
             # stderr and it needs the switches that arrange them. Without the flag the port drops them and says so.
             [binary, '--dev', f'--graphics={graphics}', f'--frames={frames}', '--control=127.0.0.1:0',
-             os.path.join(ROOT, 'ENCHANT.EXP'), os.path.join(ROOT, 'build/port/tbios.bin'),
-             os.path.join(ROOT, 'build/port/disc.cue'), disk],
+             os.path.join(ROOT, 'ENCHANT.EXP'), os.path.join(ROOT, 'build/u2/TBIOS.BIN'),
+             os.path.join(ROOT, 'build/u2/disc.cue'), disk],
             stdout=subprocess.PIPE, stderr=open(errlog, 'wb'), text=True, env=env)
         bound = None
         self.startup = []

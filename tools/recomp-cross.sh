@@ -23,7 +23,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-/var/tmp/u2-cross}"
 SEEDS="/var/tmp/u2-cross-seeds.txt"
-BASE="$ROOT/build/port/recomp"
+BASE="$ROOT/build/u2/recomp"
 
 fail() { echo "recomp-cross: $*" >&2; exit 1; }
 

@@ -85,7 +85,7 @@ def one_run(port_path, template_disk, shadow_off, boot, settle, work, tag):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--port', default=os.path.join(ROOT, 'build', 'port', 'b', 'u2'))
+    ap.add_argument('--port', default=os.path.join(ROOT, 'build', 'u2', 'b', 'u2'))
     ap.add_argument('--disk', default=os.path.join(ROOT, 'saves', 'userdisk.hdm'))
     ap.add_argument('--boot', type=int, default=2000)
     ap.add_argument('--settle', type=int, default=600)

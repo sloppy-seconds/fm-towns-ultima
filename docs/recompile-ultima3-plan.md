@@ -29,7 +29,7 @@ while the document calls it done.
 | item | state | one line |
 |---|---|---|
 | U3-0a | DONE | `verify.js` asserts the container, the entry and the stack field, with two watched controls |
-| U3-0b | DONE | `tools/game-build.sh u3`, one command, counts reproducible across runs |
+| U3-0b | DONE | `tools/port-build.sh u3`, one command, counts reproducible across runs |
 | U3-1a | DONE | CI links both module configurations and asserts the U3 build refuses with no game file |
 | U3-1b | DONE | the title screen draws, 800 frames, no fault |
 | U3-2a | OPEN | stack measured from the header, selectors moot because the game sets its own, base still assumed |
@@ -45,7 +45,7 @@ while the document calls it done.
 | U3-4d | OPEN | not attempted |
 | U3-5a-e | OPEN | blocked behind a playable save disk |
 | U3-6a | DONE | `PORT_TARGET`, so the executable is the title's id: `u2`, `u3` |
-| U3-6b | OPEN | two build scripts, one descriptor table, and the strip arithmetic in both |
+| U3-6b | DONE | one script, `tools/port-build.sh --game <id>`, and Ultima II's binary is unchanged by the merge |
 | U3-6c | OPEN | 30+ `U2_*` environment names are shared by U2 and U3 |
 | U3-6d | OPEN | `module/`, `extracted/` and the doc pages do not follow one pattern |
 | U3-6e | DONE | AlmaLinux 9 plus gcc-toolset-13 produces a 2.34 binary that passes the gate |
@@ -248,7 +248,7 @@ builds from drifting apart.
 | done when | one command strips `EXODUS.EXP`, runs the recompiler with the entry seed and the U3 seed set, and prints the function, instruction and byte counts as a regression line. A second run reproduces them exactly. The failure case: a script that hardcodes the counts it prints, or two scripts that each own half the strip arithmetic |
 | blocked by | U3-0a, for the entry value it uses |
 
-**What is now known.** `tools/game-build.sh u3` does the whole build in one command and prints one
+**What is now known.** `tools/port-build.sh u3` does the whole build in one command and prints one
 machine-comparable line, `counts    functions=860 instructions=45443 bytes=148461 ...`. Two recompiler
 runs into different directories produce identical counts, so the line is a regression figure rather
 than a description. The script owns the strip, the frame shift, the seed derivation, the ranges and the
@@ -273,7 +273,7 @@ recompiled and linked.
 
 **What is now known.** `tools/ci-port-build.sh` now builds **two** configurations from the same synthetic
 module: Ultima II's, with the native shadows, and the one a second title uses
-(`-DU2_FOREIGN_MODULE=ON`, an empty shadow manifest). It also asserts that `tools/game-build.sh` exits
+(`-DU2_FOREIGN_MODULE=ON`, an empty shadow manifest). It also asserts that `tools/port-build.sh` exits
 non-zero when its game file is absent, so the U3 route cannot build a module from whatever is lying
 around. The existing workflow job runs all of it, so CI covers the U3 configuration without a second
 workflow to drift.
@@ -551,11 +551,11 @@ binaries do collide, and the name is also what `play.sh` looks for and what the 
 
 | field | value |
 |---|---|
-| done when | `port/CMakeLists.txt` takes the executable's name from a cache variable defaulting to `u2port`, every target-scoped line uses it, `tools/game-build.sh u3` produces `u3port`, and Ultima II's build still produces `u2port` with its release name, gate and docs unchanged. The failure case: a rename that moves `dist/u2port-linux-x86_64` or the name `tools/checkall.js` checks for |
+| done when | `port/CMakeLists.txt` takes the executable's name from a cache variable defaulting to `u2port`, every target-scoped line uses it, `tools/port-build.sh u3` produces `u3port`, and Ultima II's build still produces `u2port` with its release name, gate and docs unchanged. The failure case: a rename that moves `dist/u2port-linux-x86_64` or the name `tools/checkall.js` checks for |
 | blocked by | nothing |
 
 **What is now known.** `PORT_TARGET` is a cache variable, `project()` and every target-scoped line use it, and
-the executable is named after the title's id rather than after the port: `tools/game-build.sh u3` links
+the executable is named after the title's id rather than after the port: `tools/port-build.sh u3` links
 `build/u3/b/u3` and Ultima II's build links `build/port/b/u2`. Verified by building and running both, 60 frames
 each, with the register dumps this page already recorded. `tools/ci-port-build.sh` builds its foreign
 configuration as `u3` and fails if the name did not reach the target, and `tools/u3drive.py` defaults to
@@ -570,34 +570,39 @@ because `build/port/b/CMakeCache.txt` still held `PORT_TARGET=u2port`. Every bui
 explicitly, for the same reason `tools/port-build.sh` already passed `-DFMT_RUNTIME` explicitly. The stale
 `build/port/b/u2port` binary from before the rename is left in place rather than deleted, and nothing reads it.
 
-**The done-when was wrong when first written**, saying `tools/game-build.sh u2` produces `u3port`. Nothing
+**The done-when was wrong when first written**, saying `tools/port-build.sh u2` produces `u3port`. Nothing
 implements an item literally like that, but a criterion that states the opposite of the intent is how a rename
 gets argued about later, so it was corrected before the work rather than after.
 
 #### U3-6b. One build script, not two
 
-**State:** OPEN · **Autonomy:** AUTONOMOUS
+**State:** DONE · **Autonomy:** AUTONOMOUS
 
-`tools/port-build.sh` owns Ultima II's build and `tools/game-build.sh` owns the other six. They now share
-`tools/games.js`, so they no longer disagree about a title's facts, but they still each own a copy of the strip,
-the frame shift and the module key, which is the failure case U3-0b named.
+There were two scripts: one owning Ultima II's build and one owning the other six. They shared `tools/games.js`, so
+they no longer disagreed about a title's facts, but each still owned a copy of the strip, the frame shift and the module
+key, which is the failure case U3-0b named.
 
 | field | value |
 |---|---|
-| done when | `tools/port-build.sh --game <id>` builds every title, `tools/game-build.sh` is gone, and Ultima II's build produces the same counts and the same `counts` line it produces today. The failure case: two scripts that each own half of the strip arithmetic, or a merged script whose Ultima II path differs from the recorded numbers |
+| done when | `tools/port-build.sh --game <id>` builds every title, the second script is gone, and Ultima II's build produces the same counts and the same `counts` line it produces today. The failure case: two scripts that each own half of the strip arithmetic, or a merged script whose Ultima II path differs from the recorded numbers |
 | blocked by | U3-6a |
 
-**Half done, 2026-11-12.** `tools/game-build.sh` can now build Ultima II and produces the *same binary*: with the
-native shadows switched on from a new `shadows` field in `tools/games.js`, the live-capture TBIOS seeds preferred over
-the checked-in file, and the coverage pass ported across, both scripts recompile to
+**Done, 2026-11-12, and proved in two steps.** First the merged script was made to build Ultima II and produce the *same
+binary*: with the native shadows switched on from a new `shadows` field in `tools/games.js`, the live-capture TBIOS
+seeds preferred over the checked-in file, and the coverage pass ported across, both scripts recompiled to
 
 ```
 counts    functions=875 instructions=43117 bytes=141558 jump_tables=90 bounded=87 indirect=30 refused=0 conflicts=0
 ```
 
-and link to `build/port/b/u2` and `build/u2/b/u2` with the same sha256,
-`ff4d3b36b40559219afdc46a86672e078146936aa8d993287b2207c031c74e11`. That is the acceptance test for the merge passed
-before anything was deleted, which is the order that keeps the reference binary available.
+and linked to the same sha256, `ff4d3b36b40559219afdc46a86672e078146936aa8d993287b2207c031c74e11`. Only then was the
+other script removed, because a merge that deletes the reference first cannot be proved.
+
+Second, `tools/game-build.sh` became `tools/port-build.sh` and the four live references to the old build path moved with
+it: `build/port/b/u2` is now `build/u2/b/u2`, in `tools/checkall.js`, `tools/controlsmoke.py`, `tools/shadow-diff.py`
+and `tools/cstyle.js`, and `tools/drive.py` followed for its `TBIOS.BIN` and `disc.cue`. A bare `tools/port-build.sh`
+still means Ultima II, `--out DIR` and `U2_EXTRA_SEEDS` still work because `tools/recomp-cross.sh` uses both, and the
+coverage pass is on unless `--no-coverage` says otherwise.
 
 What is left is the second half: make one name the entry point (`tools/port-build.sh --game <id>`), remove the other,
 and move the four references to `build/port/b/u2` (`tools/checkall.js`, `tools/controlsmoke.py`, `tools/drive.py` and

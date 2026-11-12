@@ -697,7 +697,7 @@ if (skipCheck('attribution ledger')) { recordSkip('attribution ledger'); } else 
 // Skips nothing: it needs a built port, and says so rather than passing quietly.
 if (!skipCheck('shadow differential')) {
 	const problems = [];
-	const binary = path.join(ROOT, 'build', 'port', 'b', 'u2');
+	const binary = path.join(ROOT, 'build', 'u2', 'b', 'u2');
 	const py = fs.existsSync(path.join(__dirname, '.venv', 'bin', 'python3'))
 		? path.join(__dirname, '.venv', 'bin', 'python3') : 'python3';
 	// CI cannot run this and never will: the check builds against a module generated from zero fill and has no game
@@ -712,7 +712,7 @@ if (!skipCheck('shadow differential')) {
 		recordSkip('shadow differential');
 		console.log('skip  shadow differential (no game media in this tree: it needs a built port and a disc)');
 	} else if (!fs.existsSync(binary)) {
-		problems.push('build/port/b/u2 is missing, so the differential was not run (./tools/port-build.sh)');
+		problems.push('build/u2/b/u2 is missing, so the differential was not run (./tools/port-build.sh)');
 		record('shadow differential', problems);
 	} else {
 		for (const [label, extra] of [['differential', []], ['control', ['--control']]]) {

@@ -1,273 +1,281 @@
 #!/usr/bin/env bash
-# tools/port-build.sh - build the native port: recompiled game code on fmtownskit's FM Towns machine.
+# tools/port-build.sh - build any of the seven titles onto fmtownskit's FM Towns machine.
 #
-# WHY THE STRIPPED IMAGE. The module is keyed by runtime addresses, and the runtime address of file
-# offset 0x200 is 0 (docs/cfg-findings.md, measured on 1,546 of 1,555 control-flow edges). So the
-# recompilation runs on ENCHANT.EXP with its 0x200 bytes of MP header and loader stub removed, and
-# every seed and no-code range is shifted by the same 0x200. Keying the module on the unstripped file
-# puts every lookup 0x200 out, which is this project's most expensive recurring mistake.
+# ONE SCRIPT, SEVEN TITLES. This began as tools/u3-build.sh, then tools/game-build.sh, and is now the single entry point
+# after plan item U3-6b merged it with the Ultima II script it used to sit beside. The two had grown to own a copy of the
+# same arithmetic each, and the strip plus the frame shift plus the module key are exactly the three things that must not
+# exist twice in a project that has already shipped a 0x200 address error twice.
+#
+# The merge was proved before anything was deleted: with the shadows switch, the live-capture TBIOS seeds and the coverage
+# pass in place, `--game u2` linked a binary with the same sha256 as the old Ultima II script's,
+# ff4d3b36b40559219afdc46a86672e078146936aa8d993287b2207c031c74e11, and the same counts line.
+#
+# The per-title facts come from tools/games.js: the executable's name, bytes, entry, stack, selector, seed file, save
+# disk and whether the native shadows apply. Nothing in this file is per-title.
+#
+# THE FRAME. Runtime address = file offset - 0x200, measured on every title: the header's entry field is a
+# runtime address and the bytes at `entry` in the stripped image are the `eb 56` start-up stub, which the script
+# checks before using it. Keying the module on the unstripped file puts every lookup 0x200 out, which is this
+# project's most expensive recurring mistake.
 #
 # USAGE
-#   tools/port-build.sh              rebuild the recompilation, then cmake and run 60 frames
-#   tools/port-build.sh --reuse      skip the recompilation, use what is in the build directory
-#   tools/port-build.sh --frames N   run N vsyncs instead of 60
-#   tools/port-build.sh --out DIR    write everything under DIR instead of build/port, which is how the
-#                                    cross-seed recompile keeps its module away from the real one, and how the
-#                                    container builds into its writable volume rather than a read-only mount
-#   tools/port-build.sh --no-run     build and stop, which is what the container route wants
-#   tools/port-build.sh --no-coverage
-#                                    skip the instruction-coverage pass, the only step that needs tools/.venv.
-#                                    coverage.txt is what item 7c's patched-instruction diff reads, so a build
-#                                    without it is a build that cannot do that diff, and it says so in its output.
-#   DISC_IMG=/path/to/x.img          the disc image to write into the one-track cue, if it is not the one .img
-#                                    file beside the tools
+#   tools/port-build.sh                 Ultima II: recompile, build, run 120 frames
+#   tools/port-build.sh u3              the same for another title
+#   tools/port-build.sh --game u1       and the long form, for a script
+#   tools/port-build.sh u3 --reuse      skip the recompilation, use what is in the build directory
+#   tools/port-build.sh u3 --frames N   run N vsyncs instead of 120
+#   tools/port-build.sh u3 --no-run     build and stop
+#   tools/port-build.sh u3 --out DIR    write under DIR instead of build/<id>
+#   tools/port-build.sh u3 --no-coverage  skip the coverage pass, and say what that costs
+#   tools/port-build.sh --list          the titles, from tools/games.js
+#   DISC_IMG=/path/to/x.img             the disc image, if not the one .img beside the tools
 #
-# U2_EXTRA_SEEDS=FILE appends guest-frame seed addresses from FILE, in the same format as
-# tools/runtime-seeds.txt. It exists for tools/recomp-cross.sh, which asks whether the recompiler can be taught
-# the starts our own walk holds.
-#
-# Everything it writes goes under build/port/ and /var/tmp, never into the repository.
+# EXTRA_SEEDS=FILE appends guest-frame seed addresses, in the same format as tools/runtime-seeds.txt, on top of
+# the title's own file from tools/games.js. U2_EXTRA_SEEDS is the older spelling of the same thing, kept because
+# tools/recomp-cross.sh passes it.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KIT="$ROOT/fmtownskit"
-OUT="$ROOT/build/port"
-STRIPPED="/var/tmp/u2-ENCHANT-stripped.bin"
-RECOMP="$OUT/recomp"
 
 REUSE=0
-FRAMES=60
-NO_RUN=0
+FRAMES=120
 NO_COVERAGE=0
+NO_RUN=0
+QUIET=0
+OUT_DIR=""
+GAME_ID=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+		--list) node "$ROOT/tools/games.js" --list; exit 0 ;;
 		--reuse) REUSE=1; shift ;;
 		--frames) FRAMES="$2"; shift 2 ;;
-		--out) OUT="$2"; RECOMP="$OUT/recomp"; shift 2 ;;
 		--no-run) NO_RUN=1; shift ;;
+		--quiet) QUIET=1; shift ;;
 		--no-coverage) NO_COVERAGE=1; shift ;;
-		*) echo "usage: tools/port-build.sh [--reuse] [--frames N] [--out DIR] [--no-run] [--no-coverage]" >&2; exit 2 ;;
+		--out) OUT_DIR="$2"; shift 2 ;;
+		--game) GAME_ID="$2"; shift 2 ;;
+		-*) echo "usage: tools/port-build.sh [<title>] [--game <id>] [--reuse] [--frames N] [--out DIR] [--no-run] [--quiet] [--no-coverage]" >&2; exit 2 ;;
+		*) GAME_ID="$1"; shift ;;
 	esac
 done
+# Ultima II is the default because it is the title every number in docs/ was taken on, so a bare `tools/port-build.sh`
+# still means what it always meant. The old script had no title argument at all and nothing that calls this needs one.
+GAME_ID="${GAME_ID:-u2}"
+
+# The per-title facts come from one table, so a title's executable name is not written into a second place.
+GAME=$(node "$ROOT/tools/games.js" --get "$GAME_ID" exp) || exit 2
+SELECTOR=$(node "$ROOT/tools/games.js" --get "$GAME_ID" selector) || exit 2
+SEED_FILE=$(node "$ROOT/tools/games.js" --get "$GAME_ID" seeds) || exit 2
+SHADOWS=$(node "$ROOT/tools/games.js" --get "$GAME_ID" shadows) || exit 2
+# THE NATIVE SHADOWS ARE TRUE FOR ULTIMA II ALONE, and the field says so rather than this script assuming it. Every
+# entry in port/native_shadows.cpp names a routine of ENCHANT.EXP, so a build for another title compiles that file with
+# an empty manifest or it does not link at all. Reading the field also makes the day a second title earns a table a data
+# change instead of a second special case here.
+SHADOW_FLAG=""
+if [[ "$SHADOWS" != "true" ]]; then SHADOW_FLAG="-DU2_FOREIGN_MODULE=ON"; fi
+SAVE_DISK=$(node "$ROOT/tools/games.js" --get "$GAME_ID" saveDisk) || exit 2
+OUT="${OUT_DIR:-$ROOT/build/$GAME_ID}"
+RECOMP="$OUT/recomp"
+STRIPPED="/var/tmp/$GAME_ID-$(basename "$GAME" .EXP)-stripped.bin"
+
+say() { [[ $QUIET -eq 1 ]] || echo "$@"; }
 
 if [[ ! -f "$KIT/runtime/towns.cmake" ]]; then
 	echo "the toolkit is not at $KIT. Run: git submodule update --init fmtownskit" >&2
-	echo "(do not apply patches/fmtownskit-mp-support.patch, the submodule's branch already carries those changes)" >&2
 	exit 2
 fi
-if [[ ! -f "$ROOT/ENCHANT.EXP" ]]; then
-	echo "ENCHANT.EXP is not in $ROOT. It is a file on the disc, not in the zip: node tools/getfile.js ENCHANT.EXP" >&2
-	exit 2
-fi
-
-mkdir -p "$OUT"
-
-# 3a. TBIOS.BIN, extracted from the disc with this repository's own ISO reader, and needed BEFORE the
-#     recompilation because TBIOS is a module too. Not the kit's Disc: its cue reader refuses this
-#     disc's PREGAP on the audio tracks, and this is a one-file read from the data track, which
-#     tools/cd.js already does correctly.
-node - "$ROOT" "$OUT/tbios.bin" <<'JS'
-const nodePath = process.argv[2], out = process.argv[3];
-const { Disc, defaultDisc } = require(nodePath + '/tools/cd.js');
-const d = new Disc(defaultDisc(nodePath));
-const cat = d.catalogue();
-const name = [...cat.keys()].find((k) => k.toUpperCase().endsWith('TBIOS.BIN'));
-if (!name) { console.error('TBIOS.BIN is not on the disc'); process.exit(1); }
-require('fs').writeFileSync(out, d.get(cat, name));
-console.log('tbios     ' + out + ' (' + require('fs').statSync(out).size + ' bytes, from ' + name + ')');
-JS
-
-if [[ $REUSE -eq 0 ]]; then
-	# 1. The stripped image: the file minus the 0x200 header and stub.
-	FILE_SIZE=$(stat -c %s "$ROOT/ENCHANT.EXP")
-	tail -c +513 "$ROOT/ENCHANT.EXP" > "$STRIPPED"
-	STRIPPED_SIZE=$(stat -c %s "$STRIPPED")
-	echo "stripped  $STRIPPED ($STRIPPED_SIZE bytes, was $FILE_SIZE)"
-	if [[ $((FILE_SIZE - STRIPPED_SIZE)) -ne 512 ]]; then
-		echo "the stripped image is not 0x200 bytes smaller, so the strip is wrong" >&2
-		exit 1
-	fi
-
-	# 2. Seeds and no-code ranges, shifted from the file frame into the runtime frame.
-	SEEDS=$(cd "$ROOT" && node tools/seeds.js --emit)
-	RANGES=$(cd "$ROOT" && node tools/codelimits.js --args)
-	SHIFTED=$(python3 - "$SEEDS" "$RANGES" <<'PY'
-import sys
-seeds = sys.argv[1].split(',')
-out = []
-for s in seeds:
-    s = s.strip()
-    if not s:
-        continue
-    v = int(s, 16) - 0x200
-    if v >= 0:
-        out.append('0x%x' % v)
-ranges = sys.argv[2].split()
-flags = []
-for i, tok in enumerate(ranges):
-    if tok == '--no-code':
-        lo, hi = ranges[i + 1].split(':')
-        lo = max(0, int(lo, 16) - 0x200)
-        hi = max(0, int(hi, 16) - 0x200)
-        flags.append('--no-code %x:%x' % (lo, hi))
-print('%s|%s' % (','.join(out), ' '.join(flags)))
-PY
-)
-	SEED_LIST="${SHIFTED%%|*}"
-	NO_CODE="${SHIFTED#*|}"
-	#    Entries measured on the machine rather than derived from the image, already in the guest frame. They
-	#    are seeds the static rules miss: the timer handler's hook pointers, read live out of its data segment.
-	RUNTIME_SEEDS_FILE="$ROOT/tools/runtime-seeds.txt"
-	if [[ -f "$RUNTIME_SEEDS_FILE" ]]; then
-		RUNTIME_SEEDS=$(sed 's/#.*//' "$RUNTIME_SEEDS_FILE" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
-		if [[ -n "$RUNTIME_SEEDS" ]]; then
-			SEED_LIST="$SEED_LIST,$RUNTIME_SEEDS"
-			echo "seeds     plus $(awk -F, '{print NF}' <<< "$RUNTIME_SEEDS") measured on the machine, from $(basename "$RUNTIME_SEEDS_FILE")"
-		fi
-	fi
-	echo "seeds     $(awk -F, '{print NF}' <<< "$SEED_LIST") in the runtime frame, plus the entry"
-	#    Extra seeds from a file, for the cross-seed experiment: the addresses this project's own walk holds that
-	#    the recompiler never decodes. Same format and same frame as runtime-seeds.txt, so one file shape serves all.
-	if [[ -n "${U2_EXTRA_SEEDS:-}" ]]; then
-		if [[ ! -f "$U2_EXTRA_SEEDS" ]]; then echo "U2_EXTRA_SEEDS=$U2_EXTRA_SEEDS does not exist" >&2; exit 2; fi
-		EXTRA=$(sed 's/#.*//' "$U2_EXTRA_SEEDS" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
-		if [[ -n "$EXTRA" ]]; then
-			SEED_LIST="$SEED_LIST,$EXTRA"
-			echo "seeds     plus $(awk -F, '{print NF}' <<< "$EXTRA") extra, from $U2_EXTRA_SEEDS"
-		fi
-	fi
-
-	# 3. Recompile, with the entry added because nothing CALLs it (docs/recomp-plan.md).
-	#    `--raw` is the right entry point here: the stripped image has no container header left, so the
-	#    kit's Exp parser cannot identify it, and `--raw` takes the image at base 0 with the code selector
-	#    from the spec. 0x0c is the selector this project measured live (docs/live-session.md).
-	#    TBIOS is a second module, keyed by its own code selector 0x110, with its entry table at
-	#    offsets 0x20..0x100 seeding the functions. That is the shape the kit's own ports use
-	#    (pc-thequeenofduellist docs/09-recompiler.md): "--raw tbios=...TBIOS.BIN@110:20-100".
-	#    TBIOS's seeds come from the live captures: every distinct offset that executed in segment 0110
-	#    is a function the game really called, which beats guessing at its entry table (six functions
-	#    from the far table alone, then a fault on the first real call at 0110:19b8).
-	TB_CAPTURE="$ROOT/saves/analysis/entry-boot-tool.txt"
-	TB_SEEDS=""
-	if [[ -f "$TB_CAPTURE" ]]; then
-		TB_SEEDS=$(python3 "$ROOT/tools/tbios-seeds.py" "$TB_CAPTURE")
-		echo "tbios     $(python3 "$ROOT/tools/tbios-seeds.py" --count "$TB_CAPTURE") distinct 0110 offsets as seeds, from the live capture"
-	elif [[ -f "$ROOT/tools/tbios-seeds.txt" ]]; then
-		#    The capture is 3.2 MB of emulator trace and is gitignored, so a clean clone would otherwise build a
-		#    TBIOS module of 307 functions and fault at 0110:6d73 on frame 80. tools/tbios-seeds.txt is that same
-		#    derivation checked in, and `tbios-seeds.py --check` asserts the two still agree wherever the trace exists.
-		TB_SEEDS=$(grep -v '^#' "$ROOT/tools/tbios-seeds.txt" | tr -d ' \t\n')
-		echo "tbios     $(tr ',' '\n' <<< "$TB_SEEDS" | grep -c . ) seeds from tools/tbios-seeds.txt (the capture is not present)"
-	fi
-	TB_SPEC="tbios=$OUT/tbios.bin@110:20-100"
-	if [[ -n "$TB_SEEDS" ]]; then
-		TB_SPEC="$TB_SPEC+$TB_SEEDS"
-	fi
-
-	#    ONE PASS, two modules, each with its own --no-code ranges (`--no-code name=lo:hi`). Before the
-	#    recompiler accepted a module name this was two passes merged by hand, because a single global list
-	#    applied ENCHANT's ranges to TBIOS and refused its real code at 0xb91-0xe1c.
-	TB_RANGES=$(cd "$ROOT" && node tools/codelimits.js --file "$OUT/tbios.bin" --args)
-	GAME_NO_CODE="${NO_CODE//--no-code /--no-code game=}"
-	TB_NO_CODE="${TB_RANGES//--no-code /--no-code tbios=}"
-	echo "ranges    $(grep -o ':' <<< "$NO_CODE" | wc -l) for the game and $(grep -o ':' <<< "$TB_RANGES" | wc -l) for tbios, scoped per module"
-	rm -rf "$RECOMP" "$OUT/re_game" "$OUT/re_tbios"
-	(cd "$ROOT" && PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m fmtownskit.recomp --out "$RECOMP" \
-		--raw "game=$STRIPPED@0xc+$SEED_LIST,0x101a20" $GAME_NO_CODE \
-		--raw "$TB_SPEC" $TB_NO_CODE) | tail -2
-	#    Every module's full report, including each unresolved indirect transfer with its operands, and each
-	#    refusal. It is written by the recompiler on every run and it is what item 7d works from, so it is worth
-	#    naming here: the list is re-derivable rather than quoted from a terminal.
-	echo "report    $RECOMP/report.txt (per module, with every unresolved indirect transfer)"
-	# The recompiler writes modules.cpp from the modules it was given, so both are registered without a
-	# hand-written one. Read the file back rather than trusting it: a missing second module is the failure
-	# that matters, and it would show up much later as a fault in the wrong place.
-	if ! grep -q 'g_mod_p_tbios' "$RECOMP/modules.cpp" || ! grep -q 'g_mod_p_game' "$RECOMP/modules.cpp"; then
-		echo "modules.cpp does not register both modules" >&2
-		cat "$RECOMP/modules.cpp" >&2
-		exit 1
-	fi
-	echo "modules   $(ls "$RECOMP"/p_*.cpp | wc -l) source files, both registered in modules.cpp"
-
-	# Instruction coverage, from the same walk and the same seeds and ranges as the module. That is what lets
-	# the port tell a patched instruction from a data write: without it the raw diff is half a megabyte of
-	# the program filling its own data. See tools/insncoverage.py and plan item 7c.
-	if [[ $NO_COVERAGE -eq 1 ]]; then
-		echo "coverage  skipped (--no-coverage), so $RECOMP/coverage.txt is absent and item 7c's diff cannot run on this module"
-	else
-		PYTHONPATH="$ROOT" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
-			--image "$STRIPPED" --seeds "$SEED_LIST,0x101a20" $NO_CODE --out "$RECOMP/coverage.txt"
-	fi
-fi
-
-# 4. Build the port.
-# A one-track cue for the kit's Disc reader, written into the build directory and never committed. It is
-# not a conversion of the disc: the .ccd stays the authoritative descriptor for emulation, because the
-# audio tracks' PREGAP is ambiguous and Tsugaru's author documents that. The kit's reader refuses PREGAP
-# entirely ("a gap not in the files is not read here"), and the program only needs the data track, which
-# begins at index 0 of the image. So this hands it the ISO and nothing else.
-# The path is relative to the cue, because that is how the kit's reader resolves it: an absolute path gets joined
-# onto the cue's directory and comes out as `build/port//var/home/...`. It is computed rather than hardcoded
-# because the cue does not always live under the project. The container builds into a volume at /build while the
-# disc sits at /src, and `../..` is a different file in each of the two places.
+# THE DISC IMAGE IS RESOLVED FIRST, because two of the steps below read files out of it. It used to be resolved at the
+# end, for the cue only, which made the script depend on the media sitting beside the tools: run from a tree without the
+# .img and tools/getfile.js died on a null path before it could read the --disc flag it had been given. Measured
+# 2026-11-10 in the Alma container, tree at /build/w and media at /src. DISC_IMG names the image and it does not have to
+# live inside the tree.
 DISC_IMG="${DISC_IMG:-$(find "$ROOT" -maxdepth 1 -name '*.img' -print -quit)}"
 if [[ -z "$DISC_IMG" || ! -f "$DISC_IMG" ]]; then
 	echo "no disc .img found beside $ROOT, and the port needs one to open. Set DISC_IMG=/path/to/the.img" >&2
 	exit 2
 fi
 DISC_IMG="$(realpath "$DISC_IMG")"
+
+mkdir -p "$OUT"
+
+# 1. The program and TBIOS, out of the disc with this repository's own ISO reader. Both are needed before the
+#    recompilation, because TBIOS is a module too. tools/getfile.js is the one tool for this, so this script
+#    neither reimplements the ISO read nor writes a JS snippet of its own. Both reads are told which image.
+if [[ ! -f "$ROOT/$GAME" ]]; then
+	(cd "$ROOT" && node tools/getfile.js "$GAME" --disc "$DISC_IMG")
+fi
+if [[ ! -f "$OUT/TBIOS.BIN" || ! -s "$OUT/TBIOS.BIN" ]]; then
+	node "$ROOT/tools/getfile.js" TBIOS.BIN --disc "$DISC_IMG" --out "$OUT" >/dev/null
+fi
+say "program   $GAME ($(stat -c %s "$ROOT/$GAME") bytes, $(stat -c %s "$OUT/TBIOS.BIN") for TBIOS)"
+
+if [[ $REUSE -eq 0 ]]; then
+	# 2. The stripped image, with the arithmetic checked rather than assumed.
+	FILE_SIZE=$(stat -c %s "$ROOT/$GAME")
+	tail -c +513 "$ROOT/$GAME" > "$STRIPPED"
+	STRIPPED_SIZE=$(stat -c %s "$STRIPPED")
+	if [[ $((FILE_SIZE - STRIPPED_SIZE)) -ne 512 ]]; then
+		echo "the stripped image is not 0x200 bytes smaller, so the strip is wrong" >&2
+		exit 1
+	fi
+	# The entry is the header's own field, in the runtime frame, and it must land on a jump or the frame is
+	# wrong. Read with od and bash arithmetic rather than a script: four bytes at a known offset is not worth a
+	# tool, and a heredoc here would be the pattern AGENTS.md forbids.
+	read -r e0 e1 e2 e3 <<< "$(od -An -tx1 -j 20 -N 4 "$ROOT/$GAME")"
+	ENTRY=$(printf '0x%x' $(( (0x$e3 << 24) | (0x$e2 << 16) | (0x$e1 << 8) | 0x$e0 )))
+	ENTRY_BYTES=$(od -An -tx1 -j $((ENTRY)) -N 2 "$STRIPPED" | tr -d ' \n')
+	say "stripped  $STRIPPED ($STRIPPED_SIZE bytes, was $FILE_SIZE), entry $ENTRY = $ENTRY_BYTES"
+	if [[ "$ENTRY_BYTES" != "eb56" ]]; then
+		echo "the entry at $ENTRY is $ENTRY_BYTES, not the start-up stub's eb56, so the frame is wrong" >&2
+		exit 1
+	fi
+
+	# 3. Seeds. The entry is not CALLed by anything, so it has to be given. The rest are DERIVED from the image
+	#    each run by tools/seeds.js, in the lower frame the recompiler and the port use, so nothing here is a
+	#    checked-in list that can go stale against a different rip. Measured extras (addresses the static rules
+	#    cannot find, taken from a run of the port or the machine) come from the title's own file, named in
+	#    tools/games.js, so no game's seed list is discovered by a naming convention in this script.
+	SEEDS="$ENTRY,$(cd "$ROOT" && node tools/seeds.js --bin "$GAME" --emit --shift 0x200)"
+	if [[ -n "$SEED_FILE" && -f "$ROOT/$SEED_FILE" ]]; then
+		EXTRA=$(sed 's/#.*//' "$ROOT/$SEED_FILE" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
+		if [[ -n "$EXTRA" ]]; then
+			SEEDS="$SEEDS,$EXTRA"
+			say "seeds     plus $(tr ',' '\n' <<< "$EXTRA" | grep -c .) measured, from $SEED_FILE"
+		fi
+	fi
+	if [[ -n "${EXTRA_SEEDS:-${U2_EXTRA_SEEDS:-}}" ]]; then
+		EXTRA_SEEDS="${EXTRA_SEEDS:-${U2_EXTRA_SEEDS:-}}"
+		[[ -f "$EXTRA_SEEDS" ]] || { echo "EXTRA_SEEDS=$EXTRA_SEEDS does not exist" >&2; exit 2; }
+		EXTRA=$(sed 's/#.*//' "$EXTRA_SEEDS" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
+		SEEDS="$SEEDS,$EXTRA"
+		say "seeds     plus $(tr ',' '\n' <<< "$EXTRA" | grep -c .) from $EXTRA_SEEDS"
+	fi
+	say "seeds     $(tr ',' '\n' <<< "$SEEDS" | grep -c .) in the runtime frame"
+
+	# 4. No-code ranges, per module, derived from that module's own image. tools/codelimits.js finds the zero runs that
+	#    are not code, and a range carried over from ENCHANT.EXP would refuse Ultima II's real code in a module
+	#    for Ultima III.
+	GAME_NO_CODE=$(cd "$ROOT" && node tools/codelimits.js --file "$STRIPPED" --args | sed 's/--no-code /--no-code game=/g')
+	TB_NO_CODE=$(cd "$ROOT" && node tools/codelimits.js --file "$OUT/TBIOS.BIN" --args | sed 's/--no-code /--no-code tbios=/g')
+	say "ranges    $(grep -o ':' <<< "$GAME_NO_CODE" | wc -l) for the game and $(grep -o ':' <<< "$TB_NO_CODE" | wc -l) for tbios"
+
+	# 5. TBIOS seeds. The live capture first, because every distinct offset that executed in segment 0110 is a function
+	#    the game really called, which beats guessing at its entry table. The capture is 3.2 MB of emulator trace and is
+	#    gitignored, so a clean clone falls back to tools/tbios-seeds.txt, which is the same derivation checked in and
+	#    asserted against the capture by tools/tbios-seeds.py --check. Ultima II's build has always chosen this way, so
+	#    this script does too rather than taking the file alone.
+	TB_CAPTURE="$ROOT/saves/analysis/entry-boot-tool.txt"
+	TB_SEEDS=""
+	if [[ -f "$TB_CAPTURE" ]]; then
+		TB_SEEDS=$(python3 "$ROOT/tools/tbios-seeds.py" "$TB_CAPTURE")
+		say "tbios     $(python3 "$ROOT/tools/tbios-seeds.py" --count "$TB_CAPTURE") distinct 0110 offsets as seeds, from the live capture"
+	elif [[ -f "$ROOT/tools/tbios-seeds.txt" ]]; then
+		TB_SEEDS=$(grep -v '^#' "$ROOT/tools/tbios-seeds.txt" | tr -d ' \t\n')
+		say "tbios     $(tr ',' '\n' <<< "$TB_SEEDS" | grep -c .) seeds from tools/tbios-seeds.txt (the capture is not present)"
+	fi
+	TB_SPEC="tbios=$OUT/TBIOS.BIN@110:20-100"
+	[[ -n "$TB_SEEDS" ]] && TB_SPEC="$TB_SPEC+$TB_SEEDS"
+
+	# 6. One pass, two modules, each with its own ranges. The selector is the title's, from tools/games.js: 0x0c
+	#    is measured on ENCHANT and is an assumption everywhere else until that title is measured. The load base
+	#    is the port's choice for every title, because the image is flat with no relocations, and neither number
+	#    is allowed to be silently defaulted, so both are printed.
+	rm -rf "$RECOMP"
+	rm -f "$OUT/recomp-summary.txt"
+	say "assumption selector $SELECTOR and load base 0x400000, both measured on ENCHANT only (plan item U3-2a)"
+	(cd "$ROOT" && PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m fmtownskit.recomp --out "$RECOMP" \
+		--raw "game=$STRIPPED@$SELECTOR+$SEEDS" $GAME_NO_CODE \
+		--raw "$TB_SPEC" $TB_NO_CODE) | tail -2 | tee "$OUT/recomp-report.txt"
+
+	# The counts line, stable and machine-comparable, so a second run can be diffed against this one rather
+	# than against a sentence. Derived from the recompiler's own report and never written by hand, and the
+	# script fails if the report stops having the shape this reads.
+	SUMMARY=$(sed -nE 's/^game: (.*)$/game: \1/p' "$OUT/recomp-report.txt" | head -1)
+	COUNTS=$(sed -nE 's/^game: ([0-9]+) functions, ([0-9]+) instructions, ([0-9]+) bytes of code; ([0-9]+) jump tables \(([0-9]+) bounded\), ([0-9]+) indirect transfers unresolved, ([0-9]+) refused, ([0-9]+) conflicts$/counts    functions=\1 instructions=\2 bytes=\3 jump_tables=\4 bounded=\5 indirect=\6 refused=\7 conflicts=\8/p' "$OUT/recomp-report.txt" | head -1)
+	if [[ "$COUNTS" != counts* ]]; then
+		echo "the recompiler report does not have the shape this summary reads. It says: $SUMMARY" >&2
+		exit 1
+	fi
+	printf '%s\n' "$COUNTS" | tee "$OUT/recomp-summary.txt"
+
+	# Instruction coverage, from the same walk, the same seeds and the same ranges as the module. That is what lets the
+	# port tell a patched instruction from a data write, and item 7c's diff cannot run without it, so a title that has
+	# it needs it here rather than only in the old Ultima II script. Skipped on request, and the skip says what it costs.
+	# The ranges are passed WITHOUT the module prefix: tools/insncoverage.py walks one image and takes --no-code lo:hi,
+	# while the recompiler wants --no-code game=lo:hi. Handing it the scoped form raised on int('game=…', 16) the first
+	# time this ran, which is why the two forms are named apart here.
+	COV_RANGES="${GAME_NO_CODE//game=/}"
+	if [[ $NO_COVERAGE -eq 1 ]]; then
+		say "coverage  skipped (--no-coverage), so $RECOMP/coverage.txt is absent"
+	elif [[ -x "$ROOT/tools/.venv/bin/python3" ]]; then
+		if PYTHONPATH="$ROOT" "$ROOT/tools/.venv/bin/python3" "$ROOT/tools/insncoverage.py" \
+			--image "$STRIPPED" --seeds "$SEEDS" $COV_RANGES --out "$RECOMP/coverage.txt"; then
+			say "coverage  $(wc -l < "$RECOMP/coverage.txt") instruction addresses in $RECOMP/coverage.txt"
+		else
+			echo "the coverage pass failed; the module is built, but item 7c's diff cannot run on it" >&2
+		fi
+	else
+		say "coverage  skipped: no tools/.venv (run tools/decode-setup.sh); item 7c's diff cannot run on this module"
+	fi
+else
+	say "reuse     using the module already in $RECOMP"
+	[[ -f "$OUT/recomp-summary.txt" ]] && cat "$OUT/recomp-summary.txt"
+fi
+
+# 7. The port, against this module. Same cmake invocation as Ultima II's build, because it is the same port. The disc
+# image was resolved at the top, because the reads in step 1 needed it; only the relative cue path is computed here.
 DISC_REL="$(realpath --relative-to="$OUT" "$DISC_IMG")"
-cat > "$OUT/disc.cue" <<CUE
-FILE "$DISC_REL" BINARY
-  TRACK 01 MODE1/2352
-    INDEX 01 00:00:00
-CUE
-echo "cue       $OUT/disc.cue (track 1 only, for the kit's reader, resolving to $DISC_IMG)"
-# -DFMT_RUNTIME is passed explicitly rather than left to the CMakeLists default, because the value is CACHEd: a
-# build tree created before the kit moved would keep pointing at the old path and fail with a message that names
-# the new one, which is the most confusing possible combination.
-# -DPORT_TARGET for the same reason. A tree configured before the executable was renamed holds `u2port` in its cache,
-# so a build like that produces `u2port`, prints the name it was told to print, and the run line then executes a
-# binary that is not there. Measured exactly that on 2026-11-10.
-# STATIC SDL3 BY DEFAULT, and the manifest is the reason: a binary that needs libSDL3 from the distro is not
-# portable, Ubuntu 24.04 has no libsdl3-dev at all, and a reader who copies one file expects one file to work.
-# tools/sdl-from-source.sh builds the pinned upstream release as libSDL3.a and prints its prefix, building it only
-# if it is missing, so the first build on a fresh clone takes a few minutes and every one after it is instant.
-# PORT_ALLOW_SHARED_SDL=ON is for a link check that has a shared SDL3 and ships nothing; port/CMakeLists.txt refuses
-# a shared SDL3 without it.
+printf 'FILE "%s" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n' "$DISC_REL" > "$OUT/disc.cue"
+say "cue       $OUT/disc.cue (track 1 only, resolving to $DISC_IMG)"
+
+# STATIC SDL3 BY DEFAULT, the same rule and the same resolution as tools/port-build.sh: a binary that needs
+# libSDL3 from the distro is not portable, and port/CMakeLists.txt refuses a shared one unless a caller says it is a
+# link check. The prefix is resolved here rather than passed down so that `tools/port-build.sh u3` is one command on
+# a fresh clone, building the pinned archive the first time and finding it every time after.
 SDL3_PREFIX="${SDL3_PREFIX:-$("$ROOT/tools/sdl-from-source.sh" --print-prefix)}"
 if [[ ! -f "$SDL3_PREFIX/lib/libSDL3.a" ]]; then
 	echo "no static SDL3 at $SDL3_PREFIX/lib/libSDL3.a, and every build links one by default." >&2
 	echo "run tools/sdl-from-source.sh, or set SDL3_PREFIX to a prefix that has the archive." >&2
 	exit 2
 fi
-echo "sdl3      static archive at $SDL3_PREFIX"
-# SDL3_DIR is passed as well as CMAKE_PREFIX_PATH, and that is not belt and braces: the value is a CACHE entry, so a
-# tree configured before this rule held the system's SDL3 here, find_package used it, and the configure then failed
-# with the message that says a shared SDL3 was found. Measured on 2026-11-10 on the first build after the change.
+say "sdl3      static archive at $SDL3_PREFIX"
+# SDL3_DIR as well, because it is a cache entry and a tree configured before this rule keeps the system's SDL3 in it.
 SDL3_CMAKE_DIR="$SDL3_PREFIX/lib/cmake/SDL3"
 if [[ ! -f "$SDL3_CMAKE_DIR/SDL3Config.cmake" ]]; then
 	echo "the static SDL3 prefix has no $SDL3_CMAKE_DIR/SDL3Config.cmake, so CMake cannot be pointed at it." >&2
 	exit 2
 fi
 
-cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" -DFMT_RUNTIME="$KIT/runtime" -DPORT_TARGET=u2 -DPORT_PROGRAM=ENCHANT.EXP -DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
+cmake -S "$ROOT/port" -B "$OUT/b" -DCMAKE_BUILD_TYPE=Release -DRECOMP_DIR="$RECOMP" \
+	-DFMT_RUNTIME="$KIT/runtime" $SHADOW_FLAG -DPORT_TARGET="$GAME_ID" -DPORT_PROGRAM="$GAME" \
+	-DCMAKE_PREFIX_PATH="$SDL3_PREFIX" -DSDL3_DIR="$SDL3_CMAKE_DIR" > "$OUT/cmake.log" 2>&1
 cmake --build "$OUT/b" -j"$(nproc)" > "$OUT/build.log" 2>&1 || {
 	echo "build failed; the last lines:" >&2
 	tail -20 "$OUT/build.log" >&2
 	exit 1
 }
-echo "built     $OUT/b/u2"
+say "built     $OUT/b/$GAME_ID"
 
-if [[ $NO_RUN -eq 1 ]]; then
-	echo "run       skipped (--no-run). Everything is under $OUT."
-	exit 0
+[[ $NO_RUN -eq 1 ]] && { say "run       skipped (--no-run). Everything is under $OUT."; exit 0; }
+
+# 8. Run it. `--graphics=none` for the same reason as Ultima II's build: a measurement path must not change
+#    according to whether a display happens to be reachable. The save disk is the title's own from tools/games.js,
+#    passed when it exists, because a game that asks for A: runs differently with no floppy than with a formatted
+#    one and the difference is not a port defect.
+FLOPPY=""
+if [[ -n "$SAVE_DISK" && -f "$ROOT/$SAVE_DISK" ]]; then
+	FLOPPY="$ROOT/$SAVE_DISK"
+	say "floppy    $FLOPPY"
 fi
-
-# 5. Run it.
-# `--graphics=none` is not optional here. The port's default is a window, because a person running it wants to see
-# it, and this script is the measurement path: a run must not change according to whether a display happens to be
-# reachable from the shell that started it. With `none` this is byte-identical to what every figure in docs/ was
-# taken with.
-"$OUT/b/u2" --graphics=none --frames="$FRAMES" "$ROOT/ENCHANT.EXP" "$OUT/tbios.bin" "$OUT/disc.cue"
+# The binary is named after the title (plan item U3-6a): the module is compiled in, so one binary per title is
+# the shape and the names have to differ. It is the title's id, so `u3` builds `u3`. The variable is passed rather
+# than derived, and the file is checked, because a build that silently produced the default name is exactly the
+# failure the item exists to stop.
+PORT_BIN="$OUT/b/$GAME_ID"
+if [[ ! -x "$PORT_BIN" ]]; then
+	echo "no $PORT_BIN, so the build did not honour -DPORT_TARGET=$GAME_ID" >&2
+	exit 1
+fi
+"$PORT_BIN" --graphics=none --frames="$FRAMES" "$ROOT/$GAME" "$OUT/TBIOS.BIN" "$OUT/disc.cue" $FLOPPY

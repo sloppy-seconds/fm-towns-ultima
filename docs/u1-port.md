@@ -6,7 +6,7 @@ descriptor row plus whatever the machine says when it runs, and U1 needed one se
 ## The build
 
 ```
-tools/game-build.sh u1 --no-run
+tools/port-build.sh u1 --no-run
 counts    functions=955 instructions=43180 bytes=141303 jump_tables=69 bounded=66 indirect=30 refused=0 conflicts=0
 built     build/u1/b/u1  (45,797,480 bytes)
 stripped  /var/tmp/u1-DARKNESS-stripped.bin (965,474 bytes, was 965,986), entry 0xe7a74 = eb56
@@ -63,7 +63,7 @@ Paul's report, 2026-11-12: in a dungeon, **monsters attacked him through closed 
 original's behaviour is not known, and this page will not guess. What can be said now is where the answer will come
 from, and it is a shorter search than it looks.
 
-**The `u1` binary contains no hand-written replacement code.** `tools/game-build.sh` builds every title but Ultima II
+**The `u1` binary contains no hand-written replacement code.** `tools/port-build.sh` builds every title but Ultima II
 with `-DU2_FOREIGN_MODULE=ON`, which compiles `port/native_shadows.cpp` with an empty manifest, because those shadows
 name routines of `ENCHANT.EXP`. So the dungeon rules that ran are the original's own instructions, translated
 mechanically. A divergence from the machine therefore has only four plausible sources, and three of them are the
@@ -86,7 +86,7 @@ copy both run the original.
 ## Reproducing
 
 ```
-tools/game-build.sh u1 --no-run
+tools/port-build.sh u1 --no-run
 U2_SHOT=/var/tmp/u1.png ./build/u1/b/u1 --graphics=none --frames=300
 ```
 
