@@ -5,7 +5,8 @@ What `EXODUS.EXP` does under this project's machine, as of 2026-11-10. The plan 
 are the ones it asked for.
 
 **Where it stands: the port boots Ultima III, draws the title, walks its menus, reads a character off a
-save floppy, creates characters, forms a party, and writes all four of the game's save files.** No fault,
+save floppy, creates characters, forms a party, writes all four of the game's save files, and `Journey Onward`
+now starts the game: the map draws with the party on it.** No fault,
 no workaround, 800 frames of attract loop. What it does not yet do is start a journey from that party, and
 the four file formats are unread.
 
@@ -98,6 +99,29 @@ readings came back in a coordinate space of their own. The container was removed
 
 That effort is recorded rather than deleted because it is the shape of a wrong turn: the answer was one menu
 further along in the port, not an emulator session.
+
+## Journey Onward works, and the two defects that were hiding it
+
+**`Journey Onward` now starts the game.** Measured 2026-11-10 in the Alma container: title, `Down Down Return`, and the
+port draws the map with the party on it, four characters and the location `South Wind`. Two defects had to be fixed, and
+neither was where the crash appeared to be.
+
+**Defect 1: the saves directory was ignored whenever any path was given.** A: is served either from a 1.26 MB image or
+from `./saves` as ordinary files, and the directory was chosen only when the program had **no arguments at all**. Passing
+the three media paths, which every tool here does and which is the only way to run when the media is not in the current
+directory, silently left A: as an unopened image. Every floppy access then failed, and the game answered
+`A WRONG DISK! Push SPACE`. Measured with three readable save files sitting in `./saves`. The rule is now on whether a
+floppy was **named**, which is the fourth positional argument, and not on whether anything was named.
+
+**Defect 2: the driving tool threw the port's output away.** `tools/u3drive.py` read the port's stdout only until the
+control socket bound, then stopped. A fault at frame 1551 was written into a pipe nobody read, so "no fault in run.log"
+was a statement about the log rather than about the run. A reader thread now drains it, and one reader owns the pipe
+because the first version gave it two and the thread swallowed the `control` line.
+
+**The crash itself was one missing function.** With both fixed, `Journey Onward` faulted at guest `0x0d6f4a`, reached from
+`0x0d5dd7` at frame 1551. It is a leaf with no prologue, opening `cmp byte [0xb4131], 2`, which is why no static rule found
+it: the same shape as the four callbacks already in `tools/u3-seeds.txt`. One line in that file, one rebuild, and the game
+started. The record of that seed, with the fault that produced it, is in the file beside it.
 
 ## The DOS extender calls, counted
 

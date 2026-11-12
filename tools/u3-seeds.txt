@@ -21,3 +21,9 @@
 # the callback rule in tools/seeds.js (prologue only) does not find it. It starts `ff 05 10 69 04 00`, an
 # increment of a static counter, preceded by a `ret` and the two-byte nop.
 0xbc14c
+# port, frame 1551: reached through the caller at guest 0x0d5dd7, straight after "Journey Onward" is chosen on a
+# disk that has a formed party on it. A leaf function with no prologue, which is why no static rule finds it: it
+# starts `80 3d 31 41 0b 00 02` (cmp byte [0xb4131], 2), preceded by a `ret` and the instructions before it write
+# 0xb4131 and 0xb4132. Found only after the floppy fix below, because without saves the game showed "A WRONG DISK"
+# and never reached this path.
+0xd6f4a

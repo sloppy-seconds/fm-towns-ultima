@@ -710,6 +710,13 @@ int main(int argc, char **argv) {
 	const char *tbios_path = pos.size() > next ? pos[next] : "build/port/tbios.bin";
 	const char *cue_path = pos.size() > next + 1 ? pos[next + 1] : "build/port/disc.cue";
 	const char *floppy_path = pos.size() > next + 2 ? pos[next + 2] : "saves/userdisk.hdm";
+	// WHETHER THE CALLER NAMED A FLOPPY, which is not the same question as whether they named anything. The saves
+	// directory used to be chosen only when there were no arguments at all, so passing the three media paths - which
+	// every tool here does, and which is the only way to run when the media is not in the current directory - silently
+	// dropped the player's saves and left A: as an unopened image. Every floppy access then failed, the game answered
+	// "A WRONG DISK! Push SPACE", and nothing said why. Measured 2026-11-10 in the container, with three save files
+	// present and readable.
+	const bool floppy_named = pos.size() > next + 2;
 	if (pos.empty()) {
 		tbios_path = m_tbios.c_str();
 		cue_path = m_cue.c_str();
@@ -976,12 +983,12 @@ int main(int argc, char **argv) {
 
 	// The A: drive. Without it the program's start-up probe for A:\ROSTER1.UT2 fails and it shows an "insert the	//
 	// disk" prompt instead of the title, which is what the port did before this existed. A missing image is reported
-	// and survived rather than treated as fatal, so the port still runs when only the CD is present. NO ARGUMENTS MEANS
-	// NO FLOPPY TO MANAGE. A player should not have to own, format and then find a 1.26 MB image to keep a character
-	// in, so a no-argument run keeps saves as ordinary files beside the disc cache. The image is still what a named
-	// floppy path means, which is what every tool and test in this repository passes, and it is also where a fresh
-	// directory's characters come from, so switching does not lose the three that ship with the project.
-	if (pos.empty()) {
+	// and survived rather than treated as fatal, so the port still runs when only the CD is present. NO FLOPPY NAMED
+	// MEANS NO FLOPPY TO MANAGE. A player should not have to own, format and then find a 1.26 MB image to keep a
+	// character in, so a run that does not name a floppy keeps saves as ordinary files beside the disc cache, and
+	// naming one still means an image. That distinction is on the fourth positional argument and not on "no arguments
+	// at all", which is the defect this branch used to have.
+	if (!floppy_named) {
 		const std::string save_root = (fs::path(cache_dir).parent_path() / "saves").string();
 		if (g_saves.open(save_root, !read_only_disk)) {
 			g_saves_dir = true;

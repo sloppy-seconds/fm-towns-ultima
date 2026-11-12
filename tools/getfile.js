@@ -45,7 +45,17 @@ if (!pattern && !want) {
 	process.exit(2);
 }
 
-const disc = new Disc(discPath || defaultDisc(ROOT));
+// A MISSING IMAGE IS A SENTENCE, NOT A NULL. defaultDisc() returns null when no .img sits beside the tools, and
+// `new Disc(null)` then throws "The 'path' argument must be of type string ... Received null" from deep inside node's
+// fs layer. That was reached on 2026-11-10 by tools/game-build.sh running in a container whose media was mounted
+// somewhere other than the tree, with --disc given: the crash happened at module load, before the flag was read.
+const resolvedDisc = discPath || defaultDisc(ROOT);
+if (!resolvedDisc || !fs.existsSync(resolvedDisc)) {
+	console.error('no usable disc image: ' + (resolvedDisc ? resolvedDisc + ' does not exist' : 'none found beside the tools') + '\n' +
+		'  put the .img beside tools/cd.js, or pass --disc /path/to/the.img (getfile.js --list works without one)');
+	process.exit(2);
+}
+const disc = new Disc(resolvedDisc);
 const cat = disc.catalogue();
 const up = (s) => s.toUpperCase();
 const matches = [...cat.keys()].filter((k) => up(path.basename(k)).includes(up(want || pattern)));

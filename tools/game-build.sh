@@ -67,16 +67,28 @@ if [[ ! -f "$KIT/runtime/towns.cmake" ]]; then
 	echo "the toolkit is not at $KIT. Run: git submodule update --init fmtownskit" >&2
 	exit 2
 fi
+# THE DISC IMAGE IS RESOLVED FIRST, because two of the steps below read files out of it. It used to be resolved at the
+# end, for the cue only, which made the script depend on the media sitting beside the tools: run from a tree without the
+# .img and tools/getfile.js died on a null path before it could read the --disc flag it had been given. Measured
+# 2026-11-10 in the Alma container, tree at /build/w and media at /src. DISC_IMG names the image and it does not have to
+# live inside the tree.
+DISC_IMG="${DISC_IMG:-$(find "$ROOT" -maxdepth 1 -name '*.img' -print -quit)}"
+if [[ -z "$DISC_IMG" || ! -f "$DISC_IMG" ]]; then
+	echo "no disc .img found beside $ROOT, and the port needs one to open. Set DISC_IMG=/path/to/the.img" >&2
+	exit 2
+fi
+DISC_IMG="$(realpath "$DISC_IMG")"
+
 mkdir -p "$OUT"
 
 # 1. The program and TBIOS, out of the disc with this repository's own ISO reader. Both are needed before the
 #    recompilation, because TBIOS is a module too. tools/getfile.js is the one tool for this, so this script
-#    neither reimplements the ISO read nor writes a JS snippet of its own.
+#    neither reimplements the ISO read nor writes a JS snippet of its own. Both reads are told which image.
 if [[ ! -f "$ROOT/$GAME" ]]; then
-	(cd "$ROOT" && node tools/getfile.js "$GAME")
+	(cd "$ROOT" && node tools/getfile.js "$GAME" --disc "$DISC_IMG")
 fi
 if [[ ! -f "$OUT/TBIOS.BIN" || ! -s "$OUT/TBIOS.BIN" ]]; then
-	node "$ROOT/tools/getfile.js" TBIOS.BIN --out "$OUT" >/dev/null
+	node "$ROOT/tools/getfile.js" TBIOS.BIN --disc "$DISC_IMG" --out "$OUT" >/dev/null
 fi
 say "program   $GAME ($(stat -c %s "$ROOT/$GAME") bytes, $(stat -c %s "$OUT/TBIOS.BIN") for TBIOS)"
 
@@ -164,13 +176,8 @@ else
 	[[ -f "$OUT/recomp-summary.txt" ]] && cat "$OUT/recomp-summary.txt"
 fi
 
-# 7. The port, against this module. Same cmake invocation as Ultima II's build, because it is the same port.
-DISC_IMG="${DISC_IMG:-$(find "$ROOT" -maxdepth 1 -name '*.img' -print -quit)}"
-if [[ -z "$DISC_IMG" || ! -f "$DISC_IMG" ]]; then
-	echo "no disc .img found beside $ROOT, and the port needs one to open. Set DISC_IMG=/path/to/the.img" >&2
-	exit 2
-fi
-DISC_IMG="$(realpath "$DISC_IMG")"
+# 7. The port, against this module. Same cmake invocation as Ultima II's build, because it is the same port. The disc
+# image was resolved at the top, because the reads in step 1 needed it; only the relative cue path is computed here.
 DISC_REL="$(realpath --relative-to="$OUT" "$DISC_IMG")"
 printf 'FILE "%s" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n' "$DISC_REL" > "$OUT/disc.cue"
 say "cue       $OUT/disc.cue (track 1 only, resolving to $DISC_IMG)"

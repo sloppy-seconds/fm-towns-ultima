@@ -29,6 +29,7 @@ import re
 import socket
 import subprocess
 import sys
+import threading
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -79,6 +80,7 @@ def main():
     ap.add_argument("--frames", type=int, default=None, help="total frames to run, default: last key + settle")
     ap.add_argument("--settle", type=int, default=60, help="frames to run past the last key")
     ap.add_argument("--out", default=os.path.join(ROOT, "analysis", "u3drive"))
+    ap.add_argument("--dev", action="store_true", help="run the port with --dev, so its instruments are on")
     ap.add_argument("--bin", default=os.path.join(ROOT, "build", "u3", "b", "u3"))
     ap.add_argument("--exp", default=os.path.join(ROOT, "EXODUS.EXP"))
     ap.add_argument("--tbios", default=os.path.join(ROOT, "build", "u3", "TBIOS.BIN"))
@@ -109,25 +111,38 @@ def main():
     log = open(os.path.join(args.out, "run.log"), "w")
     argv = [args.bin, "--graphics=sdl", "--frames=%d" % frames, "--control=127.0.0.1:0",
             args.exp, args.tbios, args.cue]
+    # --dev turns on the port's instruments, which is where the answer usually is: a refused floppy open, a missing
+    # function, a BIOS call the machine does not serve. It is off unless asked for, because a route that works should
+    # not change shape between a debug run and a clean one.
+    if args.dev:
+        argv.insert(1, "--dev")
     # The disk is optional because a tree can hold the game's own save files in ./saves instead, which is what a
     # session that created characters writes. Passing "" would be a positional argument the port does not expect.
     if args.disk:
         argv.append(args.disk)
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
-    bound = None
-    deadline = time.time() + 240
-    while time.time() < deadline:
-        line = proc.stdout.readline()
-        if not line:
-            break
-        log.write(line)
-        m = re.match(r"control\s+(\S+)", line)
-        if m:
-            bound = m.group(1)
-            break
-    if not bound:
+
+    # EVERY LINE THE PORT PRINTS GOES TO THE LOG, and the binding address is found by that same reader. Two readers of
+    # one pipe race, and the first version of this fix proved it: the thread swallowed the "control" line and the main
+    # loop then waited 240s for an address that had already gone past, reporting "never printed a bound address" about
+    # a run that was working. One reader, one event.
+    ready = threading.Event()
+    bound_box = []
+
+    def drain():
+        for line in proc.stdout:
+            log.write(line)
+            log.flush()
+            m = re.match(r"control\s+(\S+)", line)
+            if m and not bound_box:
+                bound_box.append(m.group(1))
+                ready.set()
+
+    threading.Thread(target=drain, daemon=True).start()
+    if not ready.wait(timeout=240):
         proc.kill()
         sys.exit("the port never printed a bound control address, see %s" % os.path.join(args.out, "run.log"))
+    bound = bound_box[0]
 
     host, port = bound.rsplit(":", 1)
     s = socket.create_connection((host, int(port)), timeout=60)
