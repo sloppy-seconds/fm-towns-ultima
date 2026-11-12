@@ -32,7 +32,8 @@ executable name, entry, stack, selector, seed file or save disk asks the file ra
 `\GRAPH\BRIBRI.TIF` and the same sound bank as Ultima II (`\SND\ULTIMAFMB`, `BUMP`, `FIRE`, `WHAT`, `MAGIC3`,
 `BUL1`, `MAGIC4`, `KATANA1`, `MONSTER1`, `BOMB5`, `DOOR3`, `BOMB4`, `UZUMAKI1`, `MAGIC2`, `BOMB2`). A publisher's
 splash with a logo and a title header, 360 KB. It is in scope as a second consumer of the machine, not as
-something to play.
+something to play. It runs end to end since 2026-11-12, and what that took is in
+[docs/port-british.md](port-british.md).
 
 **The three demos are one program.** `docs/three-games-compared.md` measured them 91.8 percent identical, with the
 difference in one 44 KB region. Seven ids is the right table size, but the demos are one porting job.
@@ -43,12 +44,12 @@ difference in one 44 KB region. Seven ids is the right table size, but the demos
 |---|---|---|
 | the title's executable and entry | `tools/games.js` | done |
 | the build stage | `build/<id>/` | done for `u3`, `u2` still uses `build/port/` |
-| the committed module | `module/<id>/` per title, `module/tbios/` shared | done for u1, u2 and u3: 8 to 9 MB each plus one 84 MB TBIOS, which is why it is shared |
+| the committed module | `module/<id>/` per title, `module/tbios/` shared | done for u1, u2, u3 and british: 8 to 9 MB each, 2.3 MB for the splash, plus one 84 MB TBIOS, which is why it is shared |
 | the binary | the title's id, via a CMake `PORT_TARGET` cache variable | done: `u3` builds `u3`, `u2` builds `u2` |
 | measured seeds | `tools/seeds/<id>.txt` | partly: `tools/u3-seeds.txt` and `tools/runtime-seeds.txt` |
 | extracted asset output | `extracted/<id>/` | not done, `extracted/u2` and `extracted/GRAPH` coexist |
 | the save disk | `saves/<id>-test.hdm` | partly: `saves/u3test.hdm` |
-| the doc page | `docs/port-<id>.md` | not done, this session added `docs/u3-port.md` |
+| the doc page | `docs/port-<id>.md` | begun: `docs/port-british.md` follows the spelling, `docs/u1-port.md` and `docs/u3-port.md` do not |
 | environment variables | one neutral `PORT_*` namespace | not done, 30+ `U2_*` names are shared by U2 and U3 today |
 | release assets | `<id>port-<os>-<arch>` | not done, and deliberately unchanged by the executable's rename: `dist/u2port-linux-x86_64` still says what it is to somebody who downloads it |
 | the link mode | static SDL3 from `tools/sdl-from-source.sh`, shared refused | done: CMake stops on a shared SDL3, `-DPORT_ALLOW_SHARED_SDL=ON` is for a link check that ships nothing |
