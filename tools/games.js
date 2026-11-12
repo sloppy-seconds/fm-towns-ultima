@@ -47,9 +47,9 @@ const GAMES = [
 		entry: 0xe7a74,
 		esp: 0x104b64,
 		selector: 0x0c,
-		seeds: null,
+		seeds: 'tools/u1-seeds.txt',
 		saveDisk: null,
-		note: 'the first title on the disc, and the cheapest second consumer of the shared machinery',
+		note: 'the first title on the disc; recompiled and booting, stops at frame 98 on a function the walk misses',
 	},
 	{
 		id: 'u2',

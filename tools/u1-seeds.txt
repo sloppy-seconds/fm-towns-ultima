@@ -1,0 +1,13 @@
+# Function entries in DARKNESS.EXP that no static rule finds, measured by running the port.
+#
+# Format: one guest address per line, hex, `#` starts a comment. Guest address means the runtime frame:
+# file offset minus 0x200, which is what the recompiled module is keyed by and what `tools/game-build.sh`
+# hands the recompiler. tools/seeds.js emits the same frame with `--shift 0x200`.
+#
+# Same rule as tools/u3-seeds.txt: a line goes here because the machine stopped on it, with the fault beside it,
+# and the bytes were read back to confirm they are code. Nothing here is a guess.
+
+# port, frame 98: the first fault after the entry, reached from guest 0x0e3d37. A leaf with no prologue: it starts
+# `ff 05 e0 c6 04 00` (inc dword [0x4c6e0]), and the two bytes before it are `c3 8b c0`, a ret and the two-byte nop.
+# That is why no static rule has it, the same shape as the two U3 seeds.
+0xca9a0
