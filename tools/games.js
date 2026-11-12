@@ -37,6 +37,9 @@
 // `selector` is the code selector the module is registered at. 0x0c is measured on ENCHANT and used for the
 // others until each is measured, which is stated per title rather than implied.
 // `seeds` is where the addresses no static rule finds live, relative to the repository.
+// `tbiosSeeds` is the same thing for the shared TBIOS module: offsets in segment `0110` that a title reaches and the
+// live U2 capture in `tools/tbios-seeds.txt` never saw. They are per title because the capture is one game's trace,
+// and a routine only another title calls is absent from it. `tools/port-build.sh` appends them to the TBIOS spec.
 // `shadows` says whether the port's hand-written replacement table applies to this title. It is true for Ultima II
 // only, because every entry in port/native_shadows.cpp names a routine of ENCHANT.EXP; a build for any other title
 // compiles that file with an empty manifest, or it would not link. tools/port-build.sh reads this field rather than
@@ -52,6 +55,7 @@ const GAMES = [
 		esp: 0x104b64,
 		selector: 0x0c,
 		seeds: 'tools/u1-seeds.txt',
+		tbiosSeeds: null,
 		saveDisk: null,
 		shadows: false,
 		note: 'playable on jarvis: creation, Journey Onward and play, on two seeds, the second shared with U3',
@@ -65,6 +69,7 @@ const GAMES = [
 		esp: 0x11eb10,
 		selector: 0x0c,
 		seeds: 'tools/runtime-seeds.txt',
+		tbiosSeeds: null,
 		saveDisk: 'saves/userdisk.hdm',
 		shadows: true,
 		note: 'the only title with live-measured selectors and a played-through route',
@@ -78,6 +83,7 @@ const GAMES = [
 		esp: 0xf5a78,
 		selector: 0x0c,
 		seeds: 'tools/u3-seeds.txt',
+		tbiosSeeds: null,
 		saveDisk: 'saves/u3test.hdm',
 		shadows: false,
 		note: 'reaches the title and the register, stops at a disk validation',
@@ -91,6 +97,7 @@ const GAMES = [
 		esp: 0x70e24,
 		selector: 0x0c,
 		seeds: null,
+		tbiosSeeds: 'tools/tbios-british-seeds.txt',
 		saveDisk: null,
 		shadows: false,
 		note: 'not a game: a publisher splash, 360 KB, the U2 sound bank plus HEADTTL and BRIBRI artwork',
@@ -104,6 +111,7 @@ const GAMES = [
 		esp: 0xafdc4,
 		selector: 0x0c,
 		seeds: null,
+		tbiosSeeds: null,
 		saveDisk: null,
 		shadows: false,
 		note: 'the shared slideshow shell, 91.8 percent identical to the other two demos',
@@ -117,6 +125,7 @@ const GAMES = [
 		esp: 0xaff64,
 		selector: 0x0c,
 		seeds: null,
+		tbiosSeeds: null,
 		saveDisk: null,
 		shadows: false,
 		note: 'same shell as UT1DEMO, different 44 KB content region',
@@ -130,6 +139,7 @@ const GAMES = [
 		esp: 0xb0124,
 		selector: 0x0c,
 		seeds: null,
+		tbiosSeeds: null,
 		saveDisk: null,
 		shadows: false,
 		note: 'same shell as the other two demos',

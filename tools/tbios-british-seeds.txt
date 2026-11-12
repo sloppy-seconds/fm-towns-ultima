@@ -1,0 +1,16 @@
+# tools/tbios-british-seeds.txt - TBIOS offsets in segment 0110 that BRITISH.EXP reaches and the
+# Ultima II live capture never saw.
+#
+# WHY THIS EXISTS. The TBIOS module is seeded from `tools/tbios-seeds.txt`, which is every distinct offset that
+# executed in segment 0110 during a live Ultima II boot. That is one game's trace. `BRITISH.EXP` calls a routine
+# that Ultima II never called, so it is absent from the capture, and the port stops with
+# `no recompiled function at 0110:00006864` at machine frame 1297 of the slideshow, partway down the message text.
+# Measured 2026-11-12 with `build/british/b/british --graphics=none --frames=1800`: exit 3, that one fault, and
+# with the seed below the same run reaches frame 9000 with zero faults and the message displayed in full.
+#
+# The address is a TBIOS offset, not a file offset: TBIOS.BIN loads flat at segment 0110, so the offset is the
+# file offset too. `tools/dis32.py build/british/TBIOS.BIN 0x6864 0x40` shows real code there, a `gs:[ebp+...]`
+# based calculation with `shld`/`imul`/`sar`, which is why the seed is a function start and not a guess.
+#
+# One address per line, `#` starts a comment, and `tools/port-build.sh` appends what is left to the TBIOS spec.
+0x6864

@@ -175,6 +175,18 @@ if [[ $REUSE -eq 0 ]]; then
 		TB_SEEDS=$(grep -v '^#' "$ROOT/tools/tbios-seeds.txt" | tr -d ' \t\n')
 		say "tbios     $(tr ',' '\n' <<< "$TB_SEEDS" | grep -c .) seeds from tools/tbios-seeds.txt (the capture is not present)"
 	fi
+	# The title's own TBIOS extras, if it has any. The capture above is Ultima II's trace, so a routine only this
+	# title calls is not in it, and the port then stops with `no recompiled function at 0110:<addr>` partway through
+	# a run that is otherwise fine. `tools/games.js` names the file per title; `british` is the first to need one.
+	TB_TITLE_FILE=$(node "$ROOT/tools/games.js" --get "$GAME_ID" tbiosSeeds) || exit 2
+	if [[ -n "$TB_TITLE_FILE" ]]; then
+		[[ -f "$ROOT/$TB_TITLE_FILE" ]] || { echo "$GAME_ID names $TB_TITLE_FILE for extra TBIOS seeds and it does not exist" >&2; exit 2; }
+		TB_EXTRA=$(sed 's/#.*//' "$ROOT/$TB_TITLE_FILE" | tr -d ' \t' | grep -v '^$' | paste -sd, -)
+		if [[ -n "$TB_EXTRA" ]]; then
+			TB_SEEDS="${TB_SEEDS:+$TB_SEEDS,}$TB_EXTRA"
+			say "tbios     plus $(tr ',' '\n' <<< "$TB_EXTRA" | grep -c .) measured for $GAME_ID, from $TB_TITLE_FILE"
+		fi
+	fi
 	TB_SPEC="tbios=$OUT/TBIOS.BIN@110:20-100"
 	[[ -n "$TB_SEEDS" ]] && TB_SPEC="$TB_SPEC+$TB_SEEDS"
 
