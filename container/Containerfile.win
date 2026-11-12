@@ -1,0 +1,36 @@
+# The Windows cross-build image: mingw-w64, cmake and node, and nothing else.
+#
+# WHY A SECOND IMAGE. The release image (Containerfile.x) is AlmaLinux 9, chosen for its glibc because that is what the
+# LINUX binaries carry. A Windows binary carries no host libc at all: it is a PE file with the mingw runtime linked
+# statically, so the only thing this build needs from its host is a toolchain. Keeping the two apart means the release
+# image does not grow by a few hundred megabytes of mingw it never uses, and this one stays small enough to build in a
+# minute.
+#
+# WHY DEBIAN AND NOT ALMA. CI already installs `mingw-w64` from apt on ubuntu-latest, so this image installs the same
+# package from the same family and the container and the runner agree about what the toolchain is. The Red Hat family
+# ships mingw under different names and partly in CRB, which would be a second thing to keep right for no gain.
+#
+# node is here because the port's CMake build embeds the licence texts and the glyph ROM through tools/embed.js, and
+# tools/games.js is what names each title's executable.
+# WHY TRIXIE RATHER THAN BOOKWORM. Measured 2026-11-12: bookworm's mingw-w64 is gcc 12 and cannot compile
+# `std::chrono::clock_cast<std::chrono::system_clock>(std::filesystem::last_write_time(...))`, which the kit uses in
+# towns_dos.cpp to fill a directory entry's time and date. The build stops on that one line. trixie's mingw is gcc 14 and
+# compiles the same expression, checked directly before this image was changed. gcc 13 is the floor, which is also what
+# ubuntu-latest has, so the container and the runner agree.
+#
+# The base's libc does not matter here at all: a Windows binary is a PE file with the mingw runtime linked statically, so
+# unlike Containerfile.x there is no floor to protect and the newest Debian with a new-enough mingw is the right choice.
+FROM debian:trixie
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        mingw-w64 \
+        cmake make \
+        nodejs \
+        ca-certificates curl xz-utils file \
+    && rm -rf /var/lib/apt/lists/*
+
+# No entrypoint: this image runs one command and exits, which is what the packager wants. The display image owns a
+# display and idles; this one does not.
+WORKDIR /work
