@@ -130,17 +130,24 @@ jobs:
       - name: Build and package
         run: ./tools/release-package-windows.sh
 
-      - name: Record the digest
+      # Three Windows binaries from one packaging run, the same three titles as the Linux job, each built from its own
+      # committed game module plus the shared TBIOS module. SDL for Windows is built once and shared by all three.
+      - name: Record the digests
         id: sum
-        run: echo "sha256=$(sha256sum dist/fm-u2-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "u2=$(sha256sum dist/fm-u2-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "u3=$(sha256sum dist/fm-u3-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "u1=$(sha256sum dist/fm-u1-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fm-u2-windows-x86_64.exe
-          path: dist/fm-u2-windows-x86_64.exe
+          name: windows-binaries
+          path: dist/fm-*-windows-x86_64.exe
 
     outputs:
-      sha256: ${{ steps.sum.outputs.sha256 }}
+      sha256_u2: ${{ steps.sum.outputs.u2 }}
+      sha256_u3: ${{ steps.sum.outputs.u3 }}
+      sha256_u1: ${{ steps.sum.outputs.u1 }}
 
   release:
     name: Publish the release
@@ -154,7 +161,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: fm-u2-windows-x86_64.exe
+          name: windows-binaries
 
       # Binaries and nothing else, and now four of them: three Linux titles and one Windows build of Ultima II. The rule
       # this step enforces is unchanged: a release publishes files a player runs, not archives they have to unpack, and
@@ -165,8 +172,9 @@ jobs:
           ls -l
           for f in *; do
             case "$f" in
-              fm-u1-linux-x86_64 | fm-u2-linux-x86_64 | fm-u3-linux-x86_64 | fm-u2-windows-x86_64.exe) ;;
-              *) echo "refusing to publish: $f is not one of the four binaries" >&2; exit 1 ;;
+              fm-u1-linux-x86_64 | fm-u2-linux-x86_64 | fm-u3-linux-x86_64 | \
+              fm-u1-windows-x86_64.exe | fm-u2-windows-x86_64.exe | fm-u3-windows-x86_64.exe) ;;
+              *) echo "refusing to publish: $f is not one of the six binaries" >&2; exit 1 ;;
             esac
           done
 
@@ -176,7 +184,9 @@ jobs:
             fm-u1-linux-x86_64
             fm-u2-linux-x86_64
             fm-u3-linux-x86_64
+            fm-u1-windows-x86_64.exe
             fm-u2-windows-x86_64.exe
+            fm-u3-windows-x86_64.exe
           body: |
             Early, and honest about it. The port reaches the title screen, the game menu and the overworld, characters can be
             created and played, and music and sound effects work. What is still broken is listed with the observation that found
@@ -229,16 +239,21 @@ jobs:
             built and checked in an AlmaLinux 9 container with no SDL installed at all, where it drew the title screen
             and served it over noVNC.
 
-            `fm-u2-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256 }}`. The same program for Windows,
-            cross-built with mingw-w64 and statically linked, so its import table is Windows' own libraries and no DLL
-            travels with it. **It has never been run on a real Windows machine**, because this project has no access to
-            one. Every check it has is from Wine: it starts there, prints its licences, and draws frames byte-identical
-            to the Linux build's at 700 and at 5,800 frames. Wine is a proxy and not the thing itself, so treat this as
-            an untested build that is likely to work rather than a supported one, and a failure on real hardware is the
-            most useful report you can send.
+            The three Windows binaries are `fm-u1-windows-x86_64.exe`, `fm-u2-windows-x86_64.exe` and
+            `fm-u3-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256_u1 }}`,
+            `${{ needs.windows.outputs.sha256_u2 }}` and `${{ needs.windows.outputs.sha256_u3 }}`. The same three programs,
+            cross-built with mingw-w64 and statically linked, so each import table is Windows' own libraries and no DLL
+            travels with any of them.
 
-            Neither file is an archive, and nothing else is published here: the licence texts and the glyph ROM's
-            provenance are compiled into both binaries, and `--licences` prints them.
+            **None of the three has ever been run on a real Windows machine**, because this project has no access to one.
+            The only Windows evidence there is comes from Wine, and it is all for Ultima II: it starts there, prints its
+            licences, and draws frames byte-identical to the Linux build's at 700 and at 5,800 frames. Ultima I and III
+            have not been started under Wine at all, so for those the build itself and its import table are the entire
+            claim. Wine is a proxy and not the thing itself, so treat all three as untested builds that are likely to
+            work rather than supported ones, and a failure on real hardware is the most useful report you can send.
+
+            None of the six files is an archive, and nothing else is published here: the licence texts and the glyph ROM's
+            provenance are compiled into every binary, and `--licences` prints them.
 
             ## The image
 
