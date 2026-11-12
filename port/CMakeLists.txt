@@ -26,6 +26,26 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# CCACHE, WHEN IT IS THERE. Every one of the seven titles compiles its own copy of the 302-file shared TBIOS module,
+# because cmake compiles per target and there is no object reuse between them, so three demos are about 933 translation
+# units of large generated C++. Measured 2026-11-13: four minutes per title. A cache turns a repeat build into a relink.
+# It is used only when the launcher is found, so a host without ccache builds exactly as before, and -DPORT_NO_CCACHE=ON
+# opts out where a cache would hide a change.
+#
+# CCACHE_DIR IS THE CALLER'S JOB, and this is the trap that cost an hour: setting it here only affects the *configure*
+# process, while the launcher runs under `cmake --build`, which inherits the environment of whatever invoked it. In a
+# `podman run --rm` the default is /root/.ccache, which is discarded with the container, so the cache is written every
+# run and never read. The build scripts export CCACHE_DIR=$ROOT/build/.ccache, inside the tree, and the container mounts
+# the tree, so the cache survives.
+option(PORT_NO_CCACHE "build without ccache even if it is installed" OFF)
+if(NOT PORT_NO_CCACHE)
+  find_program(CCACHE_PROGRAM ccache)
+  if(CCACHE_PROGRAM)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    message(STATUS "${PORT_TARGET}: ccache at ${CCACHE_PROGRAM}, cache in $ENV{CCACHE_DIR} (export CCACHE_DIR to keep it)")
+  endif()
+endif()
+
 # fmtownskit's runtime. The kit is a git submodule pinned to a published upstream commit, with this project's
 # MP support applied as patches/fmtownskit-mp-support.patch, so the pin plus the patch series is the whole truth.
 # checkout under references/ and can be overridden with -DFMT_RUNTIME=...

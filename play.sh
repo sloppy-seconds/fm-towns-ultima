@@ -38,6 +38,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The compiler cache, kept in the tree so a container build does not lose it. Forced rather than defaulted, because
+# /etc/profile.d/ccache.sh sets CCACHE_DIR for every login shell. See port/CMakeLists.txt.
+export CCACHE_DIR="${U2_CCACHE_DIR:-$ROOT/build/.ccache}"
 # The default game location, in the order a reader is likely to have it: the ./game/ directory this script names,
 # or the repository directory itself, which is where every other page in this project says to unpack the zip.
 if [[ -d "$ROOT/game" ]]; then GAME="$ROOT/game"; else GAME="$ROOT"; fi

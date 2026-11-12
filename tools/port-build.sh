@@ -37,6 +37,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# THE COMPILER CACHE LIVES IN THE TREE, and that needs forcing rather than defaulting: the ccache package installs
+# /etc/profile.d/ccache.sh, which sets CCACHE_DIR=/var/cache/ccache for every login shell. A build run under
+# `podman run --rm` therefore inherits a directory inside the container's writable layer and loses the cache with the
+# container, which measured as 0 percent hits across three builds on 2026-11-13. U2_CCACHE_DIR is the opt-out because
+# CCACHE_DIR cannot distinguish the distro's value from a caller's.
+export CCACHE_DIR="${U2_CCACHE_DIR:-$ROOT/build/.ccache}"
 KIT="$ROOT/fmtownskit"
 
 REUSE=0

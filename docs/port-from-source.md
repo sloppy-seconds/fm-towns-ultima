@@ -104,6 +104,16 @@ cmake, builds, and then runs 60 frames headless. `--reuse` skips the recompile, 
 If you only want the binary and not a new recompilation, `cmake -S port -B build && cmake --build build -j` builds
 from the committed `module/` and needs none of steps 4 to 7.
 
+**Why a build takes minutes, and how to make the second one take seconds.** The link is not the slow part. Every title
+compiles its own copy of the 302-file shared TBIOS module, because cmake compiles per target and there is no object reuse
+between them, so one binary is 311 translation units of large generated C++ and three demos are about 930. Measured
+2026-11-13 on four cores: 4 minutes 33 seconds cold. ccache turns that around, and the three build scripts point it at
+`build/.ccache` so the cache survives a `podman run --rm`. Measured with a warm cache: 9 seconds for a second title and
+1.2 seconds for a rebuild after deleting objects. Two things to know if it ever stops working: the launcher is set only
+when ccache is installed, and the cache directory is forced rather than defaulted because the ccache package's
+`/etc/profile.d/ccache.sh` sets `CCACHE_DIR=/var/cache/ccache` for every login shell, which in a container is discarded
+with it. `U2_CCACHE_DIR` overrides, `-DPORT_NO_CCACHE=ON` disables.
+
 **The trap this step exists to avoid.** The module is keyed by runtime address, and the runtime address of file offset
 `0x200` is `0`. So the recompile runs on the image with its 512 header bytes removed, and every seed and every
 no-code range is shifted by the same `0x200`. Recompile the unstripped file and the module builds, links, runs, and

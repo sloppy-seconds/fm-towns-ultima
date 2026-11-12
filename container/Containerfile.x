@@ -29,6 +29,7 @@ RUN dnf install -y epel-release && dnf install -y \
         wayland-devel libxkbcommon-devel wayland-protocols-devel \
         alsa-lib-devel pulseaudio-libs-devel pipewire-devel systemd-devel \
         python3 nodejs ca-certificates xz tar diffutils \
+        ccache \
     && dnf clean all
 
 COPY x-entry.sh /usr/local/bin/x-entry.sh

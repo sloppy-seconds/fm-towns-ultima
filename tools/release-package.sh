@@ -27,6 +27,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The compiler cache, kept in the tree: this script is run inside `podman run --rm` by CI and by hand, and the ccache
+# package's /etc/profile.d/ccache.sh points CCACHE_DIR at /var/cache/ccache, which dies with the container. Forced, with
+# U2_CCACHE_DIR as the opt-out. Seven titles share 302 of their translation units, so the cache is worth a great deal
+# here. See port/CMakeLists.txt.
+export CCACHE_DIR="${U2_CCACHE_DIR:-$ROOT/build/.ccache}"
 OUT="${1:-$ROOT/dist}"
 # NAMED FOR PROVENANCE, decided by Paul on 2026-11-10: `fm` for FM Towns, then the title. One title no longer ships
 # alone, so a name that says only "u2port" would not identify the thing, and the asset is what a reader sees first. The
