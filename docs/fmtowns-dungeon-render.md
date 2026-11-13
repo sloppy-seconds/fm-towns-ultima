@@ -303,6 +303,37 @@ copies `0x80` dwords (512 bytes) to `base + i*512`. So the intermediate depth ti
 disc are **generated at run time** from four source tables, which is why DUNG1's 64 tiles cover more depth steps than
 64 indices could.
 
+## The real trap entry, and what `ah=0x2b` actually does
+
+The table at `0x110cc` is the wrong one for game calls. Tracing selector `0110` broadly and filtering by caller shows**21 calls from site `0x6e1` — the `ah=0x2b` thunk — every one of them entering TBIOS at `0x0110:0x00000280`**:
+
+```
+0x0280  push fs / push es / push ds
+0x0284  mov dword ptr gs:[edi+0x200], 0
+0x028f  mov dword ptr gs:[edi+0x10], 1
+0x0297  pushfd / cld / pushal
+0x029a  mov ebp, edi
+0x02a1  movzx edi, ah
+0x02a4  call dword ptr cs:[edi*4 + 0x2b4]      ; the real dispatch table
+0x02ac  popal / popfd / pop ds / pop es / pop fs / retf
+```
+
+So the dispatcher is `0x280`, its table is **`0x2b4`**, and it is a `call`, not a jump. `0x110b5` is an inner dispatcher on some other selector and was a dead end.
+
+| ah | handler |
+|---|---|
+| `0x00` | `0x19b8` |
+| `0x07` | `0x1c6c` |
+| `0x25` | `0x20f8` |
+| `0x2a` | `0x2400` |
+| **`0x2b`** | **`0x244c`** |
+| `0x2c` | `0x245c` |
+| `0x60` | `0x336c` |
+
+**`ah=0x2b` at `0x244c` is a stub**, four instructions: it pushes two words from the trap frame (`gs:[ebp+0x28]`, `gs:[ebp+0x2c]`), loads `ecx = 0x579c`, and jumps into the shared routine at `0x2429`. So the rectangle the game builds is consumed by `0x2429`, which is the next thing to read.
+
+**`ah=0x2c` at `0x245c` is a filled-polygon primitive**, and it is readable: `mov cl,al`, then `lodsw` twice per iteration reading a vertex list from `esi`, clamping edge bounds to `3..0x100`, storing `dx`/`bx` and `esi` into the trap frame, computing `eax = ([ebp+0x1a]+1) * [ebp+0x20]`, and tracking min/max over the vertex pairs before calling `0x44a0`. That is the shape a `FillPolygon`-style BIOS entry has, and it matches the closed-door and wedge art the brief describes being drawn per depth.
+
 ## The pipeline end to end, and why there is no guest blitter
 
 Put together from the measurements above, in execution order:
@@ -314,8 +345,8 @@ Put together from the measurements above, in execution order:
 | build view | `0xe3c84` | 64x64 word table at `0x77e90` from the cell map at `0x40e90`, `bank*4096 + row*64 + col` |
 | place sprites | `0xf3e24` / `0xefb20` | `view_set(col,row,cell)` and `view_get`, with cell `0x10` returned for the player |
 | BIOS dispatch | `0x110b5`, table `0x110cc` | `movzx ebp,ah; jmp cs:[ebp*4+0x110cc]`, 256 entries indexed by function |
-| draw | **`0x13194`** (`ah=0x2b`) | VRAM row copy: source `esi`, destination `ebx`, rows `ecx`, all below `0x10000`, through CRTC port `0x4f7` |
-| flush | `0x127a8` (`ah=0x25`) | the page copy that puts the finished frame on screen |
+| draw | **`0x244c`** (`ah=0x2b`) | four-instruction stub: pushes two trap-frame words, `ecx = 0x579c`, jumps to `0x2429` |
+| flush | `0x20f8` (`ah=0x25`) | the entry the real table names; not yet read |
 
 **Why every search for a guest tile blit failed: the tiles are already in VRAM.** The program builds the view table
 and then calls `ah=0x2b`, which copies rows *between VRAM offsets*. Pixels never come back into the program's data
@@ -324,7 +355,7 @@ and over the source tables, returned 8 and 27 distinct readers respectively, all
 
 **What is left for the codex is one piece of arithmetic.** The game-side wrapper at `0xc:0x6b6` computes `esi`, `ebx`
 and `ecx` from the view cell before calling the dispatcher, and that computation is the tile-to-screen rectangle rule
-the brief asks for: which tile, which VRAM row, how many rows. Everything either side of it is now located.
+the brief asks for: which tile, which rectangle, and how the depth selects it. Everything either side of it is located.
 
 ## Open, and the frame question that gates the next step
 
