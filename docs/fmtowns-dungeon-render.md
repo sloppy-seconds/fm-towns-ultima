@@ -417,6 +417,29 @@ walls while the opaque wall and door panels simply overwrite.
 `0xcd7f4` is a **cell-to-tile-pointer table**, and `0xe31b0` permutes pairs of it, which is the only place randomness
 appears in the draw path.
 
+## The cell to tile table, read literally
+
+`0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
+
+```
+for (cell = 0;    cell <= 0x2b; cell++)  tbl[cell] = 0x83378 + cell * 512
+for (cell = 0x2c; cell <= 0x6b; cell++)  tbl[cell] = 0x8b378 + (cell - 0x2c) * 512
+0xcd9a4: 0x93578, 0x93978, 0x94178, 0x95b78, 0x95d78, 0x95f78, 0x96178, ...
+```
+
+| cell range | tile pointer |
+|---|---|
+| `0x00`-`0x2b`, 44 cells | `0x83378 + cell*512`, one 32x32 4bpp tile per cell, sequential |
+| `0x2c`-`0x6b`, 64 cells | `0x8b378 + (cell-0x2c)*512` |
+| beyond | an explicit pointer list at `0xcd9a4`, one per cell, spanning several banks |
+
+So **a cell value is a tile index**. There is no indirection to discover and no table to guess at: the value stored in
+the 64x64 word table is an index into the 512-byte tile run that starts at `0x83378` or `0x8b378`, and the blitter at
+`0xe886c` copies exactly that tile to `(col, row)` in the surface.
+
+Cell `0x10` = 16 resolves to `0x83378 + 16*512`, which is the player's own tile, and it is consistent with `view_get`
+returning `0x10` for the party's square.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
