@@ -493,6 +493,37 @@ Sixty-four cells for sixty-four `CHEST` tiles is not a coincidence, and `DUNG1` 
 **generator's source**, feeding the derived depth banks at `0xb5578`. So walls are drawn from generated tiles, and
 doors, chests and ladders are drawn from cell values.
 
+## Seven banks, and ladders are not in CHEST
+
+The loader at `0xe801c` makes **seven** 32 KB loads, not three:
+
+| destination | source pointer | name |
+|---|---|---|
+| `0x7b378` | `0x20ec` | `DUNG1`, measured |
+| `0x83378` | `0x2100` | `DUNG2`, by elimination |
+| `0x8b378` | `0x2114` | `CHEST`, measured |
+| `0x93378` | `0x2128` | source of the ladder tiles |
+| `0x9b378` | `0x213c` | unread |
+| `0xa3378` | `0x2150` | **`\MAP.MP2`**, readable ASCII, so this load is map data and not art |
+| `0xab378` | `0x2164` | unread |
+
+The other source pointers hold byte pairs like `EB 4F EB 54 EB 4D`, which neither `cp932` nor `shift_jis` accepts, so those names
+are still unresolved. One readable name among seven also shows the table is a mix, not a uniform encoding.
+
+**Ladders are not `CHEST` tiles.** A live packet capture with the player standing at a ladder shows three sprites in total:
+
+| position | cell | meaning |
+|---|---|---|
+| (7, **1**) | `0x75` | curated[9] -> `0x95778` = bank `0x93378`, tile 18 |
+| (5, 5) | `0x6a` | `CHEST` tile 62, which is one of its blank tiles |
+| (5, 5) | `0x00` | `DUNG2` tile 0 |
+
+So ladders come from the fourth bank, and the brief's "`CHEST` = chests and ladders" is half wrong. `CHEST` tile 62 drawn
+at the centre of the grid is consistent with a "nothing here" marker, since that tile is empty.
+
+**Only three sprites for a whole corridor** also confirms from the other direction what the read watches showed: the walls
+are not sprites at all. They come from the generator's derived banks, so the packet carries specials only.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
