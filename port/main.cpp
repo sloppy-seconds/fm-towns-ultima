@@ -563,16 +563,16 @@ int main(int argc, char **argv) {
 	int scale = 0;
 	// Whole multiples with the window snapped to match is the default, because a window that resizes while the picture
 	// does not was a real report. This flag is the other answer: fill the window and keep the aspect ratio.
-	// LETTERBOX IS THE DEFAULT since 2026-11-13, by Paul's decision: the window fills to whatever size it is dragged to,
-	// keeping the aspect ratio and putting bars where the shape does not match. The alternative is whole-multiple
+	// LETTERBOX IS THE DEFAULT since 2026-11-13, by Paul's decision: the window fills to whatever size it is dragged
+	// to, keeping the aspect ratio and putting bars where the shape does not match. The alternative is whole-multiple
 	// scaling with the window snapped to match, which is sharper on a 640x480 game and which forced every drag back to
 	// the nearest step, so the picture appeared not to resize at all (docs/port-defects.md, defect 6). `--no-letterbox`
 	// asks for that behaviour, and `--letterbox` is still accepted because it is in existing scripts and docs.
 	bool letterbox = true;
-	// HOW A NON-INTEGER SCALE IS SAMPLED. PixelArt is SDL 3.4's scaler for exactly this case and is the default, because
-	// letterbox is the default and nearest makes some source rows one screen pixel and some two. `--scale-mode=nearest`
-	// is what every measurement in this repository was taken with, so it stays reachable, and `linear` is for a
-	// photograph rather than an 8-pixel font.
+	// HOW A NON-INTEGER SCALE IS SAMPLED. PixelArt is SDL 3.4's scaler for exactly this case and is the default,
+	// because letterbox is the default and nearest makes some source rows one screen pixel and some two.
+	// `--scale-mode=nearest` is what every measurement in this repository was taken with, so it stays reachable, and
+	// `linear` is for a photograph rather than an 8-pixel font.
 	std::string scale_mode = "pixelart";
 	// WHICH SDL RENDERER BACKEND, by name. Empty is SDL's choice. `gpu` is the one worth asking for: pixelart sampling
 	// lives in SDL's shader backends, so on the software fallback the scale mode silently does nothing.
@@ -623,8 +623,7 @@ int main(int argc, char **argv) {
 				return 2;
 			}
 			scale_mode = m;
-		}
-		else if (!std::strncmp(argv[i], "--scale=", 8))
+		} else if (!std::strncmp(argv[i], "--scale=", 8))
 			scale = std::atoi(argv[i] + 8);
 		else if (!std::strncmp(argv[i], "--frames=", 9))
 			frames_flag = std::atol(argv[i] + 9);
@@ -1440,8 +1439,8 @@ int main(int argc, char **argv) {
 		o.fullscreen = fullscreen;
 		o.letterbox = letterbox;
 		o.renderer = renderer_arg;
-		o.scale_mode = scale_mode == "nearest" ? towns::SdlOptions::ScaleMode::Nearest
-					  : scale_mode == "linear" ? towns::SdlOptions::ScaleMode::Linear
+		o.scale_mode = scale_mode == "nearest"	? towns::SdlOptions::ScaleMode::Nearest
+					   : scale_mode == "linear" ? towns::SdlOptions::ScaleMode::Linear
 												: towns::SdlOptions::ScaleMode::PixelArt;
 		std::string err;
 		if (host.open(o, err)) {
@@ -1451,7 +1450,8 @@ int main(int argc, char **argv) {
 								(long)m.frame);
 				m.press_key(scan, ascii);
 			};
-			std::printf("graphics  sdl, window open as \"%s\", renderer %s, presentation %s, scaling %s, Ctrl-Q or closing the window ends the run\n",
+			std::printf("graphics  sdl, window open as \"%s\", renderer %s, presentation %s, scaling %s, Ctrl-Q or "
+						"closing the window ends the run\n",
 						o.title.c_str(), host.renderer_name(), letterbox ? "letterbox" : "whole multiples",
 						scale_mode.c_str());
 		} else {
