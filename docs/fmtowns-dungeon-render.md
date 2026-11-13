@@ -238,28 +238,31 @@ Two consequences that matter for the renderer:
 And a limit on this measurement: it counts non-zero pixels, which proves transparency or its absence and nothing about
 what is drawn. `DUNMON1-3.TIF` are not in `extracted/GRAPH/`, so the monster banks are still unmeasured here.
 
-## The monster banks: the 4:1 ladder is real, the LOD reading is not yet supported
+## The monster banks: LOD confirmed, and the earlier refutation retracted
 
-`DUNMON1/2/3.TIF` are 213,504 / 53,760 / 13,824 bytes, which is 512-byte header plus **416 / 104 / 26 tiles of 32x32**
-(512 bytes each). Exactly 4:1 at each step, and 26 is the number the brief calls the smallest bank's tile count.
+`DUNMON1/2/3.TIF` are 213,504 / 53,760 / 13,824 bytes. With a 512-byte header that is 212,992 / 53,248 / 13,312 body
+bytes, which is exactly 26 sprites of **128x128 / 64x64 / 32x32** at 4bpp (8,192 / 2,048 / 512 bytes each).
 
-That much is solid. What is **not** supported is the obvious reading, that the three banks are one set of 26 monsters
-at three scales. Three measurements, each designed so it could fail:
+**The three banks are the same 26 monsters at three levels of detail.** Measured by decoding each tier, sampling the
+larger sprite at the smaller one's grid, and comparing sprite *n* against sprite *n*:
 
-| test | result | verdict |
-|---|---|---|
-| small tile n vs the 2x2 block at 4n and the 4x4 block at 16n | 41.6% pixels equal, control (wrong monster) 32.8% | too weak to claim the same picture scaled |
-| groups of 4 (DUNMON2) and 16 (DUNMON1) as one monster's frames | within-group 42.3% vs across-group 41.8%; 45.1% vs 46.7% | no grouping in file order |
-| same, by stride | DUNMON2: stride 1 43.3%, 4 41.3%, 26 32.4%. DUNMON1: **stride 1 63.4%**, 16 41.7%, 26 34.8% | DUNMON1 has *contiguous runs* of similar tiles, the others do not |
+| comparison | pixels equal |
+|---|---|
+| 32px vs 64px | **61.3%** |
+| 32px vs 128px | **59.1%** |
+| control, sprite n against sprite n+1 | 42.6% |
 
-So DUNMON1 looks like animation sequences stored one after another, while DUNMON2 and DUNMON3 show no internal
-structure at stride 1, 4, 13, 26 or 52. Also measured on DUNMON3: 25 of 26 tiles have ink, and adjacent tiles are 44.1%
-similar against 43.1% for tiles eight apart, which is to say the 26 are 26 different pictures rather than 26 frames.
+An 18-point margin over the control across all 26 sprites is the same picture at three scales, and it agrees with the
+visual check that sprite 0 is the same knight at 128, 64 and 32 pixels.
 
-What this leaves open: whether the bank is chosen by distance at all, and if so by what index. Counts alone cannot
-settle it, and the tests above refute the two layouts that the count ratio predicted. The way to settle it is the same
-route that worked for the walls: find where the monster's tile is selected in code, in the compositor's overlay arrays
-(`0xce3c8` present, `0xce488` row, `0xce408` column, `0xce3e8` tile).
+**This page previously recorded the opposite, and the reason matters.** The monster banks are TIFF-wrapped with
+`FillOrder = 2`, meaning the **low** nibble is the left pixel. The first attempt decoded high-nibble-first, which
+scrambles every sprite, and it produced 41.6% against a 32.8% control: weak enough to be read as "not the same art".
+The conclusion was an artefact of the decoder, not a property of the banks. The same bug voided the "stride" test that
+reported no internal structure in DUNMON2 and DUNMON3.
+
+The rule that follows: any comparison of 4bpp TIFF-wrapped art here must decode low-nibble-first, and the raw tile banks
+(`DUNG1`, `DUNG2`, `CHEST`) are high-nibble-first. Two conventions on one disc, and confusing them looks like bad art.
 
 ## Open, and the frame question that gates the next step
 
