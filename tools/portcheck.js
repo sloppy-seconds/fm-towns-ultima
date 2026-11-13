@@ -407,7 +407,7 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		return m ? rest.slice(0, m.index) : rest;
 	};
 	for (const [file, anchor] of [
-		['README.md', '### Play the recompiled port instead'],
+		['README.md', '### 3. Run it'],
 		['docs/quickstart.md', '### The port, natively'],
 	]) {
 		const seg = portSection(read(file) || '', anchor);

@@ -63,6 +63,7 @@ nav:
       - The Lord British message, running: port-british.md
       - The three demos, running: port-demos.md
       - Translations, one table per language: locales.md
+      - Building it yourself, and noVNC: building.md
   - How this project plans: plan-process.md
   - Quickstart: quickstart.md
   - Getting set up: setup.md
