@@ -236,6 +236,29 @@ Until that is resolved, the honest position is: the family is MetaWare High C, t
 **no kit that could have built this binary is on this machine.** `references/metaware/` holds V1.7 L13, High C 2.31 and
 High CPP 3.04, all of which post-date the game.
 
+### Backwards compatibility is the trap, not the reassurance
+
+Paul's point, 2026-11-13, and it is the one that stops the wrong conclusion being drawn from a working build. A 1994
+compiler accepts 1990 C perfectly well, so "1.7 compiles the game's source" proves nothing about which compiler built
+the binary. What backwards compatibility guarantees is the **language**; what it does not guarantee is the **code
+generator**. The same source through 1.4 and through 1.7 can differ in instruction selection, register allocation,
+frame shape and scheduling while both being correct, and therefore in bytes.
+
+Two consequences the project has to live with until item `0e` closes:
+
+- **A match under 1.7 is evidence about High C's shapes, not about the tool.** Eleven routines matching is a real
+  observation and it is why the atlas is worth having. It does not promote 1.7 to the compiler, because a later sibling
+  of the right compiler emitting the same bytes for simple code is exactly what one would expect.
+- **A mismatch under 1.7 is worth even less than before.** It used to mean "not this compiler or not this C". It now
+  also means "this compiler, four years too late", and those are indistinguishable from the bytes.
+
+**The one probe that could date the kit without source is the runtime library.** These binaries statically link the
+kit's own library objects, which carry member names, and `docs/attribution-samples.md` has already walked 1,095 members
+and 224,972 code bytes out of the V1.7 kit. Searching `ENCHANT.EXP` for those byte sequences asks a question the dates
+cannot answer on their own: is this kit's runtime in the binary or not. A large overlap would mean the dates are wrong
+somewhere. Little or no overlap would be consistent with a different kit and is the cheapest corroboration available
+before a V1.4 kit is in hand.
+
 What that does NOT establish is that bulk compile-and-diff is now practical. It
 establishes that the specific mismatch this page identified, which would have
 broken every routine containing a division, is not present in the compiler in
