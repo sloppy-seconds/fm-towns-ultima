@@ -429,6 +429,25 @@ neighbours. Those entries are **individual tiles from several banks**, not bank 
 apart, `0x95b78` is far off), which is the shape a specials table has: doors, chests, monsters and the player each get a
 hand-picked tile rather than a slice of a bank.
 
+**Which role is which, measured on the art:**
+
+| bank | distinct tiles | mirror pairs | edge density | palette | colours per tile |
+|---|---|---|---|---|---|
+| `DUNG1` | 63/64 | **0** | 52.8% | `1 3 4 5 7` | **3.0** |
+| `DUNG2` | 64/64 | **0** | 66.4% | `1 2 3 4 5 6 7` | **5.5** |
+
+`DUNG2` is nearly twice as colour-rich and busier at edges, which is what plain brick against an ornate arch should look
+like. **Neither bank contains a single mirror pair**, so the "horizontal mirror is the right wall" rule in the brief is
+not in the art: the same tile is drawn at a different grid position and the perspective is inside each tile.
+
+The structural argument is stronger than the art one. The map's cell values are small integers `0`-`15`, and `0xe8a00`
+puts cells `0x00`-`0x2b` in bank 0. So **every value a `.DG3` can hold lands in `DUNG1`**, and bank 1 is unreachable from
+the map. That fits the encoding in the view loop, `if (cell > 0x100) { push -1; push cell-0x100 }`: specials are marked
+above `0x100` and their low byte indexes the curated list at `0xcd9a4`.
+
+So the two banks are best read as **map art versus placed-object art**, with the exact role of each still inferable rather
+than proven. What is no longer tenable is two art sets chosen by location.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
