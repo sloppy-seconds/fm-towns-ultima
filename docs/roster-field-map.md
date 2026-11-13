@@ -101,16 +101,26 @@ push dword ptr [edx + 0xcdf63]      ; MAP >= 4 -> DUNG_X
 and the same shape for `PLAYER_Y` against `DUNG_Y`. So maps `0`-`3` are the four overworld maps and
 `MAP >= 4` is the dungeon case, which is why `DUNG_X`/`DUNG_Y` exist at all.
 
-**The view is not chosen from this field.** `MAP` is mirrored into a global at `0xcda6c` by `mov
+**The view is not chosen from this field either.** `MAP` is mirrored into a global at `0xcda6c` by `mov
 dword ptr [edx + 0xcdf57], eax` followed by `mov dword ptr [0xcda6c], eax` at `0xf34f6`, and the
 drawing routine branches on the **mirror**: `cmp dword ptr [0xcda6c], 0` at `0xe8169`, and six
-`cmp dword ptr [0xcda6c], -1` tests elsewhere. Measured 2026-11-14: a save edited to `MAP=4`,
-`DUNG_X=1`, `DUNG_Y=1` loads those values into the record and the viewport is still the overworld, with
-the dungeon compositor `0xe866c` entered zero times. **A save edit alone does not start in a dungeon.**
+`cmp dword ptr [0xcda6c], -1` tests elsewhere.
 
-What that leaves for a scenario launch is either the game's own map-change path, which is what writes
-the mirror, or a runtime write to `0xcda6c`. The port's control socket has no poke command, so the
-second route needs a new feature and is not available today.
+Measured 2026-11-14, with a `poke` command added to the port's control socket for exactly this
+question:
+
+| what was done | what happened |
+|---|---|
+| save edited to `MAP=4`, `DUNG_X=1`, `DUNG_Y=1` | loads into the record, viewport stays overworld |
+| mirror poked to `4` | framebuffer changes, no corridor at any value tried |
+| mirror swept `-1, 1, 2, 3, 4` | five different frames, none of them first-person |
+| untouched save, `MAP=0` | **845** compositor entries, so `0xe866c` is not a dungeon-only routine |
+
+Two conclusions, both of which cost a wrong assumption to reach. **A save edit alone does not start in
+a dungeon.** And `0xe866c` is the general 32x32 tile compositor into surface `0xbe5f4`, not a dungeon
+corridor routine: it runs in the overworld, so its entry count cannot be used as an arrival test.
+What remains for a scenario launch is the game's own map-change path, which is the code that writes
+the mirror and loads the map data together.
 
 ## The roster loader does read the record from the text
 

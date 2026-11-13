@@ -147,7 +147,7 @@ if bound:
 else:
     proc.kill()
 
-def spawn(frames, shot=None, control="127.0.0.1:0"):
+def spawn(frames, shot=None, control="127.0.0.1:0", dev=False):
     """Start a run with the channel open. SDL dummy by default, because the key half of these checks needs the
     front-end and the dummy driver needs no display server. Returns (proc, sock, log, startup_lines)."""
     e = dict(os.environ)
@@ -160,8 +160,9 @@ def spawn(frames, shot=None, control="127.0.0.1:0"):
     logf = open(os.path.join(args.work, f"spawn-{frames}-{os.path.basename(str(shot))}.log"), "w")
     startup = []
     p = subprocess.Popen(
-        [args.bin, "--graphics=sdl", f"--frames={frames}", f"--control={control}",
-         args.exp, args.tbios, args.cue, args.disk],
+        [args.bin, "--graphics=sdl", f"--frames={frames}", f"--control={control}"]
+        + (["--dev"] if dev else [])
+        + [args.exp, args.tbios, args.cue, args.disk],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=e,
     )
     bound = None
@@ -433,7 +434,69 @@ def reads_checks():
 
 time_checks()
 
+def poke_checks():
+    """`poke`, the write counterpart to `mem`.
+
+    It exists because some state is reachable only at runtime: the map number the drawing routine branches on is
+    mirrored into 0xcda6c and a save load does not derive it. Two properties are worth asserting. It must refuse
+    without `--dev`, because it is an instrument and not a feature, and a write must be visible to an independent
+    read rather than only to its own reply. 0xcdf7f is SEED, a real record field, and the original value is put
+    back so the run stays usable.
+    """
+    p, s, logf, startup = spawn(2000)
+    if not s:
+        check("a run for the poke checks starts", False, "no bound address")
+        return
+    counter = [1]
+    r = call(s, counter, {"cmd": "poke", "addr": "0x0", "value": "1"})
+    check("poke is refused without --dev and says so",
+          r.get("ok") is False and "--dev" in str(r.get("error", "")), json.dumps(r)[:110])
+    call(s, counter, {"cmd": "quit"})
+    s.close()
+    try:
+        p.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        p.kill()
+    logf.close()
+
+    p2, s2, logf2, startup2 = spawn(2000, dev=True)
+    if not s2:
+        check("a run for the poke write starts", False, "no bound address")
+        return
+    counter = [1]
+    m = re.search(r"program\s+\d+ bytes at linear 0x([0-9a-f]+)", "".join(startup2))
+    base = int(m.group(1), 16) if m else None
+    check("the dev run prints where it loaded the program", base is not None, hex(base) if base else "absent")
+    if base is not None:
+        seed_addr = base + 0xCDF7F
+        before = call(s2, counter, {"cmd": "mem", "addr": hex(seed_addr), "n": 4})
+        original = bytes.fromhex(before.get("hex", ""))
+        r = call(s2, counter, {"cmd": "poke", "addr": hex(seed_addr), "value": "12345"})
+        check("poke accepts a value and echoes the bytes it wrote",
+              r.get("ok") and r.get("hex") == "39300000", json.dumps(r)[:110])
+        after = call(s2, counter, {"cmd": "mem", "addr": hex(seed_addr), "n": 4})
+        check("an independent mem read sees the value poke wrote",
+              bytes.fromhex(after.get("hex", "")) == bytes.fromhex("39300000"), after.get("hex", "none"))
+        if len(original) == 4:
+            orig_val = int.from_bytes(original, "little")
+            call(s2, counter, {"cmd": "poke", "addr": hex(seed_addr), "value": str(orig_val)})
+            back = call(s2, counter, {"cmd": "mem", "addr": hex(seed_addr), "n": 4})
+            check("the original value is restored", bytes.fromhex(back.get("hex", "")) == original,
+                  f"{back.get('hex', 'none')} vs {original.hex()}")
+        bad = call(s2, counter, {"cmd": "poke", "addr": hex(seed_addr), "value": "1", "n": "3"})
+        check("poke refuses a width it cannot write", bad.get("ok") is False, json.dumps(bad)[:90])
+    call(s2, counter, {"cmd": "quit"})
+    s2.close()
+    try:
+        p2.wait(timeout=120)
+    except subprocess.TimeoutExpired:
+        p2.kill()
+    logf2.close()
+
+
 reads_checks()
+
+poke_checks()
 
 print("unchanged: the default path against the published binary")
 new_shot = os.path.join(args.work, "new.png")

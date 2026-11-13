@@ -541,12 +541,14 @@ void native_000e75c4(X86Cpu &c) {
 // The count cannot exceed 0x30 here: the packer fills at most the 47 slots the allocator hands out, so the original's
 // "SPRITE MAX is OVER" message is unreachable from this call site and is not reproduced.
 //
-// THE TICK COUNTS ARE INDICATIVE, NOT MEASURED, and this shadow should be treated as unproven on timing-sensitive routes
-// until they are checked against the twin the way the other rules were.
+// THE TICK COUNTS ARE INDICATIVE, NOT MEASURED, and this shadow should be treated as unproven on timing-sensitive
+// routes until they are checked against the twin the way the other rules were.
 namespace {
 
 // The original halves col*32 and row*11*1024 with a cdq/sar pair, which truncates toward zero rather than flooring.
-inline int32_t shadow_trunc_half(int32_t v) { return (v - (v >> 31)) >> 1; }
+inline int32_t shadow_trunc_half(int32_t v) {
+	return (v - (v >> 31)) >> 1;
+}
 
 // One 32x32 tile into the view surface. Returns eax as the original leaves it after the last pixel.
 uint32_t shadow_blit_tile(X86Cpu &c, int32_t col, int32_t row, int32_t cell) {

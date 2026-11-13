@@ -682,9 +682,9 @@ int main(int argc, char **argv) {
 	// What was dropped is reported by print_instruments(), because an instrument that vanishes without saying so is
 	// precisely the failure this mechanism exists to remove.
 	if (!dev) {
-		static const char *kAlwaysHonoured[] = {"U2_FONT", "U2_FONT20", "U2_CLOCK", "U2_ENTRY", "U2_STACK",
-												"U2_KEYS", "U2_PAD",	"U2_LAYER", "U2_SHOT", "U2_TRACE_FN", "U2_TRACE_FN_ARGS",
-												"U2_TRACE_FN_MEM"};
+		static const char *kAlwaysHonoured[] = {"U2_FONT",	"U2_FONT20",   "U2_CLOCK",		   "U2_ENTRY",
+												"U2_STACK", "U2_KEYS",	   "U2_PAD",		   "U2_LAYER",
+												"U2_SHOT",	"U2_TRACE_FN", "U2_TRACE_FN_ARGS", "U2_TRACE_FN_MEM"};
 		std::vector<std::string> drop;
 		for (char **e = environ; e && *e; ++e) {
 			std::string s(*e);
@@ -2025,6 +2025,56 @@ int main(int argc, char **argv) {
 						ctl->send(u2ctl::ok_reply(cc.id, std::string("\"linear\":\"") + lin +
 															 "\",\"n\":" + std::to_string(len) + ",\"hex\":\"" +
 															 mem_hex(m, linear, len) + "\"," + fr));
+					} else if (cc.cmd == "poke") {
+						// The write counterpart to `mem`, and it exists because some state cannot be reached from the
+						// save file. The map number the drawing routine branches on is mirrored into 0xcda6c at runtime
+						// and a load does not derive it, so a save edited to a dungeon map still draws the overworld.
+						// Dev only: nothing in the port needs it, and a stray poke corrupts a run.
+						if (!dev) {
+							ctl->send(u2ctl::error_reply(
+								cc.id, "poke needs --dev, because it is an instrument and not a feature"));
+							continue;
+						}
+						auto addr = cc.args.find("addr");
+						auto value = cc.args.find("value");
+						if (addr == cc.args.end() || value == cc.args.end()) {
+							ctl->send(u2ctl::error_reply(cc.id, "poke wants addr (seg:off or linear) and value"));
+							continue;
+						}
+						uint32_t linear = 0;
+						std::string perr;
+						if (!resolve_addr(addr->second, linear, perr)) {
+							ctl->send(u2ctl::error_reply(cc.id, perr));
+							continue;
+						}
+						uint32_t n = 4;
+						if (auto it2 = cc.args.find("n"); it2 != cc.args.end())
+							n = (uint32_t)std::strtoul(it2->second.c_str(), nullptr, 10);
+						if (n != 1 && n != 2 && n != 4) {
+							ctl->send(u2ctl::error_reply(cc.id, "poke n must be 1, 2 or 4"));
+							continue;
+						}
+						const char *vs = value->second.c_str();
+						const int base = (vs[0] == '0' && (vs[1] == 'x' || vs[1] == 'X')) ? 16 : 10;
+						const uint32_t v = (uint32_t)std::strtoul(vs, nullptr, base);
+						uint8_t bytes[4] = {0, 0, 0, 0};
+						for (uint32_t k = 0; k < n; k++)
+							bytes[k] = (uint8_t)(v >> (8 * k));
+						m.write_block(linear, bytes, n);
+						// Read it back. A write that silently did nothing and a write that worked produce the same
+						// reply otherwise, which is the failure this repository keeps paying for.
+						uint8_t back[4] = {0, 0, 0, 0};
+						m.read_block(linear, back, n);
+						if (std::memcmp(back, bytes, n) != 0) {
+							ctl->send(
+								u2ctl::error_reply(cc.id, "poke did not take: the read-back differs from the write"));
+							continue;
+						}
+						char lin[16];
+						std::snprintf(lin, sizeof lin, "0x%08x", linear);
+						ctl->send(u2ctl::ok_reply(cc.id, std::string("\"linear\":\"") + lin +
+															 "\",\"n\":" + std::to_string(n) + ",\"hex\":\"" +
+															 mem_hex(m, linear, n) + "\"," + fr));
 					} else if (cc.cmd == "shot") {
 						// The same renderer U2_SHOT uses, so "the socket's picture" and "the file's picture" are the
 						// same bytes and that is checkable rather than plausible. Inline as base64 by default; a `path`
