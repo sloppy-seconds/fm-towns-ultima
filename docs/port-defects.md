@@ -16,7 +16,7 @@ quickstarts have to give the tested route rather than the one the game menu sugg
 | 3 | Character creation does not work | **Diagnosed 2026-11-01, two causes, both now closed.** The report itself was wrong: `Generate Character` is not a dead end, it is a sub-menu (Examine the Register / Create a Character / Terminate a Character / Main Menu / Look at a Character) and the headless route reaches it. What was dead was the digit. `Create a Character` asks `Create Entry (1-4) # 0` and wants a number, and the port could not deliver one. The second cause was that even a completed creation could not be saved | **fixed. Cause one pinned at kit `4028a76`, cause two by the FAT12 write path, and `tools/controlcreate.py` proves creation, persistence and play across two processes** |
 | 5 | The keyboard could not type a digit | **Found and fixed 2026-11-01, on the yell line.** Every digit key was dropped before it reached the guest, and the whole a-z 0-9 grid is now measured glyph by glyph. Recorded under defect 3 because that is where it was found | **fixed, pinned at kit `4028a76`, and gated by `tools/controlkeymap.py`** |
 | 4 | No sound library means no window | On a Debian trixie container with no SDL and no `libasound`, the port printed `graphics  sdl unavailable (Failed loading libasound.so.2: ... cannot open shared object file), falling back to none` and ran with no window at all. Installing `libasound2` gave a 640x480 window showing the title screen, on the same machine with still no SDL | open, cause known, not fixed |
-| 6 | The window resizes and the picture does not scale | **Reported 2026-11-03 by Paul**, dragging the window larger left the graphics the same size. Measured the same day against SDL 3.4.18 directly rather than by eye: a 640x480 canvas set to `SDL_LOGICAL_PRESENTATION_INTEGER_SCALE` renders 640x480 in a 960x720 window and only whole multiples grow it | **fixed at kit `c48d2f5`** and **confirmed 2026-11-03 by Paul on his test machine**, whole multiples with the window snapped once a drag settles, `--letterbox` for anyone who prefers filling the window, and the frame at 700 is unchanged at `15d87bf0` |
+| 6 | The window resizes and the picture does not scale | **Reported 2026-11-03 by Paul**, dragging the window larger left the graphics the same size. Measured the same day against SDL 3.4.18 directly rather than by eye: a 640x480 canvas set to `SDL_LOGICAL_PRESENTATION_INTEGER_SCALE` renders 640x480 in a 960x720 window and only whole multiples grow it | **fixed at kit `c48d2f5`** and **confirmed 2026-11-03 by Paul on his test machine**, whole multiples with the window snapped once a drag settles. **Then changed again on 2026-11-13 by Paul's decision**: letterbox is now the default, so the picture fills whatever the window is dragged to, and `--no-letterbox` asks for the snapped whole-multiple behaviour |
 
 Defects 1 and 2 are play observations reported on 2026-10-30, when the tree was at `51ca6e5`. They are not traces.
 No backtrace has been captured for either, and neither has been re-tested since the report.
@@ -472,7 +472,11 @@ Twelve of twelve agree, and the two rows in bold are why the test is worth havin
 answers those differently, so the test can fail. `sdl_snap_scale` lives in `towns_sdl.h` rather than inside the
 renderer for exactly that reason, and the test calls the shipped function with no display at all.
 
-`--letterbox` remains for anyone who would rather fill the window and accept uneven pixels at non-integer scales.
+**The default changed on 2026-11-13.** Letterbox now wins, because whole multiples meant a drag of less than half a
+step snapped back and the window looked unresizable. The picture fills the window at any size, keeping the aspect ratio
+with bars where the shape does not match, and pixels are uneven at non-integer scales. `--no-letterbox` restores whole-multiple
+scaling with the snap, for anyone who wants the sharp pixel grid, and the port prints which of the two it is using when
+the window opens.
 
 **And the snap itself was wrong the first time, in a way only a pointer could find.** The first version forced the window
 to a whole multiple at every VSYNC. That fills the window and it also makes the window impossible to resize: each drag

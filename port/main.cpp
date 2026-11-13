@@ -563,7 +563,12 @@ int main(int argc, char **argv) {
 	int scale = 0;
 	// Whole multiples with the window snapped to match is the default, because a window that resizes while the picture
 	// does not was a real report. This flag is the other answer: fill the window and keep the aspect ratio.
-	bool letterbox = false;
+	// LETTERBOX IS THE DEFAULT since 2026-11-13, by Paul's decision: the window fills to whatever size it is dragged to,
+	// keeping the aspect ratio and putting bars where the shape does not match. The alternative is whole-multiple
+	// scaling with the window snapped to match, which is sharper on a 640x480 game and which forced every drag back to
+	// the nearest step, so the picture appeared not to resize at all (docs/port-defects.md, defect 6). `--no-letterbox`
+	// asks for that behaviour, and `--letterbox` is still accepted because it is in existing scripts and docs.
+	bool letterbox = true;
 	long frames_flag = -1;
 	// THE CPU'S RATE, in percent of the FM Towns clock, which is how a title that scrolls faster than a person can
 	// read is slowed down. The kit models the rate (Machine::cpu_rate) and its window binds F5/F6/F7 to it, but a
@@ -599,6 +604,8 @@ int main(int argc, char **argv) {
 			fullscreen = true;
 		else if (!std::strcmp(argv[i], "--letterbox"))
 			letterbox = true;
+		else if (!std::strcmp(argv[i], "--no-letterbox"))
+			letterbox = false;
 		else if (!std::strncmp(argv[i], "--scale=", 8))
 			scale = std::atoi(argv[i] + 8);
 		else if (!std::strncmp(argv[i], "--frames=", 9))
@@ -1422,8 +1429,8 @@ int main(int argc, char **argv) {
 								(long)m.frame);
 				m.press_key(scan, ascii);
 			};
-			std::printf("graphics  sdl, window open as \"%s\", Ctrl-Q or closing the window ends the run\n",
-						o.title.c_str());
+			std::printf("graphics  sdl, window open as \"%s\", presentation %s, Ctrl-Q or closing the window ends the run\n",
+						o.title.c_str(), letterbox ? "letterbox" : "whole multiples");
 		} else {
 			// A display that is missing costs a picture and not a measurement, so the DEFAULT falls back rather than
 			// refusing. An explicit --graphics=sdl does not: the caller asked for a window, so a silent fallback leaves
