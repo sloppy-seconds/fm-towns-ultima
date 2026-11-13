@@ -194,10 +194,10 @@ static unsigned long long g_stop_frame = 0;
 // and the game menu's own call is 14 hits later. That is a comparison of the wrong moment, which reads exactly like
 // a real difference.
 void x86_trace(X86Cpu &c, uint32_t at) {
-	// In a trace build this runs once per instruction, so it is the only place that knows where execution really is. Without
-	// this line c.eip only moves at call boundaries, and every instrument that reports c.eip (the I/O write log among them)
-	// reports the caller's resume address instead of the writing instruction. That mistake was made once: a write to 0x4F8 was
-	// attributed to 0110:00012944, the site that had called a function with no OUT in it at all.
+	// In a trace build this runs once per instruction, so it is the only place that knows where execution really is.
+	// Without this line c.eip only moves at call boundaries, and every instrument that reports c.eip (the I/O write log
+	// among them) reports the caller's resume address instead of the writing instruction. That mistake was made once: a
+	// write to 0x4F8 was attributed to 0110:00012944, the site that had called a function with no OUT in it at all.
 	c.eip = at;
 	if (g_stop_at && at == g_stop_at) {
 		if (g_stop_frame && (!towns::g_towns || towns::g_towns->frame < g_stop_frame))
@@ -354,17 +354,18 @@ static std::string find_media(const std::vector<std::string> &dirs, std::initial
 	return std::string();
 }
 
-// Any floppy image in the media directories, when none of the conventional names is there. The retail UserDisk unpacks as
-// `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm`, which no fixed list of names is going to guess, and a tree
-// holding only the download is exactly the tree this port is handed. One image is used, several is no guess: the same rule
-// cue_from_image applies to the disc, for the same reason.
+// Any floppy image in the media directories, when none of the conventional names is there. The retail UserDisk unpacks
+// as `Ultima Trilogy 1-3 (1990)(Origins)(Jp-En)[UserDisk].hdm`, which no fixed list of names is going to guess, and a
+// tree holding only the download is exactly the tree this port is handed. One image is used, several is no guess: the
+// same rule cue_from_image applies to the disc, for the same reason.
 static std::string floppy_from_dir(const std::vector<std::string> &dirs) {
 	for (const std::string &d : dirs) {
 		std::error_code ec;
 		std::vector<fs::path> found;
 		for (const auto &e : fs::directory_iterator(d, ec)) {
 			std::string ext = e.path().extension().string();
-			for (char &ch : ext) ch = (char)std::tolower((unsigned char)ch);
+			for (char &ch : ext)
+				ch = (char)std::tolower((unsigned char)ch);
 			if (ext == ".hdm")
 				found.push_back(e.path());
 		}
@@ -391,11 +392,12 @@ static std::string cue_from_image(const std::vector<std::string> &dirs) {
 		if (ec || images.size() != 1)
 			continue;
 		const fs::path &img = images.front();
-		// CLONECD FIRST, because it is the only file here that states the layout. The download ships "<image>.ccd" beside the
-		// image, with a Control byte and a PLBA per track, so the seven audio tracks survive and the program is given a real
-		// table of contents. A cue cannot express this disc: track 2's PREGAP is undecidable from the cue, and the reader refuses
-		// the file rather than shift every later track by 150 sectors in silence. Measured before this existed: the game asked the
-		// CD to play 00:00:00 to 00:00:00 and no music played, because one track was all it had been told about.
+		// CLONECD FIRST, because it is the only file here that states the layout. The download ships "<image>.ccd"
+		// beside the image, with a Control byte and a PLBA per track, so the seven audio tracks survive and the program
+		// is given a real table of contents. A cue cannot express this disc: track 2's PREGAP is undecidable from the
+		// cue, and the reader refuses the file rather than shift every later track by 150 sectors in silence. Measured
+		// before this existed: the game asked the CD to play 00:00:00 to 00:00:00 and no music played, because one
+		// track was all it had been told about.
 		const fs::path ccd = img.parent_path() / (img.stem().string() + ".ccd");
 		if (file_exists(ccd.string()))
 			return ccd.string();
@@ -607,12 +609,12 @@ int main(int argc, char **argv) {
 			char *end = nullptr;
 			const long v = std::strtol(argv[i] + 11, &end, 10);
 			if (!end || *end || v < 1 || v > 1000) {
-				std::fprintf(stderr, "--cpu-rate= takes a percentage of the FM Towns clock, 1 to 1000. Got %s\n", argv[i] + 11);
+				std::fprintf(stderr, "--cpu-rate= takes a percentage of the FM Towns clock, 1 to 1000. Got %s\n",
+							 argv[i] + 11);
 				return 2;
 			}
 			cpu_rate_arg = (int)v;
-		}
-		else if (!std::strncmp(argv[i], "--control=", 10))
+		} else if (!std::strncmp(argv[i], "--control=", 10))
 			control_spec = argv[i] + 10;
 		else if (!std::strcmp(argv[i], "--read-only-disk"))
 			read_only_disk = true;
@@ -700,7 +702,8 @@ int main(int argc, char **argv) {
 		// The lower-case spelling is what a hand-copied tree tends to hold, and it is built from kProgram so a second
 		// title does not have to remember to add its own.
 		std::string progLower(kProgram);
-		for (char &ch : progLower) ch = (char)std::tolower((unsigned char)ch);
+		for (char &ch : progLower)
+			ch = (char)std::tolower((unsigned char)ch);
 		m_program = find_media(m_dirs, {kProgram, progLower.c_str()});
 		m_tbios = find_media(m_dirs, {"tbios.bin", "TBIOS.BIN"});
 		m_cue = find_media(m_dirs, {"disc.cue", "game.cue", "u2.cue"});
@@ -814,7 +817,8 @@ int main(int argc, char **argv) {
 	std::vector<uint8_t> file = exp_path[0] ? read_file(exp_path) : std::vector<uint8_t>();
 	const std::string program_on_disc = std::string("\\") + kProgram;
 	if (file.size() < 0x1000 && disc_or_cache(program_on_disc.c_str(), file))
-		std::printf("media     program %s read from the disc or its cache (%zu bytes)\n", program_on_disc.c_str(), file.size());
+		std::printf("media     program %s read from the disc or its cache (%zu bytes)\n", program_on_disc.c_str(),
+					file.size());
 	if (file.size() < 0x1000) {
 		std::fprintf(stderr, "%s: cannot read the executable, and %s is not on the disc\n",
 					 exp_path[0] ? exp_path : kProgram, program_on_disc.c_str());
@@ -851,13 +855,11 @@ int main(int argc, char **argv) {
 	// reading of Ultima III's hand-off exists yet (docs/recompile-ultima3-plan.md, item U3-2a). A field that is
 	// not plausible falls back to the measured value rather than to zero, so a misread header cannot silently
 	// put the stack inside the program's own image.
-	const uint32_t HEADER_STACK = (uint32_t)file[0x0e] | ((uint32_t)file[0x0f] << 8) |
-								  ((uint32_t)file[0x10] << 16) | ((uint32_t)file[0x11] << 24);
-	const uint32_t STACK_FROM_HEADER =
-		(HEADER_STACK > image_size && HEADER_STACK < 0x800000) ? HEADER_STACK : 0x11EB10;
-	const uint32_t STACK = std::getenv("U2_STACK")
-							   ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16)
-							   : STACK_FROM_HEADER;
+	const uint32_t HEADER_STACK = (uint32_t)file[0x0e] | ((uint32_t)file[0x0f] << 8) | ((uint32_t)file[0x10] << 16) |
+								  ((uint32_t)file[0x11] << 24);
+	const uint32_t STACK_FROM_HEADER = (HEADER_STACK > image_size && HEADER_STACK < 0x800000) ? HEADER_STACK : 0x11EB10;
+	const uint32_t STACK =
+		std::getenv("U2_STACK") ? (uint32_t)std::strtoul(std::getenv("U2_STACK"), nullptr, 16) : STACK_FROM_HEADER;
 	towns::Machine m;
 	// The profile's program base and physical base are the kit's own ports: 0x200000 linear and 0x49000
 	// physical. This program is at linear 0x400000, measured, and its pages sit at physical 0x76000, which is
@@ -928,15 +930,16 @@ int main(int argc, char **argv) {
 	// what it asks for is the evidence needed to decide what to add.
 	if (std::getenv("U2_TRACE_INT"))
 		m.trace_int = true;
-	// The two halves of the machine poll, each on its own switch, for the experiment of 2026-11-03. The port's sound engine
-	// comes up about 66 seconds after launch whatever is on screen, and on the original it is running before the menu appears;
-	// the poll is the one thing this port has never run, and its two jobs are separate questions.
+	// The two halves of the machine poll, each on its own switch, for the experiment of 2026-11-03. The port's sound
+	// engine comes up about 66 seconds after launch whatever is on screen, and on the original it is running before the
+	// menu appears; the poll is the one thing this port has never run, and its two jobs are separate questions.
 	//   U2_TICKS=1   run the timer BIOS's 10 ms callbacks, deliver no interrupts
 	//   U2_IRQ=1     deliver hardware interrupts as well
-	// Hardware interrupt delivery is part of the machine, not an experiment, so it is on by default. Measured on 2026-11-05: with
-	// delivery off the whole played session took zero interrupts and the sound driver waited a minute for a timer that had already
-	// expired, while with it on the driver writes the FM chip about 596 times a second from the first second. U2_NO_IRQ=1 turns it
-	// off for a differential run, and U2_TICKS=1 adds the timer BIOS's 10 ms callbacks, which stay opt-in.
+	// Hardware interrupt delivery is part of the machine, not an experiment, so it is on by default. Measured on
+	// 2026-11-05: with delivery off the whole played session took zero interrupts and the sound driver waited a minute
+	// for a timer that had already expired, while with it on the driver writes the FM chip about 596 times a second
+	// from the first second. U2_NO_IRQ=1 turns it off for a differential run, and U2_TICKS=1 adds the timer BIOS's 10
+	// ms callbacks, which stay opt-in.
 	m.irq_poll = !std::getenv("U2_NO_IRQ");
 	if (std::getenv("U2_TICKS"))
 		m.tick_poll = true;
@@ -953,9 +956,10 @@ int main(int argc, char **argv) {
 			std::printf("machine   no disc: %s\n", err.c_str());
 		} else {
 			std::printf("machine   disc opened from %s\n", cue_path);
-			// Self-test for the CD audio path, independent of whether the program ever asks for it: U2_CD_TEST=<from>:<to> starts a
-			// track immediately. Nothing in the game is touched, so a run with this on says whether this port can produce CD samples
-			// at all, which is a different question from whether a program requested them.
+			// Self-test for the CD audio path, independent of whether the program ever asks for it:
+			// U2_CD_TEST=<from>:<to> starts a track immediately. Nothing in the game is touched, so a run with this on
+			// says whether this port can produce CD samples at all, which is a different question from whether a
+			// program requested them.
 			if (const char *cdt = std::getenv("U2_CD_TEST")) {
 				unsigned long f = 0, t = 0;
 				if (std::sscanf(cdt, "%lu:%lu", &f, &t) == 2) {
@@ -1193,12 +1197,13 @@ int main(int argc, char **argv) {
 	for (int i = 0; i < 6; ++i)
 		if (i != 1)
 			c.sreg[i] = 0x0014;
-	// The first instruction budget, which is how long the guest runs before the runtime gets its turn. It used to be 1 << 30, over a
-	// billion clocks, and that is the whole reason no hardware interrupt was ever delivered: x86_poll is what advances machine time
-	// and takes pending interrupts, and at a billion clocks the first poll was hours of emulated time away. Measured on 2026-11-05:
-	// with the old value a whole played session produced zero polls, zero interrupts taken, and music that waited a minute for a
-	// timer that had already expired. A few thousand clocks is a small fraction of a scanline, and the poll recomputes its own
-	// budget from the next machine event each time it runs.
+	// The first instruction budget, which is how long the guest runs before the runtime gets its turn. It used to be 1
+	// << 30, over a billion clocks, and that is the whole reason no hardware interrupt was ever delivered: x86_poll is
+	// what advances machine time and takes pending interrupts, and at a billion clocks the first poll was hours of
+	// emulated time away. Measured on 2026-11-05: with the old value a whole played session produced zero polls, zero
+	// interrupts taken, and music that waited a minute for a timer that had already expired. A few thousand clocks is a
+	// small fraction of a scanline, and the poll recomputes its own budget from the next machine event each time it
+	// runs.
 	c.budget = 4000;
 
 	X86Func entry = x86_lookup_cs(0x000C, ENTRY);
@@ -1217,9 +1222,9 @@ int main(int argc, char **argv) {
 	if (cpu_rate_arg != 100)
 		std::printf("cpu rate  %d%% of the FM Towns clock, so the guest runs %s than real time\n", m.cpu_rate,
 					cpu_rate_arg < 100 ? "slower" : "faster");
-	// The VRAM access counters have to be on before the program runs, not after it has finished.
-	// U2_TRACE_FILE=<path> writes the instruction trace, and U2_TRACE_LIMIT caps it (default two million
-	// instructions, which is a few hundred MB of text at worst and enough to cover start-up).
+		// The VRAM access counters have to be on before the program runs, not after it has finished.
+		// U2_TRACE_FILE=<path> writes the instruction trace, and U2_TRACE_LIMIT caps it (default two million
+		// instructions, which is a few hundred MB of text at worst and enough to cover start-up).
 #ifdef X86_TRACE_ON
 	if (const char *tf = std::getenv("U2_TRACE_FILE")) {
 		g_trace_file = std::fopen(tf, "w");
@@ -1391,9 +1396,9 @@ int main(int argc, char **argv) {
 	// (it is how its own ports save frames at a VSYNC).
 	const char *shot_path = std::getenv("U2_SHOT");
 	// U2_TRACE_KEYS=1 names every key as it arrives and as the guest takes it, with the frame. Added 2026-11-13 after
-	// BRITISH.EXP exited at frame 1333 through DOS `int 21h AH=4Ch` with the log saying "keys 1 served, 2 still queued",
-	// and nothing saying who pressed anything. A window nobody touched does not produce keys by itself, so either the
-	// front-end manufactured them or something outside it did, and this is the instrument that names which.
+	// BRITISH.EXP exited at frame 1333 through DOS `int 21h AH=4Ch` with the log saying "keys 1 served, 2 still
+	// queued", and nothing saying who pressed anything. A window nobody touched does not produce keys by itself, so
+	// either the front-end manufactured them or something outside it did, and this is the instrument that names which.
 	const bool trace_keys = std::getenv("U2_TRACE_KEYS") != nullptr;
 	// U2_PALETTE=1 prints the palette the machine holds when the run ends, in the same `RRGGBB` form the emulator's
 	// `PRI PALETTE` prints, one line per layer. Item 4e wants the running game's palette recorded and compared, and
@@ -1426,11 +1431,12 @@ int main(int argc, char **argv) {
 			// crash. The hint names XAUTHORITY because that, not DISPLAY, is the usual cause over ssh.
 			if (graphics_explicit) {
 				std::fprintf(stderr, "graphics  --graphics=sdl could not open a window: %s\n", err.c_str());
-				std::fprintf(stderr,
-							 "          DISPLAY is \"%s\". Over ssh the usual cause is the X cookie rather than the display:\n"
-							 "          export XAUTHORITY=$(ps -eo cmd | grep -oE '\\-auth [^ ]+' | head -1 | cut -d' ' -f2)\n"
-							 "          Use --graphics=none for a headless run.\n",
-							 std::getenv("DISPLAY") ? std::getenv("DISPLAY") : "(unset)");
+				std::fprintf(
+					stderr,
+					"          DISPLAY is \"%s\". Over ssh the usual cause is the X cookie rather than the display:\n"
+					"          export XAUTHORITY=$(ps -eo cmd | grep -oE '\\-auth [^ ]+' | head -1 | cut -d' ' -f2)\n"
+					"          Use --graphics=none for a headless run.\n",
+					std::getenv("DISPLAY") ? std::getenv("DISPLAY") : "(unset)");
 				return 2;
 			}
 			std::printf("graphics  sdl unavailable (%s), falling back to none\n", err.c_str());
@@ -2098,11 +2104,13 @@ int main(int argc, char **argv) {
 	if (const char *da = std::getenv("U2_DUMP_ADDR")) {
 		const uint32_t at = (uint32_t)std::strtoul(da, nullptr, 16);
 		uint32_t len = 32;
-		if (const char *dl = std::getenv("U2_DUMP_LEN")) len = (uint32_t)std::strtoul(dl, nullptr, 16);
+		if (const char *dl = std::getenv("U2_DUMP_LEN"))
+			len = (uint32_t)std::strtoul(dl, nullptr, 16);
 		std::vector<uint8_t> buf(len);
 		towns::g_towns->read_block(at, buf.data(), len);
 		std::printf("memory    %08x:", at);
-		for (uint32_t i = 0; i < len; ++i) std::printf(" %02X", buf[i]);
+		for (uint32_t i = 0; i < len; ++i)
+			std::printf(" %02X", buf[i]);
 		std::printf("\n");
 	}
 	// The disk is written once, here, and not per save. A run that dies part way leaves the image exactly as it was

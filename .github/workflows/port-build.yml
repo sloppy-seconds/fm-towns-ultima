@@ -52,6 +52,17 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/work" --entrypoint bash u2port-ci \
             /work/tools/ci-port-build.sh
 
+      # THE FORMATTER IS PINNED, because `clang-format` on a runner is whatever the image happens to ship and the
+      # versions disagree about what is formatted. Measured 2026-11-13: the same tree gave 6 violations under the
+      # runner's own binary, 8 under Fedora's 20.1, and 0 under 18.1 after formatting with 18 — a check whose result
+      # depends on the runner image is not a check. 18 is what the tree is formatted with, so 18 is what runs here.
+      - name: Pin clang-format
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends clang-format-18
+          sudo ln -sf /usr/bin/clang-format-18 /usr/local/bin/clang-format
+          clang-format --version
+
       # `--no-build` because the Pages workflow already builds the site strictly, and mkdocs is not in this image.
       - name: Run the checks
         run: node tools/checkall.js --no-build
