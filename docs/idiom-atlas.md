@@ -33,12 +33,20 @@ The `ecx` static link is a **positive signature that can be searched for**, and 
 call. The same count in all three games is what a shared source idiom looks like, and it means these programs contain
 nested functions, which the original 40-probe corpus had no way to notice.
 
+**A host-automated variant of this route exists and has not been tried here.** captainys, the author of Tsugaru,
+documents compiling High C from the host with [HIGH_C_FROM_TSUGARUOS.md](https://github.com/captainys/FreeTOWNSOS/blob/master/HIGH_C_FROM_TSUGARUOS.md):
+the HC386 kit is copied off the CD to a C: directory that appears as `D:` in the VM, `HC386.CNF`'s
+`NATIVERUN=Q:\RUN386.EXE -nocrt` line is edited, and a `TASK.BAT` plus a linker response file `TBIOS.LN` automate the
+compile and link, because DOS caps a command line at 127 bytes. That is the same driver on the same extender, driven from
+the host rather than typed into TownsOS, so it would remove this page's first two constraints (one command has to be
+typed, and redirection is refused) and make a corpus run unattended. It is written for the **V1.7 L12 CD**, which is
+the kit family this repository holds as L13, and it says nothing about V1.4 or about which version built the game.
+
 ## The route, and the five constraints that had to be measured
 
 The generator is `Q:\HC386\BIN\HC386.EXE`, the driver, reached by booting the TownsOS hard disk image with the
 SDK CD seated. That is the route `highc-authentic-toolchain.md` proved reproduces seven routines byte for
-byte. The real-mode `HCD386.EXE` route that `tools/cserve.js` drives was deliberately not used: its optimiser
-never engages, so an atlas built on it would record the route's limits as the compiler's.
+byte. The real-mode `HCD386.EXE` route that `tools/cserve.js` drives was deliberately not used: its optimisernever engages, so an atlas built on it would record the route's limits as the compiler's.
 
 `tools/atlas-build.py` encodes what that DOS actually allows, and each of these cost a run to find:
 

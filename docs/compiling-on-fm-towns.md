@@ -508,3 +508,26 @@ sleep 45
 Both scripts are self contained: they copy the floppy, place everything,
 boot, poll for the result, and print both proofs. They do not need a running
 guest to start from and they do not type anything.
+
+## The same kit compiled from the host, by the emulator's author
+
+captainys, who wrote Tsugaru, documents a **host-automated** route for this compiler:
+[HIGH_C_FROM_TSUGARUOS.md](https://github.com/captainys/FreeTOWNSOS/blob/master/HIGH_C_FROM_TSUGARUOS.md),
+in Japanese and English. It is the same driver on the same extender as the route above, driven differently.
+
+| | this page | captainys's document |
+|---|---|---|
+| where the compile is typed | into the guest, through the TownsOS prompt | a `TASK.BAT` placed on the host |
+| the kit lives | on the SDK CD, seated, `Q:\HC386` | copied to a `C:` directory that appears as `D:` in the VM |
+| how the extender is started | as shipped | `HC386.CNF`'s `NATIVERUN=Q:\RUN386.EXE -nocrt` line is edited |
+| the link | one command line | a response file, `TBIOS.LN`, because DOS caps a command line at 127 bytes |
+| media it names | the SDK CD in this repository | the **High C Multimedia Kit V1.7 L12** CD |
+
+Two things make it worth reading rather than merely citing. It removes this page's and `idiom-atlas.md`'s two most
+awkward constraints, that one command has to be typed and that the guest refuses redirection, which is what would let a
+corpus run unattended. And it names a knob this page does not: `HC386.CNF`'s `NATIVERUN` line decides how the 32-bit
+phases are executed, which matters if a candidate kit's driver is ever configured differently from ours.
+
+What it does not do is answer which **version** built the game. It is written for V1.7 L12, a 1993-94 product, so it
+describes the kit this repository already has and not the V1.4 line that could have built a 1990 binary
+(`docs/highc-forensics.md`, and plan item `0e`).
