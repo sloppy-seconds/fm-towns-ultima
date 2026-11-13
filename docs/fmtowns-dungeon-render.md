@@ -214,6 +214,30 @@ A correction to this repository's own notes: `0xf3e24` has been described as the
 address frame for `tools/callers.py`, which reports zero near callers for all three of these functions even though they
 must be called, and then follow `0xe325c`.
 
+## Which banks are opaque, measured 2026-11-13
+
+Every dungeon bank is 33,280 bytes: a 512-byte header and **64 tiles of 32x32 pixels at 512 bytes**, 4bpp packed.
+Counting non-zero pixels per tile separates two kinds of art:
+
+| bank | tiles | fully opaque | empty | ink heights |
+|---|---|---|---|---|
+| `DUNG1.TIF` | 64 | **64** | 0 | all 32 |
+| `DUNG2.TIF` | 64 | **64** | 0 | all 32 |
+| `CHEST.TIF` | 64 | 9 | 10 | 8, 11, 12, 13, 14, 15, 20, 22, 23, 29, 32 |
+
+So the walls and the doors are **full 32x32 panels with no transparency at all**, while the chests are mostly
+transparent with a height that steps by depth: 8 pixels for the furthest, 32 for the nearest. Ten chest tiles are
+completely empty.
+
+Two consequences that matter for the renderer:
+
+- a wall or a door tile can simply overwrite what is under it, so draw order alone decides occlusion
+- a chest tile cannot, because it is mostly transparent, so it has to be drawn *after* the wall behind it and the
+  transparency has to be honoured
+
+And a limit on this measurement: it counts non-zero pixels, which proves transparency or its absence and nothing about
+what is drawn. `DUNMON1-3.TIF` are not in `extracted/GRAPH/`, so the monster banks are still unmeasured here.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
