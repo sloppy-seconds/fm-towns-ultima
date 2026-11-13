@@ -1,14 +1,19 @@
-# Quickstart
+# Quickstart: the original, in the emulator
 
-From nothing to playing Ultima II, and to a save disk you can edit in a browser.
+Playing the **original** FM Towns release, on a desktop or in a browser, and making a save disk to edit. The recompiled
+port is not on this page. That is the repository's `README.md`: download one file per title and run it beside your disc
+image. Building it, running it headless and serving it over noVNC are on
+[building it yourself](building.md).
+
+What follows is the emulator, which is a different program doing a different job.
 
 Three routes. Pick the one that matches where you are.
 
 | situation | route |
 |---|---|
-| I own the game and want the recompiled port on this machine | [The port, native](#the-port-natively), seven titles, Linux and Windows |
+| I want the recompiled port instead | the repository's `README.md`, or [building it yourself](building.md) if you want to build it |
 | I have a Linux or macOS desktop | [Native](#route-1-native-emulator) |
-| I have Windows | [The port, native](#the-port-natively): every title has a `.exe`, `fm-u1-windows-x86_64.exe` through `fm-u3demo-windows-x86_64.exe`. The three games' Windows builds load under Wine, the other four have never been executed. For the emulator: [Container](#route-2-container-browser-play), or native with a bash shell, both untested |
+| I have Windows | [Container](#route-2-container-browser-play), or native with a bash shell, both untested |
 | The machine is headless or remote, or I want to play in a browser | [Container](#route-2-container-browser-play) |
 | I want a save disk, or to fix one, with nothing installed | [Editor alone](#route-3-the-editor-with-no-emulator) |
 
@@ -19,10 +24,8 @@ Three routes. Pick the one that matches where you are.
 into the repository directory, or into a `game/` directory if you are only after the
 port, which looks there first.
 
-**The toolkit, if you want to build the C++ port yourself.** `git submodule update --init fmtownskit`. A plain clone
-leaves `fmtownskit/` empty, and nothing in the emulator routes needs it, so this is the one step that is optional: a
-release binary needs no toolkit, and `play.sh` from a clone builds from `module/` and needs this submodule because the
-kit's runtime is what the recompiled code links onto.
+**The toolkit, only if you want to build the C++ port yourself.** Nothing in the emulator routes needs it. Building is
+[building it yourself](building.md), and a release binary needs no toolkit and no compiler at all.
 
 **The emulator and ROMs.** Two downloads.
 
@@ -143,79 +146,11 @@ podman, and builds a container locally (911 MB) the first time.
 
 It prints the URLs. Open `http://<host>:6080/vnc.html`.
 
-### The port, natively
+### The recompiled port is not on this page
 
-Seven titles are recompiled and playable: the three games, the publisher's message from Lord British, and the demo that
-introduces each episode. Each is **one file per platform**, with no compiler, no toolkit and no arguments involved. Take
-the file for your title from [the table of all fourteen assets](port-structure.md), put your own copy of the
-disc image beside it, and run it:
-
-```bash
-./fm-u2-linux-x86_64             # Linux
-./fm-u2-windows-x86_64.exe       # Windows
-```
-
-It reads the program, TBIOS and the game's graphics and sounds out of the image, keeps them under `extracted/`, so after
-the first run the image can be removed. Characters are plain files in `saves/`, not a floppy image, so there is nothing to
-format before you can save one, and SDL and the glyph ROM are inside the file.
-
-**If no window appears, name the backend: `--graphics=sdl`.** It refuses with the cause, where the default quietly falls
-back to no graphics. Over ssh the cause is almost always the X cookie rather than `DISPLAY`, and the refusal prints the
-two lines that find it.
-
-**From a clone instead.** The module is committed in `module/`, so there is nothing to recompile, and `play.sh` builds
-what is already there and runs it. It needs a C++20 compiler, and SDL3 from the distro or from the pinned source when the
-distro has none:
-
-```bash
-./play.sh                        # your own copy of the game in ./game/, Ultima II
-./play.sh u3                     # any title from tools/games.js: u1, u3, british, u1demo, u2demo, u3demo
-./play.sh u1demo --locale en     # a demo with its narration in English
-./play.sh --headless 120         # no window, writes build/play/<title>/shot.png
-```
-
-That builds into `build/play/<title>/` and produces `./u2`, `./u1`, `./british` rather than the release names, so run
-whichever of the two you have.
-
-**The port is early and buggy, and the route matters.** Character creation works, and the
-save disk is writable, so a character you make persists. The route that has actually been
-played:
-
-1. Press space through the splash to the game menu.
-2. `Journey Onward` to play one that already exists. In-game slot 1 is `E`.
-3. Or `Generate Character` to make one. Pick an entry number `1` to `4`, then allocate the
-   attributes, then race, sex, type and name. It is written to the save disk when you quit.
-
-`Ctrl-Q` or closing the window ends the run. `Esc` no longer quits, because it is too easy
-to press by accident. Every known defect, with the observation that
-found it, is in [what is broken in the port](port-defects.md). To recompile the module from
-your own disc rather than use the committed one, see
-[building the port from the download](port-from-source.md).
-
-### The port, in the browser
-
-**The same browser window can show the recompiled port instead of the emulator.**
-It has its own container so the two can run side by side, and the container is also the
-route for regenerating the module from the disc.
-
-```bash
-./tools/x-run.sh start     # builds if needed, prints the URLs
-./tools/x-run.sh stop
-```
-Open `http://<host>:6081/vnc.html` for the port, or `ai:5901` for raw VNC. The
-project is mounted read only and everything the container writes goes to a named
-volume. `ARGS` passes arguments to the port binary.
-
-If a release has been published, `IMAGE=ghcr.io/sloppy-seconds/fm-towns-ultima:port-latest
-./tools/x-run.sh start` uses that image instead of building one locally. It is a toolchain
-and a display, and it holds no original media, same as the repository.
-
-| port | what |
-|---|---|
-| 6080 | the game, in a browser. Also `/editor` for the character editor |
-| 8080 | the HTTP API, for driving the game without looking at it |
-
-For the emulator, then follow [playing the game](#actually-playing) below.
+The port recompiles the game's own 386 code and needs none of the emulator. Download the file for your title from the
+releases page, put it beside your disc image and run it, which is what the repository's `README.md` shows. Building it,
+running it headless and serving it over noVNC are on [building it yourself](building.md).
 
 ### Driving the game from a script, without clicking
 
@@ -384,6 +319,7 @@ where the emulator expects your save floppy.
 
 ## Where to go next
 
+- [Building it yourself](building.md) for the recompiled port, and for noVNC on a headless box
 - [Playing and environment](playing-and-environment.md) for the CD browser, the
   API, and reading the screen as text
 - [The save disk](save-disk.md) for why saves were so hard, and the format

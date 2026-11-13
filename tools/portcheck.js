@@ -406,10 +406,10 @@ else ok('every switch in the port is documented', inCode.size + ' switches');
 		const m = rest.match(/\n#{2,3} /);
 		return m ? rest.slice(0, m.index) : rest;
 	};
-	for (const [file, anchor] of [
-		['README.md', '### 3. Run it'],
-		['docs/quickstart.md', '### The port, natively'],
-	]) {
+	// ONE ANCHOR SINCE 2026-11-13: the README is the front door for the port, and quickstart is the emulator's page. It
+	// used to check a `### The port, natively` section there as well, which stopped existing when the port moved out of
+	// that page. The check is kept rather than dropped, on the page that now owns the route.
+	for (const [file, anchor] of [['README.md', '### 3. Run it']]) {
 		const seg = portSection(read(file) || '', anchor);
 		if (seg === null) fail(file + ' has a port section', 'anchor not found');
 		else {

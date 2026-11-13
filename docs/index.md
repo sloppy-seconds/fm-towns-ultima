@@ -2,7 +2,8 @@
 
 Playing, and taking apart, the Fujitsu FM Towns release of *Ultima Trilogy 1-3*.
 
-**[Quickstart](quickstart.md)** &nbsp;·&nbsp;
+**[The original, in the emulator](quickstart.md)** &nbsp;·&nbsp;
+**[Build the port](building.md)** &nbsp;·&nbsp;
 **[Save game editor](https://sloppy-seconds.github.io/fm-towns-ultima/)** &nbsp;·&nbsp;
 **[Repository](https://github.com/sloppy-seconds/fm-towns-ultima)**
 
@@ -14,8 +15,8 @@ backed by a measurement on the page, and most of what is established is also
 asserted in `tools/verify.js`, which reads the disc and fails loudly if something
 stops being true.
 
-If you just want to play, you do not need any of this. Start with the
-[quickstart](quickstart.md) instead.
+If you just want to play, you do not need any of this. The recompiled port is the repository's `README.md`: download one
+file and run it. Playing the **original** in the emulator is [the emulator page](quickstart.md).
 
 ## Scope: the port covers seven titles, the investigation is Ultima II's
 

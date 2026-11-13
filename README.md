@@ -4,7 +4,8 @@ The Fujitsu FM Towns release of *Ultima Trilogy 1-3*, recompiled. The games' own
 and runs natively on Linux and Windows, with no emulator in the way: same graphics, same sound, same behaviour, and the
 translation is in this repository as readable source.
 
-**[Quickstart](docs/quickstart.md)** &nbsp;·&nbsp;
+**[The original, in the emulator](docs/quickstart.md)** &nbsp;·&nbsp;
+**[Build it yourself](docs/building.md)** &nbsp;·&nbsp;
 **[All documentation](https://sloppy-seconds.github.io/fm-towns-ultima/docs/)** &nbsp;·&nbsp;
 **[Save game editor](https://sloppy-seconds.github.io/fm-towns-ultima/)** and its
 **[source](web/)**
@@ -100,7 +101,7 @@ rather than supported, and a failure on real hardware is the most useful report 
 
 | | |
 |---|---|
-| a browser, or the original in the emulator | [quickstart](docs/quickstart.md) |
+| the original in the emulator, and a save disk to edit | [the emulator page](docs/quickstart.md) |
 | building it yourself, and playing it on a headless box over noVNC | [building it yourself](docs/building.md) |
 | the save disk editor | [the editor](https://sloppy-seconds.github.io/fm-towns-ultima/) and [its source](web/) |
 | every measurement behind the translation | [the documentation site](https://sloppy-seconds.github.io/fm-towns-ultima/docs/) |
