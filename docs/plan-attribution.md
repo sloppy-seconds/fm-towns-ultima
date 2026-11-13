@@ -136,6 +136,13 @@ transfers are the same class of problem and are a first-class category for the s
 
 **State:** DONE · **Autonomy:** AUTONOMOUS
 
+> **Caveat added 2026-11-13, and it changes what this item is evidence of.** The kit used is the Multimedia Kaihatsu Kit
+> **V1.7 L13**, a 1994 product, and Ultima Trilogy shipped in October 1990. The FM Towns High C line runs V1.4 L10 (1990),
+> V1.4 L20 (December 1990, the first 32-bit Towns compiler), V1.5 and V1.6 through 1991-1992, and V1.7 from 1993. So the
+> atlas describes what **a** High C emits, not necessarily the one that built this binary. Its entries stand as
+> measurements of 1.73's output and its never-emits list is still the only tool that turns a mismatch into information,
+> but the attribution sentence it was built to support does not follow. Item `0e` is the correction.
+
 **What is now known.** 40 small C sources were compiled with the real driver route and disassembled, producing
 [idiom-atlas.md](idiom-atlas.md) and an eleven-entry never-emits list. The headline entries, each measured
 rather than assumed: this compiler zeroes with `sub reg,reg` and never with `xor reg,reg`, it tests a memory
@@ -276,3 +283,30 @@ Whether the `enter` region is an older MetaWare library, a different compiler, o
 That is a further question, the three are not yet separable with the evidence in hand, and acting on the
 finding does not need it. If it later becomes cheap to separate them, the atlas's never-emits list is the
 lever, not another compile-and-diff.
+
+### 0e. The version that could have built this: the V1.4 line, not 1.7
+
+**State:** OPEN · **Autonomy:** BLOCKED ON INPUT
+
+| field | value |
+|---|---|
+| autonomy | blocked on input. No kit that could have built this binary is on the machine: `references/metaware/` holds the Multimedia Kaihatsu Kit **V1.7 L13** (1994), High C **2.31** (April 1991) and High CPP **3.04**, and every one of them post-dates the game |
+| done when | a V1.4 kit is obtained, the `idiv` probe and the whole 0a corpus are re-run through it on the working TownsOS route, and `docs/idiom-atlas.md` either stands with V1.4 as its source or is corrected where 1.7 differs. The failure case: a V1.4 run whose differences are folded into "the same code generator" without a list of what changed |
+| blocked by | nothing in the repository. The input is the kit |
+
+**Why this exists.** Paul's correction of 2026-11-13: FM Towns High C V1.7 arrived in 1993-94, while 1990 shipped with
+**V1.4 L10**, and **V1.4 L20** in December 1990 introduced the 32-bit native Towns OS compiler and a bundled linker. The
+same chronological test that rules out 2.31 rules out 1.7 as well, so the project's stated candidate was a compiler
+released four years after the binary.
+
+**A three-way tension that has to be resolved before the atlas means anything.** The game is a 32-bit flat `MP` image
+that needs `RUN386`, so a 32-bit compiler built it. The first 32-bit Towns compiler is L20, dated December 1990, which is
+after an October 1990 release. So one of these is wrong: the release date, the L20 date, or the assumption that L20 was
+the first 32-bit option. Until it is settled, "the game shipped in October 1990" and "it is a 32-bit High C build" are
+both recorded and cannot both be strictly true.
+
+**What this does not undo.** The 0a atlas, its 40 sources, the 33 mnemonic sets and the never-emits list are measurements
+of 1.73's output and remain useful as exactly that. The `enter` question above, the ledger's 823 `unattributed` rows and
+the port track do not wait on this item: they never depended on knowing the version, only on knowing what was emitted,
+which the code itself says.
+

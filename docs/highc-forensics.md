@@ -193,8 +193,48 @@ the hardware-divide form present 83 times in `ENCHANT.EXP` and absent from 2.31 
 every optimisation level.
 
 So the two compilers are cleanly distinguishable on this test, 2.31 fails it, 1.73
-passes it, and the project's own conclusion was right: **1.73 is the compiler, and
-2.31 was never going to work.**
+passes it, and **1.73 reproduces every shape this page measured.**
+
+## But 1.7 is a 1993-94 kit, and the game is 1990
+
+**Correction, from Paul, 2026-11-13.** The line above used to end "1.73 is the compiler", and that conclusion cannot
+stand. The FM Towns High C release order is:
+
+| when | what |
+|---|---|
+| 1990 | **V1.4 L10**, the 16-bit MS-DOS-hosted compiler |
+| December 1990 | **V1.4 L20**, which introduced the 32-bit native Towns OS compiler and a bundled linker |
+| 1991-1992 | incremental V1.5 and V1.6, plus the separate paid High C Extended Libraries |
+| 1993-1994 | **V1.7**, L11 on floppy, then the Multimedia Kit L12 in June 1994 and L13 on CD-ROM |
+
+The kit in `references/metaware/` is the **Multimedia Kaihatsu Kit V1.7 L13**, so it is a 1994 product. Ultima Trilogy
+shipped in October 1990. **By the same chronological test that ruled out 2.31, 1.7 cannot be the compiler that built
+this game.**
+
+What survives, and what does not:
+
+- **Survives: the observations.** `idiv` for a constant divisor, the `cdq`/`sub`/`sar` chain, `imul` over magic
+  multiplies, `lea` chains. Those are properties of the code, measured on the code, and nothing about the kit's date
+  changes them.
+- **Survives, provisionally: the atlas.** `idiom-atlas.md` records what *a* High C emits. If MetaWare kept one code
+  generator across 1.4 to 1.7, the entries may well be the same, and that is a testable assumption rather than a basis.
+- **Does not survive: the attribution sentence.** "1.73 is the compiler" was an inference from matching output on a
+  compiler that post-dates the binary by four years. A later sibling of the right compiler matching its shapes is weak
+  evidence for the sibling rather than the ancestor.
+
+### The dates do not all fit, and that is the live question
+
+The game is a 32-bit flat `MP` image that requires `RUN386`, so it was built with a **32-bit** compiler. The first
+32-bit Towns OS compiler is V1.4 L20, in **December 1990**. An October 1990 release therefore cannot have been built
+with it. At least one of these three is wrong:
+
+1. the release date is later than October 1990,
+2. L20 is not the first 32-bit option, or
+3. the game was built with something outside this table.
+
+Until that is resolved, the honest position is: the family is MetaWare High C, the candidate is the **V1.4 line**, and
+**no kit that could have built this binary is on this machine.** `references/metaware/` holds V1.7 L13, High C 2.31 and
+High CPP 3.04, all of which post-date the game.
 
 What that does NOT establish is that bulk compile-and-diff is now practical. It
 establishes that the specific mismatch this page identified, which would have
