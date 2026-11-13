@@ -28,6 +28,7 @@ RUN dnf install -y epel-release && dnf install -y \
         libXfixes-devel libXtst-devel libXinerama-devel libXrender-devel \
         wayland-devel libxkbcommon-devel wayland-protocols-devel \
         alsa-lib-devel pulseaudio-libs-devel pipewire-devel systemd-devel \
+        vulkan-loader-devel vulkan-headers mesa-libGL-devel \
         python3 nodejs ca-certificates xz tar diffutils \
         ccache \
     && dnf clean all

@@ -50,6 +50,17 @@ toolkit's compiler, and it does not touch your disc except to read the program a
 | `--locale LANG` | patch a demo's narration from `locale/<LANG>/` before running it |
 | `--rebuild` | force the cmake build even if a binary is already there |
 
+**Windowing and scaling**, which the release binaries accept too:
+
+| option | what it does |
+|---|---|
+| `--letterbox` / `--no-letterbox` | fill the window at any size keeping the aspect ratio (the default), or whole multiples with the window snapped to match |
+| `--scale-mode=nearest\|pixelart\|linear` | how a non-integer scale is sampled. `pixelart` is the default and the sharpest-looking on the maintainer's machine, `nearest` is what every measurement in this repository was taken with, `linear` blurs |
+| `--renderer=gpu\|opengl\|vulkan\|software` | which SDL renderer backend. `pixelart` sampling exists only in the shader backends, so on `software` it silently behaves as `nearest`. The port prints the backend it got |
+
+The pinned SDL is built with Vulkan and OpenGL enabled, so the shader backends exist in the shipped binary. A machine with
+no usable driver still opens a window: SDL falls back to software and the log line says so.
+
 It builds into `build/play/<title>/`, one directory per title because cmake caches the target name inside the build
 tree, and the SDL3 archive is shared at `build/play/sdl3`. `U2_WORK=<dir>` moves all of that elsewhere, which is what
 the containers below use when the tree is mounted read-only.

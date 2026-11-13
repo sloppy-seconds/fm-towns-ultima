@@ -76,6 +76,9 @@ TARBALL="$CACHE/SDL3-$SDL_VERSION.tar.gz"
 SRC="$CACHE/SDL3-$SDL_VERSION"
 URL="https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VERSION/SDL3-$SDL_VERSION.tar.gz"
 STAMP="$PREFIX/.sdl-from-source"
+# What the prefix was built with, beyond the version. It goes in the stamp so that changing a backend flag forces a
+# rebuild instead of reusing an archive that cannot do what the new flags ask for.
+STAMP_FLAGS="vulkan,opengl,static"
 
 log() { echo "[sdl-from-source] $*" >&2; }
 
@@ -103,7 +106,11 @@ artefacts_ok() {
 
 prefix_is_current() {
 	artefacts_ok || return 1
-	[[ -f "$STAMP" && "$(cat "$STAMP")" == "$SDL_VERSION $SDL_SHA256" ]] || return 1
+	# THE STAMP CARRIES THE BACKEND FLAGS, not just the version, because a prefix built with Vulkan and OpenGL off is
+	# a different prefix from one built with them on, and the version is the same string in both cases. Without this a
+	# flag change silently reuses the old archive and the new renderer never appears, which is the class of failure
+	# this file exists to make loud.
+	[[ -f "$STAMP" && "$(cat "$STAMP")" == "$SDL_VERSION $SDL_SHA256 $STAMP_FLAGS" ]] || return 1
 	return 0
 }
 
@@ -188,7 +195,14 @@ else
 	          -DSDL_ALSA=ON -DSDL_PULSEAUDIO=ON -DSDL_PIPEWIRE=ON
 	          -DSDL_JACK=OFF -DSDL_OSS=OFF -DSDL_SNDIO=OFF
 	          -DSDL_KMSDRM=OFF -DSDL_HIDAPI_LIBUSB=OFF -DSDL_LIBUDEV=ON
-	          -DSDL_WAYLAND_LIBDECOR=OFF)
+	          -DSDL_WAYLAND_LIBDECOR=OFF
+	          # VULKAN AND OPENGL ARE THE SHADER BACKENDS, and without them SDL has exactly one renderer,
+	          # software, which treats SDL_SCALEMODE_PIXELART as nearest. Measured 2026-11-13: with both OFF the
+	          # renderer list is "dummy offscreen x11", `--renderer=gpu` resolves to software, and the scale modes
+	          # are byte-identical. The loader is dlopened at run time, so a machine with no driver still opens a
+	          # window and falls back.
+	          -DSDL_VULKAN=ON -DSDL_RENDER_VULKAN=ON
+	          -DSDL_OPENGL=ON -DSDL_RENDER_OPENGL=ON)
 fi
 # THE INSTALL LIBDIR IS FORCED TO lib, and that is a portability fix rather than a preference. GNUInstallDirs puts
 # libraries in lib64 on the Red Hat family and in lib/<triplet> on Debian, so a prefix built on AlmaLinux 9 landed
@@ -201,14 +215,13 @@ cmake -S "$SRC" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
 	-DSDL_SHARED=OFF -DSDL_STATIC=ON \
 	-DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF -DSDL_INSTALL=ON \
 	"${BACKENDS[@]}" \
-	-DSDL_VULKAN=OFF -DSDL_RENDER_VULKAN=OFF \
 	>"$CACHE/configure.log" 2>&1 || {
 	echo "SDL configure failed. Last lines of $CACHE/configure.log:" >&2
 	tail -30 "$CACHE/configure.log" >&2
 	exit 1
 }
 log "backends the build decided on:"
-grep -E "^(SDL_(X11|X11_XRANDR|X11_XCURSOR|WAYLAND|ALSA|PULSEAUDIO|PIPEWIRE|OPENGL|RENDER_OPENGL|RENDER_GPU_VULKAN|JOYSTICK_HIDAPI|LIBUDEV)):BOOL" \
+grep -E "^(SDL_(X11|X11_XRANDR|X11_XCURSOR|WAYLAND|ALSA|PULSEAUDIO|PIPEWIRE|OPENGL|RENDER_OPENGL|VULKAN|RENDER_VULKAN|RENDER_GPU|JOYSTICK_HIDAPI|LIBUDEV)):BOOL" \
 	"$BUILD/CMakeCache.txt" | sed 's/^/  /' >&2 || true
 
 cmake --build "$BUILD" -j"$(nproc)" >"$CACHE/build.log" 2>&1 || {
@@ -235,7 +248,7 @@ artefacts_ok || {
 	echo "looked for $PREFIX/lib/libSDL3.a, $PREFIX/lib/cmake/SDL3/SDL3Config.cmake and $PREFIX/LICENSE.SDL3" >&2
 	exit 1
 }
-echo "$SDL_VERSION $SDL_SHA256" >"$STAMP"
+echo "$SDL_VERSION $SDL_SHA256 $STAMP_FLAGS" >"$STAMP"
 
 # What the prefix holds, printed rather than assumed, because "static" is a claim about the artefacts and the
 # artefacts are the thing worth checking. A static SDL3 build compiles the render backends in rather than

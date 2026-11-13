@@ -569,6 +569,14 @@ int main(int argc, char **argv) {
 	// the nearest step, so the picture appeared not to resize at all (docs/port-defects.md, defect 6). `--no-letterbox`
 	// asks for that behaviour, and `--letterbox` is still accepted because it is in existing scripts and docs.
 	bool letterbox = true;
+	// HOW A NON-INTEGER SCALE IS SAMPLED. PixelArt is SDL 3.4's scaler for exactly this case and is the default, because
+	// letterbox is the default and nearest makes some source rows one screen pixel and some two. `--scale-mode=nearest`
+	// is what every measurement in this repository was taken with, so it stays reachable, and `linear` is for a
+	// photograph rather than an 8-pixel font.
+	std::string scale_mode = "pixelart";
+	// WHICH SDL RENDERER BACKEND, by name. Empty is SDL's choice. `gpu` is the one worth asking for: pixelart sampling
+	// lives in SDL's shader backends, so on the software fallback the scale mode silently does nothing.
+	std::string renderer_arg = "";
 	long frames_flag = -1;
 	// THE CPU'S RATE, in percent of the FM Towns clock, which is how a title that scrolls faster than a person can
 	// read is slowed down. The kit models the rate (Machine::cpu_rate) and its window binds F5/F6/F7 to it, but a
@@ -606,6 +614,16 @@ int main(int argc, char **argv) {
 			letterbox = true;
 		else if (!std::strcmp(argv[i], "--no-letterbox"))
 			letterbox = false;
+		else if (!std::strncmp(argv[i], "--renderer=", 11))
+			renderer_arg = argv[i] + 11;
+		else if (!std::strncmp(argv[i], "--scale-mode=", 13)) {
+			const char *m = argv[i] + 13;
+			if (std::strcmp(m, "nearest") && std::strcmp(m, "pixelart") && std::strcmp(m, "linear")) {
+				std::fprintf(stderr, "--scale-mode= takes nearest, pixelart or linear. Got %s\n", m);
+				return 2;
+			}
+			scale_mode = m;
+		}
 		else if (!std::strncmp(argv[i], "--scale=", 8))
 			scale = std::atoi(argv[i] + 8);
 		else if (!std::strncmp(argv[i], "--frames=", 9))
@@ -1421,6 +1439,10 @@ int main(int argc, char **argv) {
 		o.scale = scale;
 		o.fullscreen = fullscreen;
 		o.letterbox = letterbox;
+		o.renderer = renderer_arg;
+		o.scale_mode = scale_mode == "nearest" ? towns::SdlOptions::ScaleMode::Nearest
+					  : scale_mode == "linear" ? towns::SdlOptions::ScaleMode::Linear
+												: towns::SdlOptions::ScaleMode::PixelArt;
 		std::string err;
 		if (host.open(o, err)) {
 			host.on_key = [&m, trace_keys](uint8_t scan, uint8_t ascii) {
@@ -1429,8 +1451,9 @@ int main(int argc, char **argv) {
 								(long)m.frame);
 				m.press_key(scan, ascii);
 			};
-			std::printf("graphics  sdl, window open as \"%s\", presentation %s, Ctrl-Q or closing the window ends the run\n",
-						o.title.c_str(), letterbox ? "letterbox" : "whole multiples");
+			std::printf("graphics  sdl, window open as \"%s\", renderer %s, presentation %s, scaling %s, Ctrl-Q or closing the window ends the run\n",
+						o.title.c_str(), host.renderer_name(), letterbox ? "letterbox" : "whole multiples",
+						scale_mode.c_str());
 		} else {
 			// A display that is missing costs a picture and not a measurement, so the DEFAULT falls back rather than
 			// refusing. An explicit --graphics=sdl does not: the caller asked for a window, so a silent fallback leaves

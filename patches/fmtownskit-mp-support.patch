@@ -1756,28 +1756,67 @@ index 7fd99da..71f4c01 100644
      unknown("read of linear %08x (no device)", a & ~0xFFFu);
      return 0;
 diff --git a/runtime/towns_sdl.cpp b/runtime/towns_sdl.cpp
-index 3328d10..ffd5a1d 100644
+index 3328d10..221c325 100644
 --- a/runtime/towns_sdl.cpp
 +++ b/runtime/towns_sdl.cpp
-@@ -20,6 +20,9 @@ struct SdlHost::Impl {
+@@ -20,6 +20,13 @@ struct SdlHost::Impl {
      std::vector<int16_t> sound;
      uint64_t next_ns = 0;                   // the pace without sound: the next frame's time
      std::string title;
 +    bool letterbox = false;                 // fill the window instead of snapping it to whole multiples
++    SdlOptions::ScaleMode scale_mode = SdlOptions::ScaleMode::Nearest;
++    // The canvas-to-window factor for the frame just drawn, kept so the mouse can be put back into frame pixels. It is
++    // 0 until the first frame, which is why the motion handler guards on it.
++    float canvas_scale = 0.0f;
 +    bool resize_pending = false;            // a resize happened and the window has not settled yet
 +    uint64_t resize_ms = 0;                 // when it last moved, so the snap waits for the drag to finish
      int shown_rate = 0;                     // the CPU's rate the title shows
      float mx = 0, my = 0;                   // the host mouse's movement not yet given, in frame pixels
      ~Impl() {
-@@ -39,6 +42,7 @@ bool SdlHost::open(const SdlOptions& o, std::string& err) {
+@@ -35,10 +42,18 @@ struct SdlHost::Impl {
+ SdlHost::SdlHost() = default;
+ SdlHost::~SdlHost() = default;
+ 
++const char* SdlHost::renderer_name() const {
++    if (!p_ || !p_->ren) return "";
++    const char* n = SDL_GetRendererName(p_->ren);
++    return n ? n : "";
++}
++
+ bool SdlHost::open(const SdlOptions& o, std::string& err) {
      if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD)) { err = SDL_GetError(); return false; }
      p_ = std::make_unique<Impl>();
      p_->title = o.title;
 +    p_->letterbox = o.letterbox;
++    p_->scale_mode = o.scale_mode;
      int w = 640, h = 480, scale = o.scale;
      if (scale <= 0) {
          SDL_Rect r;
-@@ -87,6 +91,109 @@ static unsigned held_pad(SDL_Gamepad* g) {
+@@ -46,11 +61,21 @@ bool SdlHost::open(const SdlOptions& o, std::string& err) {
+         if (SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &r))
+             while (w * (scale + 1) <= r.w && h * (scale + 1) + 40 <= r.h) ++scale;
+     }
+-    if (!SDL_CreateWindowAndRenderer(o.title.c_str(), w * scale, h * scale, SDL_WINDOW_RESIZABLE, &p_->win, &p_->ren)) {
++    p_->win = SDL_CreateWindow(o.title.c_str(), w * scale, h * scale, SDL_WINDOW_RESIZABLE);
++    if (!p_->win) {
+         err = SDL_GetError();
+         return false;
+     }
+-    if (o.fullscreen) SDL_SetWindowFullscreen(p_->win, true);
++    // WHICH BACKEND. Named when the caller has one in mind, because `gpu` is how you reach SDL's shader backends, and
++    // those are the only ones that implement SDL_SCALEMODE_PIXELART: on the software fallback the mode degrades to
++    // nearest and looks identical, measured on the Ultima II title at 1000x750 on 2026-11-13. A request that cannot be
++    // granted falls back to SDL's choice, because a window with a lesser renderer beats no window.
++    p_->ren = SDL_CreateRenderer(p_->win, o.renderer.empty() ? nullptr : o.renderer.c_str());
++    if (!p_->ren && !o.renderer.empty()) p_->ren = SDL_CreateRenderer(p_->win, nullptr);
++    if (!p_->ren) {
++        err = SDL_GetError();
++        return false;
++    }    if (o.fullscreen) SDL_SetWindowFullscreen(p_->win, true);
+     SDL_AudioSpec spec{SDL_AUDIO_S16, 2, kAudioRate};
+     p_->audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
+     if (p_->audio) SDL_ResumeAudioStreamDevice(p_->audio);
+@@ -87,6 +112,109 @@ static unsigned held_pad(SDL_Gamepad* g) {
      return v;
  }
  
@@ -1887,7 +1926,7 @@ index 3328d10..ffd5a1d 100644
  void SdlHost::vsync(Machine& m) {
      Impl& s = *p_;
      SDL_Event e;
-@@ -95,12 +202,25 @@ void SdlHost::vsync(Machine& m) {
+@@ -95,18 +223,33 @@ void SdlHost::vsync(Machine& m) {
          case SDL_EVENT_QUIT: throw Stop{0};
          case SDL_EVENT_KEY_DOWN:
              if (e.key.repeat) break;
@@ -1913,8 +1952,20 @@ index 3328d10..ffd5a1d 100644
 +            }
              break;
          case SDL_EVENT_MOUSE_MOTION:
-             // the frame's pixels moved, as the mouse in the second port's counts
-@@ -116,6 +236,16 @@ void SdlHost::vsync(Machine& m) {
+-            // the frame's pixels moved, as the mouse in the second port's counts
+-            SDL_ConvertEventToRenderCoordinates(s.ren, &e);
+-            s.mx += e.motion.xrel;
+-            s.my += e.motion.yrel;
++            // The frame's pixels moved, as the mouse in the second port's counts. With no logical presentation the
++            // delta arrives in window pixels, so it is divided by the canvas scale to become frame pixels again.
++            if (s.canvas_scale > 0.0f) {
++                s.mx += e.motion.xrel / s.canvas_scale;
++                s.my += e.motion.yrel / s.canvas_scale;
++            }
+             break;
+         case SDL_EVENT_MOUSE_BUTTON_DOWN: case SDL_EVENT_MOUSE_BUTTON_UP: {
+             uint8_t bit = e.button.button == SDL_BUTTON_LEFT ? 0x10 : e.button.button == SDL_BUTTON_RIGHT ? 0x20 : 0;
+@@ -116,6 +259,16 @@ void SdlHost::vsync(Machine& m) {
          }
          case SDL_EVENT_WINDOW_MOUSE_ENTER: SDL_HideCursor(); break;
          case SDL_EVENT_WINDOW_MOUSE_LEAVE: SDL_ShowCursor(); break;
@@ -1931,19 +1982,42 @@ index 3328d10..ffd5a1d 100644
          case SDL_EVENT_GAMEPAD_ADDED:
              if (SDL_Gamepad* g = SDL_OpenGamepad(e.gdevice.which)) s.pads.push_back(g);
              break;
-@@ -152,7 +282,10 @@ void SdlHost::vsync(Machine& m) {
+@@ -148,20 +301,52 @@ void SdlHost::vsync(Machine& m) {
+     m.render(s.rgb, fw, fh);
+     m.display_area(x, y, w, h);
+     int cw = std::max(w, 640), ch = std::max(h, 480);
++    // THE CANVAS IS SCALED HERE, not by SDL's logical presentation. Logical presentation would do the arithmetic for
++    // us and it also ignores the texture's scale mode, so `SDL_SCALEMODE_PIXELART` had no effect on the final upscale
++    // at all: measured 2026-11-13 on the Ultima II title at 1000x750, nearest and pixelart gave byte-identical frames.
++    // Blitting the picture into the window ourselves puts the sampling back under the scale mode's control. The cost is
++    // the mouse: with no logical coordinates, a motion delta arrives in window pixels and is divided by the scale.
++    int ww = 0, wh = 0;
++    SDL_GetWindowSize(s.win, &ww, &wh);
++    float k;
++    if (s.letterbox) {
++        k = std::min((float)ww / (float)cw, (float)wh / (float)ch);
++    } else {
++        int whole = std::min(ww / cw, wh / ch);
++        k = (float)std::max(1, whole);
++    }
++    s.canvas_scale = k;
+     if (w != s.tw || h != s.th) {
          if (s.tex) SDL_DestroyTexture(s.tex);
          s.tex = SDL_CreateTexture(s.ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
-         SDL_SetTextureScaleMode(s.tex, SDL_SCALEMODE_NEAREST);
+-        SDL_SetTextureScaleMode(s.tex, SDL_SCALEMODE_NEAREST);
 -        SDL_SetRenderLogicalPresentation(s.ren, cw, ch, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
-+        // The mode follows the option: whole multiples by default, letterbox when asked for. The window snapping above
-+        // keeps an integer-scaled picture filling its window, so this only has to pick the mode.
-+        SDL_SetRenderLogicalPresentation(s.ren, cw, ch, s.letterbox ? SDL_LOGICAL_PRESENTATION_LETTERBOX
-+                                                                  : SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
++        SDL_SetTextureScaleMode(s.tex, s.scale_mode == SdlOptions::ScaleMode::PixelArt ? SDL_SCALEMODE_PIXELART
++                                        : s.scale_mode == SdlOptions::ScaleMode::Linear ? SDL_SCALEMODE_LINEAR
++                                                                                      : SDL_SCALEMODE_NEAREST);
          s.tw = w; s.th = h;
      }
      SDL_UpdateTexture(s.tex, nullptr, s.rgb.data() + (size_t)y * fw + x, fw * 4);
-@@ -162,6 +295,20 @@ void SdlHost::vsync(Machine& m) {
+     SDL_SetRenderDrawColor(s.ren, 0, 0, 0, 255);
+     SDL_RenderClear(s.ren);
+-    SDL_FRect dst{(float)((cw - w) / 2), (float)((ch - h) / 2), (float)w, (float)h};
++    // The canvas centred in the window, and the picture centred in the canvas, both at the same scale.
++    SDL_FRect dst{(float)((ww - cw * k) / 2 + (cw - w) * k / 2), (float)((wh - ch * k) / 2 + (ch - h) * k / 2),
++                  (float)(w * k), (float)(h * k)};
      SDL_RenderTexture(s.ren, s.tex, nullptr, &dst);
      SDL_RenderPresent(s.ren);
  
@@ -1965,7 +2039,7 @@ index 3328d10..ffd5a1d 100644
      bool unpaced = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_TAB];
      if (s.audio) {
 diff --git a/runtime/towns_sdl.h b/runtime/towns_sdl.h
-index 2a0e2eb..fd40ebb 100644
+index 2a0e2eb..5cc3455 100644
 --- a/runtime/towns_sdl.h
 +++ b/runtime/towns_sdl.h
 @@ -17,6 +17,8 @@
@@ -1977,7 +2051,7 @@ index 2a0e2eb..fd40ebb 100644
  #include <memory>
  #include <string>
  
-@@ -26,14 +28,33 @@ struct SdlOptions {
+@@ -26,14 +28,46 @@ struct SdlOptions {
      std::string title = "FM Towns";
      int scale = 0;                  // 0: the largest whole scale the desktop has room for
      bool fullscreen = false;
@@ -1985,6 +2059,17 @@ index 2a0e2eb..fd40ebb 100644
 +    // source pixel is the same size on screen. Letterbox fills whatever the window is and keeps the aspect ratio,
 +    // which trades even pixels for a full window.
 +    bool letterbox = false;
++    // HOW THE PICTURE IS SAMPLED when it is not an exact whole multiple. Nearest gives some source rows one screen
++    // pixel and some two, which is what a 640x400 game looks like at 1000x750. PixelArt is SDL's own scaler for this
++    // case, new in SDL 3.4: nearest behaviour with the unevenness smoothed out. Linear blurs. The kit carries its own
++    // enum so this header does not depend on SDL's.
++    enum class ScaleMode { Nearest, PixelArt, Linear };
++    ScaleMode scale_mode = ScaleMode::Nearest;
++    // WHICH SDL RENDERER BACKEND, by the name SDL knows it by: "gpu", "opengl", "vulkan", "software", "direct3d",
++    // and so on. Empty lets SDL choose, which is what it has always done. It matters because PIXELART is implemented
++    // in the shader backends only, so on a software fallback it degrades to nearest and looks identical — measured on
++    // the Ultima II title at 1000x750, 2026-11-13, and the reason this option exists.
++    std::string renderer;
  };
  
 +// The whole-multiple scale a window of this size rounds to, for the default presentation. Integer scaling on its own
@@ -2003,6 +2088,8 @@ index 2a0e2eb..fd40ebb 100644
      ~SdlHost();
      bool open(const SdlOptions& o, std::string& err);
      void vsync(Machine& m);         // throws Stop{0} when the window is closed
++    // The backend SDL actually gave us, for a log line that names it. Null before open() and after close().
++    const char* renderer_name() const;
 +    // PATCH, this repository: the host's keystrokes as the Towns' own (scan code, ASCII), so a program that
 +    // reads the keyboard through int 90h can be typed into. The front-end otherwise maps keys only to the pad,
 +    // which is right for the games it was built for and useless for a program waiting on KYB_read. Unset means

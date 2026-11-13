@@ -478,6 +478,15 @@ with bars where the shape does not match, and pixels are uneven at non-integer s
 scaling with the snap, for anyone who wants the sharp pixel grid, and the port prints which of the two it is using when
 the window opens.
 
+**And the smoothing was inert until the same day, for a reason worth recording.** `--scale-mode=pixelart` did nothing at
+all at first: measured at 1000x750 on the title screen, nearest, pixelart and linear were byte-identical. Two separate
+causes, and neither was SDL's. The upscale was done by `SDL_SetRenderLogicalPresentation`, which ignores the texture's
+scale mode, so the filter was never consulted, and the pinned SDL was built with `SDL_VULKAN=OFF` and no OpenGL, leaving
+software as the only renderer, which treats pixelart as nearest. The kit now blits the picture into the window itself
+and can be asked for a backend by name, and `tools/sdl-from-source.sh` builds Vulkan and OpenGL in. On an RTX 4070 Ti
+SUPER with the Vulkan driver, pixelart then changes 179,126 pixels of that screen. It is softer rather than sharper, and
+Paul preferred it on his machine, so pixelart is the default.
+
 **And the snap itself was wrong the first time, in a way only a pointer could find.** The first version forced the window
 to a whole multiple at every VSYNC. That fills the window and it also makes the window impossible to resize: each drag
 is undone sixteen milliseconds later, so the edge never moves. Paul found it on his own machine within minutes, which
