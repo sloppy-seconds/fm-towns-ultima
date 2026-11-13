@@ -331,3 +331,39 @@ Three routes remain, none tried:
   pass ran, but which binary ran is unverified.
 - `0xe552c`, `0xe5304` and `0xfe95d` remain `unresolved` and have not been
   attempted through this path.
+
+## The 386|ASM TOOL KIT, 1988, and the second linker vintage
+
+**`references/metaverse` has a companion floppy that had not been read.** `references/metaware/386asm.bin` is a
+1,261,568-byte FM Towns 2HD image whose boot sector is `IPL1` and whose BPB reads 1024-byte sectors, one reserved
+sector, two FATs of two sectors, 192 root entries and 1,232 total sectors. `mtools` refuses it (`:: is Linux LILO, not
+DOS`), so `/var/tmp/fmfd.js` walks the FAT12 directly. The Shift-JIS `README.DOC` names it: **386|ASM TOOL KIT V1.1**.
+
+| file | size | date | what |
+|---|---|---|---|
+| `386ASM.EXE` | 199,728 | 1988 | the assembler |
+| `386LINK.EXE` | 119,504 | 1988 | Phar Lap `386|LINK`, `Copyright (C) 1986-88 Phar Lap Software` |
+| `386LIB.EXE` | 58,352 | 1988 | the librarian |
+| `386DEBUG.EXE` | 164,960 | 1989 | the debugger |
+| `CFIG386.EXE`, `INSTALL.EXE`, `DEVELOP.SYS` | | 1989 | extender configuration and install |
+| `TMENU/` | | 1989 | sample sources: `CHECK.C`, `REALCALL.ASM`, `TMENUCHK.ASM`, `TMENU.LNK` |
+
+**It is not a compiler**, so it does not touch the V1.4 question. It does two other things.
+
+**It retires a premise.** It has been argued, here and in the package description, that the High C kit shipped no
+assembler and no librarian, so a studio could not hand-assemble or build its own libraries. Those tools were a
+separate purchase, this is that purchase, and this copy is dated 1988-89. So "the tooling was not available" is no
+longer an argument. The `enter` family's census still says it is compiler-shaped, which is why the conclusion does not
+change, but it now rests on the census alone rather than on a claim about what a shop could buy.
+
+**And it gives the link stage a second, earlier vintage.** Byte identity has two halves, instructions and link, and only
+the first has ever had a dated candidate. There are now two Phar Lap linkers:
+
+| linker | vintage | where |
+|---|---|---|
+| `386LINK.EXE`, 119,504 bytes | Phar Lap `1986-88` | this floppy |
+| `HC386/BIN/386LINK.EXE`, 192,192 bytes | Phar Lap `1986-89` and `1986-90` | the SDK CD |
+
+The cheap experiment this enables: link one identical object set with both and diff the images. If they agree, the
+linker vintage does not matter and that half of byte identity is closed. If they differ, the difference is a
+fingerprint to look for in the game's own image.
