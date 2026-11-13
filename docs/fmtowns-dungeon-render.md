@@ -656,3 +656,31 @@ returning `0x10` for the party's square.
 3. Find the wall loop: the code that walks depth adding 8 to the tile index and 16 to the vertical rectangle.
 4. Confirm one frame against a screenshot at a known `(x, y, facing)`, which is the cheapest check available and needs
    no new tooling.
+
+## Two drawing paths, and the descriptor named at last
+
+`0xe64e8(bank_or_pointer, x, y, index)` is the single-tile blit, and it fills the descriptor that every earlier dump showed:
+
+```
+eax = index << 9 ; eax += arg1
+0x7add8  dword  source pointer = arg1 + index*512
+0x7addc  word   pitch = 0x14 (20)
+0x7adde  word   x1 = x
+0x7ade0  word   y1 = y
+0x7ade2  word   x2 = x + 0x1f   (31)
+0x7ade4  word   y2 = y + 0x1f   (31)
+```
+
+So a tile is 32x32 and the rectangle question in the brief is answered: `x, y, x+31, y+31`.
+
+Its argument is a **pointer to 512 bytes**, not a bank base: both of its real callers copy a tile into a staging buffer at
+`0xcdc34` first. `0xe9464` copies from `0x83378 + index*512`, that is out of `DUNG2`, and `0xe9210` copies 256 bytes with
+`and eax, 0xeeeeeeee`, a 50% dither mask. Both then blit at `(594, 63)`. Those are UI icons with shaded faces, not the
+corridor.
+
+The corridor is the other path: `0xe886c` composites tiles **in software** into the surface at `0xbe5f4`, sixteen bytes per
+row per row of tile, with palette index 0 transparent, and `ah=0x25` pages the result to the screen.
+
+**And it is called once per sprite.** That is why every packet dump held one or two entries rather than a corridor full:
+each call carries its own packet, so a corridor of twenty tiles is twenty calls. The walls were never missing from the
+packet; I was expecting one packet per frame and the program sends one per object.
