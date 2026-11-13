@@ -222,6 +222,28 @@ What survives, and what does not:
   compiler that post-dates the binary by four years. A later sibling of the right compiler matching its shapes is weak
   evidence for the sibling rather than the ancestor.
 
+### The kit's own binaries date it, in four strings
+
+**Measured 2026-11-14 from `saves/hc.img`, the SDK CD, by reading the catalogue and extracting the tools.** These are
+quoted from the binaries, not from the archive's filename:
+
+| binary | what it says about itself |
+|---|---|
+| `HC386/BIN/HC386.EXE`, the driver, 61,888 bytes | `MetaWare Driver Version 1.08`, `(c) Copyright 1989-1990, MetaWare Incorporated` |
+| `HC386/BIN/HC386.EXE`, its runtime banner | `MetaWare High C Run-time Library Copyright (C) 1983-1989` |
+| `HC386/BIN/HCD386.EXE`, the compiler, 698,816 bytes | `MetaWare High C Compiler r.vm`, `Copyright (C) 1983-91 MetaWare Incorporated` |
+| `HC386/BIN/HCD386P.EXP`, the protected-mode compiler | same `1983-91` banner |
+
+**And the game's own runtime banner is earlier.** Every one of `ENCHANT.EXP`, `DARKNESS.EXP`, `EXODUS.EXP` and
+`BRITISH.EXP` carries `High C Run-time Library Copyright (C) 1983-1988`. So the binary linked a **1988** runtime and the
+kit on this CD ships a **1989** one, which is an independent confirmation of the date reasoning above: whatever built the
+game, it is older than this CD.
+
+**This gives a dating test that costs seconds and no compiler run.** Any candidate kit can be dated from the copyright
+ranges in its own `HC386.EXE` and `HCD386.EXE` before it is installed, booted or bought. A V1.4-era compiler should read
+`1983-88` or `1983-89` on the compiler banner and `1988` or so on its runtime, not `1983-91`. That is the first thing to
+check on any kit that turns up, ahead of the `enter` prediction below.
+
 ### The decision: 1.7 is the stand-in, and it is labelled as one
 
 **Decided 2026-11-13.** A V1.4 kit has not been found, and the search is not cheap: it is physical media from 1990. Two
