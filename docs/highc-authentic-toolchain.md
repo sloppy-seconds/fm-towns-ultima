@@ -397,3 +397,29 @@ reset types its batch into a booting machine and fails as `link did not finish`.
 `xdotool` arrives corrupted often enough that a hand test which used one reported `command not found` for a path that
 exists. The batch file is the reliable transport, so the comparison was made through `cserve --linker` rather than at
 the prompt.
+
+### No switch selects the container, and the two binaries prove it
+
+The question `-NOPACK` cannot answer is whether `2.2dJ` could emit `MP` under some other flag. Both binaries carry
+their own help text, one line per switch, so this is readable without the emulator at all.
+
+| | `386|LINK 2.0` | `386|LINK 2.2dJ` |
+|---|---|---|
+| documented switches | 35 | 56 |
+| container switches | `-EXE`, `-RELEXE`, `-PACK`, `-NOPACK` | the same four |
+| switch selecting `MP` | none | none |
+
+2.0 alone carries `-HEX` and `-SRECORD`. 2.2dJ adds twenty-three that are all about messages, maps and symbols,
+for example `-WARN`, `-NOWARN`, `-BANNER`, `-NOBANNER`, `-MAPNAMES`, `-MAPWIDTH`, `-SYMFILE`, `-FULLSYM`,
+`-CVSYMBOLS`, `-ISYMBOLS`, `-LOCDISCARD`, `-LOCPASSTHRU`, `-PURGE`, `-REGVARS`, `-NOREGVARS`, `-LOCMAP`,
+`-NOLOCMAP`, `-EXPORT`, `-DEFINE`, `-REDEFINE`, `-PRIVILEGED`, `-UNPRIVILEGED` and `-ATTRIBUTES`.
+
+So the two versions agree about every switch that could matter to the container and disagree about the container. The
+`MP`/`P3` choice is therefore a property of the linker build, which is what the measurement independently showed, and
+not something a command line can ask for.
+
+**A correction to my own reasoning, recorded because it was nearly written down.** The kit's Japanese guide lists the
+`386|LINK` switches in `DOC/HCK17UK.DOC`, and that list has `-PACK` but no `-NOPACK`. Reading the guide alone would
+have produced the claim that `-NOPACK` does not exist, which is false: both binaries document it as `Do not pack an
+.EXP file`, and the earlier measurement in `docs/decompilation-experiment.md` drove it. The guide lags the binary, and
+the binary is the authority on its own switches.

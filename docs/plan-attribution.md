@@ -291,7 +291,7 @@ lever, not another compile-and-diff.
 | field | value |
 |---|---|
 | autonomy | blocked on input. No kit that could have built this binary is on the machine: `references/metaware/` holds the Multimedia Kaihatsu Kit **V1.7 L13** (1994), High C **2.31** (April 1991) and High CPP **3.04**, and every one of them post-dates the game |
-| done when | a V1.4 kit is obtained, the `idiv` probe and the whole 0a corpus are re-run through it on the working TownsOS route, and `docs/idiom-atlas.md` either stands with V1.4 as its source or is corrected where 1.7 differs. The failure case: a V1.4 run whose differences are folded into "the same code generator" without a list of what changed |
+| done when | a V1.4-era kit is obtained, either FM Towns High C V1.4 or a generic MetaWare **High C 386** of 1988-1990 vintage, the `idiv` probe and the whole 0a corpus are re-run through it on the working TownsOS route, and `docs/idiom-atlas.md` either stands with that kit as its source or is corrected where 1.73 differs. The failure case: a run whose differences are folded into "the same code generator" without a list of what changed |
 | blocked by | nothing in the repository. The input is the kit |
 
 **Why this exists.** Paul's correction of 2026-11-13: FM Towns High C V1.7 arrived in 1993-94, while 1990 shipped with
@@ -321,4 +321,32 @@ the largest family the stand-in cannot explain, and `a41_nested` ruled out the l
 V1.4 kit appears, the first thing to check is that **1.4 emits `enter` frames where 1.7 emits `push ebp; mov ebp, esp`**
 for the same source. If it does, the family becomes a version fingerprint rather than a mystery, and the stand-in's
 blind spot is named instead of implied.
+
+**Route, reframed 2026-11-13: a generic MetaWare High C 386 of the same era may be enough.** Paul's suggestion, and the
+mechanism checks out. The FM Towns kit is an OEM MetaWare 386 build, which the banner says outright: our V1.7 kit reports
+`MetaWare High C Compiler 1.73`, and the CD's own guide attributes its linker to Phar Lap `386|LINK V2.2dJ (386|ASM TOOL
+KIT V2.2)`. Objects are OMF, both of the dated `386|LINK` binaries link them, and Fujitsu's headers and libraries are
+already here on the V1.7 CD, so a compiler of the right vintage can be bolted to them.
+
+**What is not the same thing: `High C 1.4` names the wrong product.** The bitsavers release notes headed *Professional
+Pascal 2.7 and High C 1.4 Upgrade Information* are dated March 1986 and cover the 16-bit CP/M-86 and Concurrent DOS line.
+The 386 compiler is a separate product with its own numbering, 1.x then 2.x (1991) then 3.x (1993). The target is a **High
+C 386 from 1988 to 1990**, whatever its number, not "High C 1.4".
+
+**Availability, measured 2026-11-13.** WinWorld's catalogue carries 2.x and 3.3x and no 1.x download. Bitsavers has the 1.2
+and 1.3 documents only. The 2021 WinWorld forum upload of "Watcom and Metaware C installation disks" turned out to be the
+files already catalogued, and Vetusware's Metaware page (checked 2026-11-13) lists exactly four titles: High C++ 3.03, High
+C++ 3.31, **MetaWare High C 386 v2.31** and **MetaWare High C v1.7 for FlexOS 286**. No 386 release of the 1.x era exists
+in any of the three archives, so that lead is closed rather than open.
+
+One discrepancy is worth keeping straight because it weakens a date argument if trusted. Vetusware dates its 2.31 entry
+1990, and this repository's archive filename says 1992, while the kit's own `README` says **April 1991**, which is what
+`docs/highc-forensics.md` used. The README is the stronger evidence and 2.31 stays ruled out on chronology, but a
+catalogue year for this kit should not be quoted as if it were measured. `references/metaware/` also holds High C++
+3.04 (1993), so the local collection skips the whole 1.x era as well.
+
+The acceptance test needs neither Fujitsu headers nor a full build. The atlas corpus is self-contained C, so the first
+comparison is the 0a corpus plus the `enter` prediction above, run against the new compiler exactly as the 1.73 atlas was
+built. A kit that reproduces `enter` where 1.73 emits the `push ebp` frame turns this item's largest mystery into a
+version fingerprint.
 
