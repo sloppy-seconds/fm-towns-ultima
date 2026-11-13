@@ -334,6 +334,31 @@ So the dispatcher is `0x280`, its table is **`0x2b4`**, and it is a `call`, not 
 
 **`ah=0x2c` at `0x245c` is a filled-polygon primitive**, and it is readable: `mov cl,al`, then `lodsw` twice per iteration reading a vertex list from `esi`, clamping edge bounds to `3..0x100`, storing `dx`/`bx` and `esi` into the trap frame, computing `eax = ([ebp+0x1a]+1) * [ebp+0x20]`, and tracking min/max over the vertex pairs before calling `0x44a0`. That is the shape a `FillPolygon`-style BIOS entry has, and it matches the closed-door and wedge art the brief describes being drawn per depth.
 
+## What `ah=0x2b` really is: a clipped rectangle fill
+
+`0x244c` pushes two words from the trap frame and jumps to `0x2429`, which stores `al`, `dx` and `bx` into the frame and
+calls `0x579c`. That routine reads a rectangle from `esi`, normalises its corners, clips them against the window bounds at
+`gs:[ebp+0x28]` and `gs:[ebp+0x2c]`, and fills it.
+
+So the call the dungeon uses 99 times per walk is **fill a clipped rectangle**, and the descriptor the game builds at
+`0x7add8` is that rectangle. The walls' brick texture therefore does not come through this call; `0x2b` draws the shaded
+geometry and recesses, while the textured view is what `ah=0x25` pages to the screen.
+
+## Where the 57-byte records get their values
+
+Nine functions write into the record array at `0x7aee4`. The ones worth reading next, by what they write:
+
+| function | writes | note |
+|---|---|---|
+| `0xe6e68` | `[edx+0x7aefd]` | also called from the dungeon setup path |
+| `0xe76d8` | `[edx+0x7af09] = edi` | stores a parameter, so likely the tile or sprite index |
+| `0xe74ac` | reads `[ebx+0x7af09]` | the reader of the same field |
+| `0xe776c`, `0xe7784` | `[edx+0x7af05] = 0 / -1` | a flag or sentinel |
+| `0xe759c`, `0xe6dc8`, `0xe6b3c` | read `+0x7af15`, `+0x7af0d` | readers of other fields |
+
+The field at `+0x25` (`0x7af09`) is written with a parameter and read by another function, which is the signature of the
+index that selects art. That is the last link: whoever writes `+0x25` per depth decides which tile a cell draws.
+
 ## The pipeline end to end, and why there is no guest blitter
 
 Put together from the measurements above, in execution order:
