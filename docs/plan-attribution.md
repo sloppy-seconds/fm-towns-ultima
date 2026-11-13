@@ -316,11 +316,26 @@ little between the two lines, which is why binary comparison on early FM Towns t
 `-O` and Phar Lap `386|LINK` settings. The ledger label stays `compiler-1.73-matched`, which claims which compiler was
 run and not which one built the game, and `docs/highc-forensics.md` records the three rules that keep that honest.
 
-The item now owns one concrete prediction rather than a search. The 220 `enter imm16, 0` prologues in `ENCHANT.EXP` are
-the largest family the stand-in cannot explain, and `a41_nested` ruled out the language-construct reading. So when a
-V1.4 kit appears, the first thing to check is that **1.4 emits `enter` frames where 1.7 emits `push ebp; mov ebp, esp`**
-for the same source. If it does, the family becomes a version fingerprint rather than a mystery, and the stand-in's
-blind spot is named instead of implied.
+The item now owns one concrete prediction rather than a search. The `enter imm16, 0` family in `ENCHANT.EXP` is the
+largest group the stand-in cannot explain, and `a41_nested` ruled out the language-construct reading. So when a V1.4-era
+kit appears, the first thing to check is that **it emits `enter` frames where 1.7 emits `push ebp; mov ebp, esp`** for the
+same source. If it does, the family becomes a version fingerprint rather than a mystery, and the stand-in's blind spot is
+named instead of implied.
+
+**Update 2026-11-13, later the same day: the family is library code, so this item is about the runtime, not the game.**
+Measured with `tools/entercensus.js` and recorded in `docs/enter-band-boundary.md`: of the 739 validated entries in
+`ENCHANT.EXP`, the game's own 983 KB holds 156 `push ebp` frames and only four `enter` entries, all of them assembly
+stubs. The last 89 KB holds 67 of the 71 `enter` entries, 52 of them C-frames, and that tail also carries the string
+`High C Run-time Library Copyright (C) 1983-1988 MetaWare Incorporated.` at `0x101c58` and all 22 nested-function static
+links above `0x102afd` (`docs/idiom-atlas.md`). Two consequences:
+
+- the number to use is **71**, not the 220 that this item and `docs/highc-forensics.md` previously quoted. Neither 220
+  nor 472 is a census: 472 is the raw `0xC8` byte count.
+- the question this item should ask is **what built 89 KB of runtime**, since the game's own code is uniformly `push ebp`
+  and is consistent with 1.73 throughout. A kit that explains the tail explains the fingerprint, and a kit that does not
+  leaves the game's code unexplained nowhere.
+
+The kit hunt is unchanged and still blocked on input. What changed is what a kit would be evidence about.
 
 **Route, reframed 2026-11-13: a generic MetaWare High C 386 of the same era may be enough.** Paul's suggestion, and the
 mechanism checks out. The FM Towns kit is an OEM MetaWare 386 build, which the banner says outright: our V1.7 kit reports
