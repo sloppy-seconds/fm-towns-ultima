@@ -146,6 +146,38 @@ question it raises is what built that 89 KB rather than what built the game.
 **A count correction.** "220 `enter` prologues" has been quoted in this repository and is not reproducible: the raw count
 of `0xC8` bytes in `ENCHANT.EXP` is 472, and the validated census is 71. The census is the number to use.
 
+## Library-bytes test, 2026-11-13: the 1994 library does not explain the tail
+
+The obvious candidate for the 89 KB is the runtime library the kit itself ships, so both were compared directly. Method:
+read every `.LIB` on the V1.7 CD (34 of them), index each one's 16-byte windows, and ask how many of the game's entry
+points land on a window that exists in that library. The 162 tail `push ebp` entries are the control.
+
+| library | enter entries matched (of 71) | tail push-ebp matched (of 162) |
+|---|---|---|
+| `HC386/SMALL/HCE.LIB`, 248 KB | **8** | **24** |
+| `HC386/SMALL/HCC.LIB`, 195 KB | 7 | 15 |
+| `GUI.LIB`, `GUIDBG.LIB`, `LGPROC.LIB` | 0 | 1 each |
+| the other 28 libraries | 0 | 0 |
+
+The overlap is real but small, and it is verbatim code rather than a coincidence. Longest byte-identical spans between
+the game and `HCE.LIB`:
+
+| game | library | span |
+|---|---|---|
+| `0x1040a0` | `0x3cc0` | 253 B |
+| `0x103fa7` | `0x396e` | 249 B |
+| `0x105812` | `0x3add` | 199 B |
+| `0x105c75` | `0x972c` | 153 B |
+
+Every one of those spans begins `55 8b ec` (`push ebp; mov ebp, esp`), so the code that is *shared* with the 1994 library
+is the push-ebp code. `HCE.LIB` does contain `enter`: 333 raw `0xC8` bytes. They are simply not where the game's enter
+routines are.
+
+**Verdict.** The 1994 runtime does not explain the game's enter-framed tail. The lineage is shared and the shared parts
+are push-ebp, while the enter routines sit outside the overlap. That is what a runtime several years older than the kit
+looks like, which agrees with the `1983-1988` string in the image and with the 1988 `386|LINK 2.0` that the MP container
+points at. The test does not date the tail, and it does close the "the kit's own library explains it" hypothesis.
+
 ## Related
 
 - `docs/enter-is-platform.md`: refutes the different-compiler reading
