@@ -310,3 +310,15 @@ of 1.73's output and remain useful as exactly that. The `enter` question above, 
 the port track do not wait on this item: they never depended on knowing the version, only on knowing what was emitted,
 which the code itself says.
 
+**Update 2026-11-13: the project is not blocked on this item.** V1.4 has not been found and it is physical media from
+1990, so the work continues on **V1.7 as a labelled stand-in**. MetaWare's 386 code generator changed comparatively
+little between the two lines, which is why binary comparison on early FM Towns titles normally uses 1.7 with the same
+`-O` and Phar Lap `386|LINK` settings. The ledger label stays `compiler-1.73-matched`, which claims which compiler was
+run and not which one built the game, and `docs/highc-forensics.md` records the three rules that keep that honest.
+
+The item now owns one concrete prediction rather than a search. The 220 `enter imm16, 0` prologues in `ENCHANT.EXP` are
+the largest family the stand-in cannot explain, and `a41_nested` ruled out the language-construct reading. So when a
+V1.4 kit appears, the first thing to check is that **1.4 emits `enter` frames where 1.7 emits `push ebp; mov ebp, esp`**
+for the same source. If it does, the family becomes a version fingerprint rather than a mystery, and the stand-in's
+blind spot is named instead of implied.
+

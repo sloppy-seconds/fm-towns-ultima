@@ -222,6 +222,29 @@ What survives, and what does not:
   compiler that post-dates the binary by four years. A later sibling of the right compiler matching its shapes is weak
   evidence for the sibling rather than the ancestor.
 
+### The decision: 1.7 is the stand-in, and it is labelled as one
+
+**Decided 2026-11-13.** A V1.4 kit has not been found, and the search is not cheap: it is physical media from 1990. Two
+facts make 1.7 a usable stand-in rather than a blocker. MetaWare's 386 code generator changed comparatively little
+between the V1.4 line and V1.7, which is why people doing binary comparison on early FM Towns titles use V1.7 with the
+same `-O`/`-On` and Phar Lap `386|LINK` settings as the closest available approximation. And the project's method does
+not need an identified compiler to be sound: the equivalence rule only ever claims "this C, under this compiler, gives
+these bytes".
+
+So the project proceeds on 1.7, under three rules that keep the claim honest:
+
+- **The ledger label stays `compiler-1.73-matched`.** It says which compiler was run, not which one built the game. Any
+  widening of that label to "the original compiler" is the tolerance failure item 12a exists to prevent.
+- **A match is strong evidence, a mismatch is weak.** If source plus 1.7 reproduces bytes exactly, the plausible reading
+  is that the original was the same source under a code generator that agrees with 1.7 on this construct. A mismatch
+  could be different C or a marginal version difference, and those remain indistinguishable.
+- **One measured difference is on record and becomes the test.** The 220 `enter imm16, 0` prologues in `ENCHANT.EXP`
+  are not something the 1.7 corpus emits, and `a41_nested` refuted the language-construct explanation for them. If a
+  V1.4 kit ever turns up, the prediction to check first is that **1.4 emits `enter` frames where 1.7 emits
+  `push ebp; mov ebp, esp`** for the same source. Confirming that would turn the largest unexplained family in the
+  binary from a mystery into a version fingerprint, and it would also tell us that the stand-in has a known blind spot
+  we can name rather than a general unreliability.
+
 ### The dates do not all fit, and that is the live question
 
 The game is a 32-bit flat `MP` image that requires `RUN386`, so it was built with a **32-bit** compiler. The first
