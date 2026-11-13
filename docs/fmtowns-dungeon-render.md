@@ -541,6 +541,22 @@ Two corrections follow. An earlier reading here called `48`-`60` the whole ladde
 And `36` was dismissed as "not a ladder tile" because it is asymmetric; asymmetry is what a perspective piece looks like, not
 evidence against the ladder.
 
+**Bank `0x93378` is a separate art set, and it is the far end of the specials.** Dumped in full and compared against every tile
+of `CHEST`, `DUNG1` and `DUNG2`:
+
+- first bytes `25 22 22 22 25 22 22 22`, dominated by palette indices **2 and 5**, which none of the three known banks use as
+their base
+- **no exact matches**; the best figures anywhere are 78-80% against `CHEST` tile 0, which is an *empty* tile, so those are
+two blanks agreeing rather than a shared picture
+- tile 18, the one the live packet named for the ladder, has ink **538 of 1024**
+
+That last figure is the point. A ladder at the far end of a corridor is a small sprite on transparency, and about half
+coverage is what a distant ladder should look like, while `CHEST`'s tiles `24`-`63` are full-coverage flat faces.
+
+So this is the monster design again, applied to specials: **near ladders come from `CHEST` 24-63, distant ones from bank
+`0x93378`**, and the renderer picks by distance. `0x9b378` and `0xab378`, the remaining two loads, are probably the rest of
+that far-detail set and have not been read.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
