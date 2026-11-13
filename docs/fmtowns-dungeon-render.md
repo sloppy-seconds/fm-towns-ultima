@@ -524,6 +524,23 @@ at the centre of the grid is consistent with a "nothing here" marker, since that
 **Only three sprites for a whole corridor** also confirms from the other direction what the read watches showed: the walls
 are not sprites at all. They come from the generator's derived banks, so the packet carries specials only.
 
+**And the bank divides cleanly in two, which corrects this page twice over.** Palette index `1` is used by 16 of the tiles
+in `24`-`63` and by **none** of the tiles in `0`-`23`:
+
+| range | non-empty | symmetric | asymmetric | uses index `1` |
+|---|---|---|---|---|
+| `0`-`23` | 23 | 13 | 10 | **0 tiles** |
+| `24`-`63` | 31 | 10 | 21 | **16 tiles** |
+
+So `CHEST` is **chests in `0`-`23` and the ladder family in `24`-`63`**, matching the owner's visual reading. Within the ladder
+half the symmetric tiles (`49`, `50`, `51`, `57`, `58`, `59`) are flat-faced views and the asymmetric ones (`25`, `27`, `36`,
+`38`, `41`, `43`, `48`, `52`, `56`, `60`) are angled or receding pieces, which is exactly the mix a ladder built up a shaft
+needs.
+
+Two corrections follow. An earlier reading here called `48`-`60` the whole ladder family: it is only the flat-face subset.
+And `36` was dismissed as "not a ladder tile" because it is asymmetric; asymmetry is what a perspective piece looks like, not
+evidence against the ladder.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
