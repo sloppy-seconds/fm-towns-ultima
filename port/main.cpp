@@ -1390,6 +1390,11 @@ int main(int argc, char **argv) {
 	// "the port draws something" is a picture rather than a byte count. The kit has write_png for exactly this
 	// (it is how its own ports save frames at a VSYNC).
 	const char *shot_path = std::getenv("U2_SHOT");
+	// U2_TRACE_KEYS=1 names every key as it arrives and as the guest takes it, with the frame. Added 2026-11-13 after
+	// BRITISH.EXP exited at frame 1333 through DOS `int 21h AH=4Ch` with the log saying "keys 1 served, 2 still queued",
+	// and nothing saying who pressed anything. A window nobody touched does not produce keys by itself, so either the
+	// front-end manufactured them or something outside it did, and this is the instrument that names which.
+	const bool trace_keys = std::getenv("U2_TRACE_KEYS") != nullptr;
 	// U2_PALETTE=1 prints the palette the machine holds when the run ends, in the same `RRGGBB` form the emulator's
 	// `PRI PALETTE` prints, one line per layer. Item 4e wants the running game's palette recorded and compared, and
 	// two tables in the same notation can be compared by eye and by diff; a rendered picture cannot.
@@ -1406,7 +1411,12 @@ int main(int argc, char **argv) {
 		o.letterbox = letterbox;
 		std::string err;
 		if (host.open(o, err)) {
-			host.on_key = [&m](uint8_t scan, uint8_t ascii) { m.press_key(scan, ascii); };
+			host.on_key = [&m, trace_keys](uint8_t scan, uint8_t ascii) {
+				if (trace_keys)
+					std::printf("key       front-end delivered scan 0x%02x ascii 0x%02x at frame %ld\n", scan, ascii,
+								(long)m.frame);
+				m.press_key(scan, ascii);
+			};
 			std::printf("graphics  sdl, window open as \"%s\", Ctrl-Q or closing the window ends the run\n",
 						o.title.c_str());
 		} else {
@@ -1611,6 +1621,9 @@ int main(int argc, char **argv) {
 		// A command that takes two keys is unaffected: "A" does not complete a turn on its own, so the clock has
 		// not moved when the direction arrives and both keys are used.
 		m.before_key_served = [&]() {
+			if (trace_keys && !m.keys.empty())
+				std::printf("key       guest took scan 0x%02x ascii 0x%02x at frame %ld\n", m.keys.front().scan,
+							m.keys.front().ascii, (long)m.frame);
 			uint32_t turn_now = 0;
 			m.read_block(0x400000u + 0xCDF53u, reinterpret_cast<uint8_t *>(&turn_now), 4);
 			if (turn_clock_seen && turn_now != turn_clock_last && !key_queue_ok)
