@@ -74,6 +74,7 @@ nav:
       - Disc and binaries: disc-and-binaries.md
       - Assets and graphics: assets-and-graphics.md
       - Dungeon tile and rect rules: fmtowns-dungeon-render.md
+      - Dungeon render brief: fmtowns-dungeon-render-brief.md
       - Extraction: extraction.md
       - Sound: sound.md
       - Sound playback: audio-playback.md

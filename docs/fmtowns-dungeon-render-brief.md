@@ -1,9 +1,9 @@
-# FM Towns Dungeon Rendering — Problem Brief (input to a decompile effort)
+# FM Towns Dungeon Rendering: Problem Brief (input to a decompile effort)
 
 **Status:** assembled 2026-11-13. This is a *problem statement + evidence pack*, not a
 solution. Its purpose is to hand a focused reverse-engineering effort everything it needs
-to produce the **dungeon rendering codex** — the exact spec of how the FM Towns Ultima II
-dungeon view is drawn from the GRAPH banks — which we then implement in
+to produce the **dungeon rendering codex**: the exact spec of how the FM Towns Ultima II
+dungeon view is drawn from the GRAPH banks, which we then implement in
 `engine/src/game/dungeon3d.c`.
 
 **Correction, 2026-11-13, same day.** An earlier revision of this brief stated that the FM
@@ -25,11 +25,11 @@ The enhanced-mode 3D dungeon can be built two ways:
 
 - **Our design (shipped, `d78ad75`):** a flat-shaded perspective corridor that samples one
   brick tile across trapezoid walls. It looks good but is *not* what the FM Towns port
-  does, and it forces a **cleanroom redraw of every dungeon sprite** — monsters, chests,
-  ladders, doors — because we would be inventing the look, not reusing it.
+  does, and it forces a **cleanroom redraw of every dungeon sprite** (monsters, chests,
+  ladders, doors) because we would be inventing the look, not reusing it.
 - **Faithful blit (this brief):** the FM Towns port blits **pre-projected tiles** that
   already exist on the disc, one per (side, depth). Reusing them means the monsters,
-  chests, ladders and doors come from the disc for free — no cleanroom art wall.
+  chests, ladders and doors come from the disc for free, with no cleanroom art wall.
 
 The owner ruled the art route is **disc-supplied** (reuse the FM Towns art), so the
 faithful blit is the economical path. The blocker is that we do not yet know the exact
@@ -79,7 +79,7 @@ perspective segments:
 This is corroborated by the lossless FM Towns screenshots (§ 4): first-person corridor,
 textured receding walls, sprite monsters scaled by distance.
 
-## 2b. The dungeon map files differ (DOS vs FM Towns) — measured 2026-11-13
+## 2b. The dungeon map files differ (DOS vs FM Towns), measured 2026-11-13
 
 The two versions do **not** share a dungeon map format. This reframes what the codex must
 answer.
@@ -111,7 +111,7 @@ guessing. It must give, for each of the ~3-7 depth steps:
 1. **Wall:** which DUNG1 tile for the left wall at depth d, and the mirror rule for the
    right wall; the screen rectangle (x, y, w, h) to blit it into at that depth.
 2. **End cap / dead end:** which tile fills the far wall when the corridor stops.
-3. **Door:** which DUNG2 tile per (side, depth, open/closed) — note the FM Towns port has
+3. **Door:** which DUNG2 tile per (side, depth, open/closed). Note the FM Towns port has
    closed doors, which the DOS original does not (`docs/enhanced-dungeon-3d.md` § 0c).
 4. **Chest / ladder:** which CHEST tile per (kind, depth).
 5. **Monster:** how a creature type maps to a sprite index (0..25), and the **depth -> LOD
@@ -132,7 +132,7 @@ guessing. It must give, for each of the ~3-7 depth steps:
 B, ISO-9660 over raw MODE1/2352 sectors). Readable with the bespoke reader in
 `tools/fmtowns_xwalk.py` (`find_disc`, `disc_files`, `decode_bank`); 7z cannot parse it.
 
-**FM Towns Ultima II program (the decompile target) — CONFIRMED:** `ENCHANT.EXP`
+**FM Towns Ultima II program (the decompile target), CONFIRMED:** `ENCHANT.EXP`
 (1,072,398 B). Its own strings read `Ultima ][  - Revenge of Enchantress -` and
 `Roster data:ULTIMA II for FM-TOWNS`; the trilogy mapping is confirmed by the siblings'
 strings too (`DARKNESS.EXP` = "Ultima I - The First Age of Darkness", `EXODUS.EXP` =
@@ -145,7 +145,7 @@ Not the renderer: `DUNGEON.EUP` (9,466 B) is **Euphony music** (magic `EUPHONY`)
 The seven `*.DG3` files (2048 B: DARDIN, FIRE, M, MINE, P, PERINIAN, TIME) are **dungeon
 level data** (the grid the renderer reads), not the renderer. See § 2b.
 
-**GRAPH banks (decode recipe) — two formats, measured 2026-11-13:**
+**GRAPH banks (decode recipe), two formats, measured 2026-11-13:**
 
 - **Raw tile banks** (`DUNG1`, `DUNG2`, `CHEST`): header starts `00 00 …`, then 32x32 tiles
   at 4bpp packed, **high nibble = left pixel**, indices 0..7, palette `k_pal` (index 0 =
@@ -154,7 +154,7 @@ level data** (the grid the renderer reads), not the renderer. See § 2b.
   magic**. The IFD describes one sprite (BitsPerSample=4, FillOrder=2 = **low nibble = left**,
   one strip at byte 512), but the file holds **26 sprites** concatenated after it, at
   128x128 / 64x64 / 32x32 respectively. **`tools/fmtowns_xwalk.py:decode_bank` is wrong for
-  these** — it assumes 32x32 high-nibble tiles, so it mis-slices DUNMON1/2 and reverses the
+  these**: it assumes 32x32 high-nibble tiles, so it mis-slices DUNMON1/2 and reverses the
   nibble order for all three. Any faithful monster render must special-case the TIFF magic
   and the per-bank sprite size. (The earlier "DUNMON3 = viper/chest/blobs" tile reading was
   this bug producing garbage, not real sprites.)
@@ -173,14 +173,14 @@ This is the instrument for the empirical route (§ 5A).
 
 ## 5. Two routes to the codex
 
-**A — Empirical capture (tractable, no exotic ISA).** Drive the live FM Towns dungeon to
+**A, empirical capture (tractable, no exotic ISA).** Drive the live FM Towns dungeon to
 known positions/facings, screenshot each, and match bank tiles to the screen rectangles
 they fill. The straight-corridor frames (`u2-chamber.png`) already show the receding wall
 segments; a handful of controlled frames at known depths pins the per-(side,depth) tile
 table and the blit geometry. Downside: it infers the table from behaviour, so edge cases
 (doors, towers, unusual creatures) need targeted captures.
 
-**B — Decompile the FM Towns binary (authoritative, and already routine here).** Disassemble
+**B, decompile the FM Towns binary (authoritative, and already routine here).** Disassemble
 `ENCHANT.EXP` and read the dungeon-drawing routine directly. It is **32-bit x86**, a Phar
 Lap `MP` image loaded flat at base 0, so no special loader and no exotic ISA is involved:
 this repository already holds a function list for it, an instruction decoder, a control-flow
@@ -196,7 +196,7 @@ target was 68k; the tooling for this binary exists in this repository.
 
 ## 6. Current engine state (what the codex replaces)
 
-`engine/src/game/dungeon3d.c` — flat-shaded corridor, viewport-relative depth frames
+`engine/src/game/dungeon3d.c`: flat-shaded corridor, viewport-relative depth frames
 (`dg3_frame`, pinhole `s(d)=1/(d+1)`, `U2_DG_DRAW_DEPTH=7`), trapezoid fills, one sampled
 wall tile from `ctx->dng_wall`. The faithful renderer replaces the trapezoid fills with
 per-(side,depth) tile blits driven by the codex; the `u2_dg_scan` topology (which faces are
@@ -205,15 +205,15 @@ will grow that into a dungeon tile set (walls/doors/chests/ladders/monsters).
 
 ## 7. Open questions for the owner / capture
 
-- ~~Which bank is the **tower** vs the **dungeon**~~ — **retracted 2026-11-13 by the owner**, and
+- ~~Which bank is the **tower** vs the **dungeon**~~, **retracted 2026-11-13 by the owner**, and
   the code agrees: both 64-tile banks are consumed through one contiguous cell space in one view,
   so there is no per-location art set.
 - Are ceiling/floor **tiles** or **flat fills**?
-- The **closed-door** state: the FM Towns port has it, DOS does not — do we mirror the port
+- The **closed-door** state: the FM Towns port has it, DOS does not. Do we mirror the port
   (owner earlier ruled open-archway for the flat renderer; a faithful blit may revisit this).
 - Why do FM Towns dungeons have **8 pages** (2048 B) where DOS has 16 (4096 B)? Fewer floors,
   or a denser encoding? Affects whether the depth model transfers.
-- ~~Which `.DG3` is the **tower** (likely `M` or `P`)?~~ — moot once the two-art-set reading was
+- ~~Which `.DG3` is the **tower** (likely `M` or `P`)?~~: moot once the two-art-set reading was
   retracted. The `.DG3` files remain worth comparing for content, but not as a tower discriminator.
 - The **depth -> LOD tier** rule: at what on-screen size does the renderer switch between
   DUNMON1 (128), DUNMON2 (64) and DUNMON3 (32)?

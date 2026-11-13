@@ -274,14 +274,14 @@ them are the generator reading back the bank it just wrote (`0xe7cb5`, `0xe7cd2`
 read at or past `0xbd578`, which is one byte beyond the last bank: a different structure, not the tiles.
 
 **Watch 2, the four source tables** `0x7b578`, `0x7c778`, `0x7f778`, `0x7f978`. Twenty-seven distinct readers, every one
-of them between `0xe797d` and `0xe91ca` — the loader and the generator's own setup. Nothing outside that cluster touches
+of them between `0xe797d` and `0xe91ca`, the loader and the generator's own setup. Nothing outside that cluster touches
 them.
 
 So **no guest instruction reads tile pixels for the purpose of drawing a frame.** The tile data is loaded, derived and
 re-derived, and then never read again by the program's own code.
 
 The remaining explanation, and it fits every earlier measurement: the copy happens on the **BIOS side**, inside the
-handler for `ah=0x2b` — the call we traced 99 times in one dungeon walk, taking a table pointer in `s1`, a count in
+handler for `ah=0x2b`, the call we traced 99 times in one dungeon walk, taking a table pointer in `s1`, a count in
 `s2` and a descriptor in `s5`. That also explains why every attempt to find a tile blitter in guest code failed: there
 is none. Guest code builds the view table and issues one BIOS call; the BIOS reads the tiles.
 
@@ -305,7 +305,7 @@ disc are **generated at run time** from four source tables, which is why DUNG1's
 
 ## The real trap entry, and what `ah=0x2b` actually does
 
-The table at `0x110cc` is the wrong one for game calls. Tracing selector `0110` broadly and filtering by caller shows**21 calls from site `0x6e1` — the `ah=0x2b` thunk — every one of them entering TBIOS at `0x0110:0x00000280`**:
+The table at `0x110cc` is the wrong one for game calls. Tracing selector `0110` broadly and filtering by caller shows**21 calls from site `0x6e1`, the `ah=0x2b` thunk, every one of them entering TBIOS at `0x0110:0x00000280`**:
 
 ```
 0x0280  push fs / push es / push ds
