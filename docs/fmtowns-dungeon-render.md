@@ -303,6 +303,29 @@ copies `0x80` dwords (512 bytes) to `base + i*512`. So the intermediate depth ti
 disc are **generated at run time** from four source tables, which is why DUNG1's 64 tiles cover more depth steps than
 64 indices could.
 
+## The pipeline end to end, and why there is no guest blitter
+
+Put together from the measurements above, in execution order:
+
+| stage | address | what it does |
+|---|---|---|
+| load | tables `0x7b578`, `0x7c778`, `0x7f778`, `0x7f978` | tile banks read from disc into memory |
+| generate | `0xe7b58` | 16 passes per bank, each shifting a source table 128 bytes and copying 512 bytes, into `0xb5578` / `0xb7578` / `0xb9578` / `0xbb578` |
+| build view | `0xe3c84` | 64x64 word table at `0x77e90` from the cell map at `0x40e90`, `bank*4096 + row*64 + col` |
+| place sprites | `0xf3e24` / `0xefb20` | `view_set(col,row,cell)` and `view_get`, with cell `0x10` returned for the player |
+| BIOS dispatch | `0x110b5`, table `0x110cc` | `movzx ebp,ah; jmp cs:[ebp*4+0x110cc]`, 256 entries indexed by function |
+| draw | **`0x13194`** (`ah=0x2b`) | VRAM row copy: source `esi`, destination `ebx`, rows `ecx`, all below `0x10000`, through CRTC port `0x4f7` |
+| flush | `0x127a8` (`ah=0x25`) | the page copy that puts the finished frame on screen |
+
+**Why every search for a guest tile blit failed: the tiles are already in VRAM.** The program builds the view table
+and then calls `ah=0x2b`, which copies rows *between VRAM offsets*. Pixels never come back into the program's data
+space, so a read watch over the banks sees only the loader and the generator. Two such watches, over the derived banks
+and over the source tables, returned 8 and 27 distinct readers respectively, all of them in that load/generate cluster.
+
+**What is left for the codex is one piece of arithmetic.** The game-side wrapper at `0xc:0x6b6` computes `esi`, `ebx`
+and `ecx` from the view cell before calling the dispatcher, and that computation is the tile-to-screen rectangle rule
+the brief asks for: which tile, which VRAM row, how many rows. Everything either side of it is now located.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
