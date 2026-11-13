@@ -68,6 +68,23 @@ mov ax,[edi+1] / add ax,0x11 -> [0x7ade2]                          -> x2 = x1 + 
 A 16-pixel step per depth and a 15-pixel span is a 16x16 blit, and the 57-byte record stride looks like a creature or
 entity table (name plus stats plus sprite fields). That is the monster path, not the wall path.
 
+## The asset names are text, not loader arguments
+
+Following the paths properly (decode from all 738 function entries, collect every instruction naming an address in the
+string block) gives 18 references, and none of them loads a file.
+
+- Each string carries an unidentified 4-byte prefix, so the code pushes the string start while a NUL scan finds the text
+  four bytes later. `0x222c` is `DUNGEON_X = `, not `EON_X = `.
+- `0xe77f8` is seven instructions: set a colour, wait, hand the string to `0xe5854`. A message wrapper.
+- `0xe6eb0` reads `byte ptr [edi]`, tests the Shift-JIS ranges `0x81`-`0x9f` and `0xe0`-`0xfc`, and scales a 57-byte
+  record to place the glyphs. A **text drawer**, not a TIFF loader.
+- The two functions that push the paths, `0xe9ab4` and `0xe9c0c`, are screen painters: they set colours and windows with
+  `0xe7460` and `0xe6b3c`, then print. `0xe9ab4` walks a 351-byte record at `0xcde4d` indexed by the global at `0xceca0`,
+  which is the character record, so it is a status screen.
+
+`Q:\GRAPH\DUNG1.TIF` therefore exists in the image only as printable text. The loader uses another mechanism and the
+renderer cannot be reached through the asset names. That route should not be retried.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
@@ -81,6 +98,8 @@ entity table (name plus stats plus sprite fields). That is the monster path, not
 ## Next steps
 
 1. Settle the address frame, then use `tools/cfgwalk.js` to get the real function containing `0xe7815` and its callers.
-2. Find the wall loop: the code that walks depth adding 8 to the tile index and 16 to the vertical rectangle.
-3. Confirm one frame against a screenshot at a known `(x, y, facing)`, which is the cheapest check available and needs
+2. Reach the dungeon view from the *state* side rather than the asset side: find what sets the `DUNGEON_X` / `DUNGEON_Y`
+   globals and what is called on entering a dungeon, then read forward from there.
+3. Find the wall loop: the code that walks depth adding 8 to the tile index and 16 to the vertical rectangle.
+4. Confirm one frame against a screenshot at a known `(x, y, facing)`, which is the cheapest check available and needs
    no new tooling.
