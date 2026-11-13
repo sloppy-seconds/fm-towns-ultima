@@ -83,19 +83,47 @@ segment base.
 `GATE_X` lands on `0xcdf9f`, which is exactly the address the comparison at `0xf77b0` uses, so the
 gate pair is confirmed from the code rather than from the text.
 
-## What this does not settle
+## What `MAP` means, and how the game uses it
 
-**The 4-byte question in `docs/live-fieldmap.md` is still open.** That page observes `MAP` at
-`0xcdf53` and `PLAYER_X` at `0xcdf6b`, 24 bytes apart, which needs five dwords between them. The
-writer's sequence has `MAP 0xcdf57`, `MAP_X`, `MAP_Y`, `DUNG_X`, `DUNG_Y`, `PLAYER_X 0xcdf6b`, 20
-bytes and four dwords. So either memory has one field there that the writer does not emit, or one of
-the two `MAP` addresses is wrong. `0xcdf53` is `SCORE` in the writer's map. **Not resolved here**, and
-the writer alone cannot resolve it.
+`MAP` is bounds-checked as a small index, not compared for one special value. `cmp dword
+[edx+0xcdf57], 4` occurs six times in `ENCHANT.EXP`, and the pair at `0xe2057` and `0xe20ab` is what
+names the field:
 
-**Whether the loader honours the text fields is unverified.** There is no `sscanf` in the image: all
-28 references to the format table are `sprintf`. A search for a positional parse found none, so how
-the roster text becomes memory is still unknown, and a save edited to a dungeon start has not been
-shown to load into one.
+```
+cmp  dword ptr [edx + 0xcdf57], 4
+jge  0xe206a
+push dword ptr [edx + 0xcdf6b]      ; MAP < 4  -> PLAYER_X
+jmp  0xe2082
+0xe206a:
+push dword ptr [edx + 0xcdf63]      ; MAP >= 4 -> DUNG_X
+```
+
+and the same shape for `PLAYER_Y` against `DUNG_Y`. So maps `0`-`3` are the four overworld maps and
+`MAP >= 4` is the dungeon case, which is why `DUNG_X`/`DUNG_Y` exist at all.
+
+**The view is not chosen from this field.** `MAP` is mirrored into a global at `0xcda6c` by `mov
+dword ptr [edx + 0xcdf57], eax` followed by `mov dword ptr [0xcda6c], eax` at `0xf34f6`, and the
+drawing routine branches on the **mirror**: `cmp dword ptr [0xcda6c], 0` at `0xe8169`, and six
+`cmp dword ptr [0xcda6c], -1` tests elsewhere. Measured 2026-11-14: a save edited to `MAP=4`,
+`DUNG_X=1`, `DUNG_Y=1` loads those values into the record and the viewport is still the overworld, with
+the dungeon compositor `0xe866c` entered zero times. **A save edit alone does not start in a dungeon.**
+
+What that leaves for a scenario launch is either the game's own map-change path, which is what writes
+the mirror, or a runtime write to `0xcda6c`. The port's control socket has no poke command, so the
+second route needs a new feature and is not available today.
+
+## The roster loader does read the record from the text
+
+Unproven when this page was written, and now measured. With `PLAYER_X=11` written into slot 0 of a
+save, the live record reads `PLAYER_X=11` at `0xcdf6b` before any menu is pressed, so the loader maps
+the text onto the record and it does so at boot. `node tools/savedisk.js` is therefore a valid way to
+set record state, which is what makes the field map useful.
+
+**Reading that value has a trap of its own.** The port's `mem` control command takes a **linear**
+address, while every address on this page is a data offset in a segment based at `0x400000`. Reading
+`mem addr=0xcdf6b` returns low memory and reports zeros, which is indistinguishable from an empty
+record. The linear address is `0x4cdf6b`. Several probes in one session concluded "the record is empty"
+from exactly that mistake.
 
 ## Crafted saves must keep every field the same width
 

@@ -34,7 +34,7 @@ One west step, no other action: `PLAYER_X` 36 to 35, `PLAYER_Y` unchanged. So:
 **The save writer agrees, once its immediates are read correctly.** `docs/roster-field-map.md` derives
 the field map from the writer, and the trap there is that a `push` immediate is a runtime address
 while the strings are file offsets, so the label lives at `imm + 0x200`. Read at the immediate it
-calls `0xcdf6b` `MACE`; read at `imm + 0x200` it calls it `PLAYER_X`, and the gate pair lands on
+calls `0xcdf6b` `MACE`. Read at `imm + 0x200` it calls it `PLAYER_X`, and the gate pair lands on
 `0xcdf9f`/`0xcdfa3`, which is what the comparison at `0xf77b0` uses. The 4-byte question below is
 **not** settled by that map, which has no gap between `MAP` and `PLAYER_X`.
 
@@ -211,7 +211,18 @@ four more positions to check at the same time.
 | `PLAYER_X` | `0xcdf6b` | `0xcdf6b` | **0** |
 | `PLAYER_Y` | `0xcdf6f` | `0xcdf6f` | **0** |
 
-**So the record is 4 bytes early through `MAP`, and back to the predicted position by `PLAYER_X`.** Something
+**CORRECTION 2026-11-14: the `MAP` row is wrong and the row below it was never needed.** `0xcdf53` is
+`SCORE`. `MAP` is `0xcdf57`, and the code says so twice over rather than the text: `cmp dword
+[edx+0xcdf57], 4` occurs six times in `ENCHANT.EXP`, and at `0xe2057` its two branches print
+`PLAYER_X`/`PLAYER_Y` below 4 and `DUNG_X`/`DUNG_Y` at or above it. The save writer agrees, putting
+`SCORE` at `+262` and `MAP` at `+266` with no gap (`docs/roster-field-map.md`).
+
+So the record does **not** shift early and return late. `MAP` to `PLAYER_X` is the writer's 20 bytes,
+`MAP`, `MAP_X`, `MAP_Y`, `DUNG_X`, `DUNG_Y`, and the −4 that the stats show stops before `MAP`. The
+paragraph that follows is kept because it records the reasoning that was wrong, and the conclusion it
+reached is withdrawn.
+
+**Superseded:** ~~So the record is 4 bytes early through `MAP`, and back to the predicted position by `PLAYER_X`.~~ Something
 between `MAP` and `PLAYER_X` is 4 bytes wider in memory than the format string implies.
 
 That is why the three anchors in `fieldmap.js` all passed. `MAP`, `PLAYER_X` and `PLAYER_Y` sit on opposite

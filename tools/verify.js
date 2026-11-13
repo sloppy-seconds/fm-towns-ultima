@@ -382,6 +382,21 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP', 'TMENU.EXP']) {
 	eq('the label at immediate + 0x200 names the field', text, 'PLAYER_X=%d\n');
 }
 {
+	// MAP is at 0xcdf57, not 0xcdf53: the code bounds-checks it as a small index and prints
+	// PLAYER_X/Y below 4 and DUNG_X/Y at or above it. 0xcdf53 is SCORE. See docs/roster-field-map.md.
+	const buf = disc.get(cat, 'ENCHANT.EXP');
+	const count = (hex) => {
+		const pat = Buffer.from(hex, 'hex');
+		let n = 0,
+			i = -1;
+		while ((i = buf.indexOf(pat, i + 1)) >= 0) n++;
+		return n;
+	};
+	eq('MAP bounds check cmp [edx+0xcdf57],4 occurrences', count('83ba57df0c0004'), 6);
+	eq('the map number is mirrored into 0xcda6c once, from the same value', count('898257df0c00a36cda0c00'), 1);
+	eq('the mirror is tested against -1', count('833d6cda0c00ff'), 6);
+}
+{
 	const r = disc.get(cat, 'RUN386.EXE').toString('latin1');
 	if (r.includes('Phar Lap')) ok('RUN386.EXE is Phar Lap');
 	else bad('RUN386.EXE is Phar Lap', 'not found');
