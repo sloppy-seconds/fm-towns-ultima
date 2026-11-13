@@ -31,6 +31,13 @@ One west step, no other action: `PLAYER_X` 36 to 35, `PLAYER_Y` unchanged. So:
 | `PLAYER_X` | `0xcdf6b` |
 | `PLAYER_Y` | `0xcdf6f` |
 
+**The save writer agrees, once its immediates are read correctly.** `docs/roster-field-map.md` derives
+the field map from the writer, and the trap there is that a `push` immediate is a runtime address
+while the strings are file offsets, so the label lives at `imm + 0x200`. Read at the immediate it
+calls `0xcdf6b` `MACE`; read at `imm + 0x200` it calls it `PLAYER_X`, and the gate pair lands on
+`0xcdf9f`/`0xcdfa3`, which is what the comparison at `0xf77b0` uses. The 4-byte question below is
+**not** settled by that map, which has no gap between `MAP` and `PLAYER_X`.
+
 ## Read from memory while paused
 
 Values present and matching the format string's identity, though not independently verified:

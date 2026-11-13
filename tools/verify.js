@@ -366,6 +366,22 @@ for (const name of ['DARKNESS.EXP', 'ENCHANT.EXP', 'EXODUS.EXP', 'TMENU.EXP']) {
 	else bad('High C runtime string: ' + name, 'not found');
 }
 {
+	// The roster writer pushes the field address and then the label, so the immediates carry the field
+	// map. The label immediate is a RUNTIME address and the string sits at immediate + 0x200, because
+	// the MP header is 512 bytes. Reading at the immediate labels every field one string block late,
+	// which produced a field map that called 0xcdf6b MACE and contradicted the live field map. This
+	// assertion is that pairing for the one field the disagreement was about.
+	const buf = disc.get(cat, 'ENCHANT.EXP');
+	const pat = Buffer.from('ffb36bdf0c00683c2b0000', 'hex');
+	let n = 0,
+		i = -1;
+	while ((i = buf.indexOf(pat, i + 1)) >= 0) n++;
+	eq('PLAYER_X writer pairing (push [0xcdf6b] then push its label) occurs once', n, 1);
+	const strOff = 0x2b3c + 0x200;
+	const text = buf.subarray(strOff, buf.indexOf(0, strOff)).toString('latin1');
+	eq('the label at immediate + 0x200 names the field', text, 'PLAYER_X=%d\n');
+}
+{
 	const r = disc.get(cat, 'RUN386.EXE').toString('latin1');
 	if (r.includes('Phar Lap')) ok('RUN386.EXE is Phar Lap');
 	else bad('RUN386.EXE is Phar Lap', 'not found');
