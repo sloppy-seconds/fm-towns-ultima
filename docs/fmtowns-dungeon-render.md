@@ -85,6 +85,66 @@ string block) gives 18 references, and none of them loads a file.
 `Q:\GRAPH\DUNG1.TIF` therefore exists in the image only as printable text. The loader uses another mechanism and the
 renderer cannot be reached through the asset names. That route should not be retried.
 
+## The dungeon's draw call is `ah=0x2b`, and it is rare
+
+A live walk in the dungeon, captured through the port with `U2_TRACE_FN=c:dc:b7d`, `U2_TRACE_FN_ARGS=6` and
+`U2_TRACE_FN_MEM=47add8:18`, gives 17,766 TBIOS calls across frames 1261-4107:
+
+| BIOS fn | calls | what it is |
+|---|---|---|
+| `ah=0x60` | 13,618 | timing or poll |
+| `ah=0x07` | 1,487 | input |
+| `ah=0x05` | 1,142 | unresolved |
+| `ah=0x19` | 685 | unresolved |
+| `ah=0x25` | 621 | **screen page blit**, three per frame |
+| `ah=0x0a` | 114 | text or window |
+| `ah=0x2b` | 99 | **the dungeon's draw call** |
+| `ah=0x04`, `0x0c`, `0x46`, `0x41` | 66, 82, 8, 8 | mixed |
+
+The `0x25` call is not a tile draw, which is what this page previously assumed. Its rect is constant at
+`(244,245)-(499,444)`, 256x200, pitch 20, and its source pointer cycles through `0x12e530`, `0x134930` and `0x128130`
+once each per frame. That is a triple-buffered page copy.
+
+`0x2b` fires 99 times in the walk and its descriptor contents change with movement, which is what a draw call for the
+view should look like. Its descriptor is the same `0x7add8` the builder at `0xe7815` writes, and the words read from
+there change between calls (`0x1f300f5`, `0x1f3019d`, `0x1f30175`), while one field stays at `0x10` = 16, the step this
+page already predicted from the 16x16 tile size.
+
+**What is still missing is field meaning, not the call.** The dump length of 18 bytes yields four complete dwords and
+four is not enough to name every field. The next capture needs `U2_TRACE_FN_MEM=47add8:24` and a walk with known
+steps, so each field can be matched to a position instead of guessed at.
+
+## The wrapper table, which is the reusable part
+
+The game's 70 TBIOS wrappers live in the first 3 KB of code, one per BIOS function, each of the form
+`mov ah,N; push 0x110; pop fs; call fs:[0x20]`. Runtime address to function:
+
+| runtime | fn | runtime | fn | runtime | fn |
+|---|---|---|---|---|---|
+| `0x0dc` | 0x00 | `0x528` | 0x20 | `0x6a7` | **0x2a** |
+| `0x103` | 0x01 | `0x546` | 0x21 | `0x6da` | **0x2b** |
+| `0x169` | 0x02 | `0x569` | 0x22 | `0x715` | **0x2c** |
+| `0x18d` | 0x03 | `0x591` | 0x23 | `0x783` | **0x2d** |
+| `0x1b5` | 0x04 | `0x5b5` | 0x24 | `0x7b1` | **0x2e** |
+| `0x1d8` | 0x05 | `0x5dd` | **0x25** | `0x7d6` | **0x2f** |
+| `0x2da` | 0x0c | `0x651` | 0x28 | `0x7fa` | 0x40 |
+| `0x291` | 0x0a | `0x679` | 0x29 | `0xa6e` | 0x51 |
+
+`0x5c4` is the wrapper's *entry* for `ah=0x25`; the trap call itself is at `0x5dd`. Tracing an entry address and
+reading it as a call site is what made the first capture look like it was drawing walls when it was copying pages.
+
+## The instruments this took
+
+| variable | what it does |
+|---|---|
+| `U2_TRACE_FN=<cs>:<lo>:<hi>` | log every entry into a code-selector range |
+| `U2_TRACE_FN_ARGS=<n>` | print the first n stack dwords, so a stack-argument routine shows its arguments |
+| `U2_TRACE_FN_MEM=<hex addr>:<hex len>` | print those bytes, for a routine whose arguments are pointers |
+
+All three need `--dev`, or the port drops them silently. `U2_TRACE_FN` is parsed base 16, so an `0x` prefix parses as
+zero. Runtime address = file offset - 0x200; the data segment base is `0x400000`, which is why the descriptor at data
+offset `0x7add8` is dumped as linear `0x47add8`.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is

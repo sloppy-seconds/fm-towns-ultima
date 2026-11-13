@@ -683,7 +683,8 @@ int main(int argc, char **argv) {
 	// precisely the failure this mechanism exists to remove.
 	if (!dev) {
 		static const char *kAlwaysHonoured[] = {"U2_FONT", "U2_FONT20", "U2_CLOCK", "U2_ENTRY", "U2_STACK",
-												"U2_KEYS", "U2_PAD",	"U2_LAYER", "U2_SHOT", "U2_TRACE_FN", "U2_TRACE_FN_ARGS"};
+												"U2_KEYS", "U2_PAD",	"U2_LAYER", "U2_SHOT", "U2_TRACE_FN", "U2_TRACE_FN_ARGS",
+												"U2_TRACE_FN_MEM"};
 		std::vector<std::string> drop;
 		for (char **e = environ; e && *e; ++e) {
 			std::string s(*e);
@@ -1385,6 +1386,21 @@ int main(int argc, char **argv) {
 		g_trace_fn_args = (uint32_t)std::strtoul(n, nullptr, 0);
 		if (g_trace_fn_args)
 			std::printf("trace     %u stack dwords per entry\n", g_trace_fn_args);
+	}
+	// U2_TRACE_FN_MEM=<hex addr>:<hex len> prints those bytes with every traced entry. For a routine whose arguments
+	// are pointers this is what shows the picture: the descriptor is rebuilt before each call, so the pointer never
+	// changes while the rectangle does.
+	if (const char *m = std::getenv("U2_TRACE_FN_MEM")) {
+		std::string s(m);
+		size_t c = s.find(':');
+		if (c == std::string::npos) {
+			std::fprintf(stderr, "U2_TRACE_FN_MEM: '%s' is not <addr>:<len>\n", m);
+		} else {
+			g_trace_fn_mem_addr = (uint32_t)std::strtoul(s.substr(0, c).c_str(), nullptr, 16);
+			g_trace_fn_mem_len = (uint32_t)std::strtoul(s.substr(c + 1).c_str(), nullptr, 16);
+			if (g_trace_fn_mem_len)
+				std::printf("trace     %u bytes at 0x%x per entry\n", g_trace_fn_mem_len, g_trace_fn_mem_addr);
+		}
 	}
 	// U2_FN_DUMP=<off>:<len>:<path> writes that many bytes at gs:ebp+off the first time a traced entry fires, so the
 	// port's snapshot is taken inside the same call as the machine's breakpoint rather than after the frame.
