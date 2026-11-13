@@ -145,6 +145,40 @@ All three need `--dev`, or the port drops them silently. `U2_TRACE_FN` is parsed
 zero. Runtime address = file offset - 0x200; the data segment base is `0x400000`, which is why the descriptor at data
 offset `0x7add8` is dumped as linear `0x47add8`.
 
+## The compositor, found statically at `0xe3c84`
+
+The dungeon view is built in software, and the routine is at `0xe3c84` (runtime `0xe3a84`). It does not draw pixels at
+all: it builds a 64x64 table of 16-bit view cells, which a later pass turns into tiles.
+
+```
+0xe3c8a  mov edi,[ebp+8]           ; bank number, negative = blank
+0xe3c91  esi = 0                  ; row
+0xe3c93  cmp esi,0x40  -> 64 rows
+0xe3c98  ebx = 0                  ; column
+0xe3c9a  cmp ebx,0x40  -> 64 columns
+0xe3cc2  mov eax,edi / shl eax,0xc ; bank * 4096 = bank * (64*64)
+0xe3cc7  mov edx,esi / shl edx,6   ; row * 64
+0xe3ccc  add edx,eax / add edx,ebx ; index = bank*4096 + row*64 + col
+0xe3cd5  movzx edx,byte [edx+0x40e90]   ; the cell map lives at 0x40e90
+0xe3cd0  mov eax,esi / shl eax,7        ; row * 128 = 64 columns * 2 bytes
+0xe3cdc  mov [eax+ebx*2+0x77e90],dx      ; view cells at 0x77e90, one WORD per cell
+```
+
+So there are two arrays and their shapes are exact:
+
+| array | address | shape | element |
+|---|---|---|---|
+| cell map | `0x40e90` | 64x64 bytes per bank, `bank*4096 + row*64 + col` | map cell byte |
+| view cells | `0x77e90` | 64x64 words, `row*128 + col*2` | 16-bit cell value |
+
+A negative bank number writes zero cells, which is the blank case. The rest of the routine then overlays up to 32
+entries from three parallel arrays (`0xce3c8` present flag, `0xce488` row, `0xce408` column, `0xce3e8` tile) into the same
+view table at `row*128 + col*2`, which is how sprites and doors land on top of the wall map.
+
+That is why no BIOS call looked like a tile draw: the view is a word table built by ordinary code, and only the finished
+frame reaches the BIOS through the `ah=0x25` page blit. `0xe3d24` follows with the same 64x64 loop and is the next
+thing to read, because it is where those cells become pixels.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
