@@ -306,11 +306,10 @@ const runNode = (script, args = []) => {
 	const bad = [];
 	if (/\.tar\.gz|tar -czf|tar --create/.test(wf)) bad.push('the workflow makes or ships a tarball');
 	// THE ASSET LIST COMES FROM THE TITLE TABLE, not from a second list here. It was six literals and that is how the
-	// release shipped three binaries while module/ held seven: two lists, one of which grew. Windows carries the three
-	// games only, deliberately, so the ids it does not build are named as the exception rather than left to look like
-	// an oversight.
+	// release shipped three binaries while module/ held seven: two lists, one of which grew. Windows now carries every
+	// title too, so the same list drives both platforms and there is no exception to remember.
 	const ids = require('./games.js').GAMES.map((g) => g.id);
-	const winIds = ids.filter((id) => /^u[123]$/.test(id));
+	const winIds = ids;
 	// THE LIST THAT MATTERS IS THE `files:` BLOCK, not the whole workflow. Every asset name also appears in the allowlist
 	// that refuses an unexpected file, so grepping the file for a name answers "is it mentioned" rather than "is it
 	// published", and a title dropped from `files:` while its allowlist entry stayed would pass. Demonstrated by deleting
@@ -322,8 +321,11 @@ const runNode = (script, args = []) => {
 		if (!published.split(/\s+/).includes(asset)) bad.push(`${asset} is not published by the workflow`);
 	for (const asset of winIds.map((id) => `fm-${id}-windows-x86_64.exe`))
 		if (!published.split(/\s+/).includes(asset)) bad.push(`${asset} is not published by the workflow`);
-	for (const id of ids.filter((id) => !winIds.includes(id)))
-		if (published.includes(`fm-${id}-windows-x86_64.exe`)) bad.push(`fm-${id}-windows-x86_64.exe is published but has never been built or run`);
+	// The Windows packager and its local driver both read the ids from tools/games.js, and neither may go back to a list
+	// of three: the failure that matters is a title that builds on Linux and silently does not exist for Windows.
+	for (const script of ['tools/release-package-windows.sh', 'tools/win-build.sh'])
+		if (!/tools\/games\.js"? --ids/.test(fs.readFileSync(path.join(ROOT, script), 'utf8')))
+			bad.push(script + ' does not read its ids from tools/games.js');
 	if (!/refusing to publish: \$f is not one of the/.test(wf)) bad.push('the step that refuses an unexpected release asset is gone');
 	record('a release publishes binaries only', bad);
 }

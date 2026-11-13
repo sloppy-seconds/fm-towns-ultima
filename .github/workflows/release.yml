@@ -136,14 +136,15 @@ jobs:
       - name: Build and package
         run: ./tools/release-package-windows.sh
 
-      # Three Windows binaries from one packaging run, the same three titles as the Linux job, each built from its own
-      # committed game module plus the shared TBIOS module. SDL for Windows is built once and shared by all three.
+      # One Windows binary per title, from one packaging run, each built from its own committed game module plus the
+      # shared TBIOS module. SDL for Windows is built once and shared by all of them. The id list comes from
+      # tools/games.js, so a title added to module/ cannot be left out of this job the way four of them were.
       - name: Record the digests
         id: sum
         run: |
-          echo "u2=$(sha256sum dist/fm-u2-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "u3=$(sha256sum dist/fm-u3-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "u1=$(sha256sum dist/fm-u1-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          for id in $(node tools/games.js --ids); do
+            echo "$id=$(sha256sum dist/fm-$id-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -154,6 +155,10 @@ jobs:
       sha256_u2: ${{ steps.sum.outputs.u2 }}
       sha256_u3: ${{ steps.sum.outputs.u3 }}
       sha256_u1: ${{ steps.sum.outputs.u1 }}
+      sha256_british: ${{ steps.sum.outputs.british }}
+      sha256_u1demo: ${{ steps.sum.outputs.u1demo }}
+      sha256_u2demo: ${{ steps.sum.outputs.u2demo }}
+      sha256_u3demo: ${{ steps.sum.outputs.u3demo }}
 
   release:
     name: Publish the release
@@ -181,8 +186,10 @@ jobs:
               fm-u1-linux-x86_64 | fm-u2-linux-x86_64 | fm-u3-linux-x86_64 | \
               fm-british-linux-x86_64 | fm-u1demo-linux-x86_64 | fm-u2demo-linux-x86_64 | \
               fm-u3demo-linux-x86_64 | \
-              fm-u1-windows-x86_64.exe | fm-u2-windows-x86_64.exe | fm-u3-windows-x86_64.exe) ;;
-              *) echo "refusing to publish: $f is not one of the ten binaries" >&2; exit 1 ;;
+              fm-u1-windows-x86_64.exe | fm-u2-windows-x86_64.exe | fm-u3-windows-x86_64.exe | \
+              fm-british-windows-x86_64.exe | fm-u1demo-windows-x86_64.exe | \
+              fm-u2demo-windows-x86_64.exe | fm-u3demo-windows-x86_64.exe) ;;
+              *) echo "refusing to publish: $f is not one of the fourteen binaries" >&2; exit 1 ;;
             esac
           done
 
@@ -196,8 +203,13 @@ jobs:
             fm-u1demo-linux-x86_64
             fm-u2demo-linux-x86_64
             fm-u3demo-linux-x86_64
-            fm-u1-windows-x86_64.exe            fm-u2-windows-x86_64.exe
+            fm-u1-windows-x86_64.exe
+            fm-u2-windows-x86_64.exe
             fm-u3-windows-x86_64.exe
+            fm-british-windows-x86_64.exe
+            fm-u1demo-windows-x86_64.exe
+            fm-u2demo-windows-x86_64.exe
+            fm-u3demo-windows-x86_64.exe
           body: |
             Early, and honest about it. The port reaches the title screen, the game menu and the overworld, characters can be
             created and played, and music and sound effects work. What is still broken is listed with the observation that found
@@ -263,13 +275,23 @@ jobs:
             built and checked in an AlmaLinux 9 container with no SDL installed at all, where it drew the title screen
             and served it over noVNC.
 
-            The three Windows binaries are `fm-u1-windows-x86_64.exe`, `fm-u2-windows-x86_64.exe` and
-            `fm-u3-windows-x86_64.exe`, sha256 `${{ needs.windows.outputs.sha256_u1 }}`,
-            `${{ needs.windows.outputs.sha256_u2 }}` and `${{ needs.windows.outputs.sha256_u3 }}`. The same three games,
-            cross-built with mingw-w64 and statically linked, so each import table is Windows' own libraries and no DLL
-            travels with any of them. **Windows has the games and not the four extra titles**: those four are new on Linux
-            and have not been cross-built or run under Wine, and shipping a Windows file nobody has executed would be
-            claiming more than has been tested.
+            **The same seven titles for Windows**, one `.exe` each, cross-built with mingw-w64 and statically linked, so
+            every import table is Windows' own libraries and no DLL travels with any of them:
+
+            | binary | title | sha256 |
+            |---|---|---|
+            | `fm-u1-windows-x86_64.exe` | Ultima I | `${{ needs.windows.outputs.sha256_u1 }}` |
+            | `fm-u2-windows-x86_64.exe` | Ultima II | `${{ needs.windows.outputs.sha256_u2 }}` |
+            | `fm-u3-windows-x86_64.exe` | Ultima III | `${{ needs.windows.outputs.sha256_u3 }}` |
+            | `fm-british-windows-x86_64.exe` | the message from Lord British | `${{ needs.windows.outputs.sha256_british }}` |
+            | `fm-u1demo-windows-x86_64.exe` | the Ultima I demo | `${{ needs.windows.outputs.sha256_u1demo }}` |
+            | `fm-u2demo-windows-x86_64.exe` | the Ultima II demo | `${{ needs.windows.outputs.sha256_u2demo }}` |
+            | `fm-u3demo-windows-x86_64.exe` | the Ultima III demo | `${{ needs.windows.outputs.sha256_u3demo }}` |
+
+            **The four extra titles are newer than the three games on Windows, and that distinction is stated rather than
+            glossed.** The three games have been checked under Wine, where each loads and a game can be launched and
+            played. The four added on 2026-11-13 build by the same path and their import tables were checked, but nobody
+            has executed those particular `.exe` files yet, on Wine or anywhere else. Treat them as likely to work.
 
             **None of the three has ever been run on a real Windows machine**, because this project has no access to one.
             What there is instead is Wine, and it now covers all three: each loads, and a game can be launched and played.

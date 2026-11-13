@@ -25,14 +25,18 @@ OUT="${1:-$ROOT/dist}"
 # package_one below; this is the default the header text refers to.
 NAME="fm-u2-windows-x86_64.exe"
 CXX_TRIPLE=x86_64-w64-mingw32
+# THE TITLES, FROM ONE TABLE, the same way the Linux packager gets them. It used to be three literals in two places here,
+# and four titles were added to module/ without the Windows job noticing. `WINDOWS_IDS` exists so a single title can be
+# rebuilt while working on one, which is how this was tested: seven cross builds is half an hour.
+GAME_IDS="${WINDOWS_IDS:-$(node "$ROOT/tools/games.js" --ids)}"
 
 if [[ ! -f "$ROOT/fmtownskit/runtime/towns.cmake" ]]; then
 	echo "the toolkit is not at $ROOT/fmtownskit. Run: git submodule update --init fmtownskit" >&2
 	exit 2
 fi
-# Every playable title, three of them, each from its own committed game module plus the shared TBIOS module. The same
-# split the Linux packager uses, and for the same reason: nothing here reads a disc or a recompiler.
-for id in u2 u3 u1; do
+# Every title, each from its own committed game module plus the shared TBIOS module. The same split the Linux packager
+# uses, and for the same reason: nothing here reads a disc or a recompiler.
+for id in $GAME_IDS; do
 	if [[ ! -f "$ROOT/module/$id/modules.cpp" ]]; then
 		echo "no committed module at $ROOT/module/$id, and without it there is nothing playable to ship." >&2
 		exit 2
@@ -112,9 +116,11 @@ package_one() {
 	echo
 }
 
-# The three playable titles, in the order a reader meets them on the disc.
-package_one u2
-package_one u3
-package_one u1
+# Every title, in the order a reader meets them on the disc, which is the order tools/games.js lists them in.
+for id in $GAME_IDS; do
+	package_one "$id"
+done
 
-rm -rf "$OUT/build-win-u2" "$OUT/build-win-u3" "$OUT/build-win-u1"
+for id in $GAME_IDS; do
+	rm -rf "$OUT/build-win-$id"
+done

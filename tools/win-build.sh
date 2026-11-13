@@ -52,7 +52,9 @@ podman volume create "$VOLUME" >/dev/null 2>&1 || true
 
 # The tree is copied into the volume rather than built in place, because the packager writes build directories beside its
 # output and /src is mounted read-only: nothing here should land in the working tree as root-owned files.
-podman run --rm -v "$ROOT:/src:$MOUNT_OPT" -v "$VOLUME:/build" "$IMAGE" bash -lc '
+# WINDOWS_IDS reaches the container so one title can be rebuilt while working on it: the full set is seven cross builds,
+# which is half an hour, and a single title is how this path gets tested. Empty means every title.
+podman run --rm -e WINDOWS_IDS="${WINDOWS_IDS:-}" -v "$ROOT:/src:$MOUNT_OPT" -v "$VOLUME:/build" "$IMAGE" bash -lc '
 	set -e
 	rm -rf /build/w && mkdir -p /build/w
 	cd /src && tar -cf - --exclude="*.img" --exclude="*.sub" --exclude="*.hdm" --exclude="*.EXP" --exclude=build . \
@@ -67,7 +69,7 @@ mkdir -p "$ROOT/dist"
 podman run --rm -v "$VOLUME:/build" -v "$ROOT/dist:/out:$RW_OPT" "$IMAGE" \
 	sh -c 'cp -f /build/dist/fm-*-windows-x86_64.exe /out/'
 
-for id in u1 u2 u3; do
+for id in ${WINDOWS_IDS:-$(node "$ROOT/tools/games.js" --ids)}; do
 	f="$ROOT/dist/fm-$id-windows-x86_64.exe"
 	if [[ ! -f "$f" ]]; then
 		echo "the build did not produce fm-$id-windows-x86_64.exe" >&2
@@ -76,4 +78,4 @@ for id in u1 u2 u3; do
 	printf '%-32s %10s bytes  sha256 %s\n' "dist/fm-$id-windows-x86_64.exe" "$(stat -c %s "$f")" \
 		"$(sha256sum "$f" | cut -c1-16)"
 done
-echo "three Windows executables in $ROOT/dist, built in $IMAGE"
+echo "one Windows executable per title in $ROOT/dist, built in $IMAGE"
