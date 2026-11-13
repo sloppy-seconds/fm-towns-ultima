@@ -9,10 +9,29 @@ and disassembling what came back. Nothing is asserted because it is a plausible 
 do, and nothing here was inferred from a compile-and-diff mismatch, which is the error this atlas exists to
 make impossible.
 
-**Corpus breadth.** 40 probes, 3 distinct frame shapes (frame or not, callee-saved spill, argument base
+**Corpus breadth.** 40 probes were the original set, 3 distinct frame shapes (frame or not, callee-saved spill, argument base
 register), 33 distinct mnemonic sets, 40 distinct instructions emitted in total. The item's failure case is a
 corpus that collapses to one shape, which would show the corpus was too narrow rather than the compiler
 uniform, and these counts are how that is distinguished rather than asserted.
+
+**Two probes added 2026-11-13, after Joe Groff's article on High C's non-standard language extensions**
+(<https://duriansoftware.com/joe/the-lost-language-extensions-of-metaware's-high-c-compiler>). Both compile with
+the 1.73 kit, and both emit idioms the plain-C corpus could not have produced:
+
+| probe | construct | what it emits |
+|---|---|---|
+| `a41_nested` | a **nested function** that captures its parent's local | the parent passes its own frame in **`ecx`** (`mov ecx, ebp`) immediately before the call, the child saves it (`push ecx`) and reads captured variables as `[staticlink - 4]`, and the child's frame is `push ebp; mov ebp, esp` |
+| `a42_caserange` | `case 'A'..'Z':`, a Pascal-style **case range** | a **bounds chain**: `cmp edx, 0x30 / jb / cmp edx, 0x39 / jbe / ...` per range, which is neither the dense jump table of `a15` nor the equality chain of `a16` |
+
+`a41` also **refutes the obvious reading of the `enter` family**: a closure is the construct that would need a frame the
+callee did not create, and this one frames with `push ebp; mov ebp, esp`, never `enter`. So the 220 `enter imm16, 0`
+prologues in `ENCHANT.EXP` are not nested functions, and the construct that would explain them is still a different
+kit.
+
+The `ecx` static link is a **positive signature that can be searched for**, and it hits: `mov ecx, ebp` followed by a
+`call` occurs **22 times in each of `ENCHANT.EXP`, `EXODUS.EXP` and `DARKNESS.EXP`**, and zero times through an indirect
+call. The same count in all three games is what a shared source idiom looks like, and it means these programs contain
+nested functions, which the original 40-probe corpus had no way to notice.
 
 ## The route, and the five constraints that had to be measured
 
@@ -235,7 +254,8 @@ thing that can earn `hand-asm-positive`.
 
 ```
 ./tools/decode-setup.sh            # capstone, once
-./tools/atlas-build.py             # ~22 min: eight boots, 40 probes
+./tools/atlas-build.py             # ~22 min: eight boots, 40 probes (42 with the two added above)
+./tools/atlas-build.py --only A41,A42   # just the two extension probes: one boot, about two minutes
 ./tools/atlas-report.py            # the table and both lists
 ```
 
