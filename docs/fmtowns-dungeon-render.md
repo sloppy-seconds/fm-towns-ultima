@@ -448,6 +448,28 @@ above `0x100` and their low byte indexes the curated list at `0xcd9a4`.
 So the two banks are best read as **map art versus placed-object art**, with the exact role of each still inferable rather
 than proven. What is no longer tenable is two art sets chosen by location.
 
+**Bank identity: the loader found, the names not yet decoded.** `0xe801c` is the bank loader and it is explicit about
+destinations and sizes:
+
+```
+0xe8031  push 0x8000 / push 0x7b378 / push 0x20ec ; call 0xe6660   -> 32 KB into 0x7b378
+0xe8071  push 0x8000 / push 0x83378 / push 0x2100 ; call 0xe6660   -> 32 KB into 0x83378
+0xe8091  push 0x8000 / push 0x8b378 / push 0x2114 ; call 0xe6660   -> 32 KB into 0x8b378
+```
+
+Each is 32,768 bytes, which is exactly 64 tiles of 512, and the three destinations are the three 64-tile banks the cell
+table uses. So the loader is identified and the sizes agree with the format.
+
+The **names are still open**. The third argument is a pointer into the table at `0x20ec`, `0x2100`, `0x2114` (records 20
+bytes apart), and that table is **not readable ASCII**: the bytes are pairs like `EB 4F EB 54 EB 4D EB 42 EB 47`, and the
+loader passes a format string at `0x2070` that is encoded the same way. Meanwhile plain ASCII paths do exist nearby
+(`\UT2\MAP.MP2` at `0x2150`), so the obfuscation is specific to this table rather than to the file. Decoding it is a
+separate job and should not be guessed at.
+
+What that leaves is narrow: the *addresses*, the *sizes* and the *roles* are measured; only the mapping from
+`0x7b378` / `0x83378` / `0x8b378` to `DUNG1.TIF` / `DUNG2.TIF` / `CHEST.TIF` is unproven, and it needs either that string
+table decoded or one dungeon session with a dump of those three addresses.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
