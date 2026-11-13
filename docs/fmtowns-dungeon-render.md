@@ -382,6 +382,41 @@ and over the source tables, returned 8 and 27 distinct readers respectively, all
 and `ecx` from the view cell before calling the dispatcher, and that computation is the tile-to-screen rectangle rule
 the brief asks for: which tile, which rectangle, and how the depth selects it. Everything either side of it is located.
 
+## The codex: the view pipeline, measured end to end
+
+The dungeon view is an **11x11 grid of 32x32 tiles** drawn into an offscreen surface at `0xbe5f4`, then paged to the
+screen. Every stage is now located and read:
+
+| step | address | what it does |
+|---|---|---|
+| 1. visible cells | `0xe325c` | for row,col in 0..10, index `row*11+col`, read cell from the 64x64 table `0x77e90` at `row*128+col*2` |
+| 2. allocate | `0xe3010` | find a free slot in 1..0x2f, store `(active=1, row, col, cell, flag)` into 24-byte records at `0x7a150` |
+| 3. pack | `0xe30a0` | for each active slot copy `(col, row, cell)` into `0x79f0c+4`, count at `0x79f0c` |
+| 4. stage | `0xe8860` | store the packet pointer in `0xcda70` |
+| 5. **blit** | **`0xe886c`** | walk the triples and copy each 32x32 tile into the surface |
+| 6. show | `ah=0x25` (`0x127a8`) | page the surface to the screen |
+
+**The blit arithmetic, which is what the brief calls the rectangle rule:**
+
+```
+dest = 0xbe5f4 + (col << 5) / 2 + ((row * 11) << 10) / 2     ; col*16 bytes, row*5632 bytes
+tile = dword [cell * 4 + 0xcd7f4]                            ; cell -> tile pointer
+for y in 0..31:
+    for x in 0..15:                                          ; 16 bytes = 32 pixels
+        lo = [tile] & 0x0f ; if lo == 0: lo = [dest] & 0x0f   ; 0 = TRANSPARENT
+        hi = [tile] & 0xf0 ; if hi == 0: hi = [dest] & 0xf0
+        [dest] = lo + hi
+        dest += 1
+tile += 16 ; dest += 0xb0                                    ; 176 bytes per scanline
+```
+
+Stride `0xb0` = 176 bytes = **352 pixels at 4bpp**, and 352 = 11 x 32, so the surface is exactly the 11x11 tile grid.
+Cell `0` is transparent, which matches the palette note in the brief, and it is why chests and doors composite over
+walls while the opaque wall and door panels simply overwrite.
+
+`0xcd7f4` is a **cell-to-tile-pointer table**, and `0xe31b0` permutes pairs of it, which is the only place randomness
+appears in the draw path.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
