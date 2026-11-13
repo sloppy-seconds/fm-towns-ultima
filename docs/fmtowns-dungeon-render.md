@@ -574,6 +574,24 @@ being selected: one tile is drawn at a grid position, and the perspective is ins
 renderer picking different tiles. That is the same conclusion the walls reached by a different route, since the walls are
 generated depth tiles while the specials are single pre-drawn tiles placed on a grid.
 
+## Three arrays that do not hold the drawing, measured
+
+Every structure that looked like the view turned out to be written once and then left alone, while the screen kept changing:
+
+| watched | result |
+|---|---|
+| packer `0xe30a0` | fired 8 times at start-up, never again while the player walked |
+| sprite list `0x7a150` | one active entry, at the centre, with `flag -1`, which the view loop *skips* |
+| view table `0x79e90` | 120 of 121 cells zero while a corridor was on screen; the one non-zero cell was `1`, at the ladder's own grid position |
+
+So `0x79e90` is **not** the wall data, and that lone `1` is a flag rather than a tile, since the ladder's tile is `0x75`.
+The walls are drawn by the generator's derived banks and never appear in these arrays, which is the same conclusion the read
+watches reached from the other direction.
+
+**What is therefore still missing**, stated plainly: the literal wall-tile-per-depth table. The arithmetic that applies a
+tile is established, and so is the grid, but the path that emits the walls has not been located by watching memory. The next
+step is reading the generator's callers and the derived-bank consumers in code.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
