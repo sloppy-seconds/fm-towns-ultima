@@ -592,6 +592,29 @@ watches reached from the other direction.
 tile is established, and so is the grid, but the path that emits the walls has not been located by watching memory. The next
 step is reading the generator's callers and the derived-bank consumers in code.
 
+## The seven loads resolve to seven files of one size
+
+Every TIF involved is 33,280 bytes: a 512-byte header and 64 tiles of 32x32 at 512 bytes. Filtering the extracted banks by
+that size gives **exactly seven Ultima II files**: `CHEST`, `DUNG1`, `DUNG2`, `ENEMY2`, `EXTRA`, `MAP2_1`, `PLAYER`. The
+`UT1*` files in the same size class belong to `DARKNESS.EXP`.
+
+`0xe801c` makes exactly seven 32 KB loads, so the destination list and that file list are the same seven items, which pins
+two of them by measurement and narrows the rest:
+
+| destination | file | evidence |
+|---|---|---|
+| `0x7b378` | `DUNG1` | measured, tile 0 bytes 16-31 all `0x33` |
+| `0x8b378` | `CHEST` | measured, tile 0 empty |
+| `0xa3378` | map data | readable name `\MAP.MP2` |
+| `0x83378` | `DUNG2` | role plus size class: the only remaining member that could be wall art, since `PLAYER` is one byte per pixel, `MAP2_1` is ASCII and `ENEMY2` is 65 monster tiles |
+| `0x93378`, `0x9b378`, `0xab378` | `ENEMY2`, `EXTRA`, `PLAYER` in some order | unresolved |
+
+**And the door readings are the strongest evidence in this whole model**, because they are visible in the pixels rather
+than inferred. `DUNG2` tile 2 is one narrow structure dead centre on a field of brick, which is a door at distance, and
+tile 3 has a structure against the left edge and another against the right with plain brick between them, which is two
+doors opposite each other along a corridor. Both were confirmed by printing the colour indices, since every tile in this
+bank is fully inked and an ink-based test cannot tell them apart at all.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
