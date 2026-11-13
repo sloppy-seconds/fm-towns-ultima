@@ -557,6 +557,23 @@ So this is the monster design again, applied to specials: **near ladders come fr
 `0x93378`**, and the renderer picks by distance. `0x9b378` and `0xab378`, the remaining two loads, are probably the rest of
 that far-detail set and have not been read.
 
+**The grid coordinates, measured by walking without turning.** Standing still and stepping straight back changed exactly one
+number:
+
+| position | row | col | cell |
+|---|---|---|---|
+| one step from the ladder | **8** | 1 | `0x75` |
+| two steps from it | **7** | 1 | `0x75` |
+
+So **`row` is depth along the facing and grows as you approach**, and **`col` is lateral offset**, with the player's own
+square at `(5,5)`. An earlier pair, `(7,1)` and `(1,8)`, differed in both numbers and could not be attributed to distance;
+this pair can, because nothing but a forward step changed.
+
+**And the ladder's tile never changes.** It was `0x75` at row 1, at row 7 and at row 8. There is no per-depth ladder art
+being selected: one tile is drawn at a grid position, and the perspective is inside the artwork rather than produced by the
+renderer picking different tiles. That is the same conclusion the walls reached by a different route, since the walls are
+generated depth tiles while the specials are single pre-drawn tiles placed on a grid.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
