@@ -89,26 +89,10 @@ jobs:
       # plus the one shared TBIOS module, so this job needs no disc and no recompiler, which is the whole point of committing
       # them. The id list comes from tools/games.js rather than from a list written here, so a title added to module/ cannot
       # be left out of the release by accident again.
-      - name: Record the digests
-        id: sum
-        run: |
-          for id in $(node tools/games.js --ids); do
-            echo "$id=$(sha256sum dist/fm-$id-linux-x86_64 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          done
-
       - uses: actions/upload-artifact@v4
         with:
           name: linux-binaries
           path: dist/fm-*-linux-x86_64
-
-    outputs:
-      sha256_u2: ${{ steps.sum.outputs.u2 }}
-      sha256_u3: ${{ steps.sum.outputs.u3 }}
-      sha256_u1: ${{ steps.sum.outputs.u1 }}
-      sha256_british: ${{ steps.sum.outputs.british }}
-      sha256_u1demo: ${{ steps.sum.outputs.u1demo }}
-      sha256_u2demo: ${{ steps.sum.outputs.u2demo }}
-      sha256_u3demo: ${{ steps.sum.outputs.u3demo }}
 
   windows:
     name: Build the Windows binary
@@ -139,26 +123,10 @@ jobs:
       # One Windows binary per title, from one packaging run, each built from its own committed game module plus the
       # shared TBIOS module. SDL for Windows is built once and shared by all of them. The id list comes from
       # tools/games.js, so a title added to module/ cannot be left out of this job the way four of them were.
-      - name: Record the digests
-        id: sum
-        run: |
-          for id in $(node tools/games.js --ids); do
-            echo "$id=$(sha256sum dist/fm-$id-windows-x86_64.exe | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          done
-
       - uses: actions/upload-artifact@v4
         with:
           name: windows-binaries
           path: dist/fm-*-windows-x86_64.exe
-
-    outputs:
-      sha256_u2: ${{ steps.sum.outputs.u2 }}
-      sha256_u3: ${{ steps.sum.outputs.u3 }}
-      sha256_u1: ${{ steps.sum.outputs.u1 }}
-      sha256_british: ${{ steps.sum.outputs.british }}
-      sha256_u1demo: ${{ steps.sum.outputs.u1demo }}
-      sha256_u2demo: ${{ steps.sum.outputs.u2demo }}
-      sha256_u3demo: ${{ steps.sum.outputs.u3demo }}
 
   release:
     name: Publish the release
@@ -174,7 +142,31 @@ jobs:
         with:
           name: windows-binaries
 
-      # Binaries and nothing else, and now ten of them: seven Linux titles and three Windows builds. The rule
+      # THE DIGESTS ARE COMPUTED HERE, from the files that are about to be published, rather than plumbed out of the two
+      # build jobs through fourteen hand-written `outputs:` entries. That plumbing had already failed once: sha256_u3demo
+      # was missing from the Windows job's outputs after the demo work, and a release would have published an empty cell
+      # in its own table with nothing to notice it. A missing file now fails this step instead, because the loop asks for
+      # every id in tools/games.js and refuses to write an empty digest.
+      - name: Record the digests
+        id: sum
+        run: |
+          set -eu
+          count=0
+          for id in $(node tools/games.js --ids); do
+            for pair in "linux:fm-$id-linux-x86_64" "windows:fm-$id-windows-x86_64.exe"; do
+              kind=${pair%%:*}
+              file=${pair#*:}
+              [ -f "$file" ] || { echo "refusing to publish: $file is missing" >&2; exit 1; }
+              digest=$(sha256sum "$file" | cut -d' ' -f1)
+              [ -n "$digest" ] || { echo "refusing to publish: no digest for $file" >&2; exit 1; }
+              echo "${id}_${kind}=${digest}" >> "$GITHUB_OUTPUT"
+              count=$((count + 1))
+            done
+          done
+          echo "digests   $count files, $(($(node tools/games.js --ids | wc -l) * 2)) expected"
+          [ "$count" -eq $(($(node tools/games.js --ids | wc -l) * 2)) ] || { echo "refusing to publish: not every title has both files" >&2; exit 1; }
+
+      # Binaries and nothing else: fourteen of them, seven Linux titles and seven Windows. The rule
       # this step enforces is unchanged: a release publishes files a player runs, not archives they have to unpack, and
       # not a support kit beside it. Any other name here is either a mistake or a decision, and this makes it a decision.
       - name: Confirm the release is binaries only
@@ -245,13 +237,13 @@ jobs:
 
             | binary | title | reads | sha256 |
             |---|---|---|---|
-            | `fm-u1-linux-x86_64` | Ultima I, *The First Age of Darkness* | `\DARKNESS.EXP` | `${{ needs.host.outputs.sha256_u1 }}` |
-            | `fm-u2-linux-x86_64` | Ultima II, *Revenge of the Enchantress* | `\ENCHANT.EXP` | `${{ needs.host.outputs.sha256_u2 }}` |
-            | `fm-u3-linux-x86_64` | Ultima III, *Exodus* | `\EXODUS.EXP` | `${{ needs.host.outputs.sha256_u3 }}` |
-            | `fm-british-linux-x86_64` | the message from Lord British | `\BRITISH.EXP` | `${{ needs.host.outputs.sha256_british }}` |
-            | `fm-u1demo-linux-x86_64` | the Ultima I demo, Episode I | `\UT1DEMO.EXP` | `${{ needs.host.outputs.sha256_u1demo }}` |
-            | `fm-u2demo-linux-x86_64` | the Ultima II demo, Episode II | `\UT2DEMO.EXP` | `${{ needs.host.outputs.sha256_u2demo }}` |
-            | `fm-u3demo-linux-x86_64` | the Ultima III demo, Episode III | `\UT3DEMO.EXP` | `${{ needs.host.outputs.sha256_u3demo }}` |
+            | `fm-u1-linux-x86_64` | Ultima I, *The First Age of Darkness* | `\DARKNESS.EXP` | `${{ steps.sum.outputs.u1_linux }}` |
+            | `fm-u2-linux-x86_64` | Ultima II, *Revenge of the Enchantress* | `\ENCHANT.EXP` | `${{ steps.sum.outputs.u2_linux }}` |
+            | `fm-u3-linux-x86_64` | Ultima III, *Exodus* | `\EXODUS.EXP` | `${{ steps.sum.outputs.u3_linux }}` |
+            | `fm-british-linux-x86_64` | the message from Lord British | `\BRITISH.EXP` | `${{ steps.sum.outputs.british_linux }}` |
+            | `fm-u1demo-linux-x86_64` | the Ultima I demo, Episode I | `\UT1DEMO.EXP` | `${{ steps.sum.outputs.u1demo_linux }}` |
+            | `fm-u2demo-linux-x86_64` | the Ultima II demo, Episode II | `\UT2DEMO.EXP` | `${{ steps.sum.outputs.u2demo_linux }}` |
+            | `fm-u3demo-linux-x86_64` | the Ultima III demo, Episode III | `\UT3DEMO.EXP` | `${{ steps.sum.outputs.u3demo_linux }}` |
 
             The three games play: characters can be created, parties formed, `Journey Onward` starts the game, and towns,
             dungeons, combat and death all run. Ultima II is the one with the most measured behaviour behind it and the one
@@ -280,13 +272,13 @@ jobs:
 
             | binary | title | sha256 |
             |---|---|---|
-            | `fm-u1-windows-x86_64.exe` | Ultima I | `${{ needs.windows.outputs.sha256_u1 }}` |
-            | `fm-u2-windows-x86_64.exe` | Ultima II | `${{ needs.windows.outputs.sha256_u2 }}` |
-            | `fm-u3-windows-x86_64.exe` | Ultima III | `${{ needs.windows.outputs.sha256_u3 }}` |
-            | `fm-british-windows-x86_64.exe` | the message from Lord British | `${{ needs.windows.outputs.sha256_british }}` |
-            | `fm-u1demo-windows-x86_64.exe` | the Ultima I demo | `${{ needs.windows.outputs.sha256_u1demo }}` |
-            | `fm-u2demo-windows-x86_64.exe` | the Ultima II demo | `${{ needs.windows.outputs.sha256_u2demo }}` |
-            | `fm-u3demo-windows-x86_64.exe` | the Ultima III demo | `${{ needs.windows.outputs.sha256_u3demo }}` |
+            | `fm-u1-windows-x86_64.exe` | Ultima I | `${{ steps.sum.outputs.u1_windows }}` |
+            | `fm-u2-windows-x86_64.exe` | Ultima II | `${{ steps.sum.outputs.u2_windows }}` |
+            | `fm-u3-windows-x86_64.exe` | Ultima III | `${{ steps.sum.outputs.u3_windows }}` |
+            | `fm-british-windows-x86_64.exe` | the message from Lord British | `${{ steps.sum.outputs.british_windows }}` |
+            | `fm-u1demo-windows-x86_64.exe` | the Ultima I demo | `${{ steps.sum.outputs.u1demo_windows }}` |
+            | `fm-u2demo-windows-x86_64.exe` | the Ultima II demo | `${{ steps.sum.outputs.u2demo_windows }}` |
+            | `fm-u3demo-windows-x86_64.exe` | the Ultima III demo | `${{ steps.sum.outputs.u3demo_windows }}` |
 
             **The four extra titles are newer than the three games on Windows, and that distinction is stated rather than
             glossed.** The three games have been checked under Wine, where each loads and a game can be launched and
