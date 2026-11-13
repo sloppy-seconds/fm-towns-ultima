@@ -525,13 +525,14 @@ index 08029b9..6a9348c 100644
 +
  }  // namespace towns
 diff --git a/runtime/towns_cpu.cpp b/runtime/towns_cpu.cpp
-index 75d5dad..d7788d4 100644
+index 75d5dad..900a814 100644
 --- a/runtime/towns_cpu.cpp
 +++ b/runtime/towns_cpu.cpp
-@@ -10,9 +10,21 @@
+@@ -10,9 +10,27 @@
  #include "towns.h"
  #include <algorithm>
  #include <cstdlib>
++#include <cstring>
 +#include <cstdio>
 +#include <set>
 +#include <utility>
@@ -543,6 +544,11 @@ index 75d5dad..d7788d4 100644
 +uint32_t g_trace_far_all = 0;
 +uint32_t g_far_eax = 0;
 +uint32_t g_trace_fn_cs = 0, g_trace_fn_lo = 0, g_trace_fn_hi = 0;
++// How many stack dwords to print for each traced entry. 0 keeps the line exactly as it was, so every existing
++// reader of this output is unaffected. Added for the dungeon brief: the blit wrapper takes its arguments on the
++// stack (`push descriptor; push 0; push table`), so registers alone can show that a routine ran but not what it
++// was asked to draw.
++uint32_t g_trace_fn_args = 0;
 +uint32_t g_trace_fn_dump_off = 0, g_trace_fn_dump_len = 0;
 +uint32_t g_trace_fn_dump_frame = 0;
 +const char* g_trace_fn_dump_path = nullptr;
@@ -550,7 +556,7 @@ index 75d5dad..d7788d4 100644
  [[noreturn]] void x86_fault(X86Cpu& c, uint32_t site, const char* why) {
      std::fprintf(stderr, "fault at %04x:%08x: %s (eip %08x, frame %llu)\n", c.sreg[1], site, why, c.eip,
                   (unsigned long long)(g_towns ? g_towns->frame : 0));
-@@ -24,7 +36,42 @@ using towns::g_towns;
+@@ -24,7 +42,55 @@ using towns::g_towns;
      std::exit(3);
  }
  
@@ -567,10 +573,23 @@ index 75d5dad..d7788d4 100644
 +          && off <= g_trace_fn_hi))
 +        return;
 +    static long entries = 0;
-+    if (++entries <= (long)g_watch_max)
-+        std::fprintf(stderr, "fn        %04x:%08x from %08x f%llu eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x es %08x ds %08x gs %08x\n",
++    if (++entries <= (long)g_watch_max) {
++        std::fprintf(stderr, "fn        %04x:%08x from %08x f%llu eax %08x ebx %08x ecx %08x edx %08x esi %08x edi %08x ebp %08x es %08x ds %08x gs %08x",
 +                     cs, off, site, (unsigned long long)(g_towns ? g_towns->frame : 0), c.r[0], c.r[3], c.r[1], c.r[2],
 +                     c.r[6], c.r[7], c.r[5], c.sbase[0], c.sbase[3], c.sbase[5]);
++        // The stack, when asked for. esp points at the return address, so the first word is the caller and the
++        // arguments are the ones after it. A short read is possible at a segment edge and then the rest is zero.
++        if (g_trace_fn_args && g_towns) {
++            std::vector<uint8_t> words((size_t)g_trace_fn_args * 4, 0);
++            g_towns->read_block(c.sbase[2] + c.r[4], words.data(), words.size());
++            for (uint32_t i = 0; i < g_trace_fn_args; i++) {
++                uint32_t w = 0;
++                std::memcpy(&w, words.data() + (size_t)i * 4, 4);
++                std::fprintf(stderr, " s%u=%08x", i, w);
++            }
++        }
++        std::fprintf(stderr, "\n");
++    }
 +    // Dump the routine's state at the same instant the machine's breakpoint fires, so a comparison of two samples is a
 +    // comparison of the same moment. Done once: a per-call dump is a file per iteration and no more truth.
 +    static bool dumped = false;
@@ -593,7 +612,7 @@ index 75d5dad..d7788d4 100644
      X86Func f = x86_lookup_cs(cs & 0xFFFC, off);
      if (!f) f = x86_lookup_cs(cs, off);
      if (!f) {
-@@ -38,6 +85,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
+@@ -38,6 +104,31 @@ static X86Func find(X86Cpu& c, uint16_t cs, uint32_t off, uint32_t site) {
  void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t next) {
      sel &= 0xFFFF;
      if (n == 2) off &= 0xFFFF;
@@ -625,7 +644,7 @@ index 75d5dad..d7788d4 100644
      if (call) {
          if (n == 4) { push32(c, c.sreg[1]); push32(c, next); }
          else { push16(c, c.sreg[1]); push16(c, next); }
-@@ -46,6 +118,14 @@ void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t n
+@@ -46,6 +137,14 @@ void x86_far(X86Cpu& c, uint32_t sel, uint32_t off, bool call, int n, uint32_t n
      x86_load_seg(c, 1, sel);
      X86Func f = find(c, (uint16_t)sel, off, next);
      f(c);
@@ -640,7 +659,7 @@ index 75d5dad..d7788d4 100644
      if (!call) return;
      // a far call returns through retf, which set CS and EIP; the caller checks EIP
      (void)old;
-@@ -74,6 +154,30 @@ void x86_call(X86Cpu& c, uint32_t target) {
+@@ -74,6 +173,30 @@ void x86_call(X86Cpu& c, uint32_t target) {
      f(c);
  }
  
@@ -671,7 +690,7 @@ index 75d5dad..d7788d4 100644
  void x86_jump(X86Cpu& c, uint32_t target) {
      X86Func f = find(c, c.sreg[1], target, target);
      f(c);
-@@ -103,11 +207,24 @@ uint32_t x86_in(X86Cpu& c, uint32_t port, int n) {
+@@ -103,11 +226,24 @@ uint32_t x86_in(X86Cpu& c, uint32_t port, int n) {
  void x86_out(X86Cpu& c, uint32_t port, int n, uint32_t v) {
      g_towns->advance(g_towns->machine_time(c.clocks));
      if (g_towns->count_access) { ++g_towns->access.io_w; if (port == 0x6C) ++g_towns->access.wait_w; }
@@ -696,7 +715,7 @@ index 75d5dad..d7788d4 100644
      const towns::IntVector& iv = g_towns->pm_vector[vec];
      uint32_t resume = c.eip;
      push32(c, c.fl);
-@@ -120,16 +237,53 @@ static void take(X86Cpu& c, int vec) {
+@@ -120,16 +256,53 @@ static void take(X86Cpu& c, int vec) {
      if (c.eip != resume) x86_fault(c, resume, "an interrupt handler returned elsewhere");
  }
  
@@ -752,7 +771,7 @@ index 75d5dad..d7788d4 100644
          int n = m.t97_due();
          if (n < 0) break;
          const towns::Machine::Timer97& t = m.t97[n];
-@@ -152,12 +306,41 @@ void x86_poll(X86Cpu& c) {
+@@ -152,12 +325,41 @@ void x86_poll(X86Cpu& c) {
      uint64_t next = m.next_event();
      int64_t left = (int64_t)(m.cpu_time(next) - c.clocks);
      c.budget = (int32_t)(left < 64 ? 64 : left > (1 << 30) ? (1 << 30) : left);
@@ -2480,10 +2499,10 @@ index 00cbbf0..02a95c8 100644
      fm_catch_up(s, now);
      cd_catch_up(*this, s, now);
 diff --git a/runtime/x86.h b/runtime/x86.h
-index 48bb159..b55efa2 100644
+index 48bb159..a439151 100644
 --- a/runtime/x86.h
 +++ b/runtime/x86.h
-@@ -34,6 +34,31 @@ struct X86Cpu {
+@@ -34,6 +34,34 @@ struct X86Cpu {
  };
  
  typedef void (*X86Func)(X86Cpu&);
@@ -2501,6 +2520,9 @@ index 48bb159..b55efa2 100644
 +extern uint32_t g_trace_far_all;          // log that many transfers individually rather than once per site; 0 is off
 +extern uint32_t g_far_eax;                // EAX of the last traced transfer, printed beside a watched write
 +extern uint32_t g_trace_fn_cs, g_trace_fn_lo, g_trace_fn_hi;  // log entries into one code range, deduped
++// How many stack dwords to print after the registers for each traced entry. 0 is the old line exactly, so this
++// costs nothing unless a caller asks for it: `U2_TRACE_FN_ARGS=<n>` in the port.
++extern uint32_t g_trace_fn_args;
 +extern uint32_t g_trace_fn_dump_off, g_trace_fn_dump_len;     // dump state at the first traced entry
 +extern uint32_t g_trace_fn_dump_frame;                        // ... at or after this frame
 +extern const char* g_trace_fn_dump_path;
@@ -2515,7 +2537,7 @@ index 48bb159..b55efa2 100644
  struct X86FuncEntry { uint32_t addr; X86Func fn; };
  struct X86Module {
      const char* name;
-@@ -51,29 +76,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
+@@ -51,29 +79,35 @@ uint32_t x86_mem_read(uint32_t a, int n);         // a page with no host memory,
  void     x86_mem_write(uint32_t a, int n, uint32_t v);
  
  static inline uint32_t rd8(uint32_t a) {
@@ -2551,7 +2573,7 @@ index 48bb159..b55efa2 100644
      uint8_t* p = g_x86_page[a >> 12];
      if (X86_UNLIKELY(!p || (a & 0xFFF) > 0xFFC)) { x86_mem_write(a, 4, v); return; }
      std::memcpy(p + (a & 0xFFF), &v, 4);
-@@ -187,6 +218,16 @@ void     x86_iret(X86Cpu& c, int n);
+@@ -187,6 +221,16 @@ void     x86_iret(X86Cpu& c, int n);
  void     x86_system(X86Cpu& c, uint32_t site, const char* what);      // lgdt, mov crN, hlt, ...
  bool     x86_lsl(X86Cpu& c, uint32_t sel, uint32_t& limit);           // false: no such selector
  void     x86_call(X86Cpu& c, uint32_t target);           // a call through a register or memory

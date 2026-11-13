@@ -683,7 +683,7 @@ int main(int argc, char **argv) {
 	// precisely the failure this mechanism exists to remove.
 	if (!dev) {
 		static const char *kAlwaysHonoured[] = {"U2_FONT", "U2_FONT20", "U2_CLOCK", "U2_ENTRY", "U2_STACK",
-												"U2_KEYS", "U2_PAD",	"U2_LAYER", "U2_SHOT"};
+												"U2_KEYS", "U2_PAD",	"U2_LAYER", "U2_SHOT", "U2_TRACE_FN", "U2_TRACE_FN_ARGS"};
 		std::vector<std::string> drop;
 		for (char **e = environ; e && *e; ++e) {
 			std::string s(*e);
@@ -1378,6 +1378,13 @@ int main(int argc, char **argv) {
 			g_trace_fn_hi = (uint32_t)std::strtoul(s.substr(c2 + 1).c_str(), nullptr, 16);
 			std::printf("trace     function entries in %04x:%08x..%08x\n", g_trace_fn_cs, g_trace_fn_lo, g_trace_fn_hi);
 		}
+	}
+	// U2_TRACE_FN_ARGS=<n> adds the first n stack dwords to every traced entry line. The blit wrappers take their
+	// arguments on the stack, so without this a trace shows that a routine ran but not what it was asked to draw.
+	if (const char *n = std::getenv("U2_TRACE_FN_ARGS")) {
+		g_trace_fn_args = (uint32_t)std::strtoul(n, nullptr, 0);
+		if (g_trace_fn_args)
+			std::printf("trace     %u stack dwords per entry\n", g_trace_fn_args);
 	}
 	// U2_FN_DUMP=<off>:<len>:<path> writes that many bytes at gs:ebp+off the first time a traced entry fires, so the
 	// port's snapshot is taken inside the same call as the machine's breakpoint rather than after the frame.
