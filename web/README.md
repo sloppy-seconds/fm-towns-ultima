@@ -18,6 +18,11 @@ the profession letters, all of which differ between the three. See the
 [project docs](https://sloppy-seconds.github.io/fm-towns-ultima/docs/) for what
 would be involved.
 
+**The project is larger than this editor.** Seven titles are recompiled and playable from the
+same repository, on Linux and Windows: the three games, the publisher's message from Lord
+British, and the demo that introduces each episode, one file per title, run against your own
+copy of the disc. This editor covers the save disks of one of them.
+
 ## What it does
 
 - Opens an FM Towns 2HD save disk (`.hdm` or `.img`, 1,232 KB)

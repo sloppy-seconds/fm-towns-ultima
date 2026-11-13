@@ -17,12 +17,20 @@ stops being true.
 If you just want to play, you do not need any of this. Start with the
 [quickstart](quickstart.md) instead.
 
-## Scope: this is Ultima II work
+## Scope: the port covers seven titles, the investigation is Ultima II's
 
-Almost everything here is about **Ultima II**, `ENCHANT.EXP`. Ultima I and III are
-on the same disc and were used throughout as **cross-validation**, not as subjects:
-a format claim or a tool behaviour that holds on one game and also holds on its
-siblings is worth far more than one that only fits a single binary.
+Two different questions, and they have different answers, so this is stated once here.
+
+**The port** recompiles and plays seven things: Ultima I, II and III, the publisher's message from Lord British, and the
+demo that introduces each episode. Each runs on Linux and on Windows as one file per title, from the disc image you
+already own. [The binaries a release carries](port-structure.md) is the table of all fourteen assets, and the repository's
+`README.md` is how to run one.
+
+**The investigation** is Ultima II's. Almost everything in the pages under this one is about `ENCHANT.EXP`. Ultima I and
+III are on the same disc and were used throughout as **cross-validation**, not as subjects: a format claim or a tool
+behaviour that holds on one game and also holds on its siblings is worth far more than one that only fits a single
+binary. The same is true of the splash and the demos, which are the cheapest second and third consumers of the machine
+layer and hold no game rules at all.
 
 Many of the concepts transfer. Where they do not, it is usually because the games
 differ in ways worth knowing:
@@ -98,7 +106,7 @@ The answer took a long time and most of it is wrong turns, recorded deliberately
 | [Recompilation conflicts](recompilation-conflicts.md) | 366 conflicts are 12 functions and two causes. Removing the obvious seed does not help, and the measurement says why. |
 | [What is broken in the port](port-defects.md) | Three defects, each with the play observation that found it, the route that has actually been played, and what a new entry has to carry. |
 | [Building the port from the download](port-from-source.md) | Zip to a running binary, every step verified in a clean clone, including the two that used to depend on the author's disk. |
-| [The binaries a release carries](port-structure.md) | Seven Linux titles, the three games and four that are not games, from one table and one packaging run. |
+| [The binaries a release carries](port-structure.md) | Seven titles, Linux and Windows, one file each: the three games and four that are not games, from one table and one packaging run. |
 | [Three games compared](three-games-compared.md) | No shared engine, 3 percent identical once shared BSS is removed. A shared toolchain, and tooling that opens all three. |
 | [Seed sets](seed-sets.md) | Deriving function starts for U1 and U3 where there are no symbols, validated against U2 first, and three walks with zero conflicts. |
 | [The wrap found](movement-wrap-found.md) | The routine that clamps a coordinate at 63, as arithmetic. A torus of 64 in both axes, and it does not change the map id. |

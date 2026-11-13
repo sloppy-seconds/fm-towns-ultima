@@ -2085,9 +2085,10 @@ the id list existed twice and only one copy grew.
 
 **What closed it.** `tools/games.js --ids` prints the ids in disc order, which is `GAMES` order and therefore the order
 a reader meets them. `release-package.sh` reads that list twice, once to refuse early if a committed module is missing
-and once to package, so the release now ships whatever `module/` holds. Windows stays at the three games deliberately
-and the release notes say so: the four extra titles have not been cross-built or run under Wine, and a Windows file
-nobody has executed would be claiming more than has been measured.
+and once to package, so the release now ships whatever `module/` holds. Windows was left at the three games at the time
+of this item, deliberately and said so in the release notes. **That was closed later the same day**: both Windows scripts
+now read `tools/games.js --ids` as well, so all fourteen assets exist and the notes name the four that have never been
+executed rather than leaving them out.
 
 **Measured, in the AlmaLinux 9 container the release is built in, mounted read-write and given its own SDL3 cache so
 it does not link a desktop-built archive:**
@@ -2121,5 +2122,6 @@ list the seven Linux binaries, and say what the four extra ones are: `fm-british
 message from Lord British, and the three `demo` binaries introduce each episode. Those four are not games and the
 pages do not present them as playable games.
 
-**What was already correct and left alone.** The Windows bullet, which names three `.exe` files and calls them
-untested on real hardware, because Windows still carries the three games only.
+**What was already correct and left alone at the time.** The Windows bullet, which named three `.exe` files and called
+them untested on real hardware. It now names all seven, and the distinction it draws is the one that still matters: the
+three games were checked under Wine, the four newer files have not been run anywhere.

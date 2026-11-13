@@ -6,9 +6,9 @@ Three routes. Pick the one that matches where you are.
 
 | situation | route |
 |---|---|
-| I own the game and want the recompiled port on this machine | [The port, native](#the-port-natively) |
+| I own the game and want the recompiled port on this machine | [The port, native](#the-port-natively), seven titles, Linux and Windows |
 | I have a Linux or macOS desktop | [Native](#route-1-native-emulator) |
-| I have Windows | [The port, native](#the-port-natively) with `fm-u1-windows-x86_64.exe`, `fm-u2-windows-x86_64.exe` or `fm-u3-windows-x86_64.exe`, checked under Wine where all three load and a game can be launched and played, but never on real Windows. For the emulator: [Container](#route-2-container-browser-play), or native with a bash shell, both untested |
+| I have Windows | [The port, native](#the-port-natively): every title has a `.exe`, `fm-u1-windows-x86_64.exe` through `fm-u3demo-windows-x86_64.exe`. The three games' Windows builds load under Wine, the other four have never been executed. For the emulator: [Container](#route-2-container-browser-play), or native with a bash shell, both untested |
 | The machine is headless or remote, or I want to play in a browser | [Container](#route-2-container-browser-play) |
 | I want a save disk, or to fix one, with nothing installed | [Editor alone](#route-3-the-editor-with-no-emulator) |
 
@@ -19,9 +19,10 @@ Three routes. Pick the one that matches where you are.
 into the repository directory, or into a `game/` directory if you are only after the
 port, which looks there first.
 
-**The toolkit, if you want to build the C++ port.** `git submodule update --init fmtownskit`. A plain clone leaves
-`fmtownskit/` empty, and nothing in the emulator routes needs it, so this is the one step that is optional unless
-you are building `u2port`.
+**The toolkit, if you want to build the C++ port yourself.** `git submodule update --init fmtownskit`. A plain clone
+leaves `fmtownskit/` empty, and nothing in the emulator routes needs it, so this is the one step that is optional: a
+release binary needs no toolkit, and `play.sh` from a clone builds from `module/` and needs this submodule because the
+kit's runtime is what the recompiled code links onto.
 
 **The emulator and ROMs.** Two downloads.
 
@@ -144,30 +145,37 @@ It prints the URLs. Open `http://<host>:6080/vnc.html`.
 
 ### The port, natively
 
-The recompiled port is the game's own 386 code running on the toolkit's FM Towns machine,
-and its module is committed in `module/`, so there is nothing to recompile:
+Seven titles are recompiled and playable: the three games, the publisher's message from Lord British, and the demo that
+introduces each episode. Each is **one file per platform**, with no compiler, no toolkit and no arguments involved. Take
+the file for your title from [the table of all fourteen assets](port-structure.md), put your own copy of the
+disc image beside it, and run it:
+
+```bash
+./fm-u2-linux-x86_64             # Linux
+./fm-u2-windows-x86_64.exe       # Windows
+```
+
+It reads the program, TBIOS and the game's graphics and sounds out of the image, keeps them under `extracted/`, so after
+the first run the image can be removed. Characters are plain files in `saves/`, not a floppy image, so there is nothing to
+format before you can save one, and SDL and the glyph ROM are inside the file.
+
+**If no window appears, name the backend: `--graphics=sdl`.** It refuses with the cause, where the default quietly falls
+back to no graphics. Over ssh the cause is almost always the X cookie rather than `DISPLAY`, and the refusal prints the
+two lines that find it.
+
+**From a clone instead.** The module is committed in `module/`, so there is nothing to recompile, and `play.sh` builds
+what is already there and runs it. It needs a C++20 compiler, and SDL3 from the distro or from the pinned source when the
+distro has none:
 
 ```bash
 ./play.sh                        # your own copy of the game in ./game/, Ultima II
 ./play.sh u3                     # any title from tools/games.js: u1, u3, british, u1demo, u2demo, u3demo
+./play.sh u1demo --locale en     # a demo with its narration in English
 ./play.sh --headless 120         # no window, writes build/play/<title>/shot.png
-./play.sh u1demo --cpu-rate=40   # the demos already start at 20; this overrides it for one run
 ```
 
-It needs a C++20 compiler, and SDL3 from the distro or built from the pinned source if the
-distro has none. **If no window appears, run with `--graphics=sdl` explicitly**: the answer is a
-refusal naming the cause, where the default quietly falls back to no graphics. Over ssh the cause
-is almost always the X cookie rather than `DISPLAY`, and the refusal prints the two lines that find
-it. It extracts what it needs from your disc into
-`build/play/`, fetches the font ROM, and unpacks a save disk with three characters on it
-if you have none. A published release ships the same binary already built, with SDL linked
-in and no compiler needed at all, and that binary takes no arguments: unpack it, put your copy
-of the disc image in `game/` beside it, and run it. The asset is named for the title it carries
-(`fm-u2-linux-x86_64`, `fm-u1demo-linux-x86_64`, and so on), and a build from a clone produces
-`./u2`, `./u1`, `./british` instead, so run whichever of those you have. It reads the program, TBIOS and the
-game's graphics and sounds out of the image itself and keeps them under `game/extracted/`, so
-after the first run the image can be removed. Characters are plain files in `game/saves/`, not a
-floppy image, so there is nothing to format before you can save one.
+That builds into `build/play/<title>/` and produces `./u2`, `./u1`, `./british` rather than the release names, so run
+whichever of the two you have.
 
 **The port is early and buggy, and the route matters.** Character creation works, and the
 save disk is writable, so a character you make persists. The route that has actually been

@@ -28,6 +28,24 @@ address, the stack field at `0x0e` is a plausible one, and the bytes at `entry` 
 `tools/games.js` is that table, and `node tools/games.js --table` regenerates it. Anything that needs a title's
 executable name, entry, stack, selector, seed file or save disk asks the file rather than restating it.
 
+## The fourteen assets a release publishes
+
+Every title on both platforms, one file each, all built from the committed modules and named `<id>` and `<platform>`:
+
+| id | Linux | Windows |
+|---|---|---|
+| `u1` | `fm-u1-linux-x86_64` | `fm-u1-windows-x86_64.exe` |
+| `u2` | `fm-u2-linux-x86_64` | `fm-u2-windows-x86_64.exe` |
+| `u3` | `fm-u3-linux-x86_64` | `fm-u3-windows-x86_64.exe` |
+| `british` | `fm-british-linux-x86_64` | `fm-british-windows-x86_64.exe` |
+| `u1demo` | `fm-u1demo-linux-x86_64` | `fm-u1demo-windows-x86_64.exe` |
+| `u2demo` | `fm-u2demo-linux-x86_64` | `fm-u2demo-windows-x86_64.exe` |
+| `u3demo` | `fm-u3demo-linux-x86_64` | `fm-u3demo-windows-x86_64.exe` |
+
+Both lists come from `node tools/games.js --ids` inside the two packaging scripts, and the workflow's publish step refuses
+any file that is not one of the fourteen. Every Linux asset has been run. Of the Windows ones, the three games load and
+play under Wine and the four newer files have never been executed, which the release notes say next to each digest.
+
 **`BRITISH.EXP` is not a game.** Measured from its own strings: it references `\GRAPH\HEADTTL.TIF` and
 `\GRAPH\BRIBRI.TIF` and the same sound bank as Ultima II (`\SND\ULTIMAFMB`, `BUMP`, `FIRE`, `WHAT`, `MAGIC3`,
 `BUL1`, `MAGIC4`, `KATANA1`, `MONSTER1`, `BOMB5`, `DOOR3`, `BOMB4`, `UZUMAKI1`, `MAGIC2`, `BOMB2`). A publisher's
@@ -53,7 +71,7 @@ from their committed modules since 2026-11-12, and what that took is in [docs/po
 | the save disk | `saves/<id>-test.hdm` | partly: `saves/u3test.hdm` |
 | the doc page | `docs/port-<id>.md` | begun: `docs/port-british.md` and `docs/port-demos.md` follow the spelling, `docs/u1-port.md` and `docs/u3-port.md` do not |
 | environment variables | one neutral `PORT_*` namespace | not done, 30+ `U2_*` names are shared by U2 and U3 today |
-| release assets | `fm-<id>-<os>-<arch>` | done: `tools/release-package.sh` builds one binary per id from `tools/games.js --ids`, so all seven Linux titles ship. Windows carries the three games only, and the release notes say so |
+| release assets | `fm-<id>-<os>-<arch>` | done: both packaging scripts build one binary per id from `tools/games.js --ids`, so all seven titles ship for Linux and for Windows, fourteen assets |
 | the link mode | static SDL3 from `tools/sdl-from-source.sh`, shared refused | done: CMake stops on a shared SDL3, `-DPORT_ALLOW_SHARED_SDL=ON` is for a link check that ships nothing |
 
 The environment variables are the ones that will hurt first, because U3 already uses `U2_SHOT` and `U2_STACK` and

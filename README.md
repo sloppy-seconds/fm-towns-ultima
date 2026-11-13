@@ -36,37 +36,54 @@ is fine.
 
 ## Play the recompiled port
 
+Seven titles are recompiled and playable, each as one file per platform rather than an archive: the three games, the
+publisher's message from Lord British, and the slideshow that introduces each of the three episodes.
+
+| title | Linux | Windows | reads from your disc |
+|---|---|---|---|
+| Ultima I, *The First Age of Darkness* | `fm-u1-linux-x86_64` | `fm-u1-windows-x86_64.exe` | `\DARKNESS.EXP` |
+| Ultima II, *Revenge of the Enchantress* | `fm-u2-linux-x86_64` | `fm-u2-windows-x86_64.exe` | `\ENCHANT.EXP` |
+| Ultima III, *Exodus* | `fm-u3-linux-x86_64` | `fm-u3-windows-x86_64.exe` | `\EXODUS.EXP` |
+| the message from Lord British | `fm-british-linux-x86_64` | `fm-british-windows-x86_64.exe` | `\BRITISH.EXP` |
+| the Ultima I demo, Episode I | `fm-u1demo-linux-x86_64` | `fm-u1demo-windows-x86_64.exe` | `\UT1DEMO.EXP` |
+| the Ultima II demo, Episode II | `fm-u2demo-linux-x86_64` | `fm-u2demo-windows-x86_64.exe` | `\UT2DEMO.EXP` |
+| the Ultima III demo, Episode III | `fm-u3demo-linux-x86_64` | `fm-u3demo-windows-x86_64.exe` | `\UT3DEMO.EXP` |
+
+Put your own copy of the disc image beside the file you want and run it. It reads the program, TBIOS and the game's own
+graphics and sounds out of that image, keeps what it reads under `extracted/`, and after the first run the image is
+optional. Characters live as plain files in `saves/`, so there is no floppy image to create either. Nothing else is
+required: SDL and the glyph ROM are inside the binary, and `--licences` prints every notice compiled into it.
+
+**The three games play.** The other four are not games and are not offered as such: the message from Lord British is
+the publisher's splash, and the three demos are the slideshow that introduces each episode. They run their real
+translated code and show what they were built to show, which is the cheapest demonstration that the machine layer
+underneath the games is right. The demos also play their narration in English, from tables in [`locale/`](locale/),
+and start at a fifth of the machine's clock so the text can be read.
+
+**What has been tested, on which platform.** All seven Linux binaries run here, and all seven have been played from a
+real disc on this machine. The three games' Windows builds load and play under Wine, which is a proxy and not the thing
+itself. The four newer Windows builds pass the same packaging path and their import tables were checked, but nobody has
+executed those files yet, on Wine or anywhere else. Nothing here has run on a real Windows machine, and macOS has not
+been tried at all, because this project has access to neither. Treat all of it as likely to work rather than supported,
+and a failure on real hardware is the most useful report you can send.
+
+At the game menu pick *Journey Onward* and a character that already exists, or *Generate Character* to make one. `Ctrl-Q`
+or closing the window ends the run. Read **[what is broken](docs/port-defects.md)** first.
+
+### From a clone, without a release binary
+
+A clone has no binary, and does not need one: the recompiled module is committed in `module/`, so the build is cmake
+over what is already there. `./play.sh <title>` does that and then runs it.
+
 ```bash
 # your own copy of the game goes in ./game/
 ./play.sh                       # Ultima II, the default
 ./play.sh u3                    # or u1, british, u1demo, u2demo, u3demo
+./play.sh u1demo --locale en    # a demo with English narration
 ```
 
-The release is one file per title, not an archive: `fm-u1-linux-x86_64`, `fm-u2-linux-x86_64`
-and the rest, or the matching `.exe` on Windows. Put your copy of the disc image beside one
-and run it. It reads
-the program, TBIOS and the game's own graphics and sounds out of that image, keeps what it
-reads under `extracted/`, and after the first run the image is optional. Characters live as
-plain files in `saves/`, so there is no floppy image to create either. Nothing else is
-required: SDL and the glyph ROM are inside the binary, and `--licences` prints every notice
-compiled into it.
-
-The Linux binaries are the tested ones. There are seven, one per title on the disc: the three
-games, the publisher's splash `fm-british-linux-x86_64` (the message from Lord British), and
-`fm-u1demo-linux-x86_64`, `fm-u2demo-linux-x86_64` and `fm-u3demo-linux-x86_64`, the slideshow
-that introduces each episode. **The three games play. The other four are not games**: they run
-their real translated code and show what they were built to show, which is the cheapest
-demonstration that the machine layer underneath the games is right.
-
-The Windows builds are the three games only, checked under Wine, where all three load and a game can be launched and played,
-but none has run on a real Windows machine, because this project has no access to one. Treat them as
-likely to work rather than supported, and a failure on real hardware is the most useful report.
-
-One command. It builds the port from the recompiled module that is committed in `module/`,
-so there is no recompile, no container and no toolkit needed, and it fetches the font ROM
-if you have not. At the game menu pick *Journey Onward* and a character that already
-exists, or *Generate Character* to make one, which works and persists to the save disk.
-`Ctrl-Q` or closing the window ends the run. Read **[what is broken](docs/port-defects.md)**first. From the zip to a built binary by hand: **[build the port from source](docs/port-from-source.md)**.
+It needs a C++20 compiler and an SDL3, and builds the pinned SDL3 as a static archive when the distro's is missing or
+shared. From the zip to a built binary by hand, every step shown: **[build the port from source](docs/port-from-source.md)**.
 
 ## Play the original, in a browser
 
@@ -284,22 +301,16 @@ exists, or *Generate Character* to make one. `Ctrl-Q` or closing the window ends
 The tested route, and every known defect with the observation that found it, is
 [what is broken in the port](docs/port-defects.md).
 
-The simplest route is native, and it needs no container. The recompiled module is committed
-in `module/`, so there is nothing to recompile:
+**In this container, not on the host.** The bar at the top of the page is the emulator. The port is the same machine
+with the game's own 386 code recompiled, served on the other container, and `play.sh` is what runs inside it:
 
 ```bash
-./play.sh                       # your own copy of the game in ./game/
-./play.sh u3                    # any title: u1, u3, british, u1demo, u2demo, u3demo
-./play.sh --headless 120        # no window, writes build/play/<title>/shot.png
-./play.sh u1demo --cpu-rate=40  # slower than the machine, for this run only
+TITLE=u3 ./tools/x-run.sh start   # any title, u2 is the default
+./tools/x-run.sh shot out.png     # what the port is showing
 ```
 
-`play.sh` builds the port with cmake, which needs a C++20 compiler and an SDL3, and it builds
-the pinned SDL3 as a static archive first when the distro's is missing or shared, so a plain
-clone on a plain machine still gets a binary. The title word is the build's target: it compiles
-that title's committed module from `module/<title>`, asks the disc for that title's executable,
-and gives the window that title's name. It extracts the program and `TBIOS.BIN` from your disc
-into `build/play/<title>/`, and fetches the font ROM.
+For a window on your own machine instead, either take the release binary for the title or run `./play.sh <title>` from a
+clone, both described at the top of this file.
 
 For a headless or remote machine the container serves the same port over noVNC, and it is
 also the route for regenerating the module from the disc:
@@ -330,6 +341,9 @@ release archive ships a binary that needs no compiler at all. What a release car
 and what it never will: [licensing and preservation](docs/licensing.md).
 
 ### Does this work on macOS or Windows?
+
+**This section is about the emulator container, not the port.** The port ships a Windows binary per title, built by CI and
+listed at the top of this file. What follows is the Tsugaru route.
 
 **Untested.** Stated plainly rather than implied.
 
