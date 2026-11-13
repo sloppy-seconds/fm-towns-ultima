@@ -174,11 +174,13 @@ node tools/cserve.js &
 
 Options: `--port 8097`, `--api http://127.0.0.1:8096`,
 `--image saves/dos62v6.hdm`, `--container dosboot`, `--timeout 90000`.
+Two more exist for link experiments: `--linker` names the linker the link batch invokes (default
+`Q:\HC386\BIN\386LINK.EXE`) and `--extra host/file.EXE` stages one extra file onto the transport floppy, so
+`--linker 'A:\LNK88.EXE' --extra /path/LNK88.EXE` links with a linker that is not on the CD. Both were added to
+date the link stage, and the measurement they produced is in `docs/highc-authentic-toolchain.md`.
 
 ## What it does not do
 
-- **Link.** Only compilation. `386LINK.EXE` has never been driven; see
-  `docs/compiling-on-fm-towns.md`.
 - **Run more than one compile at a time.** By design.
 - **Touch the second floppy.** `FD1` does not work on this BIOS and is not
   needed; the image-as-bus approach replaces it.

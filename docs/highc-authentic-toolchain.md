@@ -367,3 +367,33 @@ the first has ever had a dated candidate. There are now two Phar Lap linkers:
 The cheap experiment this enables: link one identical object set with both and diff the images. If they agree, the
 linker vintage does not matter and that half of byte identity is closed. If they differ, the difference is a
 fingerprint to look for in the game's own image.
+
+## Measured: 386|LINK 2.0 emits the game's `MP` container, the CD's 2.2dJ emits `P3`
+
+Run 2026-11-13 in the DOS guest. One object, four functions and 45 bytes of code, compiled once by `HCD386.EXE` and then
+linked twice with identical, empty linker flags, so the linker is the only variable. Both banners were read off the
+guest's own screen rather than from `strings`.
+
+| linker | banner | output | signature | sha256 |
+|---|---|---|---|---|
+| the 1988 tool-kit floppy | `386|LINK: 2.0 -- Copyright (C) 1986-88 Phar Lap` | 564 B | `MP` | `cf0b589d5c3ae87c` |
+| the SDK CD | `386|LINK: 2.2dJ -- Copyright (C) 1986-90 Phar Lap` | 564 B | `P3` | `77a8443181f301ba` |
+
+31 of the 564 bytes differ: `0x0-0x1` (the signature), then `0x2`, `0x4-0x8`, `0xa-0xd`, `0x10`, `0x12`, `0x13`,
+`0x15`, `0x18`, `0x1c`, `0x27`, `0x2a` in the header, and `0x5a-0x5d`, `0x74`, `0x180-0x18c` in the payload. So the
+difference is not only the container marker. The two linkers also disagree about a handful of header and table bytes.
+
+**`-NOPACK` is not the way to get `MP`.** The CD linker with `-NOPACK` returned the identical sha256 to the CD linker
+without it. An `MP` image came free from the older linker instead, so the container question is answered by vintage,
+not by a flag.
+
+**What this changes.** `DARKNESS`, `ENCHANT` and `EXODUS` are `MP` flat images. The linker that emits `MP` by default is
+the 1988 one from the tool-kit floppy, not the kit's own on the CD, so for the link half of byte identity the older
+binary is now the candidate. What it does not establish is the size of the disagreement at game scale: 31 differing
+bytes on a 564-byte image says nothing about a 400 KB one, and the game-scale payload comparison has not been run.
+
+**Two method notes, both from this run.** A `POST /api/reset` reboots the guest, so a run started straight after a
+reset types its batch into a booting machine and fails as `link did not finish`. And a long command line typed with
+`xdotool` arrives corrupted often enough that a hand test which used one reported `command not found` for a path that
+exists. The batch file is the reliable transport, so the comparison was made through `cserve --linker` rather than at
+the prompt.

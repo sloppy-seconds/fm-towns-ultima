@@ -32,6 +32,12 @@
 // Usage:
 //   node tools/cserve.js [--port 8097] [--api http://127.0.0.1:8096]
 //                        [--image /data/dos62v6.hdm] [--container dosboot]
+//                        [--linker 'Q:\HC386\BIN\386LINK.EXE'] [--extra host/path.EXE]
+//
+// --linker and --extra exist for one experiment: link the same object with an older
+// 386|LINK and diff the result. --extra stages that older linker onto the transport
+// floppy, so --linker can name it as A:\LNK88.EXE. Both default to the kit's own
+// linker and to staging nothing, so an existing caller is unaffected.
 //
 // Every host-side floppy operation is mtools against the image on the host, so
 // the path given is the HOST path; the guest-side path used in emulator console
@@ -66,6 +72,10 @@ const PODMAN = PODMAN_PARTS[0];
 const PODMAN_PREFIX = PODMAN_PARTS.slice(1);
 const DISPLAY = opt('display', ':99');
 const COMPILE_TIMEOUT_MS = Number(opt('timeout', 90000));
+// The linker the link batch invokes, and one extra file to put on the transport floppy.
+// Named as guest paths, because the batch runs inside the guest and A: is the transport.
+const LINKER = opt('linker', 'Q:\\HC386\\BIN\\386LINK.EXE');
+const EXTRA_FILE = opt('extra', '');
 // The image a reset restores from. Never written to by the API, so it stays
 // pristine no matter what happens to the working copy.
 const PRISTINE = path.resolve(ROOT, opt('pristine', 'saves/dos62v6.pristine.hdm'));
@@ -362,7 +372,7 @@ async function link({ source, name = 'LN', cflags = '', lflags = '', outName = n
 		'SET INCLUDE=Q:\\HC386\\INC',
 		'SET LIB=Q:\\HC386\\SMALL',
 		`Q:\\HC386\\BIN\\HCD386.EXE A:\\${srcName}.C -obj A:\\${objName}.OBJ ${cflags} -dir Q:\\HC386\\INC > A:\\${logFile}`,
-		`Q:\\HC386\\BIN\\386LINK.EXE A:\\${objName}.OBJ -lib Q:\\HC386\\SMALL\\HCE ${lflags} > A:\\${doneFile}`,
+		`${LINKER} A:\\${objName}.OBJ -lib Q:\\HC386\\SMALL\\HCE ${lflags} > A:\\${doneFile}`,
 	].join('\r\n') + '\r\n';
 
 	assertWritable();
@@ -386,6 +396,9 @@ async function link({ source, name = 'LN', cflags = '', lflags = '', outName = n
 	}
 	writeImageFile(`${srcName}.C`, Buffer.from(crlf(source), 'latin1'));
 	writeImageFile(batFile, Buffer.from(bat, 'latin1'));
+	if (EXTRA_FILE) {
+		writeImageFile(path.basename(EXTRA_FILE).toUpperCase(), fs.readFileSync(path.resolve(ROOT, EXTRA_FILE)));
+	}
 
 	await attachFloppy();
 	await xdoKey('Return');
