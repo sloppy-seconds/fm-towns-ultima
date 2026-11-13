@@ -179,6 +179,41 @@ That is why no BIOS call looked like a tile draw: the view is a word table built
 frame reaches the BIOS through the `ah=0x25` page blit. `0xe3d24` follows with the same 64x64 loop and is the next
 thing to read, because it is where those cells become pixels.
 
+## The view table's two accessors, and the player marker
+
+Reading every instruction that names `0x77e90` or `0x40e90`, decoding only from function entries, gives five functions
+and completes the picture of the table. There are two primitives:
+
+```
+0xf3e24  view_set(col, row, cell)      ; 6 instructions
+         mov eax,[esp+0xc] / shl eax,7      ; row * 128
+         mov edx,[esp+8] / mov cx,[esp+4]
+         mov [eax+edx*2+0x77e90],cx         ; cell = cx
+
+0xefb20  view_get(col, row)            ; 17 instructions
+         mov eax,esi / shl eax,7
+         movsx ecx,word [eax+edi*2+0x77e90] ; the cell
+         ... compare (col,row) with [char+0xcdf9f] and [char+0xcdfa3]
+         mov eax,0x10                       ; if equal, return 0x10 instead
+```
+
+The comparison is against two fields of the 351-byte character record indexed by `0xceca0`, and on a match it returns
+`0x10` rather than the stored cell. So **cell `0x10` is the player's own square**, and the table holds the whole view
+including the party.
+
+| function | role |
+|---|---|
+| `0xe3c84` | map to view, 64x64, `bank*4096 + row*64 + col` in, `row*128 + col*2` out |
+| `0xe3d24` | view back to map, the same two indices in reverse |
+| `0xf3e24` | `view_set(col,row,cell)` |
+| `0xefb20` | `view_get(col,row)`, with the player override |
+| `0xe325c` | reads view cells, next to be read |
+
+A correction to this repository's own notes: `0xf3e24` has been described as the pixel writer. It writes a 16-bit
+**cell** into the view table, not a pixel. The pixel pass is still unfound, and the honest next step is to fix the
+address frame for `tools/callers.py`, which reports zero near callers for all three of these functions even though they
+must be called, and then follow `0xe325c`.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
