@@ -417,6 +417,18 @@ walls while the opaque wall and door panels simply overwrite.
 `0xcd7f4` is a **cell-to-tile-pointer table**, and `0xe31b0` permutes pairs of it, which is the only place randomness
 appears in the draw path.
 
+## There is no tower art set: two banks, two roles in one view
+
+The brief's `§3.7` hypothesis, that DUNG1 and DUNG2 are a dungeon set and a tower set selected by location, was
+**retracted by the owner on 2026-11-13**, and the code agrees with the retraction: `0xe8a00` maps **one contiguous cell
+space** across both banks (`0x00`-`0x2b` to `0x83378`, `0x2c`-`0x6b` to `0x8b378`) and the same blitter draws both into the
+same 11x11 surface. Two banks feeding one picture are two roles in that picture, not two places.
+
+Cells above `0x6b` come from an explicit, curated list at `0xcd9a4` built by `mov dword [0xcd9a4], 0x93578` and its
+neighbours. Those entries are **individual tiles from several banks**, not bank bases (`0x93578`, `0x93978` are two tiles
+apart, `0x95b78` is far off), which is the shape a specials table has: doors, chests, monsters and the player each get a
+hand-picked tile rather than a slice of a bank.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
