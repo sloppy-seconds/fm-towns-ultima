@@ -260,12 +260,15 @@ So the project proceeds on 1.7, under three rules that keep the claim honest:
 - **A match is strong evidence, a mismatch is weak.** If source plus 1.7 reproduces bytes exactly, the plausible reading
   is that the original was the same source under a code generator that agrees with 1.7 on this construct. A mismatch
   could be different C or a marginal version difference, and those remain indistinguishable.
-- **One measured difference is on record and becomes the test.** The 220 `enter imm16, 0` prologues in `ENCHANT.EXP`
-  are not something the 1.7 corpus emits, and `a41_nested` refuted the language-construct explanation for them. If a
-  V1.4 kit ever turns up, the prediction to check first is that **1.4 emits `enter` frames where 1.7 emits
-  `push ebp; mov ebp, esp`** for the same source. Confirming that would turn the largest unexplained family in the
-  binary from a mystery into a version fingerprint, and it would also tell us that the stand-in has a known blind spot
-  we can name rather than a general unreliability.
+- **One measured difference is on record and becomes the test, with one correction to its size.** The validated census
+  of `enter` function entries in `ENCHANT.EXP` is **71**, of which 67 sit in the last 89 KB of the image and only 4 in the
+  game's own 983 KB, all of those assembly stubs. "220" was quoted here and is not reproducible: a raw `0xC8` byte count
+  gives 472 and the census gives 71. Nothing the 1.7 corpus emits matches the 71, and `a41_nested` refuted the
+  language-construct explanation for them. If a V1.4 kit ever turns up, the prediction to check first is that **1.4 emits
+  `enter` frames where 1.7 emits `push ebp; mov ebp, esp`** for the same source. Confirming that would turn the largest
+  unexplained family in the binary from a mystery into a version fingerprint, and it would also tell us that the stand-in
+  has a known blind spot we can name rather than a general unreliability. Because the family is confined to the runtime
+  region rather than the game's code, the fingerprint may belong to the library's build rather than the game's.
 
 ### The dates do not all fit, and that is the live question
 

@@ -24,9 +24,29 @@ the 1.73 kit, and both emit idioms the plain-C corpus could not have produced:
 | `a42_caserange` | `case 'A'..'Z':`, a Pascal-style **case range** | a **bounds chain**: `cmp edx, 0x30 / jb / cmp edx, 0x39 / jbe / ...` per range, which is neither the dense jump table of `a15` nor the equality chain of `a16` |
 
 `a41` also **refutes the obvious reading of the `enter` family**: a closure is the construct that would need a frame the
-callee did not create, and this one frames with `push ebp; mov ebp, esp`, never `enter`. So the 220 `enter imm16, 0`
+callee did not create, and this one frames with `push ebp; mov ebp, esp`, never `enter`. So the `enter imm16, 0`
 prologues in `ENCHANT.EXP` are not nested functions, and the construct that would explain them is still a different
 kit.
+
+**Measured on `ENCHANT.EXP`, 2026-11-13: the nested-function reading holds for the 22 sites, and they are library code.**
+Every `mov ecx, ebp` site lies above `0x102afd`, so none is in the game's own region below `0xf0000`. All 22 callees open
+with `55 8b ec 51` (`push ebp; mov ebp, esp; push ecx`), and 13 of the 22 then load that slot and dereference it at a
+negative displacement:
+
+```
+0x104d92  mov edx, [ebp-4] / mov ecx, dword ptr [edx - 8]
+0x104ae8  mov eax, [ebp-4] / mov dword ptr [eax - 0x10], 1
+0x104522  mov eax, [ebp-4] / movzx edx, byte ptr [eax - 0x21]
+0x103b09  mov ebx, [ebp-4] / push dword ptr [ebx + 8]
+```
+
+Negative displacements into a caller-supplied frame are reads of the enclosing function's locals, which is the captured
+variable signature this atlas describes.
+
+**A probe that answered a different question, recorded because it nearly became a refutation.** Searching the callees for
+`[ecx - n]` operands finds **none**, because the child spills the link from `ecx` to `[ebp-4]` and dereferences the spilled
+copy. Judging the family by that scan would have "refuted" a signature that is present. The probe that settles it follows
+the store.
 
 The `ecx` static link is a **positive signature that can be searched for**, and it hits: `mov ecx, ebp` followed by a
 `call` occurs **22 times in each of `ENCHANT.EXP`, `EXODUS.EXP` and `DARKNESS.EXP`**, and zero times through an indirect

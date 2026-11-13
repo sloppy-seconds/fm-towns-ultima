@@ -122,6 +122,30 @@ source would not appear in two forms in one image.
 **Not worth trying:** a second compiler release. Both binaries carry the same `1983-1988`
 runtime banner.
 
+## Region split, measured 2026-11-13
+
+`node tools/entercensus.js --file ENCHANT.EXP --base 0x20 --json` gives 739 validated entries. Split at `0xf0000`:
+
+| region | entries | `enter` | `push ebp` | other |
+|---|---|---|---|---|
+| head, `0x20`-`0xeffff`, 983 KB | 282 | **4**, all `stub` kind, at `0x249`-`0x2a9` | 156 | 122 |
+| tail, `0xf0000`-`0x105d0e`, 89 KB | 457 | **67**, of which 52 C-frame | 162 | 228 |
+
+So the game's own 983 KB contains **no `enter`-framed C function at all**, and 67 of the 71 are in the last 89 KB. The four
+early ones are assembly stubs in the startup area, not compiler frames.
+
+The tail is not uniform either. A contiguous enter-only band runs `0xfdb33`-`0xfe46e`, and above it the two forms
+alternate function by function. The string `High C Run-time Library Copyright (C) 1983-1988 MetaWare Incorporated.` sits at
+`0x101c58`, inside the mixed zone, and all 22 nested-function static links in the image are above `0x102afd`
+(`docs/idiom-atlas.md`).
+
+That is a layer boundary with a date on it. The tail is where the linker put the runtime, the runtime is labelled
+1983-1988, and the compiler is labelled 1983-1991. So the unexplained frame form belongs to the library's build, and the
+question it raises is what built that 89 KB rather than what built the game.
+
+**A count correction.** "220 `enter` prologues" has been quoted in this repository and is not reproducible: the raw count
+of `0xC8` bytes in `ENCHANT.EXP` is 472, and the validated census is 71. The census is the number to use.
+
 ## Related
 
 - `docs/enter-is-platform.md`: refutes the different-compiler reading
