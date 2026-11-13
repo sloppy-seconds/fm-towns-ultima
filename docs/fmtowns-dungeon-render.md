@@ -264,6 +264,45 @@ reported no internal structure in DUNMON2 and DUNMON3.
 The rule that follows: any comparison of 4bpp TIFF-wrapped art here must decode low-nibble-first, and the raw tile banks
 (`DUNG1`, `DUNG2`, `CHEST`) are high-nibble-first. Two conventions on one disc, and confusing them looks like bad art.
 
+## Read watches: no guest code reads tiles to draw
+
+Two read watches, run live in the dungeon through the port (`U2_RDWATCH=<linear>:<len>`, which logs one line per
+**distinct** reading instruction).
+
+**Watch 1, the four derived banks** `0xb5578`/`0xb7578`/`0xb9578`/`0xbb578`, 32 KB. Eight distinct readers, and four of
+them are the generator reading back the bank it just wrote (`0xe7cb5`, `0xe7cd2`, `0xe7cef`, `0xe7d0c`). The other four
+read at or past `0xbd578`, which is one byte beyond the last bank: a different structure, not the tiles.
+
+**Watch 2, the four source tables** `0x7b578`, `0x7c778`, `0x7f778`, `0x7f978`. Twenty-seven distinct readers, every one
+of them between `0xe797d` and `0xe91ca` — the loader and the generator's own setup. Nothing outside that cluster touches
+them.
+
+So **no guest instruction reads tile pixels for the purpose of drawing a frame.** The tile data is loaded, derived and
+re-derived, and then never read again by the program's own code.
+
+The remaining explanation, and it fits every earlier measurement: the copy happens on the **BIOS side**, inside the
+handler for `ah=0x2b` — the call we traced 99 times in one dungeon walk, taking a table pointer in `s1`, a count in
+`s2` and a descriptor in `s5`. That also explains why every attempt to find a tile blitter in guest code failed: there
+is none. Guest code builds the view table and issues one BIOS call; the BIOS reads the tiles.
+
+The next thing to read is therefore the `ah=0x2b` handler, not more guest code.
+
+## The generator at `0xe7b58`
+
+Sixteen passes, each writing a 512-byte tile into one of four derived banks:
+
+| site | destination | source table |
+|---|---|---|
+| `0xe7bb2` | `0xb5578` | `0x7b578` |
+| `0xe7c15` | `0xb7578` | `0x7c778` |
+| `0xe7c78` | `0xb9578` | `0x7f778` |
+| `0xe7cdb` | `0xbb578` | `0x7f978` |
+
+Each pass shifts a table by `0x20` dwords (128 bytes) using an overlapping `mov [esi+edi*4+0x20], [esi+edi*4]` loop, then
+copies `0x80` dwords (512 bytes) to `base + i*512`. So the intermediate depth tiles the brief assumed were stored on the
+disc are **generated at run time** from four source tables, which is why DUNG1's 64 tiles cover more depth steps than
+64 indices could.
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
