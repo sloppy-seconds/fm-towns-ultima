@@ -17,6 +17,16 @@ and what a usable compiler would have to do differently.
 
 It compiles. That much is settled and reproducible.
 
+**And the dates alone rule it out, before a single line is compiled.** Ultima Trilogy shipped in **October 1990** (the
+disc is dated 1990 in this repository's own record, `docs/meta-analysis-review.md`), while the 2.31 kit's `README` is
+dated **April 1991** and its archive is labelled **1992**. A compiler released six months after the game cannot have
+built it. That argument is independent of codegen, needs no emulator and no compile, and should have been made before
+the kit was ever booted: it eliminates 2.31 as a candidate on chronology alone.
+
+What the compile-and-diff below then establishes is a different and still useful thing: **which** differences, so that
+any later candidate can be tested against them, and so that the shape of the game's arithmetic is recorded as arithmetic
+rather than as a version number.
+
 ## The evidence that it is the wrong compiler
 
 The method was compile-and-diff on a real routine. Two were tried, and they disagree in a way that identifies the
