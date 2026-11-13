@@ -238,6 +238,29 @@ Two consequences that matter for the renderer:
 And a limit on this measurement: it counts non-zero pixels, which proves transparency or its absence and nothing about
 what is drawn. `DUNMON1-3.TIF` are not in `extracted/GRAPH/`, so the monster banks are still unmeasured here.
 
+## The monster banks: the 4:1 ladder is real, the LOD reading is not yet supported
+
+`DUNMON1/2/3.TIF` are 213,504 / 53,760 / 13,824 bytes, which is 512-byte header plus **416 / 104 / 26 tiles of 32x32**
+(512 bytes each). Exactly 4:1 at each step, and 26 is the number the brief calls the smallest bank's tile count.
+
+That much is solid. What is **not** supported is the obvious reading, that the three banks are one set of 26 monsters
+at three scales. Three measurements, each designed so it could fail:
+
+| test | result | verdict |
+|---|---|---|
+| small tile n vs the 2x2 block at 4n and the 4x4 block at 16n | 41.6% pixels equal, control (wrong monster) 32.8% | too weak to claim the same picture scaled |
+| groups of 4 (DUNMON2) and 16 (DUNMON1) as one monster's frames | within-group 42.3% vs across-group 41.8%; 45.1% vs 46.7% | no grouping in file order |
+| same, by stride | DUNMON2: stride 1 43.3%, 4 41.3%, 26 32.4%. DUNMON1: **stride 1 63.4%**, 16 41.7%, 26 34.8% | DUNMON1 has *contiguous runs* of similar tiles, the others do not |
+
+So DUNMON1 looks like animation sequences stored one after another, while DUNMON2 and DUNMON3 show no internal
+structure at stride 1, 4, 13, 26 or 52. Also measured on DUNMON3: 25 of 26 tiles have ink, and adjacent tiles are 44.1%
+similar against 43.1% for tiles eight apart, which is to say the 26 are 26 different pictures rather than 26 frames.
+
+What this leaves open: whether the bank is chosen by distance at all, and if so by what index. Counts alone cannot
+settle it, and the tests above refute the two layouts that the count ratio predicted. The way to settle it is the same
+route that worked for the walls: find where the monster's tile is selected in code, in the compositor's overlay arrays
+(`0xce3c8` present, `0xce488` row, `0xce408` column, `0xce3e8` tile).
+
 ## Open, and the frame question that gates the next step
 
 - The block at `0xe7815` has **no near callers** (`tools/callers.py ENCHANT.EXP 0xe7815 0xe7816` reports zero), so it is
