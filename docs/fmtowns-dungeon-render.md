@@ -470,6 +470,29 @@ What that leaves is narrow: the *addresses*, the *sizes* and the *roles* are mea
 `0x7b378` / `0x83378` / `0x8b378` to `DUNG1.TIF` / `DUNG2.TIF` / `CHEST.TIF` is unproven, and it needs either that string
 table decoded or one dungeon session with a dump of those three addresses.
 
+**Bank identity, measured:**
+
+| address | evidence | identity |
+|---|---|---|
+| `0x7b378` | bytes 16-31 all `0x33`, 100% match to `DUNG1` and 59% to `DUNG2` | **`DUNG1`** |
+| `0x8b378` | tile 0 entirely zero, which only `CHEST` has | **`CHEST`** |
+| `0x83378` | bytes 0-15 are `0x33`, shared by both DUNG banks, so not decisive | **`DUNG2`**, by elimination |
+
+That last one is inference, not measurement: three 32 KB loads, three files of exactly 32,768 bytes, two identified. A 32-byte
+dump of `0x483378` would settle it.
+
+**Which corrects an earlier claim on this page.** It was argued that the map's cell values `0..15` landing in bank 0 made
+bank 0 "map art". Named, the cell table reads differently:
+
+```
+cells 0x00-0x2b (44) -> 0x83378 = DUNG2, 44 of its 64 tiles
+cells 0x2c-0x6b (64) -> 0x8b378 = CHEST, exactly its 64 chest-and-ladder tiles
+```
+
+Sixty-four cells for sixty-four `CHEST` tiles is not a coincidence, and `DUNG1` is not in the table at all: it is the
+**generator's source**, feeding the derived depth banks at `0xb5578`. So walls are drawn from generated tiles, and
+doors, chests and ladders are drawn from cell values.
+
 ## The cell to tile table, read literally
 
 `0xe8a00` builds the pointer table at `0xcd7f4` and it is not a construction, it is two runs and a list:
