@@ -523,6 +523,80 @@ void native_000e75c4(X86Cpu &c) {
 	ret(c, c.r[0]);
 }
 
+// 0xe866c (400 bytes, the dungeon view compositor, and the first shadow of a drawing routine).
+//     void f(void) -- blit every sprite in the packet at [0xcda70] into the view surface at 0xbe5f4.
+//
+// The packet is a count followed by (col, row, cell) triples. Entry 1 is blitted LAST, after triples 2..n, and that
+// ordering is the depth sort: the first entry is the nearest object and overwrites the farther ones drawn before it.
+//
+// A cell selects a tile pointer from [0xcd7f4 + cell*4]. The tile is 32x32 at 4bpp, so a cell is col*16 bytes across
+// and row*5632 bytes down in a surface 352 pixels wide, each tile row advancing 0xb0 bytes. The low nibble is the left
+// pixel and the high nibble the right, and palette index 0 is transparent: that nibble keeps whatever the destination
+// already held, which is why a ladder's rungs hide a monster behind them while the gaps do not.
+//
+// TWO DETAILS THAT LOOK LIKE ERRORS AND ARE NOT. The pre-read triple is blitted unconditionally, so at count 0 the
+// original still draws packet[1..3], and that is reproduced. And eax on exit is garbage built from the caller's own ebx
+// and the last pixel written, which is also reproduced because the diff compares registers.
+//
+// The count cannot exceed 0x30 here: the packer fills at most the 47 slots the allocator hands out, so the original's
+// "SPRITE MAX is OVER" message is unreachable from this call site and is not reproduced.
+//
+// THE TICK COUNTS ARE INDICATIVE, NOT MEASURED, and this shadow should be treated as unproven on timing-sensitive routes
+// until they are checked against the twin the way the other rules were.
+namespace {
+
+// The original halves col*32 and row*11*1024 with a cdq/sar pair, which truncates toward zero rather than flooring.
+inline int32_t shadow_trunc_half(int32_t v) { return (v - (v >> 31)) >> 1; }
+
+// One 32x32 tile into the view surface. Returns eax as the original leaves it after the last pixel.
+uint32_t shadow_blit_tile(X86Cpu &c, int32_t col, int32_t row, int32_t cell) {
+	const uint32_t dest = 0xBE5F4u + (uint32_t)shadow_trunc_half(col << 5) +
+						  (uint32_t)shadow_trunc_half((int32_t)(((uint32_t)row * 11u) << 10));
+	const uint32_t tile = data32(c, 0xCD7F4u + (uint32_t)cell * 4u);
+	const uint32_t ebx_high = c.r[3] & 0xFFFFFF00u;
+	uint32_t src = tile, dst = dest, eax = c.r[0];
+	for (int y = 0; y < 0x20; y++) {
+		for (int x = 0; x < 0x10; x++) {
+			const uint8_t t = data8(c, src++);
+			const uint32_t lo = (t & 0x0Fu) ? (uint32_t)(t & 0x0Fu) : (data8(c, dst) & 0x0Fu);
+			const uint32_t hi = (t & 0xF0u) ? (uint32_t)(t & 0xF0u) : (data8(c, dst) & 0xF0u);
+			const uint8_t out = (uint8_t)(lo | hi);
+			wr8(c.sbase[3] + dst, out);
+			eax = ebx_high | out;
+			dst++;
+			tick(c, 12);
+		}
+		dst += 0xB0u - 0x10u;
+	}
+	return eax;
+}
+
+}  // namespace
+
+void native_000e866c(X86Cpu &c) {
+	if (delegate(0xE866Cu)) {
+		p_game::f_000e866c(c);
+		return;
+	}
+	tick(c, 8);
+	const uint32_t packet = data32(c, 0xCDA70u);
+	const int32_t count = (int32_t)data32(c, packet);
+	const int32_t col1 = (int32_t)data32(c, packet + 4u);
+	const int32_t row1 = (int32_t)data32(c, packet + 8u);
+	const int32_t cell1 = (int32_t)data32(c, packet + 12u);
+	uint32_t eax = c.r[0];
+	uint32_t p = packet + 16u;
+	for (int32_t i = 1; i < count; i++) {
+		const int32_t col = (int32_t)data32(c, p);
+		const int32_t row = (int32_t)data32(c, p + 4u);
+		const int32_t cell = (int32_t)data32(c, p + 8u);
+		p += 12u;
+		eax = shadow_blit_tile(c, col, row, cell);
+	}
+	eax = shadow_blit_tile(c, col1, row1, cell1);  // unconditionally, as the original does
+	ret(c, eax);
+}
+
 // 0xe9c2c (21 bytes, 11c's first target, and the reason the target choice became a measurement).
 //     char *f(char *p) { while (*p != '=' && *p != 0) p++; return p + 1; }
 // A LOOP RULE: the cursor is in ecx, because the backward jump is a place the runtime can resume in the twin.
@@ -560,7 +634,7 @@ const X86FuncEntry g_x86_shadows[] = {
 	{0xe5760, native_000e5760}, {0xe5778, native_000e5778}, {0xe5790, native_000e5790}, {0xe5810, native_000e5810},
 	{0xe58b8, native_000e58b8}, {0xe58cc, native_000e58cc}, {0xe58e0, native_000e58e0}, {0xe5a3c, native_000e5a3c},
 	{0xe5c6c, native_000e5c6c}, {0xe5cd4, native_000e5cd4}, {0xe63fc, native_000e63fc}, {0xe642c, native_000e642c},
-	{0xe6c68, native_000e6c68}, {0xe75c4, native_000e75c4}, {0xe9c2c, native_000e9c2c},
+	{0xe6c68, native_000e6c68}, {0xe75c4, native_000e75c4}, {0xe866c, native_000e866c}, {0xe9c2c, native_000e9c2c},
 };
 
 // The module. `size`, `crc` and `image` describe the recompiler's image and are only consulted by the kit's

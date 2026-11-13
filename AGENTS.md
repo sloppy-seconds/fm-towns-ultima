@@ -606,6 +606,21 @@ returns "Do what?".
 
 ## Repository conventions
 
+### Never invoke `podman run` by hand, and always give a container call a timeout
+
+**Use the script that owns the job.** `tools/port-build.sh` builds any title, `tools/x-run.sh` serves the port in a browser,
+`tools/container-run.sh` runs the emulator, `tools/drive.py` and `tools/shadow-diff.py` drive the port over its control
+socket, `tools/atlas-build.py` drives the compiled guest. They carry the mounts, the SELinux `:z` labels and the
+`CCACHE_DIR` path, and they know which entrypoint the image expects.
+
+**A hand-written `podman run ... sh -lc '...'` hung twice in one session on 2026-11-13**, and neither hang was the game's
+fault: nothing imposed a timeout, and in each case the process was still waiting on something a script already handles,
+either stdin or the display stack the container starts for itself. A hand-rolled copy also loses the three things above,
+after which the failure reads as a broken emulator rather than as a missing flag.
+
+So: if no script does what is needed, add the capability to the script that owns that job, or write a new script that takes
+the same care. Do not paste the podman invocation into a shell and hope.
+
 ### Ground truth over guessing
 
 `ENCHANT.EXP` embeds its own asset paths (`Q:\GRAPH\MAP2_1.TIF`,
