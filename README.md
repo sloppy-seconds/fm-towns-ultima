@@ -75,7 +75,8 @@ It reads the program, TBIOS and the game's own graphics and sounds out of your d
 image, so there is nothing to format before you can save one, and a character you create persists.
 
 At the game menu pick **Journey Onward** for a character that already exists, or **Generate Character** to make one.
-`Ctrl-Q` or closing the window ends the run. What is broken, with the play observation that found it, is
+`Ctrl-Q` or closing the window ends the run. `Ctrl-X` saves a screenshot as `u2shot-NNNN.png` beside the program,
+numbered so nothing is overwritten, and prints the path it wrote. What is broken, with the play observation that found it, is
 [what is broken in the port](docs/port-defects.md).
 
 ## What is in the release, and what it is

@@ -196,6 +196,17 @@ U2_SHOT=/var/tmp/u2.png ./fm-u2-linux-x86_64 --graphics=none --frames=600   # no
 happens to be reachable. `--control` opens a JSON control channel so the machine can be stepped, keys pressed and frames
 captured without a window.
 
+Three ways to get a picture, and which to use depends on whether a person is watching:
+
+| route | when |
+|---|---|
+| `Ctrl-X` in the window | playing by hand. Writes `u2shot-NNNN.png`, numbered so nothing is overwritten, into `U2_SHOT_DIR` or the working directory, and prints the path |
+| `U2_SHOT=/path.png` | a scripted run that wants the frame it ends on |
+| `{"cmd":"shot"}` over `--control` | an exact frame, inline as base64 or written with `path=` and `at=` |
+
+`Ctrl-X` is a host key, swallowed before the guest sees it, which matters because plain `X` is Ultima II's eXit. All
+three go through the kit's own renderer, so a hotkey picture and a control-channel picture are the same bytes.
+
 ## The gates
 
 ```bash

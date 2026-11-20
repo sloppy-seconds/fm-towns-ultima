@@ -1791,10 +1791,19 @@ index 7fd99da..71f4c01 100644
      unknown("read of linear %08x (no device)", a & ~0xFFFu);
      return 0;
 diff --git a/runtime/towns_sdl.cpp b/runtime/towns_sdl.cpp
-index 3328d10..221c325 100644
+index 3328d10..dc1ea4e 100644
 --- a/runtime/towns_sdl.cpp
 +++ b/runtime/towns_sdl.cpp
-@@ -20,6 +20,13 @@ struct SdlHost::Impl {
+@@ -2,6 +2,8 @@
+ #include "towns_sdl.h"
+ #include <SDL3/SDL.h>
+ #include <algorithm>
++#include <cstdio>
++#include <cstdlib>
+ #include <string>
+ #include <vector>
+ 
+@@ -20,6 +22,13 @@ struct SdlHost::Impl {
      std::vector<int16_t> sound;
      uint64_t next_ns = 0;                   // the pace without sound: the next frame's time
      std::string title;
@@ -1808,7 +1817,7 @@ index 3328d10..221c325 100644
      int shown_rate = 0;                     // the CPU's rate the title shows
      float mx = 0, my = 0;                   // the host mouse's movement not yet given, in frame pixels
      ~Impl() {
-@@ -35,10 +42,18 @@ struct SdlHost::Impl {
+@@ -35,10 +44,18 @@ struct SdlHost::Impl {
  SdlHost::SdlHost() = default;
  SdlHost::~SdlHost() = default;
  
@@ -1827,7 +1836,7 @@ index 3328d10..221c325 100644
      int w = 640, h = 480, scale = o.scale;
      if (scale <= 0) {
          SDL_Rect r;
-@@ -46,11 +61,21 @@ bool SdlHost::open(const SdlOptions& o, std::string& err) {
+@@ -46,11 +63,21 @@ bool SdlHost::open(const SdlOptions& o, std::string& err) {
          if (SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &r))
              while (w * (scale + 1) <= r.w && h * (scale + 1) + 40 <= r.h) ++scale;
      }
@@ -1851,7 +1860,7 @@ index 3328d10..221c325 100644
      SDL_AudioSpec spec{SDL_AUDIO_S16, 2, kAudioRate};
      p_->audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
      if (p_->audio) SDL_ResumeAudioStreamDevice(p_->audio);
-@@ -87,6 +112,109 @@ static unsigned held_pad(SDL_Gamepad* g) {
+@@ -87,6 +114,109 @@ static unsigned held_pad(SDL_Gamepad* g) {
      return v;
  }
  
@@ -1961,7 +1970,7 @@ index 3328d10..221c325 100644
  void SdlHost::vsync(Machine& m) {
      Impl& s = *p_;
      SDL_Event e;
-@@ -95,18 +223,33 @@ void SdlHost::vsync(Machine& m) {
+@@ -95,18 +225,56 @@ void SdlHost::vsync(Machine& m) {
          case SDL_EVENT_QUIT: throw Stop{0};
          case SDL_EVENT_KEY_DOWN:
              if (e.key.repeat) break;
@@ -1979,6 +1988,29 @@ index 3328d10..221c325 100644
              if (e.key.scancode == SDL_SCANCODE_F5) m.set_cpu_rate(m.cpu_rate - 5);
              if (e.key.scancode == SDL_SCANCODE_F6) m.set_cpu_rate(m.cpu_rate + 5);
              if (e.key.scancode == SDL_SCANCODE_F7) m.set_cpu_rate(100);
++            // Ctrl-X writes the frame to a PNG, because a screenshot is the one artefact this project needs
++            // constantly and there was no way to take one while playing by hand. The guest does not see the
++            // key: plain X is how Ultima II says eXit, so swallowing Ctrl-X keeps the two apart. The file is
++            // never overwritten and its path is printed, because a screenshot nobody can find is no better
++            // than a write that quietly failed.
++            if (e.key.scancode == SDL_SCANCODE_X && (e.key.mod & SDL_KMOD_CTRL)) {
++                const char* dir = std::getenv("U2_SHOT_DIR");
++                char path[512];
++                for (int n = 1; n < 10000; ++n) {
++                    std::snprintf(path, sizeof path, "%s/u2shot-%04d.png", (dir && *dir) ? dir : ".", n);
++                    std::FILE* have = std::fopen(path, "rb");
++                    if (!have) break;
++                    std::fclose(have);
++                }
++                std::vector<uint32_t> frame;
++                int fw = 0, fh = 0;
++                m.render(frame, fw, fh);
++                if (fw > 0 && fh > 0 && write_png(path, frame, fw, fh))
++                    std::fprintf(stderr, "shot      %s\n", path);
++                else
++                    std::fprintf(stderr, "shot      failed to write %s\n", path);
++                break;
++            }
 +            // PATCH, this repository: after the front-end's own keys, hand the keystroke to the program as the
 +            // Towns' keyboard would, when a caller asked for it.
 +            if (on_key) {
@@ -2000,7 +2032,7 @@ index 3328d10..221c325 100644
              break;
          case SDL_EVENT_MOUSE_BUTTON_DOWN: case SDL_EVENT_MOUSE_BUTTON_UP: {
              uint8_t bit = e.button.button == SDL_BUTTON_LEFT ? 0x10 : e.button.button == SDL_BUTTON_RIGHT ? 0x20 : 0;
-@@ -116,6 +259,16 @@ void SdlHost::vsync(Machine& m) {
+@@ -116,6 +284,16 @@ void SdlHost::vsync(Machine& m) {
          }
          case SDL_EVENT_WINDOW_MOUSE_ENTER: SDL_HideCursor(); break;
          case SDL_EVENT_WINDOW_MOUSE_LEAVE: SDL_ShowCursor(); break;
@@ -2017,7 +2049,7 @@ index 3328d10..221c325 100644
          case SDL_EVENT_GAMEPAD_ADDED:
              if (SDL_Gamepad* g = SDL_OpenGamepad(e.gdevice.which)) s.pads.push_back(g);
              break;
-@@ -148,20 +301,52 @@ void SdlHost::vsync(Machine& m) {
+@@ -148,20 +326,52 @@ void SdlHost::vsync(Machine& m) {
      m.render(s.rgb, fw, fh);
      m.display_area(x, y, w, h);
      int cw = std::max(w, 640), ch = std::max(h, 480);
