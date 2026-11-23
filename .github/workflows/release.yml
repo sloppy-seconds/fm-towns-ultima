@@ -207,7 +207,29 @@ jobs:
             created and played, and music and sound effects work. What is still broken is listed with the observation that found
             each one: [`docs/port-defects.md`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/docs/port-defects.md).
 
-            ## Since v0.2.0
+            ## Since v0.4.0
+
+            - Letterbox is the default presentation, so dragging the window resizes the picture and keeps the aspect ratio with
+              bars. Whole multiples with a snap meant a drag of less than half a step landed back where it started, which made the
+              window look unresizable. `--no-letterbox` asks for the snapped behaviour, and the port prints which presentation it
+              opened with, so a log says whether a run is filling the window or snapping.
+            - Pixel-art sampling is the default. The canvas-to-window upscale is now a blit the kit performs rather than SDL's
+              logical presentation, which ignored the texture's scale mode, and the renderer backend can be named and is printed
+              with the presentation, so a screenshot or a log says what the run got.
+            - The dungeon view compositor at guest `0xe866c` is hand-written C++ now, following the rule rather than transcribing
+              instructions: a packet built from (col,row,cell) triples, entry 1 blitted last so it lands on top, and a 32x32 copy
+              with the low nibble on the left, the high nibble on the right and palette index 0 transparent. Two original
+              behaviours are reproduced on purpose, the pre-read triple and the garbage `eax` on exit. Its tick counts are marked
+              indicative rather than measured, so it is unproven on timing-sensitive routes.
+            - `Ctrl-X` writes a numbered `u2shot-NNNN.png` and prints the path. The key is swallowed before the guest sees it,
+              because plain `X` is Ultima II's eXit.
+            - The control socket gained a `poke` for instruments. It needs `--dev`, and it reads the value back, so a write that
+              did nothing cannot pass.
+            - The rest of the interval is measurement rather than features: the dungeon view pipeline end to end, the dungeon art
+              banks and the cell table, every roster save field mapped to its address in the character record, and the hunt for
+              the vintage of High C that built the runtime. `docs/` holds each of those.
+
+            ## Earlier, since v0.2.0
 
             - **CD audio plays what the game asks for.** The character screen no longer falls silent: the port had been reading a
               real-mode buffer that was never mapped onto the program's memory, and sending the table of contents in the wrong number
